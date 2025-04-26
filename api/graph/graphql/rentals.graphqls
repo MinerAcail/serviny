@@ -1,0 +1,85 @@
+
+type Category {
+  id: String!
+  name: String!
+  icon: String
+  serviceId: String
+  createdAt: Time!
+  updatedAt: Time!
+
+}
+
+type InventoryItem {
+  id: String!
+  name: String!
+  description: String
+  price: Float!
+  categoryId: String!
+  available: Boolean!
+  imageUrl: String
+  serviceId: String
+  rating: Float
+  reviewCount: Int
+  updatedAt: Time!
+  createdAt: Time!
+}
+
+
+
+
+
+input CategoryInput {
+  name: String!
+  icon: String
+}
+input rentalInput{
+  category:CategoryInput
+  inventories:InventoryItemInput
+
+}
+input InventoryItemInput {
+  name: String!
+  description: String
+  price: Float!
+  available: Boolean!
+  file: Upload!
+}
+
+
+# Queries
+extend type Query {
+  # Categories
+  
+  categories(serviceId: String): [Category!]!
+  category(id: String!): Category
+  getRentalItems(serviceId: String): [RentalItem!]!
+  getRentalItem(id: String!): RentalItem
+  # Inventory Items
+  inventoryItems(
+    categoryId: ID
+    serviceId: String
+  ): [InventoryItem!]!
+  
+  inventoryItem(id: String!): InventoryItem
+  
+}
+type RentalItem{
+  category:Category
+  inventories:[InventoryItem]
+}
+# Mutations
+extend type Mutation {
+  # Category Mutations
+  createCategory(input: CategoryInput!): Category!
+  updateCategory(id: String!, input: CategoryInput!): Category!
+  deleteCategory(id: String!): Boolean!
+  createRentalItem(input: rentalInput!): RentalItem!
+  updateRentalItem(id: String!, input: rentalInput!): RentalItem!
+  deleteRentalItem(id: String!): Boolean!
+  # Inventory Item Mutations
+  # createInventoryItem(input: InventoryItemInput!,file: Upload!): InventoryItem!
+  updateInventoryItem(id: String!, input: InventoryItemInput!,file: Upload!): InventoryItem!
+  deleteInventoryItem(id: String!): Boolean!
+  
+}
+

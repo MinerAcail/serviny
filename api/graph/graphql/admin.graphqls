@@ -1,0 +1,98 @@
+type Admin {
+  id: String!
+  name: String!
+  type: String!
+  number: String!
+  password: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+type jobRequest {
+  id: String!
+  name: String!
+  email: String!
+  type: String!
+  number: String!
+  state: String!
+  password: String
+  availability: Boolean
+  dpfile: String
+  location: String
+  experience: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input jobRequestInput {
+  name: String!
+  email: String!
+  type: String!
+  number: String!
+  experience: String!
+}
+type jobresponse {
+  email: String!
+  password: String!
+  number: String!
+  type: String!
+}
+type GrowthData {
+  totalOrders: String!
+  currentOrders: String!
+  percentage: String!
+}
+
+extend type Query {
+  getAllSession: [Session]
+  getAdmin(id: String!): Admin
+  getGrowthData(id: String!): GrowthData
+  listAdmins: [Admin!]!
+  reviewApplicate: [jobRequest]
+  reviewAllWorks: [jobRequest]
+  getAllWorks: [jobRequest]
+}
+
+extend type Mutation {
+  createAdmin(input: CreateAdminInput!): Admin
+  updateAdminStatus(id: String!, status: String!): Admin
+  updateAdmin(id: String!, input: UpdateAdminInput!): Admin
+  deleteAdmin(id: String!): Boolean
+  jobRequest(input: jobRequestInput): jobRequest
+  useGetJobRequestTracking: jobRequest
+
+  jobResponse(applicantId: String!, State: String!): jobRequest
+  worksUpdate(applicantId: String!, input: worksInput): jobRequest
+}
+
+input CreateAdminInput {
+  name: String!
+  type: String!
+  number: String!
+  password: String
+  status: String
+}
+
+input UpdateAdminInput {
+  name: String
+  type: String
+  number: String
+  password: String
+}
+input worksInput {
+  name: String
+  email: String
+  type: String
+  number: String
+  state: String
+  password: String
+  experience: String
+}
+
+type Session {
+  id: String!
+  userId: String
+  ipAddress: String!
+  userAgent: String!
+  createdAt: Time
+  updatedAt: Time
+}

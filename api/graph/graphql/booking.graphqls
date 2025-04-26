@@ -1,0 +1,69 @@
+type TimeSlot {
+  id: String!
+  startTime: Time!
+  endTime: Time!
+  bookerId: String
+  notes: String
+  isBooked: Boolean!
+  ServiceId: String!
+  tableSize: Int!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Booker {
+  id: String!
+  name: String!
+  number: String!
+  ServiceId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input BookersInput {
+  name: String!
+  number: String!
+  notes: String
+  tableSize: Int!
+  startTime: Time!
+  endTime: Time!
+  bookerId: String
+  isBooked: Boolean!
+}
+
+input TimeSlotInput {
+  startTime: Time!
+  endTime: Time!
+  bookerId: String
+  isBooked: Boolean!
+}
+
+# --- Query Type ---
+extend type Query {
+  # Get available slots between two dates
+  availableSlots(startDate: Time!, endDate: Time!): [TimeSlot!]!
+
+  # Get a specific booker by ID
+  booker(id: String!): Booker
+
+  # Get all bookers for a specific date
+  bookersByDate(date: Time!): [Booker!]!
+
+  # Get all bookers for a specific user by number
+  bookersByNumber(number: String!): [TimeSlot!]!
+}
+
+# --- Mutation Type ---
+extend type Mutation {
+  # Create a new booker
+  createBooker(input: BookersInput!, serviceId: String!): Booker!
+
+  # Cancel a booker by ID
+  cancelBooker(id: String!): Boolean!
+
+  # Update a booker's details
+  updateBooker(id: String!, input: BookersInput!): Booker!
+
+  # Create a new time slot
+  createTimeSlot(input: TimeSlotInput!): TimeSlot!
+}

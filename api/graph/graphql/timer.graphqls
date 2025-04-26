@@ -1,0 +1,65 @@
+type UnavailablePeriod {
+  id: String!
+  serviceId: String!
+  day: String!
+  startTime: String! 
+  endTime: String! # e.g., "22:00" (10 PM)
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+extend type Query {
+  getUnavailablePeriods: [UnavailablePeriod!]!
+  getAllUnavailablePeriods: [UnavailablePeriod!]!
+
+  
+
+}
+
+extend type Mutation {
+  createUnavailablePeriod(
+    input: CreateUnavailablePeriodInput!
+  ): UnavailablePeriod
+  deleteUnavailablePeriod(id: String!): Boolean
+  getGrowthData(id: String!): GrowthData
+  createMultipleBookings(input: [BookerInput!]!, serviceId: String!): [Booking!]!
+
+
+}
+
+
+input CreateUnavailablePeriodInput {
+  day: String!
+  startTime: String!
+  endTime: String!
+}
+
+
+
+
+
+
+
+
+input BookerInput {
+  name: String!
+  number: String!  # Phone number
+  startTime: String!  # ISO format datetime
+  endTime: String!    # ISO format datetime
+  notes: String
+  tableSize: Int!
+}
+
+type Booking {
+  id: String!
+  name: String!
+  number: String!
+  startTime: String!
+  endTime: String!
+  day: String!
+  notes: String
+  tableSize: Int!
+  serviceId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}

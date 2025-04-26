@@ -1,0 +1,137 @@
+type Event {
+  id: String!
+  name: String!
+  date: Time!
+  startTime: String!
+  duration: Int!          
+  location: String
+  instructor: String
+  maxAttendees: Int
+  price: Float
+  description: String
+  recurring: RecurringType
+  createdAt: Time!
+  updatedAt: Time!
+  serviceId: String!
+}
+
+type EventBookings {
+  id: String!
+  eventId: String!
+  serviceId: String!
+  userId: String!
+
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+
+# Enums
+enum RecurringType {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+# Input types
+input EventInput {
+  name: String!
+  date: Time!
+  startTime: String!
+  duration: Int!
+  location: String
+  instructor: String
+  maxAttendees: Int
+  price: Float
+  description: String
+  recurring: RecurringType
+}
+
+input EventFilter {
+  fromDate: Time
+  toDate: Time
+  instructor: String
+  location: String
+}
+
+input UpdateEventInput {
+  name: String
+  date: Time
+  startTime: String
+  duration: Int
+  location: String
+  instructor: String
+  maxAttendees: Int
+  price: Float
+  description: String
+  recurring: RecurringType
+}
+
+# Queries
+extend type Query {
+  # Get a single event by ID
+  event(id: String!): Event
+  
+  # Get events with optional filtering
+  events(filter: EventFilter): [Event!]!
+  
+  # Get all events on a specific date
+  eventsByDate(date: Time!): [Event!]!
+  
+  # Get all events for a specific instructor
+  eventsByInstructor(instructor: String!): [Event!]!
+  
+  # Get all events within a date range
+  eventsInDateRange(fromDate: Time!, toDate: Time!): [Event!]!
+  
+  # Get all booked dates (for calendar display)
+  bookedDates(fromDate: Time!, toDate: Time!): [Time!]!
+  
+  # Get available time slots on a specific date
+  availableTimeSlots(date: Time!): [String!]!
+  
+  # Get user's bookingss
+  userBookings(userId: String!): [EventBookings!]!
+
+  getBookEvent(eventId: String!, userId: String!): EventBookings!
+
+  getBookedData: [BookedData]
+
+}
+
+type UserData {
+  id: String!
+  name: String!
+  number: String!
+  numberType: String!
+  type: String!
+}
+
+type BookedData {
+  event:Event!
+  usersData: [UserData!]!
+  
+}
+
+# Mutations
+extend type Mutation {
+  # Create a new event
+  createEvent(input: EventInput!): Event!
+  
+  # Update an existing event
+  updateEvent(input: UpdateEventInput!,eventId:String!): Event!
+  
+  # Delete an event
+  deleteEvent(id: String!): Boolean!
+  
+  # Book an event
+  bookEvent(eventId: String!, userId: String!): EventBookings!
+  
+  # Cancel a bookings
+  cancelBookings(bookingsId: String!): Boolean!
+  
+  # Create a recurring event series
+  createRecurringEvents(input: EventInput!, endDate: Time!): [Event!]!
+}

@@ -1,0 +1,416 @@
+// CreatePolicy is the resolver for the createPolicy field.
+func (r *mutationResolver) CreatePolicy(ctx context.Context, input model.CreatePolicyInput) (*model.Policy, error) {
+	// Create a new policy instance
+	policy := model.Policy{
+		Name:        input.Name,
+		Description: input.Description,
+		DetailsIds:  pq.StringArray{},
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Save the policy to database
+	if err := tx.Create(&policy).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create policy: %w", err)
+	}
+
+	// Create policy details
+	for _, detailInput := range input.Details {
+		policyDetail := model.PolicyDetail{
+			Title:     detailInput.Title,
+			Content:   detailInput.Content,
+			ListItems: pq.StringArray{},
+			PolicyID:  stringPtr(policy.ID.String()),
+		}
+
+		// Add list items if provided
+		if detailInput.ListItems != nil && len(detailInput.ListItems) > 0 {
+			policyDetail.ListItems = pq.StringArray(detailInput.ListItems)
+		}
+
+		// Save the policy detail
+		if err := tx.Create(&policyDetail).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create policy detail: %w", err)
+		}
+
+		// Add the detail ID to the policy's details IDs
+		policy.DetailsIds = append(policy.DetailsIds, policyDetail.ID.String())
+	}
+
+	// Update the policy with the details IDs
+	if err := tx.Save(&policy).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update policy with details: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &policy, nil
+}
+
+// AddPolicyDetail is the resolver for the addPolicyDetail field.
+func (r *mutationResolver) AddPolicyDetail(ctx context.Context, policyID string, input model.PolicyDetailInput) (*model.PolicyDetail, error) {
+	// Parse the UUID from input
+	id, err := uuid.Parse(policyID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	// Find the existing policy
+	var policy model.Policy
+	if err := r.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("policy not found with ID: %s", policyID)
+		}
+		return nil, fmt.Errorf("failed to fetch policy: %w", err)
+	}
+
+	// Create a new policy detail
+	policyDetail := model.PolicyDetail{
+		Title:     input.Title,
+		Content:   input.Content,
+		ListItems: pq.StringArray{},
+		PolicyID:  stringPtr(policyID),
+	}
+
+	// Add list items if provided
+	if input.ListItems != nil && len(input.ListItems) > 0 {
+		policyDetail.ListItems = pq.StringArray(input.ListItems)
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Save the policy detail
+	if err := tx.Create(&policyDetail).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create policy detail: %w", err)
+	}
+
+	// Add the detail ID to the policy's details IDs
+	policy.DetailsIds = append(policy.DetailsIds, policyDetail.ID.String())
+
+	// Update the policy with the new detail ID
+	if err := tx.Save(&policy).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update policy with new detail: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &policyDetail, nil
+}
+
+// UpdatePolicy is the resolver for the updatePolicy field.
+func (r *mutationResolver) UpdatePolicy(ctx context.Context, policyID *string, detailID *string, input *model.UpdatePolicyInput) (*model.Policy, error) {
+	// Ensure policyID is provided
+	if policyID == nil {
+		return nil, fmt.Errorf("policy ID is required")
+	}
+	
+	// Parse the UUID from input
+	id, err := uuid.Parse(*policyID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	// Find the existing policy
+	var policy model.Policy
+	if err := r.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("policy not found with ID: %s", *policyID)
+		}
+		return nil, fmt.Errorf("failed to fetch policy: %w", err)
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Update policy fields if provided
+	updateNeeded := false
+	
+	if input.Name != nil && *input.Name != policy.Name {
+		policy.Name = *input.Name
+		updateNeeded = true
+	}
+	
+	if input.Description != nil && *input.Description != policy.Description {
+		policy.Description = *input.Description
+		updateNeeded = true
+	}
+
+	// Update the policy in the database if needed
+	if updateNeeded {
+		if err := tx.Save(&policy).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to update policy: %w", err)
+		}
+	}
+	
+	// If detailID is provided, update the specific policy detail
+	if detailID != nil && input.Details != nil && len(input.Details) > 0 {
+		// Only use the first detail since we're updating a specific one
+		detailInput := input.Details[0]
+		
+		detailUUID, err := uuid.Parse(*detailID)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid detail ID: %w", err)
+		}
+		
+		var policyDetail model.PolicyDetail
+		if err := tx.Where("id = ? AND policy_id = ?", detailUUID, *policyID).First(&policyDetail).Error; err != nil {
+			tx.Rollback()
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("policy detail not found with ID: %s for policy: %s", *detailID, *policyID)
+			}
+			return nil, fmt.Errorf("failed to fetch policy detail: %w", err)
+		}
+		
+		// Update fields if provided
+		detailUpdateNeeded := false
+		
+		if detailInput.Title != nil {
+			policyDetail.Title = *detailInput.Title
+			detailUpdateNeeded = true
+		}
+		
+		if detailInput.Content != nil {
+			policyDetail.Content = *detailInput.Content
+			detailUpdateNeeded = true
+		}
+		
+		if detailInput.ListItems != nil {
+			policyDetail.ListItems = pq.StringArray(detailInput.ListItems)
+			detailUpdateNeeded = true
+		}
+		
+		if detailUpdateNeeded {
+			if err := tx.Save(&policyDetail).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to update policy detail: %w", err)
+			}
+		}
+	} else if input.Details != nil && len(input.Details) > 0 {
+		// If detailID not provided but details are, create new details
+		for _, detailInput := range input.Details {
+			// Skip if both title and content are nil
+			if detailInput.Title == nil && detailInput.Content == nil {
+				continue
+			}
+			
+			// If ID is provided, try to update existing detail
+			if detailInput.ID != nil {
+				detailUUID, err := uuid.Parse(*detailInput.ID)
+				if err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("invalid detail ID: %w", err)
+				}
+				
+				var policyDetail model.PolicyDetail
+				if err := tx.Where("id = ? AND policy_id = ?", detailUUID, *policyID).First(&policyDetail).Error; err != nil {
+					if !errors.Is(err, gorm.ErrRecordNotFound) {
+						tx.Rollback()
+						return nil, fmt.Errorf("failed to fetch policy detail: %w", err)
+					}
+					// Detail not found, will be created below
+				} else {
+					// Detail found, update it
+					detailUpdateNeeded := false
+					
+					if detailInput.Title != nil {
+						policyDetail.Title = *detailInput.Title
+						detailUpdateNeeded = true
+					}
+					
+					if detailInput.Content != nil {
+						policyDetail.Content = *detailInput.Content
+						detailUpdateNeeded = true
+					}
+					
+					if detailInput.ListItems != nil {
+						policyDetail.ListItems = pq.StringArray(detailInput.ListItems)
+						detailUpdateNeeded = true
+					}
+					
+					if detailUpdateNeeded {
+						if err := tx.Save(&policyDetail).Error; err != nil {
+							tx.Rollback()
+							return nil, fmt.Errorf("failed to update policy detail: %w", err)
+						}
+					}
+					continue
+				}
+			}
+			
+			// Create new detail
+			newDetail := model.PolicyDetail{
+				PolicyID: policyID,
+			}
+			
+			if detailInput.Title != nil {
+				newDetail.Title = *detailInput.Title
+			}
+			
+			if detailInput.Content != nil {
+				newDetail.Content = *detailInput.Content
+			}
+			
+			if detailInput.ListItems != nil {
+				newDetail.ListItems = pq.StringArray(detailInput.ListItems)
+			}
+			
+			if err := tx.Create(&newDetail).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to create new policy detail: %w", err)
+			}
+			
+			// Add the new detail ID to the policy's details IDs
+			policy.DetailsIds = append(policy.DetailsIds, newDetail.ID.String())
+			
+			// Update the policy with the new detail ID
+			if err := tx.Save(&policy).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to update policy with new detail: %w", err)
+			}
+		}
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &policy, nil
+}
+
+// DeletePolicy is the resolver for the deletePolicy field.
+func (r *mutationResolver) DeletePolicy(ctx context.Context, policyID string) (bool, error) {
+	// Parse the UUID from input
+	id, err := uuid.Parse(policyID)
+	if err != nil {
+		return false, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return false, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// First delete all associated policy details
+	if err := tx.Where("policy_id = ?", policyID).Delete(&model.PolicyDetail{}).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete policy details: %w", err)
+	}
+
+	// Then delete the policy
+	result := tx.Where("id = ?", id).Delete(&model.Policy{})
+	if result.Error != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete policy: %w", result.Error)
+	}
+
+	// If no rows were affected, the policy doesn't exist
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return false, fmt.Errorf("policy not found with ID: %s", policyID)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return false, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return true, nil
+}
+
+// GetPolicies is the resolver for the getPolicies field.
+func (r *queryResolver) GetPolicies(ctx context.Context) ([]*model.Policy, error) {
+	var policies []*model.Policy
+	
+	// Get all policies
+	if err := r.DB.Find(&policies).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch policies: %w", err)
+	}
+	
+	return policies, nil
+}
+
+// GetPolicyByID is the resolver for the getPolicyById field.
+func (r *queryResolver) GetPolicyByID(ctx context.Context, policyID string) (*model.Policy, error) {
+	// Parse the UUID from input
+	id, err := uuid.Parse(policyID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	var policy model.Policy
+	
+	// Get policy by ID
+	if err := r.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Return nil without error for GraphQL "null" response
+		}
+		return nil, fmt.Errorf("failed to fetch policy: %w", err)
+	}
+	
+	return &policy, nil
+}
+
+// GetPolicyInformation is the resolver for the getPolicyInformation field.
+func (r *queryResolver) GetPolicyInformation(ctx context.Context, policyID string) (*model.PolicyInformation, error) {
+	// Parse the UUID from input
+	id, err := uuid.Parse(policyID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	var policy model.Policy
+	
+	// Get policy by ID
+	if err := r.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Return nil without error for GraphQL "null" response
+		}
+		return nil, fmt.Errorf("failed to fetch policy: %w", err)
+	}
+	
+	var policyDetails []*model.PolicyDetail
+	
+	// Get all policy details associated with this policy
+	if err := r.DB.Where("policy_id = ?", policyID).Find(&policyDetails).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch policy details: %w", err)
+	}
+	
+	// Create and return the policy information
+	policyInfo := &model.PolicyInformation{
+		Policy:        &policy,
+		PolicyDetails: policyDetails,
+	}
+	
+	return policyInfo, nil
+}
+
+// Helper function to convert string to string pointer
+func stringPtr(s string) *string {
+	return &s
+}

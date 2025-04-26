@@ -1,0 +1,159 @@
+type Policy {
+  id: String!
+  name: String!
+  description: String!
+  ServiceId: String
+  detailsIds: [String!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type PolicyInformation {
+  policy: Policy!
+  policyDetails: [PolicyDetail!]!
+}
+
+type PolicyDetail {
+  id: String!
+  title: String!
+  content: String!
+  listItems: [String!]
+  policyId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input PolicyDetailInput {
+  title: String!
+  content: String!
+  listItems: [String!]
+}
+
+input CreatePolicyInput {
+  name: String!
+  description: String!
+  details: [PolicyDetailInput!]!
+}
+
+input UpdatePolicyDetailInput {
+  title: String
+  content: String
+  listItems: [String!]
+}
+
+input UpdatePolicyInput {
+  name: String
+  description: String
+  details: [UpdatePolicyDetailInput!]
+}
+
+type fullCard {
+  card: PriceCard!
+  prices: [Price!]!
+  amenities: [Amenity!]!
+  # serviceId: String!
+}
+type PriceCard {
+  id: String!
+  title: String!
+  description: String!
+  ServiceId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+type Price {
+  id: String!
+  label: String!
+  value: String!
+  priceCardId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Amenity {
+  id: String!
+  text: String!
+  priceCardId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Input Types
+input PriceInput {
+  label: String!
+  value: String!
+}
+
+input AmenityInput {
+  text: String!
+}
+
+input PriceCardInput {
+  title: String!
+  description: String!
+  badge: String
+  prices: [PriceInput!]!
+  amenities: [AmenityInput!]!
+}
+
+input UpdatePriceCardInput {
+  title: String
+  description: String
+  prices: [PriceInput!]
+  amenities: [AmenityInput!]
+}
+
+type Mutation {
+  createPolicy(input: CreatePolicyInput!): Policy!
+  addPolicyDetail(policyId: String!, input: PolicyDetailInput!): PolicyDetail!
+  updatePolicy(
+    policyId: String
+    detailId: String
+    input: UpdatePolicyInput
+  ): Policy!
+  deletePolicy(policyId: String!): Boolean!
+
+  # Create a new price card
+  createPriceCard(input: PriceCardInput!): fullCard!
+
+  # Update an existing price card
+  updatePriceCard(input: UpdatePriceCardInput!, priceCardId: String): PriceCard!
+
+  # Delete a price card
+  deletePriceCard(priceCardId: String!): Boolean!
+
+  # Add a price to a price card
+  addPrice(priceCardId: String!, price: PriceInput!): Price!
+
+  # Update a price within a price card
+  updatePrice(
+    cardId: String!
+    priceCardId: String!
+    input: PriceInput!
+  ): Price!
+
+  # Remove a price from a price card
+  removePrice(priceCardId: String!, id: String!): Price!
+
+  # Add an amenity to a price card
+  addAmenity(priceCardId: String!, amenity: AmenityInput!): Amenity!
+
+  # Update an amenity within a price card
+  updateAmenity(
+    priceCardId: String!
+    amenityId: String!
+    text: String!
+  ): Amenity!
+
+  # Remove an amenity from a price card
+  removeAmenity(priceCardId: String!, amenityId: String!): Amenity!
+}
+
+type Query {
+  getPolicies: [Policy!]!
+  getPolicyById(policyId: String!): Policy
+  getPolicyInformation(ServiceID: String!): [PolicyInformation]
+
+  getpriceCardsinformation(serviceId: String): [fullCard!]!
+  getPriceCardById(id: String!): fullCard
+}

@@ -1,0 +1,107 @@
+type Service {
+  id: String!
+  name: String!
+  type: String!
+  number: String!
+  email: String!
+  profession: [String]
+  location: String
+  aboutMe: String
+  password: String
+  dpfile: String
+  bookType: BookingType
+  createdAt: Time!
+  updatedAt: Time!
+}
+enum BookingType {
+  APPOINTMENT
+  RENTAL
+  EVENT
+  ON_DEMAND
+  PACKAGE
+  CUSTOM_QUOTE
+}
+type Rating {
+  id: String
+  ServiceId: String
+  reviewCount: Int
+  rating: Int
+  createdAt: Time!
+  updatedAt: Time!
+}
+input GalleryProfessionInput {
+  title: String
+  description: String
+  categories: [String]
+  imageUrls: [String]
+}
+type GalleryProfession {
+  id: String
+  title: String
+  ServiceId: String
+  categories: [String]
+  imageUrls: [String]
+  description: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+extend type Query {
+  getService: Service
+  getProvider(ServiceId: String!): Service
+  getSharedService(ServiceId: String!): Service
+  listServices: [Service!]!
+  getAllGallery(ServiceId: String!): [GalleryProfession]
+  getAllCategoriesFromGallery(ServiceId: String!): [String]
+  getAllProfessionFromService: [String]
+  getBookingType(
+    serviceId: String!
+  ): BookingType
+}
+
+extend type Mutation {
+  createService(dpfile: Upload, input: CreateServiceInput!): Service
+  updateService(
+    dpfile: Upload
+    input: UpdateServiceInput!
+    removeProfession: [String]
+  ): Service
+  deleteService(id: String!): Boolean
+
+  updateBookingType(
+    type: BookingType!
+    # serviceId: String!
+  ): BookingType
+  createGallery(
+    files: [Upload]
+    input: GalleryProfessionInput!
+  ): GalleryProfession!
+  updateGallery(
+    galleryID: String!
+    files: [Upload]
+    input: GalleryProfessionInput!
+    removeUrl: [String]
+  ): GalleryProfession!
+  deleteGallery(id: String!): Boolean
+}
+
+input CreateServiceInput {
+  name: String!
+  # type: String
+  number: String!
+  email: String!
+  location: String
+
+  profession: [String]
+  password: String
+}
+input UpdateServiceInput {
+  name: String
+  type: String
+  number: String
+  email: String
+  profession: [String]
+  aboutMe: String
+  location: String
+  password: String
+}

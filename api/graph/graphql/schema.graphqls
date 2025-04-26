@@ -1,0 +1,92 @@
+scalar Time
+scalar Upload
+
+type UserBookings {
+  id: String!
+  bookTypeId: String!
+  bookType: String!
+  serviceId: String!
+  userId: String!
+  tableSize: Int
+  notes: String
+  isBooked: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type SystemInfo {
+  bdTable: String!
+  dbName: String!
+}
+
+type BookedData {
+  userId: String!
+  userName: String!
+  userNumber: String!
+  bookTypeId: String!
+  bookTypeImageUrl: String!
+  bookTypeName: String!
+  bookType: String!
+  bookTypePrice: String!
+  booked:UserBookings!
+}
+
+extend type Query {
+  getID: String
+  # who: Returns
+  getAllSystemInfo: SystemInfo!
+
+  # Get user's bookingss
+  getAUserBookings(userId: String!): [UserBookings!]!
+
+  getUserBookings(
+    bookTypeId: String!
+    # bookType: String!
+    userId: String!
+  ): UserBookings!
+}
+
+extend type Mutation {
+  deleteTable: Boolean!
+  serviceLogin(input: LoginInput!): Returns
+  adminLogin(input: LoginInput!): Admin
+  workersLogin(input: LoginInput!): jobRequest
+  deliveryLogin(input: LoginInput): Returns
+  logOut: Boolean!
+
+  UserBookings(
+    bookTypeID: String!
+    userId: String
+    tableSize: Int
+    notes: String
+    bookType: String
+  ): UserBookings!
+  cancelUserBookings(
+    bookTypeId: String!
+    # bookType: String!
+    userId: String!
+  ): Boolean!
+}
+
+input LoginInput {
+  password: String!
+  number: String
+}
+
+type PurchaseHistoryItem {
+  id: String!
+  name: String!
+  price: String!
+  quantity: String!
+  imageUrl: String!
+}
+
+type PurchaseHistory {
+  id: String!
+  date: String!
+  items: [PurchaseHistoryItem!]!
+  status: String!
+  trackingNumber: String
+}
+
+union Returns = User | Service
