@@ -18,7 +18,7 @@ function ProtectedIsAuthRoute({ element, expectedTypes }: ProtectedRouteProps) {
   const hasExpectedTypes = isAuthenticated && expectedTypes.includes(user?.type ?? "");
 
   if (!isAuthenticated || !hasExpectedTypes) {
-    return <Navigate to="/job" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return element;

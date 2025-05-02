@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router";
 import NavBar from "./navBar";
 import { gql } from "@apollo/client";
+import LandingPage from "./page";
+import { useEffect, useState } from "react";
 interface Provider {
   id: string;
   name: string;
@@ -28,13 +30,34 @@ const ALL_PROVIDERS = gql`
 `;
 
 export function ServiceProvidersDirectory() {
-  const { data, loading, error } = useQuery(ALL_PROVIDERS);
+  const { data, loading, error, refetch } = useQuery(ALL_PROVIDERS);
+  const [dialogState, setDialogState] = useState(() => {
+    const savedState = localStorage.getItem("isDialogOpen");
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
 
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const currentState = localStorage.getItem("isDialogOpen");
+      if (currentState !== null) {
+        setDialogState(JSON.parse(currentState));
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  if (dialogState) {
+    return <LandingPage onClose={() => setDialogState(false)} />;
+  }
   if (loading) return <p className="text-center py-6">Loading...</p>;
+
   if (error)
     return (
       <p className="text-center py-6 text-red-500">Error loading providers</p>
     );
+
 
   return (
     <div className="max-w-6xl mx-auto px-3 py-6">
@@ -70,23 +93,20 @@ export function ServiceProvidersDirectory() {
                 </h3>
                 <div className="flex items-center justify-between mt-1">
                   <div>
-                  {provider?.profession
-                    ?.slice(0, 1).map((profession, index) => (
+                    {provider?.profession?.slice(0, 1).map((profession, index) => (
                       <Badge key={index} className="text-xs">
                         {profession}
                       </Badge>
                     ))}
-                  {provider?.profession?.length > 1 && (
-                    <Badge className="text-xs rounded-full ml-1 bg-primary/10 text-primary">
-                      +{provider?.profession?.length - 1}
-                    </Badge>
-                  )}
+                    {provider?.profession?.length > 1 && (
+                      <Badge className="text-xs rounded-full ml-1 bg-primary/10 text-primary">
+                        +{provider.profession.length - 1}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPin className="mr-1 h-3 w-3" />
-                    <span className="truncate max-w-20">
-                      {provider?.location}
-                    </span>
+                    <span className="truncate max-w-20">{provider.location}</span>
                   </div>
                 </div>
               </CardContent>

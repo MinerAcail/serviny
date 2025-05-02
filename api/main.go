@@ -39,7 +39,9 @@ func PerformMigrations(db *gorm.DB) error {
 
 	// Run GORM AutoMigrate for your models
 	if err := db.AutoMigrate(
+		&model.Favorite{},
 
+		&model.AppointmentBooking{},
 		&model.UserBookings{},
 		&model.Category{},
 		&model.InventoryItem{},
@@ -118,11 +120,11 @@ func main() {
 	}
 	redisClient := redis.ConfigureRedis()
 	// Start the background job as a Goroutine
-	go middleware.StartBackgroundJob(redisClient)
 
 	resolver := &graph.Resolver{
 		DB:          db,
 		MinIOClient: minioClient,
+		RedisClient: redisClient,
 	}
 
 	// Initialize the GraphQL server

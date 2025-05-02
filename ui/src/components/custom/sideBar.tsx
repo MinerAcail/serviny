@@ -6,7 +6,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import CartSidebar, { CartSidebarProps } from "./CartSidebar";
+// import CartSidebar, { CartSidebarProps } from "./CartSidebar";
 import MultipleCountdown from "./timer";
 
 
@@ -22,7 +22,7 @@ export function SheetSide({
   },
 }: {
   children: React.ReactNode;
-  CartSidebarProps: CartSidebarProps;
+  // CartSidebarProps: CartSidebarProps;
   
 }) {
   return (

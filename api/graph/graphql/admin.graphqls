@@ -96,3 +96,10 @@ type Session {
   createdAt: Time
   updatedAt: Time
 }
+
+
+enum UserType {
+  SERVICE
+  ADMIN
+  USER
+}

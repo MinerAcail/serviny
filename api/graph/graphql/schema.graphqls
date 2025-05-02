@@ -19,7 +19,7 @@ type SystemInfo {
   dbName: String!
 }
 
-type BookedData {
+type EventBookedData {
   userId: String!
   userName: String!
   userNumber: String!

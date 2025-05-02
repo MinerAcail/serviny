@@ -8,6 +8,7 @@ import {
   XIcon,
   PlusIcon,
   MinusIcon,
+  AlertCircleIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-// GraphQL queries and mutations
-const GET_UNAVAILABLE_PERIODS = gql`
-  query GetUnavailablePeriods {
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/middleware/context/authContext";
+import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+const GET_ALL_UNAVAILABLE_PERIODS = gql`
+  query GetAllUnavailablePeriods {
     getUnavailablePeriods {
+      id
+      day
+      endTime
+      startTime
+    }
+    getConfirmedBookingsAsUnavailable {
       id
       day
       endTime
@@ -35,6 +44,30 @@ const GET_UNAVAILABLE_PERIODS = gql`
     }
   }
 `;
+
+// GraphQL queries and mutations
+// const GET_UNAVAILABLE_PERIODS = gql`
+//   query GetUnavailablePeriods {
+//     getUnavailablePeriods {
+//       id
+//       day
+//       endTime
+//       startTime
+//     }
+//   }
+// `;
+
+// const GET_CONFIRMED_BOOKINGS_AS_UNAVAILABLE_PERIODS = gql`
+//       query GetConfirmedBookingsAsUnavailable {
+//     getConfirmedBookingsAsUnavailable {
+//       id
+//       day
+//       endTime
+//       startTime
+//     }
+//   }
+
+// `;
 
 const CREATE_MULTIPLE_BOOKINGS = gql`
   mutation CreateMultipleBookings(
@@ -50,9 +83,6 @@ const CREATE_MULTIPLE_BOOKINGS = gql`
 `;
 
 interface UserData {
-  name: string;
-  email: string;
-  phone: string;
   notes: string;
 }
 
@@ -64,10 +94,10 @@ interface UnavailablePeriod {
 }
 
 interface BookingSegment {
-  startTime: string; 
-  endTime: string; 
-  startDate: Date; 
-  endDate: Date; 
+  startTime: string;
+  endTime: string;
+  startDate: Date;
+  endDate: Date;
   formattedDate?: string;
 }
 
@@ -135,10 +165,10 @@ const parseTimeString = (timeString: string): number => {
   return hours * 100 + minutes;
 };
 
-const TableBookingSystem = ({
+const AppointmentBookingSystem = ({
   isDialogOpenMain,
   setDialogOpenMain,
-  serviceId = "default-service-id", // Default service ID
+  serviceId, // Default service ID
 }: {
   isDialogOpenMain: boolean;
   setDialogOpenMain: React.Dispatch<React.SetStateAction<boolean>>;
@@ -147,7 +177,8 @@ const TableBookingSystem = ({
   const today = startOfDay(new Date()); // Use startOfDay to remove time component
   const [currentDate, setCurrentDate] = useState<Date>(today);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
-
+  const { user } = useAuth();
+  const userId = user?.id;
   // New states for the duration-based booking
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     null
@@ -155,12 +186,9 @@ const TableBookingSystem = ({
   const [bookingDuration, setBookingDuration] = useState<number>(1); // in hours
   const [bookingSegments, setBookingSegments] = useState<BookingSegment[]>([]);
 
-  const [tableSize, setTableSize] = useState<number>(2);
+  const [tableSize, setTableSize] = useState<number>(1);
   const [timeSlots] = useState<string[]>(defaultTimeSlots);
   const [userData, setUserData] = useState<UserData>({
-    name: "",
-    email: "",
-    phone: "",
     notes: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -171,17 +199,67 @@ const TableBookingSystem = ({
 
   // New state to track which dates are included in the booking
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
-
+  // Add this to your state declarations at the top
+  const [unavailableMessage, setUnavailableMessage] = useState<string>("");
+  const [unavailablePeriods, setUnavailablePeriods] = useState<
+    UnavailablePeriod[]
+  >([]);
+  //
   // Fetch unavailable periods from the GraphQL API
-  const { data } = useQuery(GET_UNAVAILABLE_PERIODS);
-  const unavailablePeriods: UnavailablePeriod[] =
-    data?.getUnavailablePeriods || [];
+  // const { data } = useQuery(GET_UNAVAILABLE_PERIODS);
+  // const unavailablePeriods: UnavailablePeriod[] =
+  //   data?.getUnavailablePeriods || [];
+  const { data, loading, error } = useQuery(GET_ALL_UNAVAILABLE_PERIODS);
 
+  // Then in your component:
+  useEffect(() => {
+    if (data) {
+      // Manual unavailable periods are already in HH:MM format
+      const manualUnavailablePeriods = data.getUnavailablePeriods || [];
+
+      // Convert booking times from ISO to HH:MM format
+      const bookingUnavailablePeriods = (
+        data.getConfirmedBookingsAsUnavailable || []
+      ).map((booking) => {
+        // Parse ISO strings to Date objects
+        const startDate = new Date(booking.startTime);
+        const endDate = new Date(booking.endTime);
+
+        // Convert to HH:MM format
+        const startTime =
+          startDate.getHours().toString().padStart(2, "0") +
+          ":" +
+          startDate.getMinutes().toString().padStart(2, "0");
+        const endTime =
+          endDate.getHours().toString().padStart(2, "0") +
+          ":" +
+          endDate.getMinutes().toString().padStart(2, "0");
+
+        return {
+          id: booking.id,
+          day: booking.day, // Using the day string from the API
+          startTime,
+          endTime,
+        };
+      });
+
+      // Combine both arrays
+      const allUnavailablePeriods = [
+        ...manualUnavailablePeriods,
+        ...bookingUnavailablePeriods,
+      ];
+
+      // Update your state with combined data
+      setUnavailablePeriods(allUnavailablePeriods);
+    }
+  }, [data]);
   // Create bookings mutation
-  const [createBookings, { loading: bookingLoading }] = useMutation(
+  const [createMultipleBookings, { loading: bookingLoading }] = useMutation(
     CREATE_MULTIPLE_BOOKINGS,
     {
       onCompleted: () => {
+        toast.success("Bookings created successfully!");
+
         setSuccessMessage("Bookings created successfully!");
         setTimeout(() => setSuccessMessage(""), 3000);
         setBookingSegments([]);
@@ -190,6 +268,8 @@ const TableBookingSystem = ({
         setDialogOpenMain(false);
       },
       onError: (error) => {
+        toast.error(`Error: ${error.message}`);
+
         setErrorMessage(`Error: ${error.message}`);
         setTimeout(() => setErrorMessage(""), 5000);
       },
@@ -303,10 +383,13 @@ const TableBookingSystem = ({
     let remainingHours = durationHours;
     let currentStartHour = startHour;
 
+    // Clone the date to avoid modifying the original
+    const dayClone = new Date(day);
+
     while (remainingHours > 0) {
       // Find the next unavailable period
       const nextUnavailable = findNextUnavailablePeriod(
-        day,
+        dayClone,
         convertTo12Hour(currentStartHour)
       );
 
@@ -316,25 +399,40 @@ const TableBookingSystem = ({
         currentStartHour + remainingHours <= nextUnavailable.startHour
       ) {
         const endHour = currentStartHour + remainingHours;
+
+        // Create new Date objects to avoid reference issues
+        const segmentStartDate = new Date(dayClone);
+        segmentStartDate.setHours(currentStartHour, 0, 0, 0);
+
+        const segmentEndDate = new Date(dayClone);
+        segmentEndDate.setHours(endHour, 0, 0, 0);
+
         segments.push({
           startTime: convertTo12Hour(currentStartHour),
           endTime: convertTo12Hour(endHour),
-          startDate: new Date(day.setHours(currentStartHour, 0, 0, 0)),
-          endDate: new Date(day.setHours(endHour, 0, 0, 0)),
-          formattedDate: format(day, "EEE, MMM d"),
+          startDate: segmentStartDate,
+          endDate: segmentEndDate,
+          formattedDate: format(dayClone, "EEE, MMM d"),
         });
         remainingHours = 0;
       } else {
         // We need to split the booking
         const segmentDuration = nextUnavailable.startHour - currentStartHour;
         if (segmentDuration > 0) {
+          // Create new Date objects to avoid reference issues
+          const segmentStartDate = new Date(dayClone);
+          segmentStartDate.setHours(currentStartHour, 0, 0, 0);
+
+          const segmentEndDate = new Date(dayClone);
+          segmentEndDate.setHours(nextUnavailable.startHour, 0, 0, 0);
+
           // Add segment until unavailable period starts
           segments.push({
             startTime: convertTo12Hour(currentStartHour),
             endTime: convertTo12Hour(nextUnavailable.startHour),
-            startDate: new Date(day.setHours(currentStartHour, 0, 0, 0)),
-            endDate: new Date(day.setHours(nextUnavailable.startHour, 0, 0, 0)),
-            formattedDate: format(day, "EEE, MMM d"),
+            startDate: segmentStartDate,
+            endDate: segmentEndDate,
+            formattedDate: format(dayClone, "EEE, MMM d"),
           });
           remainingHours -= segmentDuration;
         }
@@ -373,11 +471,28 @@ const TableBookingSystem = ({
 
   // Handle time slot selection (now for start time only)
   const handleTimeSlotClick = (time: string): void => {
-    if (
-      selectedDate &&
-      !isSlotInPast(selectedDate, time) &&
-      !isSlotUnavailable(selectedDate, time)
-    ) {
+    if (selectedDate) {
+      // Clear any previous unavailable message first
+      setUnavailableMessage("");
+
+      // Check if time is in past
+      if (isSlotInPast(selectedDate, time)) {
+        return; // Don't do anything for past times
+      }
+
+      // Check if time is unavailable
+      if (isSlotUnavailable(selectedDate, time)) {
+        // Show message that the service provider is not available
+        setUnavailableMessage(
+          `Sorry, the service provider is not available at ${time} on ${format(
+            selectedDate,
+            "MMMM d"
+          )}.`
+        );
+
+        return;
+      }
+
       if (selectedStartTime === time) {
         // Deselect if already selected
         setSelectedStartTime(null);
@@ -470,24 +585,33 @@ const TableBookingSystem = ({
       return;
     }
 
-    if (!userData.name || !userData.phone) {
-      setErrorMessage("Please enter your name and phone number");
+    if (!userId || !user?.type) {
+      setErrorMessage("User information is missing. Please log in again.");
+      setTimeout(() => setErrorMessage(""), 3000);
+      return;
+    }
+
+    if (!serviceId) {
+      setErrorMessage("Service ID is missing. Please try again.");
       setTimeout(() => setErrorMessage(""), 3000);
       return;
     }
 
     // Prepare booking inputs
     const bookingInputs = bookingSegments.map((segment) => ({
-      name: userData.name,
-      number: userData.phone,
       startTime: timeToISOString(segment.startDate, segment.startTime),
       endTime: timeToISOString(segment.endDate, segment.endTime),
       notes: userData.notes,
       tableSize: tableSize,
+      userId: userId,
+      userType: user.type,
     }));
-
-    // Call the mutation
-    createBookings({
+    console.log("variables", {
+      input: bookingInputs,
+      serviceId: serviceId,
+    });
+    // Call the mutation - uncomment this to actually make the booking
+    createMultipleBookings({
       variables: {
         input: bookingInputs,
         serviceId: serviceId,
@@ -496,7 +620,7 @@ const TableBookingSystem = ({
 
     setIsDialogOpen(false);
   };
-//
+  //
   // Compact date selector component
   const CompactDateSelector = () => {
     return (
@@ -521,22 +645,26 @@ const TableBookingSystem = ({
           {visibleDates.map((date) => {
             const isPastDate = isDateInPast(date);
             const isBooked = isDateBooked(date);
+            const isSelected = selectedDate && isSameDay(selectedDate, date);
+
             return (
               <div
                 key={date.toString()}
                 onClick={() => !isPastDate && handleDateSelect(date)}
-                className={`p-2 text-center rounded-md ${
-                  isPastDate
-                    ? "text-gray-300 cursor-not-allowed"
-                    : isBooked
-                    ? "bg-blue-100 border-2 border-blue-500 cursor-pointer"
-                    : selectedDate && isSameDay(selectedDate, date)
-                    ? "bg-blue-500 text-white cursor-pointer"
-                    : "hover:bg-blue-50 cursor-pointer"
-                }`}
+                className={cn(
+                  "p-2 text-center rounded-md text-xs font-medium transition-colors",
+                  {
+                    "text-muted-foreground cursor-not-allowed": isPastDate,
+                    "bg-muted border border-primary cursor-pointer": isBooked,
+                    "bg-primary text-primary-foreground cursor-pointer":
+                      isSelected,
+                    "hover:bg-muted cursor-pointer":
+                      !isPastDate && !isSelected && !isBooked,
+                  }
+                )}
               >
-                <div className="text-xs">{format(date, "EEE")}</div>
-                <div className="font-medium">{format(date, "d")}</div>
+                <div>{format(date, "EEE")}</div>
+                <div>{format(date, "d")}</div>
               </div>
             );
           })}
@@ -588,6 +716,7 @@ const TableBookingSystem = ({
                             time
                           );
                           const isSelected = selectedStartTime === time;
+
                           return (
                             <div
                               key={time}
@@ -596,21 +725,48 @@ const TableBookingSystem = ({
                                 !isUnavailable &&
                                 handleTimeSlotClick(time)
                               }
-                              className={`p-2 text-center rounded-lg border text-sm ${
-                                isPast
-                                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                  : isUnavailable
-                                  ? "bg-red-50 text-red-500 border-red-200 cursor-not-allowed"
-                                  : isSelected
-                                  ? "bg-blue-500 text-white border-blue-500"
-                                  : "bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer border-blue-100"
-                              }`}
+                              className={cn(
+                                "p-2 text-center rounded-lg border text-sm transition-colors",
+                                {
+                                  "text-muted-foreground border-border bg-muted cursor-not-allowed":
+                                    isPast,
+                                  "text-accent border-destructive bg-destructive/20 cursor-not-allowed":
+                                    isUnavailable,
+                                  "text-primary-foreground bg-primary border-primary cursor-pointer":
+                                    isSelected,
+                                  "text-primary hover:bg-muted border-border cursor-pointer":
+                                    !isPast && !isUnavailable && !isSelected,
+                                }
+                              )}
                             >
                               {time}
                             </div>
                           );
                         })}
                       </div>
+
+                      {/* Display unavailability message */}
+                      {unavailableMessage && (
+                        <Dialog
+                          open
+                          onOpenChange={() => setUnavailableMessage("")}
+                        >
+                          <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>Unavailable Slot</DialogTitle>
+                            </DialogHeader>
+                            <div className="py-4 flex items-center">
+                              <AlertCircleIcon className="h-6 w-6 text-destructive mr-2" />
+                              <p className="text-sm">{unavailableMessage}</p>
+                            </div>
+                            <DialogFooter>
+                              <Button onClick={() => setUnavailableMessage("")}>
+                                Close
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </div>
 
                     {/* Duration Selection with Plus/Minus Buttons */}
@@ -660,10 +816,10 @@ const TableBookingSystem = ({
                       {bookingSegments.map((segment, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-100"
+                          className="flex items-center justify-between bg-primary/10 p-3 rounded-lg border border-primary/20"
                         >
                           <div className="flex items-center space-x-2">
-                            <CalendarIcon className="h-4 w-4 text-blue-500" />
+                            <CalendarIcon className="h-4 w-4 text-primary" />
                             <span>
                               {segment.formattedDate}: {segment.startTime} -{" "}
                               {segment.endTime}
@@ -716,7 +872,7 @@ const TableBookingSystem = ({
   );
 };
 
-export default TableBookingSystem;
+export default AppointmentBookingSystem;
 
 function CompleteBooking({
   isDialogOpen,
@@ -746,7 +902,7 @@ function CompleteBooking({
           <DialogTitle>Complete Your Booking</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+          <div className="bg-secondary-foreground/20 p-4 rounded-lg space-y-2">
             <h4 className="font-medium text-sm">Your Booking Times:</h4>
             {bookingSegments.map((segment, index) => (
               <div key={index} className="flex items-center space-x-2">
@@ -766,7 +922,7 @@ function CompleteBooking({
               </Label>
               <select
                 id="tableSize"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-10 w-full rounded-md border border-secondary-foreground/40 bg-background px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 value={tableSize}
                 onChange={(e) => setTableSize(parseInt(e.target.value))}
               >
@@ -777,51 +933,18 @@ function CompleteBooking({
                 ))}
               </select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="name" className="text-sm">
-                Name
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                value={userData.name}
-                onChange={handleUserChange}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email" className="text-sm">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={userData.email}
-                onChange={handleUserChange}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="phone" className="text-sm">
-                Phone Number
-              </Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={userData.phone}
-                onChange={handleUserChange}
-                required
-              />
-            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="notes" className="text-sm">
                 Special Requests (optional)
               </Label>
-              <Input
+              <Textarea
                 id="notes"
                 name="notes"
                 value={userData.notes}
-                onChange={handleUserChange}
+                onChange={()=>handleUserChange}
+                // onChange={handleUserChange}
+                className="h-10 w-full rounded-md border border-secondary-foreground/40 bg-background px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
             </div>
           </div>
@@ -830,7 +953,7 @@ function CompleteBooking({
           <Button
             className="w-full sm:w-auto"
             onClick={confirmBooking}
-            disabled={!userData.name || !userData.phone || bookingLoading}
+            disabled={bookingLoading}
           >
             {bookingLoading ? "Processing..." : "Confirm Booking"}
           </Button>

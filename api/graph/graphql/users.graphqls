@@ -4,6 +4,8 @@ type User {
   number: String!
   numberType: String
   type: String!
+  email: String
+  
   password: String
   createdAt: Time!
   updatedAt: Time!
@@ -14,6 +16,7 @@ input inputUser {
   number: String!
   password: String!
   numberType: String
+  email: String
 
 }
 

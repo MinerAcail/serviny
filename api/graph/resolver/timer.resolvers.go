@@ -9,14 +9,23 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lehxees/serviny/helper"
 	"gorm.io/gorm"
 )
+
+// ID is the resolver for the id field.
+func (r *appointmentBookingResolver) ID(ctx context.Context, obj *model.AppointmentBooking) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
 
 // CreateUnavailablePeriod1 is the resolver for the createUnavailablePeriod1 field.
 func (r *mutationResolver) CreateUnavailablePeriod(ctx context.Context, input model.CreateUnavailablePeriodInput) (*model.UnavailablePeriod, error) {
@@ -116,8 +125,165 @@ func (r *mutationResolver) GetGrowthData(ctx context.Context, id string) (*model
 }
 
 // CreateMultipleBookings is the resolver for the createMultipleBookings field.
-func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, serviceID string) ([]*model.Booking, error) {
-	panic(fmt.Errorf("not implemented: CreateMultipleBookings - createMultipleBookings"))
+func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, serviceID string) ([]*model.AppointmentBooking, error) {
+	UserIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	}
+
+	USERID, err := uuid.Parse(*UserIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Parse service ID
+	svcID, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Find the existing Service
+	var service model.Service
+	if err := r.DB.Where("id = ?", svcID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	// Begin a transaction to ensure all bookings are created atomically
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	bookings := make([]*model.AppointmentBooking, 0, len(input))
+
+	for _, bookerInput := range input {
+		// Parse start and end times to validate and extract day
+		startTime, err := time.Parse(time.RFC3339, bookerInput.StartTime)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid start time format for booking: %w", err)
+		}
+
+		endTime, err := time.Parse(time.RFC3339, bookerInput.EndTime)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid end time format for booking: %w", err)
+		}
+
+		// Check if end time is after start time
+		if endTime.Before(startTime) || endTime.Equal(startTime) {
+			tx.Rollback()
+			return nil, fmt.Errorf("end time must be after start time for booking")
+		}
+
+		// Extract day of the week
+		day := startTime.Weekday().String()
+
+		// Check if the booking time conflicts with unavailable periods
+		var unavailablePeriods []model.UnavailablePeriod
+		if err := r.DB.Where("service_id = ? AND day = ?", serviceID, day).Find(&unavailablePeriods).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to check unavailable periods: %w", err)
+		}
+
+		// Extract booking start and end times in HH:MM format for comparison
+		bookingStartHHMM := startTime.Format("15:04")
+		bookingEndHHMM := endTime.Format("15:04")
+
+		for _, period := range unavailablePeriods {
+			// If booking overlaps with unavailable period, reject it
+			if helper.IsTimeOverlap(bookingStartHHMM, bookingEndHHMM, period.StartTime, period.EndTime) {
+				tx.Rollback()
+				return nil, fmt.Errorf("booking overlaps with unavailable period on %s from %s to %s",
+					day, period.StartTime, period.EndTime)
+			}
+		}
+
+		// Create a new booking
+		booking := &model.AppointmentBooking{
+			ServiceID: serviceID,
+			UserID:    USERID.String(),
+			UserType:  bookerInput.UserType,
+			StartTime: bookerInput.StartTime,
+			EndTime:   bookerInput.EndTime,
+			Day:       day,
+			Notes:     bookerInput.Notes,
+			TableSize: bookerInput.TableSize,
+		}
+
+		// Save the booking to the database
+		if err := tx.Create(booking).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create booking for time %s-%s: %w",
+				bookerInput.StartTime, bookerInput.EndTime, err)
+		}
+
+		bookings = append(bookings, booking)
+	}
+
+	// Commit the transaction if all bookings were created successfully
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Validate that bookings are not nil or empty
+	if bookings == nil || len(bookings) == 0 {
+		return nil, fmt.Errorf("no bookings found")
+	}
+
+	return bookings, nil
+}
+
+// ConfirmBooking is the resolver for the confirmBooking field.
+func (r *mutationResolver) ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error) {
+	// Find the booking by ID
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", id).First(&booking).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("booking not found with ID: %s", id)
+		}
+		return nil, fmt.Errorf("failed to fetch booking: %w", err)
+	}
+
+	// Toggle the confirmation status
+	if booking.IsConfirmed == nil || !*booking.IsConfirmed {
+		isConfirmed := true
+		booking.IsConfirmed = &isConfirmed
+	} else {
+		isConfirmed := false
+		booking.IsConfirmed = &isConfirmed
+	}
+
+	// Save the updated booking
+	if err := r.DB.Save(&booking).Error; err != nil {
+		return nil, fmt.Errorf("failed to toggle booking confirmation: %w", err)
+	}
+
+	return &booking, nil
+}
+
+// DeleteBooking is the resolver for the deleteBooking field.
+func (r *mutationResolver) DeleteBooking(ctx context.Context, id string) (*bool, error) {
+	// Find the booking by ID
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", id).First(&booking).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("booking not found with ID: %s", id)
+		}
+		return nil, fmt.Errorf("failed to fetch booking: %w", err)
+	}
+
+	// Delete the booking
+	if err := r.DB.Delete(&booking).Error; err != nil {
+		return nil, fmt.Errorf("failed to delete booking: %w", err)
+	}
+
+	// Return success
+	result := true
+	return &result, nil
 }
 
 // GetUnavailablePeriods1 is the resolver for the getUnavailablePeriods1 field.
@@ -139,13 +305,335 @@ func (r *queryResolver) GetUnavailablePeriods(ctx context.Context) ([]*model.Una
 	return periods, nil
 }
 
+// GetConfirmedBookingsAsUnavailable is the resolver for the getConfirmedBookingsAsUnavailable field.
+func (r *queryResolver) GetConfirmedBookingsAsUnavailable(ctx context.Context) ([]*model.AppointmentBooking, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Verify that the service exists
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to verify service: %w", err)
+	}
+
+	// Get all confirmed bookings for this service
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("service_id = ? AND is_confirmed = ?", serviceID.String(), true).
+		Order("day ASC, start_time ASC").
+		Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch confirmed bookings: %v", err)
+	}
+
+	return bookings, nil
+}
+
 // GetAllUnavailablePeriods1 is the resolver for the getAllUnavailablePeriods1 field.
 func (r *queryResolver) GetAllUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
 	var servicesTime []*model.UnavailablePeriod
-	if err := r.DB.Order("created_at DESC").Find(&servicesTime).Error; err != nil {
+	if err := r.DB.Order("created_at DESC").Where("service_id = ?", serviceID).Find(&servicesTime).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch services Time: %v", err)
 	}
 	return servicesTime, nil
+}
+
+// GetAllAppointmentBookings is the resolver for the getAllAppointmentBookings field.
+func (r *queryResolver) GetAllAppointmentBookings(ctx context.Context) ([]*model.AppointmentBookedData, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Verify that the service exists
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to verify service: %w", err)
+	}
+
+	// Get all bookings for this service
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Order("day ASC, start_time ASC").Where("service_id = ?", serviceID.String()).Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch service appointment bookings: %v", err)
+	}
+
+	// Group bookings by day of the week
+	dayOrder := map[string]int{
+		"Sunday":    0,
+		"Monday":    1,
+		"Tuesday":   2,
+		"Wednesday": 3,
+		"Thursday":  4,
+		"Friday":    5,
+		"Saturday":  6,
+	}
+
+	// Sort bookings by day and start time
+	sort.Slice(bookings, func(i, j int) bool {
+		dayI := dayOrder[bookings[i].Day]
+		dayJ := dayOrder[bookings[j].Day]
+
+		if dayI != dayJ {
+			return dayI < dayJ
+		}
+		return bookings[i].StartTime < bookings[j].StartTime
+	})
+
+	// Group bookings by day
+	bookingsByDay := make(map[string][]*model.AppointmentBooking)
+	for _, booking := range bookings {
+		bookingsByDay[booking.Day] = append(bookingsByDay[booking.Day], booking)
+	}
+
+	// Collect user IDs and service IDs for batch fetching
+	userIDs := []string{}
+	serviceIDs := []string{}
+
+	for _, booking := range bookings {
+		if booking.UserType == model.UserTypeUser {
+			userIDs = append(userIDs, booking.UserID)
+		} else if booking.UserType == model.UserTypeService {
+			serviceIDs = append(serviceIDs, booking.UserID)
+		}
+	}
+
+	// Batch fetch users
+	var users []model.UserData
+	if len(userIDs) > 0 {
+		if err := r.DB.Table("users").
+			Select("id, name, type, number, COALESCE(number_type, 'not provided') AS number_type").
+			Where("id IN ?", userIDs).
+			Scan(&users).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch users: %w", err)
+		}
+	}
+
+	// Batch fetch services
+	var services []model.UserData
+	if len(serviceIDs) > 0 {
+		if err := r.DB.Table("services").
+			Select("id, name, type, number, COALESCE(number_type, 'not provided') AS number_type").
+			Where("id IN ?", serviceIDs).
+			Scan(&services).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch services: %w", err)
+		}
+	}
+
+	// Map users and services by ID
+	userMap := make(map[string]*model.UserData)
+	for _, u := range users {
+		userCopy := u // copy to avoid pointer issues
+		userMap[u.ID] = &userCopy
+	}
+
+	serviceMap := make(map[string]*model.UserData)
+	for _, s := range services {
+		serviceCopy := s
+		serviceMap[s.ID] = &serviceCopy
+	}
+
+	// Build final result
+	var result []*model.AppointmentBookedData
+	days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+
+	for _, day := range days {
+		dayBookings, exists := bookingsByDay[day]
+		if !exists {
+			continue
+		}
+
+		for _, booking := range dayBookings {
+			var userData []*model.UserData
+
+			if booking.UserType == model.UserTypeUser {
+				user, exists := userMap[booking.UserID]
+				if !exists {
+					return nil, fmt.Errorf("user not found for ID: %s", booking.UserID)
+				}
+				userData = append(userData, user)
+			} else if booking.UserType == model.UserTypeService {
+				service, exists := serviceMap[booking.UserID]
+				if !exists {
+					return nil, fmt.Errorf("service not found for ID: %s", booking.UserID)
+				}
+				userData = append(userData, service)
+			} else {
+				return nil, fmt.Errorf("unknown user type: %v", booking.UserType)
+			}
+
+			appointmentData := &model.AppointmentBookedData{
+				Book:      booking,
+				UsersData: userData,
+			}
+			result = append(result, appointmentData)
+		}
+	}
+
+	return result, nil
+}
+
+// GetAllAppointmentBookingsByUserID is the resolver for the getAllAppointmentBookingsByUserId field.
+func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, userID string) ([]*model.UserAppointmentBookedData, error) {
+	// Get the service ID from context
+	// Get the service provider's ID from context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Verify the service provider exists
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to verify service: %w", err)
+	}
+
+	// Fetch all bookings made by the user (or service) toward the service provider
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("user_id = ? AND service_id = ?", userID, serviceID).
+		Order("day, start_time").
+		Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
+	}
+
+	if len(bookings) == 0 {
+		return []*model.UserAppointmentBookedData{}, nil
+	}
+
+	// Determine user info based on UserType of the booking
+	var userData *model.UserData
+
+	switch bookings[0].UserType {
+	case model.UserTypeService:
+		var serviceUser model.Service
+		if err := r.DB.Where("id = ?", userID).First(&serviceUser).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch service user: %w", err)
+		}
+		userData = &model.UserData{
+			ID:         serviceUser.ID.String(),
+			Name:       serviceUser.Name,
+			Number:     serviceUser.Number,
+			NumberType: helper.GetStringValue(serviceUser.NumberType),
+			Type:       string(model.UserTypeService),
+		}
+	case model.UserTypeUser:
+		var normalUser model.User
+		if err := r.DB.Where("id = ?", userID).First(&normalUser).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch normal user: %w", err)
+		}
+		userData = &model.UserData{
+			ID:         normalUser.ID.String(),
+			Name:       normalUser.Name,
+			Number:     normalUser.Number,
+			NumberType: helper.GetStringValue(&normalUser.NumberType),
+			Type:       string(model.UserTypeUser),
+		}
+	default:
+		return nil, fmt.Errorf("unsupported user type: %s", bookings[0].UserType)
+	}
+
+	// Build and return the result
+	result := &model.UserAppointmentBookedData{
+		Book:     bookings,
+		UserData: userData,
+	}
+
+	return []*model.UserAppointmentBookedData{result}, nil
+}
+
+// GetAppointmentBookingsByUserID is the resolver for the getAppointmentBookingsByUserId field.
+func (r *queryResolver) GetAppointmentBookingsByUserID(ctx context.Context, userID string) ([]*model.AppointmentBooking, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("user_id = ? AND service_id = ?", userID, serviceID).Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch appointment bookings for user ID %s and service ID %s: %v", userID, serviceID, err)
+	}
+	return bookings, nil
+}
+
+// GetAppointmentBookingsByServiceID is the resolver for the getAppointmentBookingsByServiceId field.
+func (r *queryResolver) GetAppointmentBookingsByServiceID(ctx context.Context, serviceID string) ([]*model.AppointmentBooking, error) {
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("service_id = ?", serviceID).Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch appointment bookings for service ID %s: %v", serviceID, err)
+	}
+	return bookings, nil
+}
+
+// GetAppointmentBookingsByDate is the resolver for the getAppointmentBookingsByDate field.
+func (r *queryResolver) GetAppointmentBookingsByDate(ctx context.Context, date string) ([]*model.AppointmentBooking, error) {
+	parsedDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date format, expected YYYY-MM-DD: %v", err)
+	}
+
+	startOfDay := parsedDate
+	endOfDay := parsedDate.Add(24 * time.Hour)
+
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("start_time >= ? AND start_time < ?", startOfDay, endOfDay).Order("start_time ASC").Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch appointment bookings for date %s: %v", date, err)
+	}
+	return bookings, nil
+}
+
+// GetConfirmedBookings is the resolver for the getConfirmedBookings field.
+func (r *queryResolver) GetConfirmedBookings(ctx context.Context, id string) (bool, error) {
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", id).First(&booking).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, fmt.Errorf("booking not found with ID: %s", id)
+		}
+		return false, fmt.Errorf("failed to fetch booking: %w", err)
+	}
+
+	// Check if IsConfirmed is nil, return false if it is
+	if booking.IsConfirmed == nil || !*booking.IsConfirmed {
+		return false, nil
+	}
+
+	// Return the value of IsConfirmed
+	return *booking.IsConfirmed, nil
 }
 
 // ID is the resolver for the id field.
@@ -154,9 +642,15 @@ func (r *unavailablePeriodResolver) ID(ctx context.Context, obj *model.Unavailab
 	return id, nil
 }
 
+// AppointmentBooking returns graph.AppointmentBookingResolver implementation.
+func (r *Resolver) AppointmentBooking() graph.AppointmentBookingResolver {
+	return &appointmentBookingResolver{r}
+}
+
 // UnavailablePeriod returns graph.UnavailablePeriodResolver implementation.
 func (r *Resolver) UnavailablePeriod() graph.UnavailablePeriodResolver {
 	return &unavailablePeriodResolver{r}
 }
 
+type appointmentBookingResolver struct{ *Resolver }
 type unavailablePeriodResolver struct{ *Resolver }

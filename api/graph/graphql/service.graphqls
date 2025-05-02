@@ -9,9 +9,16 @@ type Service {
   aboutMe: String
   password: String
   dpfile: String
-  bookType: BookingType
+  bookTypes: [String]
+  isAuth: isAuth
+  numberType: String
   createdAt: Time!
   updatedAt: Time!
+}
+enum isAuth {
+  padding
+  authenticated
+  unauthenticated
 }
 enum BookingType {
   APPOINTMENT
@@ -56,7 +63,14 @@ extend type Query {
   getAllProfessionFromService: [String]
   getBookingType(
     serviceId: String!
-  ): BookingType
+  ): [BookingType!]!
+  getDashboardData: DashboardData
+  getFavorites: [Favorite!]!
+  getProvidersUsersContact(
+    search: String
+    limit: Int = 10
+    offset: Int = 0
+  ): [UserData!]!
 }
 
 extend type Mutation {
@@ -83,15 +97,14 @@ extend type Mutation {
     removeUrl: [String]
   ): GalleryProfession!
   deleteGallery(id: String!): Boolean
+  createFavorite(input:CreateFavoriteInput): Favorite
 }
 
 input CreateServiceInput {
   name: String!
-  # type: String
   number: String!
   email: String!
   location: String
-
   profession: [String]
   password: String
 }
@@ -104,4 +117,31 @@ input UpdateServiceInput {
   aboutMe: String
   location: String
   password: String
+}
+
+
+type DashboardData {
+  totalUsers: [String!]!
+  totalBookingsIds: [String!]!
+  favoritesIds: [String!]!
+  recentActivityIds: [String!]!
+  categoriesServiceTypes: [BookingType!]!
+}
+
+
+input CreateFavoriteInput {
+  address: String
+  otherNumber: [String]
+  Note: String
+  userId: String!
+}
+type Favorite {
+  id: String!
+  userId: String!
+  serviceId: String!
+  address: String
+  otherNumber: [String]
+  Note: String
+  createdAt: Time!
+  updatedAt: Time!
 }

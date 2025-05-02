@@ -19,18 +19,23 @@ type AmenityInput struct {
 	Text string `json:"text"`
 }
 
+type AppointmentBookedData struct {
+	Book      *AppointmentBooking `json:"book"`
+	UsersData []*UserData         `json:"usersData"`
+}
+
 type BookedData struct {
 	Event     *Event      `json:"event"`
 	UsersData []*UserData `json:"usersData"`
 }
 
 type BookerInput struct {
-	Name      string  `json:"name"`
-	Number    string  `json:"number"`
-	StartTime string  `json:"startTime"`
-	EndTime   string  `json:"endTime"`
-	Notes     *string `json:"notes,omitempty"`
-	TableSize int32   `json:"tableSize"`
+	UserType  UserType `json:"userType"`
+	StartTime string   `json:"startTime"`
+	EndTime   string   `json:"endTime"`
+	Notes     *string  `json:"notes,omitempty"`
+	TableSize int32    `json:"tableSize"`
+	UserID    string   `json:"userId"`
 }
 
 type BookersInput struct {
@@ -44,20 +49,6 @@ type BookersInput struct {
 	IsBooked  bool      `json:"isBooked"`
 }
 
-type Booking struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Number    string    `json:"number"`
-	StartTime string    `json:"startTime"`
-	EndTime   string    `json:"endTime"`
-	Day       string    `json:"day"`
-	Notes     *string   `json:"notes,omitempty"`
-	TableSize int32     `json:"tableSize"`
-	ServiceID string    `json:"serviceId"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
 type CategoryInput struct {
 	Name string  `json:"name"`
 	Icon *string `json:"icon,omitempty"`
@@ -69,6 +60,13 @@ type CreateAdminInput struct {
 	Number   string  `json:"number"`
 	Password *string `json:"password,omitempty"`
 	Status   *string `json:"status,omitempty"`
+}
+
+type CreateFavoriteInput struct {
+	Address     *string   `json:"address,omitempty"`
+	OtherNumber []*string `json:"otherNumber,omitempty"`
+	Note        *string   `json:"Note,omitempty"`
+	UserID      string    `json:"userId"`
 }
 
 type CreatePolicyInput struct {
@@ -90,6 +88,26 @@ type CreateUnavailablePeriodInput struct {
 	Day       string `json:"day"`
 	StartTime string `json:"startTime"`
 	EndTime   string `json:"endTime"`
+}
+
+type DashboardData struct {
+	TotalUsers             []string      `json:"totalUsers"`
+	TotalBookingsIds       []string      `json:"totalBookingsIds"`
+	FavoritesIds           []string      `json:"favoritesIds"`
+	RecentActivityIds      []string      `json:"recentActivityIds"`
+	CategoriesServiceTypes []BookingType `json:"categoriesServiceTypes"`
+}
+
+type EventBookedData struct {
+	UserID           string        `json:"userId"`
+	UserName         string        `json:"userName"`
+	UserNumber       string        `json:"userNumber"`
+	BookTypeID       string        `json:"bookTypeId"`
+	BookTypeImageURL string        `json:"bookTypeImageUrl"`
+	BookTypeName     string        `json:"bookTypeName"`
+	BookType         string        `json:"bookType"`
+	BookTypePrice    string        `json:"bookTypePrice"`
+	Booked           *UserBookings `json:"booked"`
 }
 
 type EventFilter struct {
@@ -139,6 +157,14 @@ type LoginInput struct {
 }
 
 type Mutation struct {
+}
+
+type OtpResponse struct {
+	Success bool    `json:"success"`
+	Message string  `json:"message"`
+	OtpSent bool    `json:"otpSent"`
+	IsValid bool    `json:"IsValid"`
+	Email   *string `json:"email,omitempty"`
 }
 
 type PolicyDetailInput struct {
@@ -196,6 +222,32 @@ type Rating struct {
 type RentalItem struct {
 	Category    *Category        `json:"category,omitempty"`
 	Inventories []*InventoryItem `json:"inventories,omitempty"`
+}
+
+type RequestOtpInput struct {
+	Email  string `json:"email"`
+	Number string `json:"number"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+}
+
+type ResetPassWordOtpInput struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordInput struct {
+	Email           string `json:"email"`
+	Otp             string `json:"otp"`
+	NewPassword     string `json:"newPassword"`
+	ConfirmPassword string `json:"confirmPassword"`
+	Type            string `json:"type"`
+}
+
+type ResetPasswordResponse struct {
+	Success bool    `json:"success"`
+	Message string  `json:"message"`
+	IsReset bool    `json:"isReset"`
+	Email   *string `json:"email,omitempty"`
 }
 
 type SystemInfo struct {
@@ -260,12 +312,23 @@ type UpdateServiceInput struct {
 	Password   *string   `json:"password,omitempty"`
 }
 
+type UserAppointmentBookedData struct {
+	Book     []*AppointmentBooking `json:"book"`
+	UserData *UserData             `json:"userData"`
+}
+
 type UserData struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Number     string `json:"number"`
 	NumberType string `json:"numberType"`
 	Type       string `json:"type"`
+}
+
+type VerifyOtpInput struct {
+	Email string `json:"email"`
+	Otp   string `json:"otp"`
+	Type  string `json:"type"`
 }
 
 type FullCard struct {
@@ -279,6 +342,7 @@ type InputUser struct {
 	Number     string  `json:"number"`
 	Password   string  `json:"password"`
 	NumberType *string `json:"numberType,omitempty"`
+	Email      *string `json:"email,omitempty"`
 }
 
 type JobRequestInput struct {
@@ -360,6 +424,53 @@ func (e BookingType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type ReasonType string
+
+const (
+	ReasonTypeResetPassword   ReasonType = "RESET_PASSWORD"
+	ReasonTypeCreateUser      ReasonType = "CREATE_USER"
+	ReasonTypeLogin           ReasonType = "LOGIN"
+	ReasonTypeTwoFactorAuth   ReasonType = "TWO_FACTOR_AUTH"
+	ReasonTypeAccountRecovery ReasonType = "ACCOUNT_RECOVERY"
+)
+
+var AllReasonType = []ReasonType{
+	ReasonTypeResetPassword,
+	ReasonTypeCreateUser,
+	ReasonTypeLogin,
+	ReasonTypeTwoFactorAuth,
+	ReasonTypeAccountRecovery,
+}
+
+func (e ReasonType) IsValid() bool {
+	switch e {
+	case ReasonTypeResetPassword, ReasonTypeCreateUser, ReasonTypeLogin, ReasonTypeTwoFactorAuth, ReasonTypeAccountRecovery:
+		return true
+	}
+	return false
+}
+
+func (e ReasonType) String() string {
+	return string(e)
+}
+
+func (e *ReasonType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReasonType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReasonType", str)
+	}
+	return nil
+}
+
+func (e ReasonType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type RecurringType string
 
 const (
@@ -404,5 +515,91 @@ func (e *RecurringType) UnmarshalGQL(v any) error {
 }
 
 func (e RecurringType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type UserType string
+
+const (
+	UserTypeService UserType = "SERVICE"
+	UserTypeAdmin   UserType = "ADMIN"
+	UserTypeUser    UserType = "USER"
+)
+
+var AllUserType = []UserType{
+	UserTypeService,
+	UserTypeAdmin,
+	UserTypeUser,
+}
+
+func (e UserType) IsValid() bool {
+	switch e {
+	case UserTypeService, UserTypeAdmin, UserTypeUser:
+		return true
+	}
+	return false
+}
+
+func (e UserType) String() string {
+	return string(e)
+}
+
+func (e *UserType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UserType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UserType", str)
+	}
+	return nil
+}
+
+func (e UserType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type IsAuth string
+
+const (
+	IsAuthPadding         IsAuth = "padding"
+	IsAuthAuthenticated   IsAuth = "authenticated"
+	IsAuthUnauthenticated IsAuth = "unauthenticated"
+)
+
+var AllIsAuth = []IsAuth{
+	IsAuthPadding,
+	IsAuthAuthenticated,
+	IsAuthUnauthenticated,
+}
+
+func (e IsAuth) IsValid() bool {
+	switch e {
+	case IsAuthPadding, IsAuthAuthenticated, IsAuthUnauthenticated:
+		return true
+	}
+	return false
+}
+
+func (e IsAuth) String() string {
+	return string(e)
+}
+
+func (e *IsAuth) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = IsAuth(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid isAuth", str)
+	}
+	return nil
+}
+
+func (e IsAuth) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

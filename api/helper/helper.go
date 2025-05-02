@@ -79,6 +79,27 @@ func CheckDuplicateRecords(db *gorm.DB, model interface{}, inputName, inputPhone
 
 	return nil
 }
+func CheckDuplicateRecordsEmailNumber(db *gorm.DB, model interface{}, inputEmail, inputPhoneNumber string) error {
+	// Check if a user with the same email and number already exists
+	err := db.Where("email = ? AND number = ?", inputEmail, inputPhoneNumber).First(model).Error
+	if err == nil {
+		return fmt.Errorf(" A member with the number already exists")
+	}
+	if err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("failed to query for duplicates: %w", err)
+	}
+
+	// Check if a user with the same number already exists
+	err = db.Where("number = ?", inputPhoneNumber).First(model).Error
+	if err == nil {
+		return fmt.Errorf(" A member with the same number already exists")
+	}
+	if err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("failed to query for duplicates: %w", err)
+	}
+
+	return nil
+}
 func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, inputPhoneNumber string) error {
 	// Check if a user with the same name and number already exists
 	err := db.Where("name = ? AND number = ?", inputName, inputPhoneNumber).First(model).Error
@@ -261,4 +282,34 @@ func IsValidEmail(email string) bool {
 func IsValidPhone(number string) bool {
 	re := regexp.MustCompile(`^\d{7,15}$`) // Accepts numbers with 7 to 15 digits
 	return re.MatchString(number)
+}
+
+
+// Helper function to check if two time ranges overlap
+func IsTimeOverlap(start1, end1, start2, end2 string) bool {
+	// If one range ends before or at the same time the other starts, they don't overlap
+	return !(end1 <= start2 || end2 <= start1)
+}
+
+// Helper function to handle nil string pointers
+func GetStringValue(s *string) string {
+    if s == nil {
+        return ""
+    }
+    return *s
+}
+
+
+// Helper function to remove duplicate strings from a slice
+func RemoveDuplicates(strSlice []string) []string {
+    keys := make(map[string]bool)
+    list := []string{}
+    
+    for _, entry := range strSlice {
+        if _, value := keys[entry]; !value {
+            keys[entry] = true
+            list = append(list, entry)
+        }
+    }
+    return list
 }

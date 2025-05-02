@@ -25,6 +25,22 @@ import (
 )
 
 // ID is the resolver for the id field.
+func (r *favoriteResolver) ID(ctx context.Context, obj *model.Favorite) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// OtherNumber is the resolver for the otherNumber field.
+func (r *favoriteResolver) OtherNumber(ctx context.Context, obj *model.Favorite) ([]*string, error) {
+	var eachArray []*string
+	for _, url := range obj.OtherNumber {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
+	}
+	return eachArray, nil
+}
+
+// ID is the resolver for the id field.
 func (r *galleryProfessionResolver) ID(ctx context.Context, obj *model.GalleryProfession) (*string, error) {
 	id := obj.ID.String()
 	return &id, nil
@@ -60,12 +76,18 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	if err != nil {
 		return nil, err
 	}
+	err = helper.CheckDuplicateRecordsEmailNumber(r.DB, &model.User{}, input.Email, input.Number)
+	if err != nil {
+		return nil, err
+	}
 	var Professions []string
 	for _, catptr := range input.Profession {
 		if catptr != nil {
 			Professions = append(Professions, *catptr)
 		}
 	}
+	authStatus := model.IsAuthPadding
+
 	// Create a new service instance
 	service := model.Service{
 		Name:       input.Name,
@@ -74,6 +96,7 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 		Email:      input.Email,
 		Profession: Professions,
 		Location:   input.Location,
+		IsAuth:     &authStatus,
 	}
 
 	// Hash password if provided
@@ -90,6 +113,24 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	if err := r.DB.Create(&service).Error; err != nil {
 		return nil, fmt.Errorf("failed to create service: %w", err)
 	}
+
+	// // Initialize OTP service with Redis client
+	// otpService := otp.NewOtpService(r.RedisClient)
+
+	// // Generate OTP with 3-minute expiration
+	// generatedOTP, err := otpService.GenerateOTP(ctx, service.Email)
+	// if err != nil {
+	// 	log.Printf("Error generating OTP: %v", err)
+	// 	// Continue execution even if OTP generation fails
+	// } else {
+	// 	// Send OTP via email
+	// 	err = otp.SendOTPEmail(service.Email, generatedOTP)
+	// 	if err != nil {
+	// 		log.Printf("Error sending OTP email: %v", err)
+	// 		// Continue execution even if email sending fails
+	// 	}
+	// }
+
 	if dpfile != nil {
 		// Use the stable UUID as part of the bucket name
 		bucketName := fmt.Sprintf("service-%s-bucket", service.ID.String())
@@ -143,7 +184,7 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 	if input.Name != nil && service.Name != *input.Name {
 		var existingService model.Service
 		if err := r.DB.Where("name = ?", *input.Name).First(&existingService).Error; err == nil {
-			return nil, fmt.Errorf("a service with the same name already exists")
+			return nil, fmt.Errorf("User already exists")
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("failed to check for existing service: %w", err)
 		}
@@ -250,17 +291,24 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 		service.Location = input.Location
 		updateNeeded = true
 	}
+	var existingUser model.Service
 
 	// Check and update the service number
 	if input.Number != nil && service.Number != *input.Number {
+		cleanedNumber := helper.CleanPhoneNumber(*input.Number)
 		var existingService model.Service
-		if err := r.DB.Where("number = ? ", *input.Number).First(&existingService).Error; err == nil {
+		if err := r.DB.Where("number = ?", cleanedNumber).First(&existingService).Error; err == nil {
 			return nil, fmt.Errorf("a service with the same number already exists")
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("failed to check for existing service: %w", err)
 		}
 
-		service.Number = *input.Number
+		if err := r.DB.Where("number = ?", cleanedNumber).First(&existingUser).Error; err == nil {
+
+			return nil, fmt.Errorf("User already exists")
+		}
+
+		service.Number = cleanedNumber
 		updateNeeded = true
 	}
 
@@ -272,7 +320,10 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("failed to check for existing service: %w", err)
 		}
+		if err := r.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
 
+			return nil, fmt.Errorf("User already exists")
+		}
 		service.Email = *input.Email
 		updateNeeded = true
 	}
@@ -385,20 +436,41 @@ func (r *mutationResolver) UpdateBookingType(ctx context.Context, typeArg model.
 	var service model.Service
 	if err := r.DB.Where("id = ?", serviceUUID).First(&service).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("service not found with ID")
+			return nil, fmt.Errorf("service not found with ID %s", *serviceIDStr)
 		}
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
 
-	// Update the booking type
-	service.BookType = &typeArg
+	// Create a map to track existing booking types
+	bookTypeSet := make(map[string]bool)
+	for _, existingType := range service.BookTypes {
+		bookTypeSet[existingType] = true
+	}
+
+	// Toggle the booking type
+	btStr := typeArg.String()
+	if bookTypeSet[btStr] {
+		// Remove if it exists
+		delete(bookTypeSet, btStr)
+	} else {
+		// Add if it doesn't exist
+		bookTypeSet[btStr] = true
+	}
+
+	// Convert the map back to pq.StringArray
+	updatedBookTypes := pq.StringArray{}
+	for bookType := range bookTypeSet {
+		updatedBookTypes = append(updatedBookTypes, bookType)
+	}
+	service.BookTypes = updatedBookTypes
 
 	// Save the updated service to the database
 	if err := r.DB.Save(&service).Error; err != nil {
-		return nil, fmt.Errorf("failed to update booking type: %w", err)
+		return nil, fmt.Errorf("failed to update booking types: %w", err)
 	}
 
-	return service.BookType, nil
+	// Return response with updated booking types
+	return &typeArg, nil
 }
 
 // CreateGallery is the resolver for the createGallery field.
@@ -688,6 +760,43 @@ func (r *mutationResolver) DeleteGallery(ctx context.Context, id string) (*bool,
 	return &result, nil
 }
 
+// CreateFavorite is the resolver for the createFavorite field.
+func (r *mutationResolver) CreateFavorite(ctx context.Context, input *model.CreateFavoriteInput) (*model.Favorite, error) {
+	ServiceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	}
+
+	// Parse the UUID from string
+	ServiceID, err := uuid.Parse(*ServiceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Service ID: %w", err)
+	}
+
+	var cleanedNumbers pq.StringArray
+	for _, numberPtr := range input.OtherNumber {
+		if numberPtr != nil {
+			cleanedNumbers = append(cleanedNumbers, helper.CleanPhoneNumber(*numberPtr))
+		}
+	}
+
+	// Create a new favorite instance
+	favorite := &model.Favorite{
+		ServiceID:   ServiceID.String(),
+		UserID:      input.UserID,
+		Address:     input.Address,
+		OtherNumber: cleanedNumbers,
+		Note:        input.Note,
+	}
+
+	// Save the favorite to the database
+	if err := r.DB.Create(favorite).Error; err != nil {
+		return nil, fmt.Errorf("failed to create favorite: %w", err)
+	}
+
+	return favorite, nil
+}
+
 // GetService is the resolver for the getService field.
 func (r *queryResolver) GetService(ctx context.Context) (*model.Service, error) {
 	ServiceIDStr, err := r.Query().GetID(ctx)
@@ -828,7 +937,7 @@ func (r *queryResolver) GetAllProfessionFromService(ctx context.Context) ([]*str
 }
 
 // GetBookingType is the resolver for the getBookingType field.
-func (r *queryResolver) GetBookingType(ctx context.Context, serviceID string) (*model.BookingType, error) {
+func (r *queryResolver) GetBookingType(ctx context.Context, serviceID string) ([]model.BookingType, error) {
 	// Parse the UUID from the serviceID string
 	serviceUUID, err := uuid.Parse(serviceID)
 	if err != nil {
@@ -844,8 +953,299 @@ func (r *queryResolver) GetBookingType(ctx context.Context, serviceID string) (*
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
 
-	// Return the booking type
-	return service.BookType, nil
+	// Convert pq.StringArray to []model.BookingType
+	var bookingTypes []model.BookingType
+	for _, bt := range service.BookTypes {
+		bookingTypes = append(bookingTypes, model.BookingType(bt))
+	}
+
+	// Return the booking types
+	return bookingTypes, nil
+}
+
+// GetDashboardData is the resolver for the getDashboardData field.
+func (r *queryResolver) GetDashboardData(ctx context.Context) (*model.DashboardData, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	}
+
+	// Parse the UUID
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Verify that the service exists and get its data
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to verify service: %w", err)
+	}
+
+	// Initialize the dashboard data struct
+	dashboardData := &model.DashboardData{
+		TotalUsers:             []string{},
+		TotalBookingsIds:       []string{},
+		FavoritesIds:           []string{},
+		RecentActivityIds:      []string{},
+		CategoriesServiceTypes: []model.BookingType{},
+	}
+
+	// Get all users who have booked with this service (distinct users)
+	var userIDs []string
+	if err := r.DB.Model(&model.AppointmentBooking{}).
+		Where("service_id = ?", serviceID.String()).
+		Distinct("user_id").
+		Pluck("user_id", &userIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch users: %w", err)
+	}
+	dashboardData.TotalUsers = userIDs
+
+	// Get all booking IDs for this service
+	var bookingIDs []string
+	if err := r.DB.Model(&model.AppointmentBooking{}).
+		Where("service_id = ?", serviceID.String()).
+		Pluck("id", &bookingIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch booking IDs: %w", err)
+	}
+	dashboardData.TotalBookingsIds = bookingIDs
+
+	// Get favorites using the Favorite model
+	var favoriteIDs []string
+	if err := r.DB.Model(&model.Favorite{}).
+		Where("service_id = ?", serviceID.String()).
+		Pluck("id", &favoriteIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch favorites: %w", err)
+	}
+	dashboardData.FavoritesIds = favoriteIDs
+
+	// Get recent activity (last 10 bookings)
+	var recentActivityIDs []string
+	if err := r.DB.Model(&model.AppointmentBooking{}).
+		Where("service_id = ?", serviceID.String()).
+		Order("created_at DESC").
+		Limit(10).
+		Pluck("id", &recentActivityIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch recent activity: %w", err)
+	}
+	dashboardData.RecentActivityIds = recentActivityIDs
+
+	// Process the BookTypes from the service
+	var bookingTypes []model.BookingType
+	for _, bookTypeStr := range service.BookTypes {
+		bookingTypes = append(bookingTypes, model.BookingType(bookTypeStr))
+	}
+	dashboardData.CategoriesServiceTypes = bookingTypes
+
+	return dashboardData, nil
+}
+
+// GetFavorites is the resolver for the getFavorites field.
+func (r *queryResolver) GetFavorites(ctx context.Context) ([]*model.Favorite, error) {
+	panic(fmt.Errorf("not implemented: GetFavorites - getFavorites"))
+}
+
+// GetProvidersUsersContact is the resolver for the getProvidersUsersContact field.
+func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.UserData, error) {
+	// Get service ID from context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	}
+
+	// Parse the UUID
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Verify that the service exists
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to verify service: %w", err)
+	}
+
+	// Set default values if not provided
+	limitValue := int32(10)
+	offsetValue := int32(0)
+
+	if limit != nil {
+		limitValue = *limit
+	}
+
+	if offset != nil {
+		offsetValue = *offset
+	}
+
+	// Initialize result and tracking map
+	var result []*model.UserData
+	uniqueContacts := make(map[string]bool)
+
+	// Get all bookings where this service is either the service or the user
+	var bookings []model.AppointmentBooking
+	if err := r.DB.Where("service_id = ? OR (user_id = ? AND user_type = ?)",
+		serviceID.String(), serviceID.String(), model.UserTypeService).
+		Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
+	}
+
+	// Extract all user and service IDs from these bookings
+	userIDs := make([]string, 0)
+	serviceIDs := make([]string, 0)
+
+	for _, booking := range bookings {
+		if booking.UserType == model.UserTypeUser {
+			userIDs = append(userIDs, booking.UserID)
+		} else if booking.UserType == model.UserTypeService {
+			// If the booking's service_id is our service ID, then we want the user_id
+			// Otherwise, we want the service_id
+			if booking.ServiceID == serviceID.String() {
+				serviceIDs = append(serviceIDs, booking.UserID)
+			} else {
+				serviceIDs = append(serviceIDs, booking.ServiceID)
+			}
+		}
+	}
+
+	// Remove duplicates
+	userIDs = helper.RemoveDuplicates(userIDs)
+	serviceIDs = helper.RemoveDuplicates(serviceIDs)
+
+	// Apply search if provided
+	if search != nil && *search != "" {
+		searchTerm := "%" + *search + "%"
+
+		// Search users
+		if len(userIDs) > 0 {
+			var users []model.User
+			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
+				userIDs, searchTerm, searchTerm, searchTerm).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&users).Error; err != nil {
+				return nil, fmt.Errorf("failed to search users: %w", err)
+			}
+
+			// Process matching users
+			for _, user := range users {
+				userData := &model.UserData{
+					ID:         user.ID.String(),
+					Name:       user.Name,
+					Number:     user.Number,
+					NumberType: helper.GetStringValue(&user.NumberType),
+					Type:       string(model.UserTypeUser),
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
+
+		// Search services
+		if len(serviceIDs) > 0 {
+			var services []model.Service
+			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR CAST(type AS TEXT) ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
+				serviceIDs, searchTerm, searchTerm, searchTerm, searchTerm).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&services).Error; err != nil {
+				return nil, fmt.Errorf("failed to search services: %w", err)
+			}
+
+			// Process matching services
+			for _, contactService := range services {
+				// Skip the current service
+				if contactService.ID == serviceID {
+					continue
+				}
+
+				userData := &model.UserData{
+					ID:         contactService.ID.String(),
+					Name:       contactService.Name,
+					Number:     contactService.Number,
+					NumberType: helper.GetStringValue(contactService.NumberType),
+					Type:       string(model.UserTypeService),
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
+	} else {
+		// If no search term, get all the users and services directly
+		// Get users first
+		if len(userIDs) > 0 {
+			var users []model.User
+			if err := r.DB.Where("id IN (?)", userIDs).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&users).Error; err != nil {
+				return nil, fmt.Errorf("failed to fetch users: %w", err)
+			}
+
+			for _, user := range users {
+				userData := &model.UserData{
+					ID:         user.ID.String(),
+					Name:       user.Name,
+					Number:     user.Number,
+					NumberType: helper.GetStringValue(&user.NumberType),
+					Type:       string(model.UserTypeUser),
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
+
+		// Then get services
+		if len(serviceIDs) > 0 {
+			var services []model.Service
+			if err := r.DB.Where("id IN (?)", serviceIDs).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&services).Error; err != nil {
+				return nil, fmt.Errorf("failed to fetch services: %w", err)
+			}
+
+			for _, contactService := range services {
+				// Skip the current service
+				// if contactService.ID == serviceID {
+				//     continue
+				// }
+
+				userData := &model.UserData{
+					ID:         contactService.ID.String(),
+					Name:       contactService.Name,
+					Number:     contactService.Number,
+					NumberType: helper.GetStringValue(contactService.NumberType),
+					Type:       string(model.UserTypeService),
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // ID is the resolver for the id field.
@@ -865,6 +1265,20 @@ func (r *serviceResolver) Profession(ctx context.Context, obj *model.Service) ([
 	return eachArray, nil
 }
 
+// BookTypes is the resolver for the bookTypes field.
+func (r *serviceResolver) BookTypes(ctx context.Context, obj *model.Service) ([]*string, error) {
+	// iterate over the pq.StringArray, convert each string to a pointer, and append it to the result slice.
+	var eachArray []*string
+	for _, catptr := range obj.BookTypes {
+		cate := catptr
+		eachArray = append(eachArray, &cate)
+	}
+	return eachArray, nil
+}
+
+// Favorite returns graph.FavoriteResolver implementation.
+func (r *Resolver) Favorite() graph.FavoriteResolver { return &favoriteResolver{r} }
+
 // GalleryProfession returns graph.GalleryProfessionResolver implementation.
 func (r *Resolver) GalleryProfession() graph.GalleryProfessionResolver {
 	return &galleryProfessionResolver{r}
@@ -873,5 +1287,6 @@ func (r *Resolver) GalleryProfession() graph.GalleryProfessionResolver {
 // Service returns graph.ServiceResolver implementation.
 func (r *Resolver) Service() graph.ServiceResolver { return &serviceResolver{r} }
 
+type favoriteResolver struct{ *Resolver }
 type galleryProfessionResolver struct{ *Resolver }
 type serviceResolver struct{ *Resolver }

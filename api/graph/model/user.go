@@ -14,6 +14,7 @@ type User struct {
 	NumberType string    `json:"number_type"`
 	Type       string    `json:"type"`
 	Password   *string   `json:"password,omitempty"`
+	Email   *string   `json:"email,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -76,25 +76,16 @@ const Login = ({ children }: { children: ReactNode }) => {
         console.log(userType);
 
         if (userType === ProtectType.Driver) {
-          navigate("/delivery");
-        } else if (userType === ProtectType.vendor) {
-          navigate("/vendor");
-        } else if (userType === ProtectType.Advertiser) {
-          navigate("/advert");
-        } else if (userType === ProtectType.Service) {
           navigate(`/providers/${result.data.serviceLogin.id}`);
         } else {
           setError("Invalid user type. Please contact support.");
         }
-
-        // For now, navigate to delivery page
       } else {
-        setError("Login failed. Please check your credentials.");
+        setError("Login failed. Please try again.");
       }
     } catch (err) {
       setError("An unexpected error occurred");
       navigate("/login");
-
       console.error("Login error:", err);
     }
   };
@@ -102,6 +93,7 @@ const Login = ({ children }: { children: ReactNode }) => {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
+
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -147,9 +139,27 @@ const Login = ({ children }: { children: ReactNode }) => {
             </div>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
-          </Button>
+          <div className="flex ">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+            <Link to={"/reset"}>
+            <Button variant={"link"} type="button" className="w-full">
+              Forget Password
+            </Button>
+            
+            </Link>
+
+            {/* //create a account btn */}
+
+            <Link to={"/provider/new"}>
+            <Button variant={"link"} type="button" className="w-full">
+              Create
+            </Button>
+            
+            </Link>
+
+          </div>
         </form>
       </DialogContent>
     </Dialog>

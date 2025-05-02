@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Phone, User, Lock } from "lucide-react";
+import { Phone, User, Lock, Mail, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { gql, useMutation } from "@apollo/client";
 
@@ -20,7 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/middleware/context/authContext";
-
+import OtpCard from "@/components/serviceProviders/createOTP";
+// import OtpCard from "./createOTP"; // Reusing the OTP component
 // Define GraphQL mutations
 const SERVICE_LOGIN = gql`
   mutation serviceLogin($input: LoginInput!) {
@@ -50,6 +51,41 @@ const CREATE_USER = gql`
       number
       type
       numberType
+    }
+  }
+`;
+
+const REQUEST_OTP = gql`
+  mutation RequestOtp($input: RequestOtpInput!) {
+    requestOtp(input: $input) {
+      success
+      message
+      otpSent
+      email
+    }
+  }
+`;
+
+const VERIFY_OTP = gql`
+  mutation VerifyOtp($input: VerifyOtpInput!) {
+    verifyOtp(input: $input) {
+      success
+      message
+      IsValid
+      otpSent
+      email
+    }
+  }
+`;
+
+const RESEND_OTP = gql`
+  mutation ResendOtp($input: RequestOtpInput!) {
+    resendOTP(input: $input) {
+      success
+      message
+      IsValid
+      otpSent
+      email
     }
   }
 `;
@@ -93,8 +129,8 @@ export default function UserAuthCard({
           </CardHeader>
           <Tabs defaultValue="login" className="w-full" ref={tabsRef}>
             <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="create">Create Account</TabsTrigger>
+              <TabsTrigger value="login">Login</TabsTrigger>
             </TabsList>
 
             {/* Login Form */}
@@ -113,7 +149,7 @@ export default function UserAuthCard({
   );
 }
 
-// Create function for the user login
+// Login form component
 function LogInUser({ setOpen }: { setOpen: (open: boolean) => void }) {
   const { login: Auth } = useAuth();
 
@@ -194,16 +230,25 @@ function LogInUser({ setOpen }: { setOpen: (open: boolean) => void }) {
   );
 }
 
+// Create user form component with OTP verification
 function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [phoneType, setPhoneType] = useState<PhoneType>(PhoneType.BOTH);
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [passwordError, setPasswordError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Set up mutation
-  const [createUser, { loading }] = useMutation(CREATE_USER, {
+  // OTP verification states
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [formData, setFormData] = useState<any>(null);
+
+  // Set up mutations
+  const [createUser] = useMutation(CREATE_USER, {
     onCompleted: (data) => {
       console.log("Account created:", data);
       toast.success("Account created successfully!", {
@@ -214,8 +259,14 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       // Move the user to the login tab
       switchToLoginTab();
 
+      // Reset states
+      setShowOtpVerification(false);
+      setOtpSent(false);
+      setFormData(null);
+
       // Clear input fields after successful account creation
       setName("");
+      setEmail("");
       setPhoneNumber("");
       setPhoneType(PhoneType.BOTH);
       setPassword("");
@@ -225,10 +276,14 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       console.error("Create account error:", error);
       toast.error("Account creation failed", {
         description:
-          "A user with the same name or phone number already exists.",
+          "A user with the same email or phone number already exists.",
       });
     },
   });
+
+  const [requestOtp] = useMutation(REQUEST_OTP);
+  const [verifyOtp] = useMutation(VERIFY_OTP);
+  const [resendOTP] = useMutation(RESEND_OTP);
 
   const validatePasswords = () => {
     if (password !== confirmPassword) {
@@ -239,27 +294,178 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
     return true;
   };
 
+  // Send OTP before submitting form
+  const handleSendOtp = async (data: any) => {
+    setIsLoading(true);
+    setFormData(data);
+
+    try {
+      const result = await requestOtp({
+        variables: {
+          input: {
+            email: data.email,
+            name: data.name,
+            number: data.number,
+            type: "USER", // Using USER type for regular users
+          },
+        },
+      });
+
+      if (result.data?.requestOtp?.success) {
+        setOtpSent(true);
+        setShowOtpVerification(true);
+        toast.success("OTP Sent", {
+          description: `Verification code sent to ${data.email}`,
+        });
+      } else {
+        toast.error("Error", {
+          description: result.data?.requestOtp?.message || "Failed to send verification code",
+        });
+      }
+    } catch (error) {
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "Failed to send verification code",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle OTP verification
+  const handleVerifyOtp = async (otpCode: string) => {
+    setVerifyingOtp(true);
+
+    try {
+      const result = await verifyOtp({
+        variables: {
+          input: {
+            email: formData.email,
+            otp: otpCode,
+            type: "USER", // Using USER type for regular users
+          },
+        },
+      });
+
+      if (result.data?.verifyOtp?.success && result.data?.verifyOtp?.IsValid) {
+        toast.success("Verification Successful", {
+          description: "Your email has been verified successfully",
+        });
+
+        // Submit the form data after successful verification
+        submitFormData(formData);
+      } else {
+        toast.error("Verification Failed", {
+          description: result.data?.verifyOtp?.message || "Invalid verification code",
+        });
+      }
+    } catch (error) {
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "Verification failed",
+      });
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  // Handle OTP resend
+  const handleResendOtp = async () => {
+    try {
+      const result = await resendOTP({
+        variables: {
+          input: {
+            email: formData.email,
+            name: formData.name,
+            number: formData.number,
+            type: "USER", // Using USER type for regular users
+          },
+        },
+      });
+
+      if (result.data?.resendOTP?.success) {
+        toast.success("OTP Resent", {
+          description: `New verification code sent to ${formData.email}`,
+        });
+      } else {
+        toast.error("Error", {
+          description: result.data?.resendOTP?.message || "Failed to resend verification code",
+        });
+      }
+    } catch (error) {
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "Failed to resend verification code",
+      });
+    }
+  };
+
+  // Submit form data to database after OTP verification
+  const submitFormData = async (data: any) => {
+    setIsLoading(true);
+
+    try {
+      await createUser({
+        variables: {
+          input: {
+            name: data.name,
+            number: data.number,
+            numberType: data.phoneType,
+            password: data.password,
+            email: data.email,
+          },
+        },
+      });
+    } catch (error) {
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial form submission handler - triggers OTP flow
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validatePasswords()) return;
 
-    await createUser({
-      variables: {
-        input: {
-          name,
-          number: phoneNumber,
-          numberType: phoneType, // No need for toUpperCase() as it's already an enum
-          password,
-        },
-      },
-    });
+    const data = {
+      name,
+      email,
+      number: phoneNumber,
+      phoneType,
+      password,
+    };
+
+    // Initiate OTP verification process
+    await handleSendOtp(data);
   };
 
+  // Cancel OTP verification and go back to form
+  const handleCancelOtp = () => {
+    setShowOtpVerification(false);
+    setOtpSent(false);
+  };
+
+  if (showOtpVerification) {
+    return (
+      <div className="space-y-6">
+        <OtpCard
+          title="Email Verification"
+          description={`We've sent a verification code to ${formData?.email}. Please enter it below.`}
+          onSubmit={handleVerifyOtp}
+          onResend={handleResendOtp}
+          loading={verifyingOtp}
+        />
+        <div className="flex justify-center px-6 pb-6">
+          <Button variant="outline" onClick={handleCancelOtp} disabled={verifyingOtp}>
+            Back to Form
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form
-      onSubmit={handleCreateAccount}
-      className="sm:max-w-lg max-h-80 overflow-y-auto"
-    >
+    <form onSubmit={handleCreateAccount} className="sm:max-w-lg max-h-80 overflow-y-auto">
       <CardContent className="space-y-4 pt-4">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
@@ -287,6 +493,23 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
               className="pl-10"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email-create">
+            Email (Required for verification)
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="email-create"
+              type="email"
+              placeholder="Enter your Email"
+              className="pl-10"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -324,6 +547,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={8}
             />
           </div>
         </div>
@@ -347,8 +571,18 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Creating Account..." : "Create Account"}
+        <Button type="submit" disabled={isLoading} className="w-full">
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Create Account
+            </>
+          )}
         </Button>
       </CardFooter>
     </form>

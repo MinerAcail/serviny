@@ -43,8 +43,9 @@ import { BookType } from "@/components/serviceProviders/bookingType";
 import { EventCreationForm } from "@/components/serviceProviders/eventBase/event-creation-form";
 import EventBookedMembers from "./eventBookedList";
 import { InventoryList } from "./rentalBasedBooking/inventory-list";
-import { BookingForm } from "./rentalBasedBooking/booking-form";
+// import { BookingForm } from "./rentalBasedBooking/booking-form";
 import InventoryItemForm from "./rentalBasedBooking/createRentals";
+import { AppointmentBookedMembers } from "@/components/serviceProviders/APPOINTMENT/BookedSchedule";
 const daysOfWeek = [
   "Monday",
   "Tuesday",
@@ -253,7 +254,13 @@ export default function AvailabilityPage() {
   const { data: bookingTypeData } = useQuery(GET_BOOK_TYPES, {
     variables: { serviceId: serviceId }, // Replace with actual serviceId
   });
-  const bookingType = bookingTypeData?.getBookingType || null;
+  const bookingType: BookType[] = Array.isArray(bookingTypeData?.getBookingType)
+    ? (bookingTypeData.getBookingType as BookType[])
+    : [];
+
+    console.log("Booking Type", bookingTypeData?.getBookingType);
+  console.log("Booking Type1111", bookingType);
+    
   // Parse hours and minutes from AM/PM time format
   const parseTime = (time12: string): { hours: number; minutes: number } => {
     const [timePart, period] = time12.split(/([ap]m)$/i);
@@ -411,24 +418,26 @@ export default function AvailabilityPage() {
         {bookingType && bookingType.length > 0 ? (
           <>
             <TabsList className="flex justify-center items-center">
-              {bookingType == BookType.RENTAL && (
+                {bookingType.includes(BookType.RENTAL) && (
                 <>
                   <TabsTrigger value="rental">Rental Booking</TabsTrigger>
                   <TabsTrigger value="rentalform">Rental Forms</TabsTrigger>
                 </>
               )}
-              {bookingType == BookType.APPOINTMENT && (
+              {bookingType.includes(BookType.APPOINTMENT) && (
+               <>
                 <TabsTrigger value="unavailable">Unavailable Times</TabsTrigger>
+                <TabsTrigger value="booked">Booked Schedule</TabsTrigger>
+               </>
               )}
-              <TabsTrigger value="booked">Booked Schedule</TabsTrigger>
-              {bookingType == BookType.EVENT && (
+              {bookingType.includes(BookType.EVENT) && (
                 <TabsTrigger value="event">Event Schedule</TabsTrigger>
               )}
             </TabsList>
             <TabsContent value="booked">
-              {bookingType == BookType.EVENT && <EventBookedMembers />}
-              {bookingType == BookType.APPOINTMENT && (
-                <BookedMembers unavailablePeriods={unavailablePeriods} />
+              {bookingType.includes(BookType.EVENT) && <EventBookedMembers />}
+              {bookingType.includes(BookType.APPOINTMENT) && (
+                <AppointmentBookedMembers />
               )}
             </TabsContent>
             <TabsContent value="unavailable">
@@ -670,7 +679,7 @@ export default function AvailabilityPage() {
               <EventCreationForm />
             </TabsContent>
 
-            {bookingType == BookType.RENTAL && (
+            {bookingType.includes(BookType.RENTAL) && (
               <>
                 <TabsContent value="rental">
                   <InventoryList />
@@ -720,39 +729,39 @@ export default function AvailabilityPage() {
   );
 }
 
-function BookedMembers({
-  unavailablePeriods,
-}: {
-  unavailablePeriods: UnavailablePeriod[];
-}) {
-  return (
-    <Card className="bg-white/95 shadow-md rounded-2xl p-6 mt-4">
-      <CardContent>
-        <div className="grid grid-cols-3  mt-3 gap-2 md:grid-cols-4 lg:grid-cols-3">
-          {daysOfWeek.map((day) => (
-            <div key={day} className="flex flex-col">
-              <div className="text-center font-medium py-2 bg-muted rounded-t-md">
-                {day.substring(0, 3)}
-              </div>
-              <div className="border rounded-b-md p-2 h-32 overflow-y-auto">
-                {unavailablePeriods
-                  .filter((period) => period.day === day)
-                  .map((period) => (
-                    <div
-                      key={period.id}
-                      className="text-xs bg-destructive/10 text-destructive rounded p-1 mb-1"
-                    >
-                      {period.startTime === WORKING_HOURS.start &&
-                      period.endTime === WORKING_HOURS.end
-                        ? "Full Day"
-                        : `${period.startTime} - ${period.endTime}`}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+// function BookedMembers({
+//   unavailablePeriods,
+// }: {
+//   unavailablePeriods: UnavailablePeriod[];
+// }) {
+//   return (
+//     <Card className="bg-white/95 shadow-md rounded-2xl p-6 mt-4">
+//       <CardContent>
+//         <div className="grid grid-cols-3  mt-3 gap-2 md:grid-cols-4 lg:grid-cols-3">
+//           {daysOfWeek.map((day) => (
+//             <div key={day} className="flex flex-col">
+//               <div className="text-center font-medium py-2 bg-muted rounded-t-md">
+//                 {day.substring(0, 3)}
+//               </div>
+//               <div className="border rounded-b-md p-2 h-32 overflow-y-auto">
+//                 {unavailablePeriods
+//                   .filter((period) => period.day === day)
+//                   .map((period) => (
+//                     <div
+//                       key={period.id}
+//                       className="text-xs bg-destructive/10 text-destructive rounded p-1 mb-1"
+//                     >
+//                       {period.startTime === WORKING_HOURS.start &&
+//                       period.endTime === WORKING_HOURS.end
+//                         ? "Full Day"
+//                         : `${period.startTime} - ${period.endTime}`}
+//                     </div>
+//                   ))}
+//               </div>
+//             </div>
+//           ))}
+//         </div>
+//       </CardContent>
+//     </Card>
+//   );
+// }

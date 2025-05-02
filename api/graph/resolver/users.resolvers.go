@@ -20,11 +20,16 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.InputUser
 		return nil, err
 	}
 	cleanedNumber := helper.CleanPhoneNumber(input.Number)
-
 	err = helper.CheckDuplicateRecords(r.DB, &model.User{}, input.Name, cleanedNumber)
 	if err != nil {
 		return nil, err
 	}
+
+	err = helper.CheckDuplicateRecordsEmailNumber(r.DB, &model.Service{}, *input.Email, input.Number)
+	if err != nil {
+		return nil, err
+	}
+
 	Usertype := "USER"
 	user := &model.User{
 		Name:       input.Name,
@@ -32,6 +37,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.InputUser
 		Password:   func(s string) *string { return &s }(string(hashedPassword)),
 		Type:       Usertype,
 		NumberType: *input.NumberType,
+		Email:      input.Email,
 	}
 
 	if err := r.DB.Create(user).Error; err != nil {

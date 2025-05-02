@@ -7,14 +7,31 @@ import (
 )
 
 type UnavailablePeriod struct {
-	ID        uuid.UUID  `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	ServiceID  string     `json:"service_id"`
-	Day       string     `json:"day"`
-	StartTime string     `json:"startTime"`
-	EndTime   string     `json:"endTime"`
-	CreatedAt time.Time         `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	ServiceID string    `json:"service_id"`
+	Day       string    `json:"day"`
+	StartTime string    `json:"startTime"`
+	EndTime   string    `json:"endTime"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+//
+type AppointmentBooking struct {
+	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	StartTime string    `json:"startTime"`
+	EndTime   string    `json:"endTime"`
+	Day       string    `json:"day"`
+	Notes     *string   `json:"notes,omitempty"`
+	TableSize int32     `json:"tableSize"`
+	ServiceID string    `json:"serviceId"`
+	UserID    string    `json:"userId"`
+	IsConfirmed *bool      `json:"isConfirmed,omitempty"`
+	UserType  UserType  `json:"userType"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func (User) IsReturns() {}
-func (Service) IsReturns()    {}
+
+
+func (User) IsReturns()    {}
+func (Service) IsReturns() {}

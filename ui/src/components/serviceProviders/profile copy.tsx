@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkGallery } from "./gallery";
 import { Testimonials } from "./testimonials";
-import TableBookingSystem from "./book";
+import AppointmentBookingSystem from "./APPOINTMENT/book";
 import NavBar from "./navBar";
 import { Link } from "react-router";
 // import { gql } from "@/gql";
@@ -103,7 +103,7 @@ export function ServiceProviderProfile() {
               <span className="ml-1 text-muted-foreground">(24 reviews)</span>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
-              <Link to={"/providerprofile"}>
+              <Link to={"/update"}>
                 <Button className="gap-2 rounded-full">
                   <EditIcon className="h-4 w-4" /> Edit
                 </Button>
@@ -112,7 +112,7 @@ export function ServiceProviderProfile() {
               <Button variant="outline" className="gap-2 rounded-full">
                 <Phone className="h-4 w-4" /> Call
               </Button>
-              <TableBookingSystem
+              <AppointmentBookingSystem
                 isDialogOpenMain={isDialogOpen}
                 setDialogOpenMain={setDialogOpen}
               />

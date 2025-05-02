@@ -5,13 +5,14 @@ import {
   CalendarSync,
   Edit,
   HardDriveUpload,
+  LayoutDashboard,
   NotepadText,
   Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkGallery } from "./gallery";
-import TableBookingSystem from "./book";
+import AppointmentBookingSystem from "./APPOINTMENT/book";
 import NavBar from "./navBar";
 import { Link } from "react-router";
 import Price from "./pandp/Price";
@@ -24,11 +25,14 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import Policies from "./pandp/policies";
-import { ThemeSelector } from "@/hooks/theme-selector";
+// import { ThemeSelector } from "@/hooks/theme-selector";
 import { EventCalendarDialog } from "./eventBase";
 import { GET_BOOK_TYPES } from "@/app/vendors/available";
 import { InventoryListDialog } from "@/app/vendors/rentalBasedBooking/bookRentals";
 import CheckForBookTYpe from "../custom/checkForBookTYpe";
+import UserAuthCard from "../custom/users/create";
+import { useAuth } from "@/middleware/context/authContext";
+import { useCheckAuthId } from "@/middleware/context/checkID";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -186,22 +190,23 @@ const ProviderProfile = ({
   isDialogAbout: boolean;
   setDialogAbout: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
+  
+  const { isAuthenticated } = useAuth();
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // Add bookingType state
-  const [bookingType, setBookingType] = useState<BookType>(
-    BookType.APPOINTMENT
-  );
-// console.log("Booking Type:", bookingType);
-
-  // console.log(serviceId);
-  useQuery(GET_BOOK_TYPES, {
-    variables: { serviceId },
-    onCompleted: (data) => {
-      if (data?.getBookingType) {
-        setBookingType(data.getBookingType as BookType);
-      }
-    },
+  const { data: bookingTypeData } = useQuery(GET_BOOK_TYPES, {
+    variables: { serviceId: serviceId }, // Replace with actual serviceId
   });
+  const bookingTypes: BookType[] = Array.isArray(
+    bookingTypeData?.getBookingType
+  )
+  ? (bookingTypeData.getBookingType as BookType[])
+  : [];
+  
+  const { isMatch, isLoading } = useCheckAuthId(serviceId);
+// console.log("isMatch",isMatch);
+  // console.log("Booking Type", bookingTypeData?.getBookingType);
+  // console.log("Booking Type1111", bookingTypes);
   // const bookingType = bookingTypeData?.getBookingType || null;
   return (
     <div className="bg-gradient-to-b from-primary/10 to-primary/5 rounded-lg shadow-md p-6 mb-8">
@@ -302,20 +307,28 @@ const ProviderProfile = ({
 
           {/* Action Buttons */}
           <div className="mt-2 flex flex-wrap justify-center lg:justify-start gap-3">
+            {isMatch && (
+            <>
+            
             <Link to="/upload">
               <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
                 <HardDriveUpload className="h-4 w-4" />
                 Upload
               </Button>
             </Link>
-            <Link to="/providerprofile">
+              <Link to="/dashboard">
+                <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboards
+                </Button>
+              </Link>
+            
+            <Link to="/update">
               <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
                 <Edit className="h-4 w-4" />
                 Edit
               </Button>
             </Link>
-
-            {/* to={`/providers/${provider.id}`} */}
 
             <Link to={`/time/${provider.id}`}>
               <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
@@ -323,38 +336,48 @@ const ProviderProfile = ({
                 Schedule
               </Button>
             </Link>
+            </>
+            )}
 
-            <Button
-              onClick={() => setDialogOpen(true)}
-              variant="secondary"
-              className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
-            >
-              <NotepadText className="h-4 w-4" />
-              Book
-            </Button>
-            {bookingType == null ? (
+            {/* to={`/providers/${provider.id}`} */}
+            {isAuthenticated ? (
+              <Button
+                onClick={() => setDialogOpen(true)}
+                variant="secondary"
+                className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
+              >
+                <NotepadText className="h-4 w-4" />
+                Book
+              </Button>
+            ) : (
+              <UserAuthCard>
+                <Button>Book</Button>
+              </UserAuthCard>
+            )}
+
+            {bookingTypes.length === 0 ? (
               <CheckForBookTYpe
                 isDialogOpenMain={isDialogOpen}
                 setDialogOpenMain={setDialogOpen}
               />
             ) : (
               <>
-                {bookingType === BookType.EVENT && (
+                {bookingTypes.includes(BookType.EVENT) && (
                   <EventCalendarDialog
                     isDialogOpenMain={isDialogOpen}
                     setDialogOpenMain={setDialogOpen}
                     serviceId={serviceId}
                   />
                 )}
-                {bookingType === BookType.APPOINTMENT && (
-                  <TableBookingSystem
+                {bookingTypes.includes(BookType.APPOINTMENT) && (
+                  <AppointmentBookingSystem
                     isDialogOpenMain={isDialogOpen}
                     setDialogOpenMain={setDialogOpen}
                     serviceId={serviceId}
                   />
                 )}
 
-                {bookingType === BookType.RENTAL && (
+                {bookingTypes.includes(BookType.RENTAL) && (
                   <InventoryListDialog
                     isDialogOpenMain={isDialogOpen}
                     setDialogOpenMain={setDialogOpen}
@@ -363,7 +386,6 @@ const ProviderProfile = ({
                 )}
               </>
             )}
-           
           </div>
         </div>
       </div>

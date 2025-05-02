@@ -11,6 +11,7 @@ import Login from "@/app/Login.tsx";
 import { LogIn, UserPlus } from "lucide-react";
 import { useAuth } from "@/middleware/context/authContext.tsx";
 import Logout from "@/app/LogOut.tsx";
+import RegisterOptions from "@/app/checkUserCreateUI.tsx";
 
 interface SelectCategoryFilterProps {
   categories: string[];
@@ -23,16 +24,12 @@ const MenuBar: React.FC<SelectCategoryFilterProps> = ({ onSearch }) => {
   const { isDesktop } = useDeviceType();
   const { toggleSidebar } = useSidebar();
   const [isSearchExpanded] = useState<boolean>(false);
-    const { login: Auth,isAuthenticated } = useAuth();
-  
+  const { login: Auth, isAuthenticated } = useAuth();
 
-  // const onSearch = (value: string) => {
-  //   console.log(value);
-  // };
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-[#76a683] shadow-md py-2 px-4 flex justify-between items-center">
       {/* Logo */}
-      <Link to={"/services"} className="flex items-center">
+      <Link to={"/"} className="flex items-center">
         {/* <img src={logo} alt="serviny Logo" className="w-12 pr-[5px]" /> */}
 
         {(isDesktop || !isSearchExpanded) && (
@@ -61,18 +58,19 @@ const MenuBar: React.FC<SelectCategoryFilterProps> = ({ onSearch }) => {
         >
           <span className="font-medium text-slate-700">Sign In</span>
         </Button> */}
-        <Link to={"/provider/new"}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              Create
-            </Button>
-          </Link>
-            {isAuthenticated ? (
-            <Logout>
+        <RegisterOptions/>
+        {/* <Link to={"/provider/new"}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Create
+          </Button> */}
+        {/* </Link> */}
+        {isAuthenticated ? (
+          <Logout>
             <Button
               variant="outline"
               size="sm"
@@ -82,18 +80,18 @@ const MenuBar: React.FC<SelectCategoryFilterProps> = ({ onSearch }) => {
               Sign Out
             </Button>
           </Logout>
-            ) : (
-              <Login>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </Button>
-            </Login>
-            )}
+        ) : (
+          <Login>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </Button>
+          </Login>
+        )}
         {/* <Button
           onClick={toggleSidebar}
           variant="ghost"
