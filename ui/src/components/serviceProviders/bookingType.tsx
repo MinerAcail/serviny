@@ -28,12 +28,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import WorksNav from "../custom/nav";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { GET_BOOK_TYPES } from "@/app/vendors/available";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/middleware/context/authContext";
+import MainNaveBar from "./menuBar";
 
 const UPDATE_BOOKING_TYPE = gql`
   mutation updateBookingType($type: BookingType!) {
@@ -235,7 +235,7 @@ export default function BookingTypes() {
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="pb-10">
-        <WorksNav />
+        <MainNaveBar />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -151,7 +151,7 @@ export function ServiceProvidersDirectory() {
                     <Badge key={idx} className="text-xs">
                       {profession}
                       {provider.profession.length > 1 && (
-                        <Badge className="text-[9px] rounded-full ml-1 w-fit h-fit bg-white text-primary">
+                        <Badge className="text-[9px] rounded-full ml-1 w-fit h-fit bg-primary-foreground text-primary">
                           +{provider.profession.length - 1}
                         </Badge>
                       )}

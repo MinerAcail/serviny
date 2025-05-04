@@ -33,6 +33,7 @@ import UserAuthCard from "../custom/users/create";
 import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
+import { Badge } from "../ui/badge";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -163,7 +164,9 @@ type provider = {
   name: string;
   number: string;
   email: string;
-  profession: string;
+  // profession: string;
+  profession: string[];
+
   aboutMe: string;
   location: string;
   createdAt: string;
@@ -190,7 +193,6 @@ const ProviderProfile = ({
   isDialogAbout: boolean;
   setDialogAbout: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  
   const { isAuthenticated } = useAuth();
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // Add bookingType state
@@ -200,9 +202,9 @@ const ProviderProfile = ({
   const bookingTypes: BookType[] = Array.isArray(
     bookingTypeData?.getBookingType
   )
-  ? (bookingTypeData.getBookingType as BookType[])
-  : [];
-  
+    ? (bookingTypeData.getBookingType as BookType[])
+    : [];
+
   const { isMatch } = useCheckAuthId(serviceId);
 
   return (
@@ -217,6 +219,7 @@ const ProviderProfile = ({
               className="h-full w-full object-cover rounded-full"
             />
           </div>
+          
         </div>
 
         {/* Provider Details */}
@@ -227,9 +230,12 @@ const ProviderProfile = ({
             </h1>
 
             <div className="space-y-2">
-              <p className="text-xl text-primary-foreground/80 font-medium">
-                {provider?.profession || "Profession"}
-              </p>
+              {provider?.profession?.map((profession, idx) => (
+                <Badge key={idx} className="text-xs m-4">
+                  {profession}
+                 
+                </Badge>
+              ))}
 
               <div className="flex flex-col md:flex-row md:gap-4 text-muted-foreground">
                 {provider?.number && (
@@ -305,35 +311,34 @@ const ProviderProfile = ({
           {/* Action Buttons */}
           <div className="mt-2 flex flex-wrap justify-center lg:justify-start gap-3">
             {isMatch && (
-            <>
-            
-            <Link to="/upload">
-              <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                <HardDriveUpload className="h-4 w-4" />
-                Upload
-              </Button>
-            </Link>
-              <Link to="/dashboard">
-                <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboards
-                </Button>
-              </Link>
-            
-            <Link to="/update">
-              <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
-            </Link>
+              <>
+                <Link to="/upload">
+                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                    <HardDriveUpload className="h-4 w-4" />
+                    Upload
+                  </Button>
+                </Link>
+                <Link to="/dashboard">
+                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboards
+                  </Button>
+                </Link>
 
-            <Link to={`/time/${provider.id}`}>
-              <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                <CalendarSync className="h-4 w-4" />
-                Schedule
-              </Button>
-            </Link>
-            </>
+                <Link to="/update">
+                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </Link>
+
+                <Link to={`/time/${provider.id}`}>
+                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                    <CalendarSync className="h-4 w-4" />
+                    Schedule
+                  </Button>
+                </Link>
+              </>
             )}
 
             {/* to={`/providers/${provider.id}`} */}

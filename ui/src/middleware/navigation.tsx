@@ -1,6 +1,6 @@
 import { ApolloProvider } from "@apollo/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
-import Client from ".";
+import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorPage from "./routError";
 import { AuthProvider } from "./context/authContext";

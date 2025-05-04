@@ -1,7 +1,8 @@
 import { ApolloClient, InMemoryCache } from "@apollo/client";
 import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 // import { Production } from "../../v";
-const Production = false;
+// const Production = false;
+const Production = true;
 const API_URL = Production ? "https://api.serviny.com/query" : "http://localhost:4003/query";
 const link = createUploadLink({
   uri: API_URL,
