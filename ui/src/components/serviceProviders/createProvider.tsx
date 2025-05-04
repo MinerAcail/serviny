@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, X, Upload, CheckCircle, EyeOff, Eye, User, MapPin, Phone, Mail, Briefcase } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import NavBar from "./navBar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import OtpCard from "./createOTP"
+import MainNaveBar from "./menuBar"
 
 // GraphQL Mutation
 const CREATE_SERVICE = gql`
@@ -106,7 +106,15 @@ export const CreateServiceProvider: React.FC = () => {
   const [showOtpVerification, setShowOtpVerification] = useState(false)
   const [verifyingOtp, setVerifyingOtp] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
-  const [formData, setFormData] = useState<any>(null)
+  const [formData, setFormData] = useState<{
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password?: string;
+    confirmPassword?: string;
+  } | null>(null)
+console.log(otpSent);
 
   const {
     register,
@@ -114,7 +122,14 @@ export const CreateServiceProvider: React.FC = () => {
     reset,
     formState: { errors },
     watch,
-  } = useForm({
+  } = useForm<{
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({
     defaultValues: {
       name: "",
       number: "",
@@ -166,7 +181,7 @@ export const CreateServiceProvider: React.FC = () => {
   }
 
   // Send OTP before submitting form
-  const handleSendOtp = async (data: any) => {
+  const handleSendOtp = async (data: { name: string; number: string; email: string; location?: string; password?: string; confirmPassword?: string }) => {
     setIsLoading(true)
     setFormData(data)
 
@@ -210,7 +225,7 @@ export const CreateServiceProvider: React.FC = () => {
       const result = await verifyOtp({
         variables: {
           input: {
-            email: formData.email,
+            email: formData?.email,
             otp: otpCode,
             type:"SERVICE"
 
@@ -224,7 +239,19 @@ export const CreateServiceProvider: React.FC = () => {
         })
 
         // Submit the form data after successful verification
-        submitFormData(formData)
+        if (formData) {
+          if (formData?.password && formData?.confirmPassword) {
+            submitFormData({
+              ...formData,
+              password: formData.password,
+              confirmPassword: formData.confirmPassword,
+            })
+          } else {
+            toast.error("Error", {
+              description: "Password and Confirm Password are required.",
+            })
+          }
+        }
       } else {
         toast.error("Verification Failed", {
           description: result.data?.verifyOtp?.message || "Invalid verification code",
@@ -264,7 +291,7 @@ export const CreateServiceProvider: React.FC = () => {
 
       if (result.data?.resendOTP?.success) {
         toast.success("OTP Resent", {
-          description: `New verification code sent to ${formData.email}`,
+          description: `New verification code sent to ${formData?.email}`,
         })
       } else {
         toast.error("Error", {
@@ -344,7 +371,7 @@ export const CreateServiceProvider: React.FC = () => {
     !errors.confirmPassword
 
   // Initial form submission handler - triggers OTP flow
-  const onSubmit = async (data: FieldValues) => {
+  const onSubmit = async (data: { name: string; number: string; email: string; location?: string; password?: string; confirmPassword?: string }) => {
     // Check if password and confirm password match
     if (data.password !== data.confirmPassword) {
       toast.error("Error", {
@@ -366,7 +393,7 @@ export const CreateServiceProvider: React.FC = () => {
   return (
     <div className="min-h-screen w-full">
       <div className="pb-14">
-        <NavBar />
+        <MainNaveBar />
       </div>
 
       <div className="container px-4 py-8 mx-auto">
@@ -377,7 +404,7 @@ export const CreateServiceProvider: React.FC = () => {
                 title="Email Verification"
                 description={`We've sent a verification code to ${formData?.email}. Please enter it below.`}
                 onSubmit={handleVerifyOtp}
-                onResend={() => handleResendOtp(formData)}
+                onResend={() => formData && handleResendOtp(formData)}
                 loading={verifyingOtp}
               />
               <div className="flex justify-center">
@@ -401,10 +428,13 @@ export const CreateServiceProvider: React.FC = () => {
                 isPersonalInfoComplete={isPersonalInfoComplete}
                 isPasswordValid={isPasswordValid}
                 handleSubmit={handleSubmit}
-                onSubmit={onSubmit}
+                // @ts-expect-error: Type mismatch due to custom form handling logic
+                onSubmit={handleSubmit(onSubmit)}
+                // @ts-expect-error: Type mismatch due to custom form handling logic
+                
                 register={register}
+                watchedPassword={watchedPassword || ""}
                 errors={errors}
-                watchedPassword={watchedPassword}
                 selectedProfessions={selectedProfessions}
                 inputValue={inputValue}
                 setInputValue={setInputValue}

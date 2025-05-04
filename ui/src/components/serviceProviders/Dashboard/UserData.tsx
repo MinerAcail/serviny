@@ -26,7 +26,7 @@ import {
 import { Link, useParams } from "react-router";
 import { gql, useQuery } from "@apollo/client";
 import { format, parseISO } from "date-fns";
-import NavBar from "../navBar";
+import MainNaveBar from "../menuBar";
 
 const GET_ALL_APPOINTMENT_BOOKINGS_BY_USER_ID = gql`
   query GetAllAppointmentBookingsByUserID($userId: String!) {
@@ -164,7 +164,7 @@ export default function ContactDetailPage() {
   return (
     <div className="container py-10">
       <div className="pb-6">
-        <NavBar />
+        <MainNaveBar />
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">

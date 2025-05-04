@@ -11,11 +11,12 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { useAuth } from "./context/authContext";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation } from "@apollo/client";
 import { LOGIN } from "@/app/Login";
 import { ProtectType } from "./useProtect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import UserAuthCard from "@/components/custom/users/create";
 
 export default function ErrorLogin() {
   const navigate = useNavigate();
@@ -27,13 +28,13 @@ export default function ErrorLogin() {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Initial check
     checkScreenSize();
-    
+
     // Add event listener for window resize
     window.addEventListener("resize", checkScreenSize);
-    
+
     // Cleanup event listener on component unmount
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
@@ -50,8 +51,8 @@ export default function ErrorLogin() {
       setError(error.message || "Login failed. Please try again.");
     },
   });
-  
-  const handleInputChange = (e) => {
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
@@ -96,7 +97,7 @@ export default function ErrorLogin() {
   };
 
   // Handle Enter key press
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e:React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleLogin();
     }
@@ -106,9 +107,7 @@ export default function ErrorLogin() {
     setShowPassword(!showPassword);
   };
 
-  const navigateToRegister = (type) => {
-    navigate(type === 'service' ? '/register/service' : '/register/user');
-  };
+
 
   // Login form component for reuse
   const LoginForm = () => (
@@ -171,13 +170,14 @@ export default function ErrorLogin() {
             Sign up as a regular user to access services
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => navigateToRegister('user')}
-        >
-          Create User Account
-        </Button>
+        <UserAuthCard>
+          <Button
+            variant="outline"
+            className="w-full"
+          >
+            Create User Account
+          </Button>
+        </UserAuthCard>
       </TabsContent>
       <TabsContent value="service" className="space-y-4">
         <div className="flex items-center justify-center h-24 bg-gray-100 rounded-md">
@@ -189,10 +189,10 @@ export default function ErrorLogin() {
             Offer your services and manage your business
           </p>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full"
-          onClick={() => navigateToRegister('service')}
+          onClick={() =>navigate("/provider/new")}
         >
           Create Service Account
         </Button>
@@ -216,10 +216,14 @@ export default function ErrorLogin() {
                   <TabsTrigger value="login">Login</TabsTrigger>
                   <TabsTrigger value="register">Register</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="login" className="space-y-4">
                   <LoginForm />
-                  <Button onClick={handleLogin} className="w-full" disabled={loading}>
+                  <Button
+                    onClick={handleLogin}
+                    className="w-full"
+                    disabled={loading}
+                  >
                     {loading ? "Logging in..." : "Login"}
                   </Button>
                   <div className="text-sm text-center text-gray-500">
@@ -229,14 +233,14 @@ export default function ErrorLogin() {
                     </Link>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="register" className="space-y-4">
                   <RegisterOptions />
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
-          
+
           <div className="mt-8 text-center">
             <Link to="/" className="text-blue-600 hover:underline">
               Back to Home
@@ -256,18 +260,27 @@ export default function ErrorLogin() {
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Login to your account</CardTitle>
-              <CardDescription>Enter your credentials to access your account</CardDescription>
+              <CardDescription>
+                Enter your credentials to access your account
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <LoginForm />
             </CardContent>
             <CardFooter className="flex flex-col space-y-3">
-              <Button onClick={handleLogin} className="w-full" disabled={loading}>
+              <Button
+                onClick={handleLogin}
+                className="w-full"
+                disabled={loading}
+              >
                 {loading ? "Logging in..." : "Login"}
               </Button>
               <div className="text-sm text-center text-gray-500">
                 <span>Forgot your password? </span>
-                <Link to="/reset-password" className="text-blue-600 hover:underline">
+                <Link
+                  to="/reset-password"
+                  className="text-blue-600 hover:underline"
+                >
                   Reset it here
                 </Link>
               </div>
@@ -278,7 +291,9 @@ export default function ErrorLogin() {
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Create a new account</CardTitle>
-              <CardDescription>Sign up for a new account in just a few steps</CardDescription>
+              <CardDescription>
+                Sign up for a new account in just a few steps
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <RegisterOptions />
@@ -286,14 +301,17 @@ export default function ErrorLogin() {
             <CardFooter className="text-sm text-center text-gray-500">
               <div>
                 <span>Already have an account? </span>
-                <button className="text-blue-600 hover:underline" onClick={() => window.scrollTo(0, 0)}>
+                <button
+                  className="text-blue-600 hover:underline"
+                  onClick={() => window.scrollTo(0, 0)}
+                >
                   Login instead
                 </button>
               </div>
             </CardFooter>
           </Card>
         </div>
-        
+
         <div className="mt-8 text-center">
           <Link to="/" className="text-blue-600 hover:underline">
             Back to Home

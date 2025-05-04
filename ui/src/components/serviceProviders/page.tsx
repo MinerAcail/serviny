@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect, useRef } from "react";
 import {
@@ -28,34 +27,11 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogFooter,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router";
 
-// Custom hook for detecting mobile viewport
-const useMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    // Function to check if the screen is mobile-sized
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    // Initial check
-    checkMobile();
-
-    // Add event listener for window resize
-    window.addEventListener("resize", checkMobile);
-
-    // Clean up event listener
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  return isMobile;
-};
 
 // Custom hook for detecting screen size
 const useScreenSize = () => {
@@ -201,14 +177,24 @@ const BookingTypesShowcase = () => {
   );
 };
 
+
+
 // Animated Feature Section
+interface AnimatedFeatureSectionProps {
+  title: string;
+  description: string;
+  items: string[];
+  icon: React.ReactNode;
+  delay?: number;
+}
+
 const AnimatedFeatureSection = ({
   title,
   description,
   items,
   icon,
   delay = 0,
-}) => {
+}: AnimatedFeatureSectionProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef(null);
   const { isMobile } = useScreenSize();
@@ -258,7 +244,9 @@ const AnimatedFeatureSection = ({
       </CardHeader>
       <CardContent className={`flex-1 ${isMobile ? "p-4 pt-0" : ""}`}>
         <ul className="space-y-2">
-          {items.map((item, index) => (
+       
+
+          {items.map((item: string, index: number) => (
             <li key={index} className="flex items-start">
               <div className="mr-2 mt-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-primary">
                 <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
@@ -298,124 +286,63 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
   
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-[90vw] max-h-[95vh] p-0 rounded-2xl overflow-hidden">
-          <ScrollArea className="max-h-[95vh]">
-            <div className="sticky top-0 z-50 flex items-center justify-between p-3 sm:p-4 backdrop-blur-lg bg-background/80 border-b">
-              <div className="flex items-center">
-                <h3 className="text-base sm:text-lg font-semibold">SERVINY</h3>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsDialogOpen(false)}
-                className="rounded-full h-7 w-7 sm:h-8 sm:w-8"
-              >
-                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </div>
+    <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <AlertDialogContent className="max-w-[95vw] sm:max-w-[90vw] max-h-[95vh] p-0 rounded-2xl overflow-hidden">
+      <ScrollArea className="max-h-[95vh]">
+        <div className="sticky top-0 z-50 flex items-center justify-between p-3 sm:p-4 backdrop-blur-lg bg-background/80 border-b">
+          <div className="flex items-center">
+            <h3 className="text-base sm:text-lg font-semibold">SERVINY</h3>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsDialogOpen(false)}
+            className="rounded-full h-7 w-7 sm:h-8 sm:w-8"
+          >
+            <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+        </div>
 
-            <div className="flex flex-col">
-              {/* Hero Section */}
-              <section className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-gradient-to-b from-background to-muted/50">
-                <div className="container px-3 sm:px-4 md:px-6">
-                  <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_500px]">
-                    <div className="flex flex-col justify-center space-y-4 sm:space-y-6">
-                      <div className="space-y-3 sm:space-y-4">
-                        {!isSmallMobile && (
-                          <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
-                            <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-primary/10 text-primary hover:bg-primary/20 w-fit text-xs sm:text-sm">
-                              All-in-one platform
-                            </Badge>
-                            <Button
-                              variant="outline"
-                              className="transition-all hover:bg-primary/10 rounded-full w-fit text-xs sm:text-sm"
-                              size={isSmallMobile ? "sm" : "default"}
-                            >
-                              Watch a Demo
-                            </Button>
-                          </div>
-                        )}
-
-                        <h1
-                          className={cn(
-                            "font-medium tracking-tight",
-                            isSmallMobile
-                              ? "text-xl"
-                              : isTablet
-                              ? "text-2xl sm:text-3xl"
-                              : "text-3xl sm:text-4xl xl:text-5xl/none"
-                          )}
-                        >
-                          Empower Your <AnimatedModelShuffle /> Service Business
-                          with SERVINY
-                        </h1>
-
-                        <p
-                          className={cn(
-                            "max-w-[600px] text-muted-foreground",
-                            isSmallMobile
-                              ? "text-sm"
-                              : isTablet
-                              ? "text-base"
-                              : "md:text-lg"
-                          )}
-                        >
-                          The complete platform for service providers,
-                          freelancers, and businesses to showcase, book, and
-                          manage services.
-                        </p>
-
+        <div className="flex flex-col">
+          {/* Hero Section */}
+          <section className="w-full py-6 sm:py-8 md:py-12 lg:py-10 bg-gradient-to-b from-background to-muted/50">
+            <div className="container px-3 sm:px-4 md:px-6">
+              <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_500px]">
+                <div className="flex flex-col justify-center space-y-4 sm:space-y-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    {!isSmallMobile && (
+                      <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                        <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-primary/10 text-primary hover:bg-primary/20 w-fit text-xs sm:text-sm">
+                          All-in-one platform
+                        </Badge>
                         <Button
-                          size={isSmallMobile ? "sm" : "lg"}
-                          className="gap-1.5 transition transform hover:translate-x-1 rounded-full w-fit mt-1 sm:mt-2"
-                                            onClick={() => setIsDialogOpen(false)}
+                          variant="outline"
+                          className="transition-all hover:bg-primary/10 rounded-full w-fit text-xs sm:text-sm"
+                          size={isSmallMobile ? "sm" : "default"}
                         >
-
-                          Get Started{" "}
-                          <ArrowRight
-                            className={`h-${isSmallMobile ? "3" : "4"} w-${
-                              isSmallMobile ? "3" : "4"
-                            }`}
-                          />
+                          Watch a Demo
                         </Button>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="w-full h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
-                      <BookingTypesShowcase />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Features Section */}
-              <section
-                id="models"
-                className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-muted/30 overflow-hidden"
-              >
-                <div className="container px-3 sm:px-4 md:px-6">
-                  <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-4 text-center mb-6 sm:mb-8 md:mb-12">
-                    <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-primary/10 text-primary hover:bg-primary/20 text-xs sm:text-sm">
-                      Features & Integration Models
-                    </Badge>
-                    <h2
+                    <h1
                       className={cn(
                         "font-medium tracking-tight",
                         isSmallMobile
                           ? "text-xl"
                           : isTablet
-                          ? "text-2xl"
-                          : "text-3xl sm:text-4xl"
+                          ? "text-2xl sm:text-3xl"
+                          : "text-3xl sm:text-4xl xl:text-5xl/none"
                       )}
                     >
-                      Everything You Need To Succeed
-                    </h2>
+                      Empower Your <AnimatedModelShuffle /> Service Business
+                      with SERVINY
+                    </h1>
+
                     <p
                       className={cn(
-                        "max-w-[900px] text-muted-foreground",
+                        "max-w-[600px] text-muted-foreground",
                         isSmallMobile
                           ? "text-sm"
                           : isTablet
@@ -423,128 +350,187 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
                           : "md:text-lg"
                       )}
                     >
-                      SERVINY combines powerful features with flexible
-                      integration options.
+                      The complete platform for service providers,
+                      freelancers, and businesses to showcase, book, and
+                      manage services.
                     </p>
-                  </div>
 
-                  <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                    <AnimatedFeatureSection
-                      title="Personalized Portfolio"
-                      description="Showcase your services and build client trust"
-                      items={[
-                        "Customizable service listings",
-                        "Portfolio gallery for your work",
-                        "Professional bio and team profiles",
-                        "Client testimonials and reviews",
-                      ]}
-                      icon={
-                        <Star
-                          className={`h-${isSmallMobile ? "4" : "5"} w-${
-                            isSmallMobile ? "4" : "5"
-                          } text-primary`}
-                        />
-                      }
-                      delay={0}
-                    />
-
-                    <AnimatedFeatureSection
-                      title="Standard Version"
-                      description="Register on our platform and make it your own"
-                      items={[
-                        "Quick setup with no technical knowledge",
-                        "Fully hosted and maintained by SERVINY",
-                        "Customizable to match your brand",
-                        "Access to all platform features",
-                      ]}
-                      icon={
-                        <Box
-                          className={`h-${isSmallMobile ? "4" : "5"} w-${
-                            isSmallMobile ? "4" : "5"
-                          } text-primary`}
-                        />
-                      }
-                      delay={200}
-                    />
-
-                    <AnimatedFeatureSection
-                      title="Integrated Version"
-                      description="Embed our system into your existing website"
-                      items={[
-                        "Seamless integration with your website",
-                        "Fully personalized for your business",
-                        "Simple iframe implementation",
-                        "Maintain your brand identity",
-                      ]}
-                      icon={
-                        <Laptop
-                          className={`h-${isSmallMobile ? "4" : "5"} w-${
-                            isSmallMobile ? "4" : "5"
-                          } text-primary`}
-                        />
-                      }
-                      delay={400}
-                    />
-                  </div>
-
-                  <div className="mt-6 sm:mt-8 md:mt-12 flex justify-center">
                     <Button
-                      size={isSmallMobile ? "default" : "lg"}
-                      className="gap-1.5 transition transform hover:translate-y-1 rounded-full"
-                      onClick={() => navigate("/booktypes")}
+                      size={isSmallMobile ? "sm" : "lg"}
+                      className="gap-1.5 transition transform hover:translate-x-1 rounded-full w-fit mt-1 sm:mt-2"
+                                        onClick={() => setIsDialogOpen(false)}
                     >
-                      Explore All Features{" "}
+
+                      Get Started{" "}
                       <ArrowRight
-                        className={`h-${isSmallMobile ? "3.5" : "4"} w-${
-                          isSmallMobile ? "3.5" : "4"
+                        className={`h-${isSmallMobile ? "3" : "4"} w-${
+                          isSmallMobile ? "3" : "4"
                         }`}
                       />
                     </Button>
                   </div>
                 </div>
-              </section>
 
-              {/* Footer */}
-              <footer className="border-t py-4 sm:py-6 bg-background">
-                <div className="container px-3 sm:px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                  <p className="text-center text-xs sm:text-sm leading-loose text-muted-foreground sm:text-left">
-                    © {new Date().getFullYear()} SERVINY. All rights reserved.
-                  </p>
-                  <div className="flex items-center gap-2 sm:gap-4">
-                    <Button
-                      variant="link"
-                      className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
-                    >
-                      Terms
-                    </Button>
-                    <Button
-                      variant="link"
-                      className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
-                    >
-                      Privacy
-                    </Button>
-                    <Button
-                      variant="link"
-                      className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
-                    >
-                      Contact
-                    </Button>
-                  </div>
+                <div className="w-full h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
+                  <BookingTypesShowcase />
                 </div>
-              </footer>
+              </div>
             </div>
-          </ScrollArea>
+          </section>
 
-          <AlertDialogFooter className="sticky bottom-0 border-t bg-background/80 backdrop-blur-lg p-3 sm:p-4">
-            <AlertDialogCancel className="rounded-full text-xs sm:text-sm h-8 sm:h-10">
-              Close Preview
-            </AlertDialogCancel>
-            <AlertDialogAction className="rounded-full text-xs sm:text-sm h-8 sm:h-10">
-              Get Started
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          {/* Features Section */}
+          <section
+            id="models"
+            className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-muted/30 overflow-hidden"
+          >
+            <div className="container px-3 sm:px-4 md:px-6">
+              <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-4 text-center mb-6 sm:mb-8 md:mb-12">
+                <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-primary/10 text-primary hover:bg-primary/20 text-xs sm:text-sm">
+                  Features & Integration Models
+                </Badge>
+                <h2
+                  className={cn(
+                    "font-medium tracking-tight",
+                    isSmallMobile
+                      ? "text-xl"
+                      : isTablet
+                      ? "text-2xl"
+                      : "text-3xl sm:text-4xl"
+                  )}
+                >
+                  Everything You Need To Succeed
+                </h2>
+                <p
+                  className={cn(
+                    "max-w-[900px] text-muted-foreground",
+                    isSmallMobile
+                      ? "text-sm"
+                      : isTablet
+                      ? "text-base"
+                      : "md:text-lg"
+                  )}
+                >
+                  SERVINY combines powerful features with flexible
+                  integration options.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+                <AnimatedFeatureSection
+                  title="Personalized Portfolio"
+                  description="Showcase your services and build client trust"
+                  items={[
+                    "Customizable service listings",
+                    "Portfolio gallery for your work",
+                    "Professional bio and team profiles",
+                    "Client testimonials and reviews",
+                  ]}
+                  icon={
+                    <Star
+                      className={`h-${isSmallMobile ? "4" : "5"} w-${
+                        isSmallMobile ? "4" : "5"
+                      } text-primary`}
+                    />
+                  }
+                  delay={0}
+                />
+
+                <AnimatedFeatureSection
+                  title="Standard Version"
+                  description="Register on our platform and make it your own"
+                  items={[
+                    "Quick setup with no technical knowledge",
+                    "Fully hosted and maintained by SERVINY",
+                    "Customizable to match your brand",
+                    "Access to all platform features",
+                  ]}
+                  icon={
+                    <Box
+                      className={`h-${isSmallMobile ? "4" : "5"} w-${
+                        isSmallMobile ? "4" : "5"
+                      } text-primary`}
+                    />
+                  }
+                  delay={200}
+                />
+
+                <AnimatedFeatureSection
+                  title="Integrated Version"
+                  description="Embed our system into your existing website"
+                  items={[
+                    "Seamless integration with your website",
+                    "Fully personalized for your business",
+                    "Simple iframe implementation",
+                    "Maintain your brand identity",
+                  ]}
+                  icon={
+                    <Laptop
+                      className={`h-${isSmallMobile ? "4" : "5"} w-${
+                        isSmallMobile ? "4" : "5"
+                      } text-primary`}
+                    />
+                  }
+                  delay={400}
+                />
+              </div>
+
+              <div className="mt-6 sm:mt-8 md:mt-12 flex justify-center">
+                <Button
+                  size={isSmallMobile ? "default" : "lg"}
+                  className="gap-1.5 transition transform hover:translate-y-1 rounded-full"
+                  onClick={() => navigate("/booktypes")}
+                >
+                  Explore All Features{" "}
+                  <ArrowRight
+                    className={`h-${isSmallMobile ? "3.5" : "4"} w-${
+                      isSmallMobile ? "3.5" : "4"
+                    }`}
+                  />
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="border-t py-4 sm:py-6 bg-background">
+            <div className="container px-3 sm:px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+              <p className="text-center text-xs sm:text-sm leading-loose text-muted-foreground sm:text-left">
+                © {new Date().getFullYear()} SERVINY. All rights reserved.
+              </p>
+              <div className="flex items-center gap-2 sm:gap-4">
+                <Button
+                  variant="link"
+                  className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
+                >
+                  Terms
+                </Button>
+                <Button
+                  variant="link"
+                  className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
+                >
+                  Privacy
+                </Button>
+                <Button
+                  variant="link"
+                  className="text-xs sm:text-sm font-medium h-8 px-2 sm:px-4"
+                >
+                  Contact
+                </Button>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </ScrollArea>
+
+      <AlertDialogFooter className="sticky bottom-0 border-t bg-background/80 backdrop-blur-lg p-3 sm:p-4">
+        <AlertDialogCancel className="rounded-full text-xs sm:text-sm h-8 sm:h-10">
+          Close Preview
+        </AlertDialogCancel>
+        <AlertDialogAction className="rounded-full text-xs sm:text-sm h-8 sm:h-10">
+          Get Started
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
   );
 }

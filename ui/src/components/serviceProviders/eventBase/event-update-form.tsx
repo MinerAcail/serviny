@@ -66,6 +66,7 @@ export function EventUpdateForm() {
   const [startTime, setStartTime] = useState("")
   const [visibleDates, setVisibleDates] = useState<Date[]>([])
   const [bookedDates, setBookedDates] = useState<Date[]>([])
+  console.log(setBookedDates);
   
   // Form state
   const [name, setName] = useState("")
@@ -83,7 +84,7 @@ export function EventUpdateForm() {
   const durationStep = 30 // Increment in minutes
 
   // Query to fetch existing event data
-  const { loading: queryLoading, data: eventData } = useQuery(GET_EVENT, {
+  const { loading: queryLoading } = useQuery(GET_EVENT, {
     variables: { eventId },
     onCompleted: (data) => {
       console.log("Raw event data:", data.event);

@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkGallery } from "./gallery";
 import AppointmentBookingSystem from "./APPOINTMENT/book";
-import NavBar from "./navBar";
 import { Link } from "react-router";
 import Price from "./pandp/Price";
 import {
@@ -33,6 +32,7 @@ import CheckForBookTYpe from "../custom/checkForBookTYpe";
 import UserAuthCard from "../custom/users/create";
 import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
+import MainNaveBar from "./menuBar";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -94,7 +94,7 @@ export function ServiceProviderProfile() {
   return (
     <div className="bg-gradient-to-b from-background to-muted/30 mt-4 justify-center items-center ">
       <div className="pb-11">
-        <NavBar />
+        <MainNaveBar />
       </div>
       <ProviderProfile
         isDialogOpen={isDialogOpen}
@@ -203,11 +203,8 @@ const ProviderProfile = ({
   ? (bookingTypeData.getBookingType as BookType[])
   : [];
   
-  const { isMatch, isLoading } = useCheckAuthId(serviceId);
-// console.log("isMatch",isMatch);
-  // console.log("Booking Type", bookingTypeData?.getBookingType);
-  // console.log("Booking Type1111", bookingTypes);
-  // const bookingType = bookingTypeData?.getBookingType || null;
+  const { isMatch } = useCheckAuthId(serviceId);
+
   return (
     <div className="bg-gradient-to-b from-primary/10 to-primary/5 rounded-lg shadow-md p-6 mb-8">
       <div className="flex flex-col lg:flex-row gap-8">
@@ -366,7 +363,7 @@ const ProviderProfile = ({
                   <EventCalendarDialog
                     isDialogOpenMain={isDialogOpen}
                     setDialogOpenMain={setDialogOpen}
-                    serviceId={serviceId}
+                    // serviceId={serviceId}
                   />
                 )}
                 {bookingTypes.includes(BookType.APPOINTMENT) && (

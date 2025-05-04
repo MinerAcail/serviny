@@ -229,7 +229,13 @@ function LogInUser({ setOpen }: { setOpen: (open: boolean) => void }) {
     </form>
   );
 }
-
+interface FormData {
+  name: string;
+  email: string;
+  number: string;
+  phoneType: PhoneType;
+  password: string;
+}
 // Create user form component with OTP verification
 function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   const [name, setName] = useState<string>("");
@@ -244,8 +250,10 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   // OTP verification states
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [formData, setFormData] = useState<any>(null);
+  // const [otpSent, setOtpSent] = useState(false);
+
+
+  const [formData, setFormData] = useState<FormData | null>(null);
 
   // Set up mutations
   const [createUser] = useMutation(CREATE_USER, {
@@ -261,7 +269,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
 
       // Reset states
       setShowOtpVerification(false);
-      setOtpSent(false);
+      // setOtpSent(false);
       setFormData(null);
 
       // Clear input fields after successful account creation
@@ -295,7 +303,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   };
 
   // Send OTP before submitting form
-  const handleSendOtp = async (data: any) => {
+  const handleSendOtp = async (data: FormData) => {
     setIsLoading(true);
     setFormData(data);
 
@@ -312,7 +320,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       });
 
       if (result.data?.requestOtp?.success) {
-        setOtpSent(true);
+        // setOtpSent(true);
         setShowOtpVerification(true);
         toast.success("OTP Sent", {
           description: `Verification code sent to ${data.email}`,
@@ -339,7 +347,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       const result = await verifyOtp({
         variables: {
           input: {
-            email: formData.email,
+            email: formData?.email,
             otp: otpCode,
             type: "USER", // Using USER type for regular users
           },
@@ -352,7 +360,9 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         });
 
         // Submit the form data after successful verification
-        submitFormData(formData);
+        if (formData) {
+          submitFormData(formData);
+        }
       } else {
         toast.error("Verification Failed", {
           description: result.data?.verifyOtp?.message || "Invalid verification code",
@@ -373,9 +383,9 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       const result = await resendOTP({
         variables: {
           input: {
-            email: formData.email,
-            name: formData.name,
-            number: formData.number,
+            email: formData?.email,
+            name: formData?.name,
+            number: formData?.number,
             type: "USER", // Using USER type for regular users
           },
         },
@@ -383,7 +393,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
 
       if (result.data?.resendOTP?.success) {
         toast.success("OTP Resent", {
-          description: `New verification code sent to ${formData.email}`,
+          description: `New verification code sent to ${formData?.email}`,
         });
       } else {
         toast.error("Error", {
@@ -398,7 +408,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   };
 
   // Submit form data to database after OTP verification
-  const submitFormData = async (data: any) => {
+  const submitFormData = async (data: FormData) => {
     setIsLoading(true);
 
     try {
@@ -442,7 +452,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   // Cancel OTP verification and go back to form
   const handleCancelOtp = () => {
     setShowOtpVerification(false);
-    setOtpSent(false);
+  
   };
 
   if (showOtpVerification) {

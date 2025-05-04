@@ -6,16 +6,19 @@ import { Search, X } from "lucide-react";
 interface SearchProps {
   onSearch?: (value: string) => void;
   isExpanded: boolean;
-    setIsExpanded: (value: boolean) => void;
+  setIsExpanded: (value: boolean) => void;
 }
 
-const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpanded }) => {
-//   const [isExpanded, setIsExpanded] = useState(false);
+const InputWithButton: React.FC<SearchProps> = ({
+  onSearch,
+  isExpanded,
+  setIsExpanded,
+}) => {
+  //   const [isExpanded, setIsExpanded] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-
 
   // Handle click outside to collapse
   useEffect(() => {
@@ -52,7 +55,6 @@ const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchValue.trim() && onSearch) {
-      
       onSearch(searchValue);
     }
   };
@@ -74,7 +76,7 @@ const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpa
         variant="ghost"
         onClick={toggleSearch}
         className={`
-            rounded-full transition-all duration-300 ease-in-out
+            rounded-full transition-all duration-300 ease-in-out pr-4
           ${
             isExpanded
               ? "bg-background hover:bg-secondary"
@@ -83,26 +85,34 @@ const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpa
         `}
         aria-label={isExpanded ? "Close search" : "Open search"}
       >
-        <div className="relative w-4 h-4">
-          <Search
-            className={`
-              absolute inset-0 transition-all duration-300 ease-in-out 
-              ${
-                isExpanded
-                  ? "opacity-0 scale-0 rotate-90"
-                  : "opacity-100 scale-100 rotate-0"
-              }
-            `}
-          />
+        <div className="relative w-12 h-12">
+        <Search
+              size={30}
+              className={`
+      absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
+       text-primary-foreground shadow-md text-center
+      transition-all duration-300 ease-in-out
+      hover:bg-gray-100 hover:shadow-lg
+      ${
+        isExpanded
+          ? "opacity-0 scale-0 rotate-90"
+          : "opacity-100 scale-100 rotate-0"
+      }
+    `}
+            />
+
           <X
             className={`
-              absolute inset-0 transition-all duration-300 ease-in-out 
-              ${
-                isExpanded
-                  ? "opacity-100 scale-100 rotate-0"
-                  : "opacity-0 scale-0 rotate-90"
-              }
-            `}
+      absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+      h-10 w-10 p-2 rounded-full bg-white text-gray-700 shadow-md
+      transition-all duration-300 ease-in-out
+      hover:bg-gray-100 hover:shadow-lg
+      ${
+        isExpanded
+          ? "opacity-100 scale-100 rotate-0"
+          : "opacity-0 scale-0 rotate-90"
+      }
+    `}
           />
         </div>
       </Button>
@@ -129,7 +139,7 @@ const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpa
         >
           <div className="flex items-center w-full">
             {!searchValue && (
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 h-4 w-4 text-muted-foreground " />
             )}
             <Input
               ref={inputRef}
@@ -142,9 +152,6 @@ const InputWithButton: React.FC<SearchProps> = ({ onSearch,isExpanded, setIsExpa
             />
           </div>
         </div>
-
-    
-    
       </form>
     </div>
   );

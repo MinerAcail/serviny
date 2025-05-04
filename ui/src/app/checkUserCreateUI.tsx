@@ -149,7 +149,7 @@ const RegisterOptions = () => {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" className="font-medium">
-          Register Now
+          Register
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md md:max-w-lg">

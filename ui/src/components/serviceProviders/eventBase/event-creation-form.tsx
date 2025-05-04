@@ -43,6 +43,7 @@ export function EventCreationForm() {
   const [visibleDates, setVisibleDates] = useState<Date[]>([])
   const [bookedDates, setBookedDates] = useState<Date[]>([])
   // const { toast } = useToast()
+  console.log(setBookedDates);
   
   // Form state
   const [name, setName] = useState("")

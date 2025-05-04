@@ -1,4 +1,10 @@
-import { ExternalLink, MoreVertical, Pencil, Trash2, Loader2 } from "lucide-react";
+import {
+  ExternalLink,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { gql } from "@apollo/client";
@@ -21,6 +27,14 @@ export interface Gallery {
   updatedAt: string;
 }
 
+interface GalleryCardProps {
+  gallery: Gallery;
+  onClick?: (gallery: Gallery) => void;
+  onEdit?: (galleryId: string) => void;
+  onDelete?: (galleryId: string) => void;
+  isDeleting?: boolean;
+  showActions?: boolean;
+}
 // GraphQL Queries and Mutations
 export const GET_ALL_GALLERY = gql`
   query GetAllGallery($serviceId: String!) {
@@ -47,8 +61,18 @@ export const CREATE_POLICY = gql`
 `;
 
 export const UPDATE_GALLERY = gql`
-    mutation UpdateGallery($galleryID: String!, $files: [Upload], $input: GalleryProfessionInput!,$removeUrl:[String]) {
-      updateGallery(galleryID: $galleryID, files: $files, input: $input ,removeUrl:$removeUrl) {
+  mutation UpdateGallery(
+    $galleryID: String!
+    $files: [Upload]
+    $input: GalleryProfessionInput!
+    $removeUrl: [String]
+  ) {
+    updateGallery(
+      galleryID: $galleryID
+      files: $files
+      input: $input
+      removeUrl: $removeUrl
+    ) {
       id
       title
       description
@@ -114,7 +138,7 @@ export function GalleryCard({
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-        
+
         {/* External link button */}
         {onClick && (
           <Button
@@ -129,13 +153,17 @@ export function GalleryCard({
             <ExternalLink className="h-4 w-4" />
           </Button>
         )}
-        
+
         {/* Actions dropdown (Edit/Delete) */}
         {showActions && (
           <div className="absolute top-2 right-2 z-10">
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button size="icon" variant="ghost" className="h-8 w-8 bg-white/80 rounded-full">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 bg-white/80 rounded-full"
+                >
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -150,7 +178,7 @@ export function GalleryCard({
                     Update
                   </DropdownMenuItem>
                 </UpdateGalleryDialog>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleDelete}
                   className="text-red-600 focus:text-red-600"
                   disabled={isDeleting}
@@ -172,7 +200,7 @@ export function GalleryCard({
           </div>
         )}
       </div>
-      
+
       <CardContent className="p-5">
         <div className="mb-2 flex flex-wrap gap-1">
           {gallery.categories && gallery.categories.length > 0 ? (

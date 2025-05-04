@@ -154,6 +154,8 @@ export function InventoryList() {
   // Get the icon component for a category
   const getCategoryIcon = (iconName: string) => {
     const IconComponent = lucideIcons[iconName as keyof typeof lucideIcons] || Package;
+          /* @ts-expect-error: IconComponent is dynamically imported and may not have proper type inference */
+
     return <IconComponent className="h-4 w-4" />;
   };
 

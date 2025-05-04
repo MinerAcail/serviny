@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { debounce } from "lodash";
 import { Link } from "react-router";
-import NavBar from "../navBar";
+import MainNaveBar from "../menuBar";
 
 // GraphQL Query
 const GET_PROVIDERS_USERS_CONTACT = gql`
@@ -137,7 +137,7 @@ export default function SearchData() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="pb-20">
-        <NavBar />
+        <MainNaveBar />
       </div>
       <Card className="shadow-md border-0">
         <CardHeader className="border-b bg-muted/50">

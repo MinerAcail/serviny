@@ -19,14 +19,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import NavBar from "./navBar"
 
 // Icons
 import { User, KeyRound, Camera, Calendar, ChevronRight, Share, Mails, NotebookTabs, MapPin, X, AlertCircle, Loader2 } from "lucide-react"
 import BackButton from "../back"
-import { ThemeSelector } from "@/hooks/theme-selector"
+// import { ThemeSelector } from "@/hooks/theme-selector"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Label } from "../ui/label"
+import { ModeToggle } from "@/hooks/theme-selector"
+import MainNaveBar from "./menuBar"
 
 // GraphQL Queries and Mutations
 const GET_SERVICE = gql`
@@ -271,13 +272,7 @@ export default function ProfileService() {
   const [removedProfessions, setRemovedProfessions] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Add these state variables in the ProfileService component, after the existing state declarations
-  // const [showOtpDialog, setShowOtpDialog] = useState(false)
-  // const [otpValue, setOtpValue] = useState("")
-  // const [otpError, setOtpError] = useState("")
-  // const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
-  // const [passwordData, setPasswordData] = useState<PasswordFormValues | null>(null)
-  // const [otpResendTimer, setOtpResendTimer] = useState(0)
+
 
   const {
     showOtpDialog,
@@ -585,7 +580,7 @@ export default function ProfileService() {
             <Share className="h-3 w-3" />
             <span>Share</span>
           </Badge>
-          <ThemeSelector />
+          <ModeToggle />
         </div>
       </CardContent>
 
@@ -879,7 +874,7 @@ export default function ProfileService() {
   return (
     <div className="container mx-auto px-4 sm:px-6 pb-8">
       <div className="pb-11">
-        <NavBar />
+        <MainNaveBar />
       </div>
       <div className="space-y-6">
         {/* Breadcrumb - visible on tablet and larger */}

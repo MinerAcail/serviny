@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -209,7 +209,7 @@ const AppointmentBookingSystem = ({
   // const { data } = useQuery(GET_UNAVAILABLE_PERIODS);
   // const unavailablePeriods: UnavailablePeriod[] =
   //   data?.getUnavailablePeriods || [];
-  const { data, loading, error } = useQuery(GET_ALL_UNAVAILABLE_PERIODS);
+  const { data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS);
 
   // Then in your component:
   useEffect(() => {
@@ -218,9 +218,14 @@ const AppointmentBookingSystem = ({
       const manualUnavailablePeriods = data.getUnavailablePeriods || [];
 
       // Convert booking times from ISO to HH:MM format
-      const bookingUnavailablePeriods = (
+      const bookingUnavailablePeriods: UnavailablePeriod[] = (
         data.getConfirmedBookingsAsUnavailable || []
-      ).map((booking) => {
+      ).map((booking: {
+        id: string;
+        day: string;
+        startTime: string;
+        endTime: string;
+      }): UnavailablePeriod => {
         // Parse ISO strings to Date objects
         const startDate = new Date(booking.startTime);
         const endDate = new Date(booking.endTime);

@@ -63,14 +63,14 @@ func PerformMigrations(db *gorm.DB) error {
 	}
 
 	// Read the configSearch.sql file
-	// sqlSearchFile, err := helper.ReadFile("database/configSearch.sql")
-	// if err != nil {
-	// 	log.Fatalf("Err: %v", err)
-	// }
+	sqlSearchFile, err := helper.ReadFile("database/configSearch.sql")
+	if err != nil {
+		log.Fatalf("Err: %v", err)
+	}
 	// Execute the SQL commands in the file
-	// if err := db.Exec(string(sqlSearchFile)).Error; err != nil {
-	// 	return fmt.Errorf("failed to execute SQL commands from configSearch.sql: %w", err)
-	// }
+	if err := db.Exec(string(sqlSearchFile)).Error; err != nil {
+		return fmt.Errorf("failed to execute SQL commands from configSearch.sql: %w", err)
+	}
 	return nil
 }
 

@@ -57,7 +57,7 @@ extend type Query {
   getService: Service
   getProvider(ServiceId: String!): Service
   getSharedService(ServiceId: String!): Service
-  listServices: [Service!]!
+  listServices(search: String, limit: Int, offset: Int): [Service!]!
   getAllGallery(ServiceId: String!): [GalleryProfession]
   getAllCategoriesFromGallery(ServiceId: String!): [String]
   getAllProfessionFromService: [String]

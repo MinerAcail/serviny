@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -17,18 +16,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 // import { Button } from "@/components/ui/button";
 
-interface GalleryDetailDialogProps {
-  gallery: Gallery | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  refetch: () => void;
-}
+
 
 export function GalleryDetailDialog({
   gallery,
   open,
   onOpenChange,
   refetch,
+}: {
+  gallery: Gallery | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  refetch: () => void;
 }) {
   const [deleteGallery] = useMutation(DELETE_GALLERY, {
     onError: (error) => {
@@ -38,7 +37,7 @@ export function GalleryDetailDialog({
 
   if (!gallery) return null;
 
-  const handleDeleteGallery = (galleryId) => {
+  const handleDeleteGallery = (galleryId:string) => {
     deleteGallery({
       variables: { id: galleryId },
     });
@@ -86,7 +85,7 @@ export function GalleryDetailDialog({
               </div>
 
               <div className="flex flex-wrap gap-2 mt-2 sm:mt-3">
-                {gallery?.categories?.map((category, index) => (
+                {gallery?.categories?.map((category :string, index:number) => (
                   <Badge key={index} variant="secondary" className="text-xs sm:text-sm">
                     {category}
                   </Badge>
@@ -234,8 +233,7 @@ import { Gallery, GET_ALL_GALLERY } from "./data/typesAndGql";
 import { DELETE_GALLERY } from "./view";
 import { Button } from "../ui/button";
 import { GalleryCard, UpdateGalleryDialog } from "./updates";
-import BackButton from "../back";
-import { ScrollArea } from "../ui/scroll-area";
+
 import { DialogClose } from "@radix-ui/react-dialog";
 //
 export function WorkGallery() {
@@ -307,7 +305,8 @@ export function WorkGallery() {
       <GalleryDetailDialog
         gallery={selectedGallery}
         open={!!selectedGallery}
-        onOpenChange={(open) => !open && handleDialogClose()}
+        onOpenChange={(open: boolean) => !open && handleDialogClose()}
+
         refetch={() => {
           // Refetch the gallery data after closing the dialog
           refetch();

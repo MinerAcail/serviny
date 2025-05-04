@@ -1,4 +1,3 @@
-"use client"
 
 import { useQuery, gql, useMutation } from "@apollo/client"
 import { useState } from "react"
@@ -217,7 +216,7 @@ export function AppointmentBookedMembers(): JSX.Element {
           }
 
           bookingsByDate[dateKey].push(booking)
-        } catch (e) {
+        } catch  {
           // Skip invalid dates
         }
       }
@@ -299,7 +298,7 @@ export function AppointmentBookedMembers(): JSX.Element {
     if (booking.book?.startTime) {
       try {
         setSelectedDate(parseISO(booking.book.startTime))
-      } catch (e) {
+      } catch  {
         setSelectedDate(null)
       }
     } else {
@@ -548,7 +547,7 @@ export function AppointmentBookedMembers(): JSX.Element {
                     if (!bookDetails) return null
 
                     const status = getBookingStatus(booking)
-                    const badgeVariant = getStatusBadgeVariant(status)
+                    // const badgeVariant = getStatusBadgeVariant(status)
                     const bookingDate = parseISO(bookDetails.startTime)
 
                     return (

@@ -1,6 +1,6 @@
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useQuery, gql } from "@apollo/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,9 @@ import {
   Loader2,
   MessageCircle,
   PhoneCall,
-  ArrowLeft,
 } from "lucide-react";
 import { debounce } from "lodash";
 import { Link } from "react-router";
-import NavBar from "../navBar";
 
 // GraphQL Query
 const GET_PROVIDERS_USERS_CONTACT = gql`

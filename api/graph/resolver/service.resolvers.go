@@ -844,14 +844,24 @@ func (r *queryResolver) GetSharedService(ctx context.Context, serviceID string) 
 }
 
 // ListServices is the resolver for the listServices field.
-func (r *queryResolver) ListServices(ctx context.Context) ([]*model.Service, error) {
-	var Services []*model.Service
+func (r *queryResolver) ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error) {
 
-	if err := r.DB.Find(&Services).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch Services: %v", err)
+	limitVal := 10 // Default limit
+	offsetVal := 0 // Default offset
+
+	// Handle empty query
+	if search == nil {
+		if limit != nil {
+			limitVal = int(*limit)
+		}
+		if offset != nil {
+			offsetVal = int(*offset)
+		}
+		return helper.FetchAllService(r.DB, limitVal, offsetVal)
 	}
 
-	return Services, nil
+	// Execute search with the search term
+	return helper.ExecuteSearchQuery(r.DB, *search)
 }
 
 // GetAllGallery is the resolver for the getAllGallery field.

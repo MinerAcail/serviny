@@ -7,9 +7,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link } from "react-router";
-import NavBar from "../navBar";
+// import NavBar from "../navBar";
 import { useQuery, gql } from "@apollo/client";
 import SearchDataDasBoard from "./searchDasBoard";
+import MainNaveBar from "../menuBar";
 
 const GET_DASHBOARD_DATA = gql`
   query GetDashboardData {
@@ -36,7 +37,7 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen  items-center w-full flex-col">
       <div className="pb-11">
-        <NavBar />
+        <MainNaveBar />
       </div>
       <main className="flex-1">
         <div className="container py-6">

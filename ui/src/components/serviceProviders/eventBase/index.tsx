@@ -384,11 +384,9 @@ function parseEvents(data: {
 export function EventCalendarDialog({
   isDialogOpenMain,
   setDialogOpenMain,
-  serviceId
 }: {
   isDialogOpenMain: boolean;
   setDialogOpenMain: (open: boolean) => void;
-  serviceId: string | undefined;
 }) {
   const [filter, setFilter] = useState<EventFilter>({});
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);

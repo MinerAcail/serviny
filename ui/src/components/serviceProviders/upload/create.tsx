@@ -23,9 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import NavBar from "../navBar";
 import BackButton from "@/components/back";
 import { GET_ALL_GALLERY } from "../data/typesAndGql";
+import MainNaveBar from "../menuBar";
 
 // GraphQL Mutations
 const CREATE_GALLERY = gql`
@@ -178,7 +178,6 @@ export const CreateGalleryForm: React.FC = () => {
         description:
           err instanceof Error ? err.message : "An unexpected error occurred",
       });
-      console.log("err.message", err.message);
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +186,7 @@ export const CreateGalleryForm: React.FC = () => {
   return (
     <div className="w-full">
       <div className="pb-11">
-        <NavBar />
+        <MainNaveBar />
       </div>
       <Card className="w-full max-w-3xl mx-auto">
             <BackButton/>

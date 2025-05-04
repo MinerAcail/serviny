@@ -1,29 +1,21 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { gql, useMutation } from "@apollo/client";
 import {
-  CircleUser,
   Library,
-  ListChecks,
   LogIn,
-  Logs,
-  Package,
-  PackagePlus,
-  Timer,
+
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Login from "@/app/Login";
 import { useDeviceType } from "@/hooks/useDeviceType";
 import { useAuth } from "@/middleware/context/authContext";
-import useProtect, { ProtectType } from "@/middleware/useProtect";
+
 import logo from "../../../assets/ww.png";
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 
 export const LOGOUT = gql`
@@ -36,8 +28,7 @@ function WorksNav() {
   // const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
 
   const { logout, isAuthenticated ,user} = useAuth();
-  const { hasAccess: driver } = useProtect([ProtectType.Driver]);
-  const { hasAccess: vendor } = useProtect([ProtectType.vendor]);
+
   const [logoutMutation] = useMutation(LOGOUT);
   const navigate = useNavigate();
   const { isDesktop } = useDeviceType();

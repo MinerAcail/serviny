@@ -125,7 +125,10 @@ interface InventoryListDialogProps {
 }
 
 // Custom hook for checking booking status
-function useInventoryBookingStatus(inventoryId: string | null, userId: string | undefined) {
+function useInventoryBookingStatus(
+  inventoryId: string | null,
+  userId: string | undefined
+) {
   const { data: bookingData, loading: loadingBookingData } = useQuery(
     GET_USER_BOOKING,
     {
@@ -151,7 +154,7 @@ function InventoryItem({
   isBooking,
   isCancelling,
   selectedItemId,
-  onOpenNotesDialog
+  onOpenNotesDialog,
 }: {
   item: InventoryItem;
   userId: string | undefined;
@@ -163,7 +166,10 @@ function InventoryItem({
   selectedItemId: string | null;
   onOpenNotesDialog: (item: InventoryItem) => void;
 }) {
-  const { isBooked, loadingBookingData } = useInventoryBookingStatus(item.id, userId);
+  const { isBooked, loadingBookingData } = useInventoryBookingStatus(
+    item.id,
+    userId
+  );
 
   return (
     <Card key={item.id} className="overflow-hidden">
@@ -192,7 +198,10 @@ function InventoryItem({
         <Description item={item} />
       </CardHeader>
       <CardContent className="p-4 pt-0">
-        <p className="font-bold text-lg">{ghSim}{item.price} / day</p>
+        <p className="font-bold text-lg">
+          {ghSim}
+          {item.price} / day
+        </p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
         {!item.available ? (
@@ -294,11 +303,14 @@ export function InventoryListDialog({
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [bookingNotes, setBookingNotes] = useState("");
-  
-  // Track booked items locally to update UI immediately
-  const [localBookedItems, setLocalBookedItems] = useState<Set<string>>(new Set());
 
-  const { loading, error, data, refetch } = useQuery(GET_RENTAL_ITEMS, {
+  // Track booked items locally to update UI immediately
+  const [localBookedItems, setLocalBookedItems] = useState<Set<string>>(
+    new Set()
+  );
+  console.log(localBookedItems);
+
+  const { loading, error, data } = useQuery(GET_RENTAL_ITEMS, {
     variables: { serviceId },
     skip: !serviceId,
   });
@@ -314,7 +326,7 @@ export function InventoryListDialog({
     onCompleted: () => {
       if (selectedItemId) {
         // Update local state immediately
-        setLocalBookedItems(prev => {
+        setLocalBookedItems((prev) => {
           const updated = new Set(prev);
           updated.add(selectedItemId);
           return updated;
@@ -322,7 +334,7 @@ export function InventoryListDialog({
       }
       // Close notes dialog if open
       setNotesDialogOpen(false);
-    }
+    },
   });
 
   // Cancel booking
@@ -338,13 +350,13 @@ export function InventoryListDialog({
       onCompleted: () => {
         if (selectedItemId) {
           // Update local state immediately
-          setLocalBookedItems(prev => {
+          setLocalBookedItems((prev) => {
             const updated = new Set(prev);
             updated.delete(selectedItemId);
             return updated;
           });
         }
-      }
+      },
     }
   );
 
@@ -383,13 +395,18 @@ export function InventoryListDialog({
           bookTypeID: inventoryId,
           userID: user?.id,
           bookType: "RENTAL",
-          notes: ""
+          notes: "",
         },
       });
       toast.success("Item booked successfully!");
-    } catch (error: any) {
-      console.error("Error booking item:", error);
-      toast.error(error.message || "Failed to book item. Please try again.");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error booking item:", error);
+        toast.error(error.message || "Failed to book item. Please try again.");
+      } else {
+        console.error("Unexpected error:", error);
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
   };
 
@@ -401,11 +418,15 @@ export function InventoryListDialog({
         variables: { bookTypeID: inventoryId, userID: user?.id },
       });
       toast.success("Booking cancelled successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error cancelling booking:", error);
-      toast.error(
-        error.message || "Failed to cancel booking. Please try again."
-      );
+      if (error instanceof Error) {
+        toast.error(
+          error.message || "Failed to cancel booking. Please try again."
+        );
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
   };
 
@@ -425,14 +446,18 @@ export function InventoryListDialog({
           bookTypeID: selectedItemId,
           userID: user.id,
           bookType: "RENTAL",
-          notes: bookingNotes.trim()
+          notes: bookingNotes.trim(),
         },
       });
       toast.success("Item booked successfully with notes!");
       setNotesDialogOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error booking item:", error);
-      toast.error(error.message || "Failed to book item. Please try again.");
+      if (error instanceof Error) {
+        toast.error(error.message || "Failed to book item. Please try again.");
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
   };
 
@@ -442,7 +467,6 @@ export function InventoryListDialog({
 
     return items.map((item) => {
       // Override the query result with our local state for immediate UI updates
-      const isItemLocallyBooked = localBookedItems.has(item.id);
 
       return (
         <InventoryItem
@@ -464,6 +488,9 @@ export function InventoryListDialog({
   const getCategoryIcon = (iconName: string) => {
     const IconComponent =
       lucideIcons[iconName as keyof typeof lucideIcons] || Package;
+
+    /* @ts-expect-error: IconComponent is dynamically imported and may not have proper type inference */
+
     return <IconComponent className="h-4 w-4" />;
   };
 

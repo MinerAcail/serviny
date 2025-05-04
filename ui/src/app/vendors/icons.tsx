@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import  { useState, useMemo } from 'react';
 import * as lucideIcons from 'lucide-react';
 import { Input } from '@/components/ui/input'; // Or use any other Input if you prefer
 import { ScrollArea } from '@/components/ui/scroll-area'; // Optional, for better scrolling
@@ -32,6 +32,7 @@ export default function LucideIconPicker() {
               key={name}
               className="flex flex-col items-center text-xs hover:bg-muted p-2 rounded-md cursor-pointer"
             >
+              {/* @ts-expect-error: Icon is dynamically imported and may not have proper type inference */}
               <Icon className="w-6 h-6 mb-1" />
               <span className="text-center break-words">{name}</span>
             </div>

@@ -412,7 +412,7 @@ type ComplexityRoot struct {
 		InventoryItem                     func(childComplexity int, id string) int
 		InventoryItems                    func(childComplexity int, categoryID *string, serviceID *string) int
 		ListAdmins                        func(childComplexity int) int
-		ListServices                      func(childComplexity int) int
+		ListServices                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		ReviewAllWorks                    func(childComplexity int) int
 		ReviewApplicate                   func(childComplexity int) int
 		UserBookings                      func(childComplexity int, userID string) int
@@ -724,7 +724,7 @@ type QueryResolver interface {
 	GetService(ctx context.Context) (*model.Service, error)
 	GetProvider(ctx context.Context, serviceID string) (*model.Service, error)
 	GetSharedService(ctx context.Context, serviceID string) (*model.Service, error)
-	ListServices(ctx context.Context) ([]*model.Service, error)
+	ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error)
 	GetAllGallery(ctx context.Context, serviceID string) ([]*model.GalleryProfession, error)
 	GetAllCategoriesFromGallery(ctx context.Context, serviceID string) ([]*string, error)
 	GetAllProfessionFromService(ctx context.Context) ([]*string, error)
@@ -3208,7 +3208,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Query.ListServices(childComplexity), true
+		args, err := ec.field_Query_listServices_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ListServices(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 
 	case "Query.reviewAllWorks":
 		if e.complexity.Query.ReviewAllWorks == nil {
@@ -7327,6 +7332,65 @@ func (ec *executionContext) field_Query_inventoryItems_argsServiceID(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_listServices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_listServices_argsSearch(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg0
+	arg1, err := ec.field_Query_listServices_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := ec.field_Query_listServices_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+func (ec *executionContext) field_Query_listServices_argsSearch(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("search"))
+	if tmp, ok := rawArgs["search"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_listServices_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int32, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
+	}
+
+	var zeroVal *int32
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_listServices_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int32, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
+	}
+
+	var zeroVal *int32
 	return zeroVal, nil
 }
 
@@ -21255,7 +21319,7 @@ func (ec *executionContext) _Query_listServices(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().ListServices(rctx)
+		return ec.resolvers.Query().ListServices(rctx, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -21272,7 +21336,7 @@ func (ec *executionContext) _Query_listServices(ctx context.Context, field graph
 	return ec.marshalNService2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐServiceᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_listServices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_listServices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -21313,6 +21377,17 @@ func (ec *executionContext) fieldContext_Query_listServices(_ context.Context, f
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_listServices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
