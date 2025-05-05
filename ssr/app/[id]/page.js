@@ -11,7 +11,7 @@ async function getProvider(id) {
     body: JSON.stringify({
       query: `
         query GetProvider($serviceID: String!) {
-          getProvider(serviceID: $serviceID) {
+          getProvider(ServiceId: $serviceID) {
             id
             name
             number
