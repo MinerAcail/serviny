@@ -1,2 +1,3 @@
 https://serviny.com/
 https://serviny.com/login
+https://serviny.com/booktypes
