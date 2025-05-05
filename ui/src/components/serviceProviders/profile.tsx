@@ -87,7 +87,7 @@ export function ServiceProviderProfile() {
     }
   }, [activeTab]);
 
-  if (loading) return <p>Loading...</p>;
+  // if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
   if (!data?.getProvider) return <p>No provider found.</p>;
 
@@ -98,7 +98,7 @@ export function ServiceProviderProfile() {
       <div className="pb-11">
         <MainNaveBar />
       </div>
-      {loading && !data && <SpectaclesLoading />}
+      {loading && <SpectaclesLoading />}
       
       <ProviderProfile
         isDialogOpen={isDialogOpen}
