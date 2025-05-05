@@ -34,7 +34,7 @@ import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
-import { SpectaclesLoading } from "../custom/loading";
+import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -88,7 +88,7 @@ export function ServiceProviderProfile() {
   }, [activeTab]);
 
   // if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
+  // if (error) return <p>Error: {error.message}</p>;
   // if () return <p>No provider found.</p>;
 
   const provider = data?.getProvider;
@@ -102,66 +102,74 @@ export function ServiceProviderProfile() {
         <SpectaclesLoading />
       ) : (
         <>
-          <ProviderProfile
-            isDialogOpen={isDialogOpen}
-            provider={provider}
-            setDialogOpen={setDialogOpen}
-            isDialogAbout={isDialogAbout}
-            setDialogAbout={setDialogAbout}
-          />
-          <div className="col-span-8 ">
-            <div ref={tabsPlaceholderRef}></div>
+          {error ? (
+            <SpectaclesError />
+          ) : (
+            <>
+              <ProviderProfile
+                isDialogOpen={isDialogOpen}
+                provider={provider}
+                setDialogOpen={setDialogOpen}
+                isDialogAbout={isDialogAbout}
+                setDialogAbout={setDialogAbout}
+              />
+              <div className="col-span-8 ">
+                <div ref={tabsPlaceholderRef}></div>
 
-            <div
-              className={`${
-                isTabsFixed
-                  ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
-                  : ""
-              }`}
-            >
-              <div className={`${isTabsFixed ? "container mx-auto px-4" : ""}`}>
-                <Tabs
-                  value={activeTab}
-                  onValueChange={setActiveTab}
-                  className="w-full"
-                  ref={tabsRef}
+                <div
+                  className={`${
+                    isTabsFixed
+                      ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
+                      : ""
+                  }`}
                 >
-                  <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted/50 p-1">
-                    <TabsTrigger value="portfolio" className="rounded-full">
-                      Portfolio
-                    </TabsTrigger>
-                    <TabsTrigger value="price" className="rounded-full">
-                      Price
-                    </TabsTrigger>
-                    <TabsTrigger value="policies" className="rounded-full">
-                      Policies
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </div>
+                  <div
+                    className={`${isTabsFixed ? "container mx-auto px-4" : ""}`}
+                  >
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={setActiveTab}
+                      className="w-full"
+                      ref={tabsRef}
+                    >
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted/50 p-1">
+                        <TabsTrigger value="portfolio" className="rounded-full">
+                          Portfolio
+                        </TabsTrigger>
+                        <TabsTrigger value="price" className="rounded-full">
+                          Price
+                        </TabsTrigger>
+                        <TabsTrigger value="policies" className="rounded-full">
+                          Policies
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                </div>
 
-            <div
-              ref={contentRef}
-              className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
-            >
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
-              >
-                <TabsContent value="portfolio">
-                  <WorkGallery />
-                </TabsContent>
-                <TabsContent value="price">
-                  <Price />
-                </TabsContent>
-                <TabsContent value="policies">
-                  <Policies />
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
+                <div
+                  ref={contentRef}
+                  className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
+                >
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    className="w-full"
+                  >
+                    <TabsContent value="portfolio">
+                      <WorkGallery />
+                    </TabsContent>
+                    <TabsContent value="price">
+                      <Price />
+                    </TabsContent>
+                    <TabsContent value="policies">
+                      <Policies />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
