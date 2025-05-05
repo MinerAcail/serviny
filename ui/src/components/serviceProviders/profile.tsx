@@ -37,6 +37,7 @@ import { Badge } from "../ui/badge";
 import {
 
   ItemNotFound,
+  // ItemNotFound,
   SpectaclesError,
   SpectaclesLoading,
 } from "../custom/loading";
@@ -101,9 +102,7 @@ export function ServiceProviderProfile() {
       <div className="pb-11">
         <MainNaveBar />
       </div>
-      {loading && !data && <SpectaclesLoading />}
-      {error && <SpectaclesError />}
-      {!data?.getProvider && <ItemNotFound />}
+
       <ProviderProfile
         isDialogOpen={isDialogOpen}
         provider={provider}
@@ -111,6 +110,7 @@ export function ServiceProviderProfile() {
         isDialogAbout={isDialogAbout}
         setDialogAbout={setDialogAbout}
       />
+      
       <div className="col-span-8 ">
         <div ref={tabsPlaceholderRef}></div>
 
@@ -142,6 +142,9 @@ export function ServiceProviderProfile() {
             </Tabs>
           </div>
         </div>
+        {loading && !data && <SpectaclesLoading />}
+        {error && <SpectaclesError />}
+      {/* {!data?.getProvider && <ItemNotFound />} */}
 
         <div ref={contentRef} className={`${isTabsFixed ? "mt-16" : "mt-6"}`}>
           <Tabs
