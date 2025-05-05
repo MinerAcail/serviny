@@ -36,9 +36,9 @@ import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import {
 
-  ItemNotFound,
   // ItemNotFound,
-  SpectaclesError,
+  // ItemNotFound,
+  // SpectaclesError,
   SpectaclesLoading,
 } from "../custom/loading";
 
@@ -62,7 +62,7 @@ export function ServiceProviderProfile() {
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // console.log(serviceId);
 
-  const { data, loading, error } = useQuery(GET_PROVIDER, {
+  const { data, loading } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
   });
 
@@ -143,7 +143,7 @@ export function ServiceProviderProfile() {
           </div>
         </div>
         {loading && !data && <SpectaclesLoading />}
-        {error && <SpectaclesError />}
+        {/* {error && <SpectaclesError />} */}
       {/* {!data?.getProvider && <ItemNotFound />} */}
 
         <div ref={contentRef} className={`${isTabsFixed ? "mt-16" : "mt-6"}`}>
