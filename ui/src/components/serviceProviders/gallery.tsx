@@ -49,7 +49,7 @@ export function GalleryDetailDialog({
         {/* Main container with improved responsive layout */}
         <div className="flex flex-col lg:flex-row max-h-[90vh]">
           {/* Left side - Carousel */}
-          <div className="lg:w-1/2 bg-slate-100 relative">
+          <div className="lg:w-1/2 bg-primary-foreground relative">
             <Carousel className="w-full h-full">
               <CarouselContent>
                 {gallery.imageUrls.map((image, index) => (
