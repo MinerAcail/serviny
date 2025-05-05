@@ -511,7 +511,7 @@ export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
           )}
         </div>
 
-        <h3 className="text-lg font-semibold">{gallery?.title}</h3>
+        <h3 className="text-sm font-semibold">{gallery?.title}</h3>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
           {gallery?.description}
         </p>

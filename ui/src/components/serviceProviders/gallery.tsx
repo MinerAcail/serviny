@@ -73,7 +73,7 @@ export function GalleryDetailDialog({
           </div>
 
           {/* Right side - Scrollable Content */}
-          <div className="lg:w-1/2 bg-white p-4 sm:p-6 flex flex-col overflow-y-auto max-h-[50vh] lg:max-h-[90vh]">
+          <div className="lg:w-1/2 bg-primary-foreground p-4 sm:p-6 flex flex-col overflow-y-auto max-h-[50vh] lg:max-h-[90vh]">
             <DialogHeader className="mb-4">
               <div className="flex items-start justify-between">
                 <DialogTitle className="text-xl sm:text-2xl font-bold">
@@ -94,7 +94,7 @@ export function GalleryDetailDialog({
             </DialogHeader>
 
             <div className="flex-grow mb-4">
-              <div className="space-y-4 bg-slate-50 p-3 sm:p-4 rounded-lg">
+              <div className="space-y-4 bg-secondary p-3 sm:p-4 rounded-lg">
                 <div>
                   <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     Description
