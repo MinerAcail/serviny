@@ -259,33 +259,9 @@ const ProviderProfile = ({
               ))}
 
               <div className="flex justify-between items-center">
-                <div className="flex flex-col md:flex-row md:gap-4 text-muted-foreground">
-                  {provider?.number && (
-                    <p className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      {provider?.number}
-                    </p>
-                  )}
-
-                  {provider?.email && (
-                    <p className="flex items-center gap-1">
-                      <span className="h-4 w-4 flex items-center justify-center">
-                        <Mail className="h-4 w-4" />
-                      </span>
-                      {provider?.email}
-                    </p>
-                  )}
-
-                  {provider?.location && (
-                    <p className="flex items-center gap-1">
-                      <span className="h-4 w-4 flex items-center justify-center">
-                        <MapPin className="h-4 w-4" />
-                      </span>
-                      {provider?.location}
-                    </p>
-                  )}
-                </div>
-                <div className="block lg:hidden">
+               
+                <ContactInfo provider={provider} />
+                <div className="block ml-2 lg:hidden">
                   <SocialMediaManager serviceId={serviceId ?? ""} />
                 </div>
               </div>
@@ -425,3 +401,150 @@ const ProviderProfile = ({
     </div>
   );
 };
+
+
+
+
+import { Check, Copy } from 'lucide-react'
+// import Link from "next/link"
+
+// import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+
+interface ContactInfoProps {
+  provider?: {
+    number?: string
+    email?: string
+    location?: string
+  }
+  className?: string
+}
+
+export default function ContactInfo({ provider, className }: ContactInfoProps) {
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(type)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  // Format location for Google Maps URL
+  const getGoogleMapsUrl = (location: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+  }
+
+  if (!provider) return null
+
+  return (
+    <TooltipProvider>
+      <div
+        className={cn(
+          "flex flex-col space-y-3 w-fit md:flex-row md:space-y-0 md:space-x-3",
+          className
+        )}
+      >
+        {provider.number && (
+          <div className="flex w-fit items-center rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Link
+              to={`tel:${provider.number.replace(/\s+/g, "")}`}
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.number}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => copyToClipboard(provider.number!, "number")}
+                >
+                  {copied === "number" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="sr-only">Copy phone number</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "number" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {provider.email && (
+          <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Link
+              to={`mailto:${provider.email}`}
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.email.slice(0,16)}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => copyToClipboard(provider.email!, "email")}
+                >
+                  {copied === "email" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="sr-only">Copy email address</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "email" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {provider.location && (
+          <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Link
+              to={getGoogleMapsUrl(provider.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.location}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() =>
+                    copyToClipboard(provider.location!, "location")
+                  }
+                >
+                  {copied === "location" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="sr-only">Copy address</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "location" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}

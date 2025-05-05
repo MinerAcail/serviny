@@ -41,10 +41,10 @@ import { Link, useNavigate, useParams } from "react-router";
 import MainNaveBar from "@/components/serviceProviders/menuBar";
 import BackButton from "@/components/back";
 interface SocialDataItem {
-    name: string;
-    icon: string;
-    link: string;
-  }
+  name: string;
+  icon: string;
+  link: string;
+}
 // Define GraphQL queries and mutations
 const GET_SOCIAL_MEDIA = gql`
   query GetSocialMedia($serviceId: String!) {
@@ -252,9 +252,10 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
             </div>
           ))}
           {buttonIcons.length === 0 && (
-            <div className="rounded-full flex items-center justify-center bg-gray-300 w-8 h-8">
-              <Plus className="h-5 w-5" /> Social Media
-            </div>
+            <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+              <Plus className="h-4 w-4" />
+              Socials
+            </Button>
           )}
         </div>
       </div>
@@ -332,7 +333,7 @@ export function SocialForm() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Apollo hooks
-  const { data, loading,  refetch } = useQuery(GET_SOCIAL_MEDIA, {
+  const { data, loading, refetch } = useQuery(GET_SOCIAL_MEDIA, {
     variables: { serviceId: serviceId }, // Replace with actual serviceId
   });
   const [createSocialMedia] = useMutation(CREATE_SOCIAL_MEDIA);
@@ -342,7 +343,6 @@ export function SocialForm() {
     if (data?.getSocialMedia?.socialData) {
       try {
         const socialDataArray = JSON.parse(data.getSocialMedia.socialData);
-     
 
         const mappedAccounts = socialDataArray.map((item: SocialDataItem) => ({
           id: `${item.icon}-${Date.now()}`,
@@ -545,10 +545,9 @@ export function SocialForm() {
         <MainNaveBar />
       </div>
       <div className="flex flex-col md:flex-row gap-6">
-        
         {/* Form Section */}
         <Card className="flex-1">
-              <BackButton />
+          <BackButton />
           <CardContent className="">
             <div className="space-y-4">
               <div className="border-t pt-4">
