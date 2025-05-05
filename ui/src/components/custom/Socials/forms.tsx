@@ -4,19 +4,19 @@ import {
   Facebook,
   Github,
   Instagram,
-  Linkedin,
+//   Linkedin,
   Twitter,
   Youtube,
-  MessageCircle,
+//   MessageCircle,
 //   Music,
-  Headphones,
-  Camera,
+//   Headphones,
+//   Camera,
   Hash,
   Send,
-  BookOpen,
-  Paintbrush,
+//   BookOpen,
+//   Paintbrush,
   Twitch,
-  Phone,
+//   Phone,
   Plus,
   Trash2,
   Edit2,
@@ -581,7 +581,7 @@ export function SocialForm() {
                         <SelectValue placeholder="Select platform" />
                       </SelectTrigger>
                       <SelectContent>
-                        {socialPlatforms.map((platform,index) => (
+                        {socialPlatforms.map((platform) => (
                           <SelectItem key={platform.id} value={platform.id}>
                             <div className="flex items-center">
                               <div
