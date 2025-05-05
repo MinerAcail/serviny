@@ -103,7 +103,7 @@ export function ServiceProviderProfile() {
       </div>
       {loading && !data && <SpectaclesLoading />}
       {error && <SpectaclesError />}
-      {data?.getProvider?.length === 0 && <ItemNotFound />}
+      {!data?.getProvider && <ItemNotFound />}
       <ProviderProfile
         isDialogOpen={isDialogOpen}
         provider={provider}
