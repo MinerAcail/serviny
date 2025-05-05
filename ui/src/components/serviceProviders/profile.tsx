@@ -89,7 +89,7 @@ export function ServiceProviderProfile() {
 
   // if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
-  if (!data?.getProvider) return <p>No provider found.</p>;
+  // if () return <p>No provider found.</p>;
 
   const provider = data?.getProvider;
 
@@ -98,65 +98,72 @@ export function ServiceProviderProfile() {
       <div className="pb-11">
         <MainNaveBar />
       </div>
-      {loading && <SpectaclesLoading />}
-      
-      <ProviderProfile
-        isDialogOpen={isDialogOpen}
-        provider={provider}
-        setDialogOpen={setDialogOpen}
-        isDialogAbout={isDialogAbout}
-        setDialogAbout={setDialogAbout}
-      />
-      <div className="col-span-8 ">
-        <div ref={tabsPlaceholderRef}></div>
+      {loading && !data?.getProvider ? (
+        <SpectaclesLoading />
+      ) : (
+        <>
+          <ProviderProfile
+            isDialogOpen={isDialogOpen}
+            provider={provider}
+            setDialogOpen={setDialogOpen}
+            isDialogAbout={isDialogAbout}
+            setDialogAbout={setDialogAbout}
+          />
+          <div className="col-span-8 ">
+            <div ref={tabsPlaceholderRef}></div>
 
-        <div
-          className={`${
-            isTabsFixed
-              ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
-              : ""
-          }`}
-        >
-          <div className={`${isTabsFixed ? "container mx-auto px-4" : ""}`}>
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-              ref={tabsRef}
+            <div
+              className={`${
+                isTabsFixed
+                  ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
+                  : ""
+              }`}
             >
-              <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted/50 p-1">
-                <TabsTrigger value="portfolio" className="rounded-full">
-                  Portfolio
-                </TabsTrigger>
-                <TabsTrigger value="price" className="rounded-full">
-                  Price
-                </TabsTrigger>
-                <TabsTrigger value="policies" className="rounded-full">
-                  Policies
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
+              <div className={`${isTabsFixed ? "container mx-auto px-4" : ""}`}>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                  ref={tabsRef}
+                >
+                  <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted/50 p-1">
+                    <TabsTrigger value="portfolio" className="rounded-full">
+                      Portfolio
+                    </TabsTrigger>
+                    <TabsTrigger value="price" className="rounded-full">
+                      Price
+                    </TabsTrigger>
+                    <TabsTrigger value="policies" className="rounded-full">
+                      Policies
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
 
-        <div ref={contentRef} className={`${isTabsFixed ? "mt-16" : "mt-6"}`}>
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsContent value="portfolio">
-              <WorkGallery />
-            </TabsContent>
-            <TabsContent value="price">
-              <Price />
-            </TabsContent>
-            <TabsContent value="policies">
-              <Policies />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+            <div
+              ref={contentRef}
+              className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
+            >
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
+                <TabsContent value="portfolio">
+                  <WorkGallery />
+                </TabsContent>
+                <TabsContent value="price">
+                  <Price />
+                </TabsContent>
+                <TabsContent value="policies">
+                  <Policies />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -222,7 +229,6 @@ const ProviderProfile = ({
               className="h-full w-full object-cover rounded-full"
             />
           </div>
-
         </div>
 
         {/* Provider Details */}
@@ -236,7 +242,6 @@ const ProviderProfile = ({
               {provider?.profession?.map((profession, idx) => (
                 <Badge key={idx} className="text-xs m-4">
                   {profession}
-                 
                 </Badge>
               ))}
 
