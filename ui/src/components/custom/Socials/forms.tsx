@@ -40,7 +40,11 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Link, useNavigate, useParams } from "react-router";
 import MainNaveBar from "@/components/serviceProviders/menuBar";
 import BackButton from "@/components/back";
-
+interface SocialDataItem {
+    name: string;
+    icon: string;
+    link: string;
+  }
 // Define GraphQL queries and mutations
 const GET_SOCIAL_MEDIA = gql`
   query GetSocialMedia($serviceId: String!) {
@@ -249,7 +253,7 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
           ))}
           {buttonIcons.length === 0 && (
             <div className="rounded-full flex items-center justify-center bg-gray-300 w-8 h-8">
-              <Plus className="h-5 w-5" />
+              <Plus className="h-5 w-5" /> Social Media
             </div>
           )}
         </div>
@@ -328,7 +332,7 @@ export function SocialForm() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Apollo hooks
-  const { data, loading, error, refetch } = useQuery(GET_SOCIAL_MEDIA, {
+  const { data, loading,  refetch } = useQuery(GET_SOCIAL_MEDIA, {
     variables: { serviceId: serviceId }, // Replace with actual serviceId
   });
   const [createSocialMedia] = useMutation(CREATE_SOCIAL_MEDIA);
@@ -338,7 +342,9 @@ export function SocialForm() {
     if (data?.getSocialMedia?.socialData) {
       try {
         const socialDataArray = JSON.parse(data.getSocialMedia.socialData);
-        const mappedAccounts = socialDataArray.map((item: any) => ({
+     
+
+        const mappedAccounts = socialDataArray.map((item: SocialDataItem) => ({
           id: `${item.icon}-${Date.now()}`,
           platform: item.name,
           username: item.link.split("/").pop() || item.link,
@@ -715,7 +721,7 @@ export default function SocialMediaManager({
 
     try {
       const socialDataArray = JSON.parse(data.getSocialMedia.socialData);
-      return socialDataArray.map((item: any) => ({
+      return socialDataArray.map((item: SocialDataItem) => ({
         platform: item.name,
         username: item.link.split("/").pop() || item.link,
         url: item.link,

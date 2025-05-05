@@ -37,8 +37,8 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
-import Socials from "../custom/Socials";
-import SocialDialog from "../custom/Socials/social-dialog";
+// import Socials from "../custom/Socials";
+// import SocialDialog from "../custom/Socials/social-dialog";
 import SocialMediaManager from "../custom/Socials/forms";
 
 const GET_PROVIDER = gql`
