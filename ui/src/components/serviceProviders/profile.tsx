@@ -34,13 +34,7 @@ import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
-import {
-
-  // ItemNotFound,
-  // ItemNotFound,
-  // SpectaclesError,
-  SpectaclesLoading,
-} from "../custom/loading";
+import { SpectaclesLoading } from "../custom/loading";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -62,7 +56,7 @@ export function ServiceProviderProfile() {
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // console.log(serviceId);
 
-  const { data, loading } = useQuery(GET_PROVIDER, {
+  const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
   });
 
@@ -93,7 +87,9 @@ export function ServiceProviderProfile() {
     }
   }, [activeTab]);
 
-
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  if (!data?.getProvider) return <p>No provider found.</p>;
 
   const provider = data?.getProvider;
 
@@ -102,7 +98,8 @@ export function ServiceProviderProfile() {
       <div className="pb-11">
         <MainNaveBar />
       </div>
-
+      {loading && !data && <SpectaclesLoading />}
+      
       <ProviderProfile
         isDialogOpen={isDialogOpen}
         provider={provider}
@@ -110,7 +107,6 @@ export function ServiceProviderProfile() {
         isDialogAbout={isDialogAbout}
         setDialogAbout={setDialogAbout}
       />
-      
       <div className="col-span-8 ">
         <div ref={tabsPlaceholderRef}></div>
 
@@ -142,9 +138,6 @@ export function ServiceProviderProfile() {
             </Tabs>
           </div>
         </div>
-        {loading && !data && <SpectaclesLoading />}
-        {/* {error && <SpectaclesError />} */}
-      {/* {!data?.getProvider && <ItemNotFound />} */}
 
         <div ref={contentRef} className={`${isTabsFixed ? "mt-16" : "mt-6"}`}>
           <Tabs
@@ -229,6 +222,7 @@ const ProviderProfile = ({
               className="h-full w-full object-cover rounded-full"
             />
           </div>
+
         </div>
 
         {/* Provider Details */}
@@ -242,6 +236,7 @@ const ProviderProfile = ({
               {provider?.profession?.map((profession, idx) => (
                 <Badge key={idx} className="text-xs m-4">
                   {profession}
+                 
                 </Badge>
               ))}
 
