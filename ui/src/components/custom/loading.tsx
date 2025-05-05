@@ -296,7 +296,7 @@ export function ItemNotFound() {
 
       {/* Error message */}
       <div className=" text-red-600 dark:text-red-500 font-semibold text-center">
-        <p className=" text-xl">Item Not Found</p>
+        <p className=" text-xl">Not Found</p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           We couldn't find the what you were looking for
         </p>

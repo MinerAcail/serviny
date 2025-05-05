@@ -36,6 +36,7 @@ import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import {
 
+  ItemNotFound,
   SpectaclesError,
   SpectaclesLoading,
 } from "../custom/loading";
@@ -91,9 +92,7 @@ export function ServiceProviderProfile() {
     }
   }, [activeTab]);
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  if (!data?.getProvider) return <p>No provider found.</p>;
+
 
   const provider = data?.getProvider;
 
@@ -104,7 +103,7 @@ export function ServiceProviderProfile() {
       </div>
       {loading && !data && <SpectaclesLoading />}
       {error && <SpectaclesError />}
-      {/* {data?.getProvider?.length === 0 && <ItemNotFound />} */}
+      {data?.getProvider?.length === 0 && <ItemNotFound />}
       <ProviderProfile
         isDialogOpen={isDialogOpen}
         provider={provider}
