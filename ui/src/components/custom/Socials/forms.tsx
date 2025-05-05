@@ -8,7 +8,7 @@ import {
   Twitter,
   Youtube,
   MessageCircle,
-  Music,
+//   Music,
   Headphones,
   Camera,
   Hash,
@@ -23,7 +23,15 @@ import {
   Check,
   X,
 } from "lucide-react";
-
+import tiktok from "../../../assets/tt.png";
+import reddit from "../../../assets/rr.png";
+import spn from "../../../assets/spn.webp";
+import pin from "../../../assets/pin.webp";
+import ww from "../../../assets/ww.webp";
+import ss from "../../../assets/sp.png";
+import inin from "../../../assets/inin.webp";
+import mmd from "../../../assets/medium-icon.svg";
+import dis from "../../../assets/discord-thumb.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,7 +77,7 @@ const socialPlatforms = [
   {
     id: "youtube",
     name: "YouTube",
-    icon: <Youtube className="h-5 w-5" />,
+    icon: <Youtube className="h-5 w-5 " />,
     color: "#FF0000",
     urlPrefix: "https://youtube.com/@",
   },
@@ -97,7 +105,8 @@ const socialPlatforms = [
   {
     id: "linkedin",
     name: "LinkedIn",
-    icon: <Linkedin className="h-5 w-5" />,
+    icon: <img src={inin} alt="linkedin" className="h-5 w-5" />, // ← wrapped properly
+
     color: "#0A66C2",
     urlPrefix: "https://linkedin.com/in/",
   },
@@ -111,29 +120,32 @@ const socialPlatforms = [
   {
     id: "tiktok",
     name: "TikTok",
-    icon: <Music className="h-5 w-5" />,
+    icon: <img src={tiktok} alt="TikTok" className="h-5 w-5" />, // ← wrapped properly
     color: "#000000",
     urlPrefix: "https://tiktok.com/@",
   },
   {
     id: "pinterest",
     name: "Pinterest",
-    icon: <Paintbrush className="h-5 w-5" />,
-    color: "#E60023",
+    icon: <img src={pin} alt="pinterest" className="h-3 w-3" />, // ← wrapped properly
+
+    color: "#fff",
     urlPrefix: "https://pinterest.com/",
   },
   {
     id: "snapchat",
     name: "Snapchat",
-    icon: <Camera className="h-5 w-5" />,
+    icon: <img src={spn} alt="discord" className="h-7 w-7" />, // ← wrapped properly
+
     color: "#FFFC00",
     urlPrefix: "https://snapchat.com/add/",
   },
   {
     id: "discord",
     name: "Discord",
-    icon: <MessageCircle className="h-5 w-5" />,
-    color: "#5865F2",
+    icon: <img src={dis} alt="discord" className="h-7 w-7" />, // ← wrapped properly
+
+    color: "#fff",
     urlPrefix: "https://discord.com/users/",
   },
   {
@@ -146,21 +158,24 @@ const socialPlatforms = [
   {
     id: "reddit",
     name: "Reddit",
-    icon: <Hash className="h-5 w-5" />,
-    color: "#FF4500",
+    icon: <img src={reddit} alt="reddit" className="h-5 w-5" />, // ← wrapped properly
+
+    color: "#fff",
     urlPrefix: "https://reddit.com/user/",
   },
   {
     id: "medium",
     name: "Medium",
-    icon: <BookOpen className="h-5 w-5" />,
-    color: "#000000",
+    icon: <img src={mmd} alt="medium" className="h-5 w-5" />, // ← wrapped properly
+
+    color: "#fff",
     urlPrefix: "https://medium.com/@",
   },
   {
     id: "spotify",
     name: "Spotify",
-    icon: <Headphones className="h-5 w-5" />,
+    icon: <img src={ss} alt="spotify" className="h-5 w-5" />, // ← wrapped properly
+
     color: "#1DB954",
     urlPrefix: "https://open.spotify.com/user/",
   },
@@ -174,7 +189,8 @@ const socialPlatforms = [
   {
     id: "whatsapp",
     name: "WhatsApp",
-    icon: <Phone className="h-5 w-5" />,
+    icon: <img src={ww} alt="reddit" className="h-5 w-5" />, // ← wrapped properly
+
     color: "#25D366",
     urlPrefix: "https://wa.me/",
   },
@@ -565,17 +581,24 @@ export function SocialForm() {
                         <SelectValue placeholder="Select platform" />
                       </SelectTrigger>
                       <SelectContent>
-                        {socialPlatforms.map((platform) => (
+                        {socialPlatforms.map((platform,index) => (
                           <SelectItem key={platform.id} value={platform.id}>
                             <div className="flex items-center">
                               <div
                                 className="w-5 h-5 rounded-full flex items-center justify-center mr-2"
                                 style={{
+                                  width: "32px",
+                                  height: "32px",
+                                //   marginLeft: index > 0 ? "-10px" : "0",
+                                //   zIndex: 3 - index,
+                                //   transform: `translateX(${
+                                //     open ? index * 5 : 0
+                                //   }px)`,
                                   backgroundColor: platform.color,
                                   color: "white",
                                 }}
                               >
-                                {platform.icon}
+                                {platform.icon} 
                               </div>
                               {platform.name}
                             </div>
