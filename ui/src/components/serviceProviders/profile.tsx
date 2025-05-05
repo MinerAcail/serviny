@@ -6,6 +6,7 @@ import {
   Edit,
   HardDriveUpload,
   LayoutDashboard,
+  Library,
   Mail,
   MapPin,
   NotepadText,
@@ -323,6 +324,12 @@ const ProviderProfile = ({
                   <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
                     <HardDriveUpload className="h-4 w-4" />
                     Upload
+                  </Button>
+                </Link>
+                <Link to={`/time/${serviceId}`}>
+                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                    <Library className="h-4 w-4" />
+                    Business Types
                   </Button>
                 </Link>
                 <Link to="/dashboard">
