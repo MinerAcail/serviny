@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 
 const MAIN_WEBSITE_URL = "https://serviny.com";
-const MINIO_BASE_URL = "https://files.serviny.com";
+const MINIO_BASE_URL = "https://serviny.com";
 
 async function getProvider(id) {
   const res = await fetch("https://api.serviny.com/query", {
