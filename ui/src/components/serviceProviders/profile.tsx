@@ -272,7 +272,7 @@ const ProviderProfile = ({
               <div className="flex gap-4">
                 <h2 className="text-xl font-light">About Me</h2>
                 <div className="lg:block hidden">
-                <SocialMediaManager serviceId={serviceId ?? ""}/>
+                <SocialMediaManager serviceId={serviceId ?? ""} />
                 </div>
               </div>
               <p className="mt-3 leading-relaxed text-muted-foreground">

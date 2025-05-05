@@ -4,19 +4,19 @@ import {
   Facebook,
   Github,
   Instagram,
-//   Linkedin,
+  //   Linkedin,
   Twitter,
   Youtube,
-//   MessageCircle,
-//   Music,
-//   Headphones,
-//   Camera,
+  //   MessageCircle,
+  //   Music,
+  //   Headphones,
+  //   Camera,
   Hash,
   Send,
-//   BookOpen,
-//   Paintbrush,
+  //   BookOpen,
+  //   Paintbrush,
   Twitch,
-//   Phone,
+  //   Phone,
   Plus,
   Trash2,
   Edit2,
@@ -48,6 +48,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Link, useNavigate, useParams } from "react-router";
 import MainNaveBar from "@/components/serviceProviders/menuBar";
 import BackButton from "@/components/back";
+import { useCheckAuthId } from "@/middleware/context/checkID";
 interface SocialDataItem {
   name: string;
   icon: string;
@@ -127,7 +128,7 @@ const socialPlatforms = [
   {
     id: "pinterest",
     name: "Pinterest",
-    icon: <img src={pin} alt="pinterest" className="h-3 w-3" />, // ← wrapped properly
+    icon: <img src={pin} alt="pinterest" className="h-5  w-5 " />, // ← wrapped properly
 
     color: "#fff",
     urlPrefix: "https://pinterest.com/",
@@ -242,6 +243,7 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
 
   // Select first 3 social links for the button
   const buttonIcons = socialLinks.slice(0, 3);
+  const { isMatch } = useCheckAuthId(serviceId);
 
   return (
     <>
@@ -279,17 +281,19 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white rounded-2xl shadow-xl max-h-[85vh]">
           <div className="p-6 overflow-y-auto max-h-[calc(85vh-60px)]">
-            <div className="text-center mb-6">
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                  navigate(`/social/${serviceId}`);
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors"
-              >
-                Manage Social Accounts
-              </Button>
-            </div>
+            {isMatch && (
+              <div className="text-center mb-6">
+                <Button
+                  onClick={() => {
+                    setOpen(false);
+                    navigate(`/social/${serviceId}`);
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors"
+                >
+                  Manage Social Accounts
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {socialLinks.length > 0 ? (
@@ -589,16 +593,16 @@ export function SocialForm() {
                                 style={{
                                   width: "32px",
                                   height: "32px",
-                                //   marginLeft: index > 0 ? "-10px" : "0",
-                                //   zIndex: 3 - index,
-                                //   transform: `translateX(${
-                                //     open ? index * 5 : 0
-                                //   }px)`,
+                                  //   marginLeft: index > 0 ? "-10px" : "0",
+                                  //   zIndex: 3 - index,
+                                  //   transform: `translateX(${
+                                  //     open ? index * 5 : 0
+                                  //   }px)`,
                                   backgroundColor: platform.color,
                                   color: "white",
                                 }}
                               >
-                                {platform.icon} 
+                                {platform.icon}
                               </div>
                               {platform.name}
                             </div>
