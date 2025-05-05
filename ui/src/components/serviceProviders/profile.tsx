@@ -326,7 +326,7 @@ const ProviderProfile = ({
                     Upload
                   </Button>
                 </Link>
-                <Link to={`/time/${serviceId}`}>
+                <Link to={`/booktypes`}>
                   <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
                     <Library className="h-4 w-4" />
                     Business Types
