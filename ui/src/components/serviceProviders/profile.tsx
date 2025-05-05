@@ -34,6 +34,11 @@ import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
+import {
+
+  SpectaclesError,
+  SpectaclesLoading,
+} from "../custom/loading";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -97,6 +102,9 @@ export function ServiceProviderProfile() {
       <div className="pb-11">
         <MainNaveBar />
       </div>
+      {loading && !data && <SpectaclesLoading />}
+      {error && <SpectaclesError />}
+      {/* {data?.getProvider?.length === 0 && <ItemNotFound />} */}
       <ProviderProfile
         isDialogOpen={isDialogOpen}
         provider={provider}
@@ -219,7 +227,6 @@ const ProviderProfile = ({
               className="h-full w-full object-cover rounded-full"
             />
           </div>
-          
         </div>
 
         {/* Provider Details */}
@@ -233,7 +240,6 @@ const ProviderProfile = ({
               {provider?.profession?.map((profession, idx) => (
                 <Badge key={idx} className="text-xs m-4">
                   {profession}
-                 
                 </Badge>
               ))}
 
