@@ -16,8 +16,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        // target: 'http://localhost:9000', // Adjust if MinIO is not running on
-        target: "https://files.serviny.com/", // Adjust if MinIO is not running on 192.168.62.193
+        target: 'http://localhost:9000', // Adjust if MinIO is not running on
+        // target: "https://files.serviny.com/", // Adjust if MinIO is not running on 192.168.62.193
 
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),

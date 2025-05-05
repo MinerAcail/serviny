@@ -737,6 +737,11 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                           handleAddProfession(inputValue)
                         }
                       }}
+                      onBlur={() => {
+                        if (inputValue.trim()) {
+                          handleAddProfession(inputValue);
+                        }
+                      }}
                     />
                     {inputValue && (
                       <Button

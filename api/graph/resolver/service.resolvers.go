@@ -736,6 +736,12 @@ func (r *mutationResolver) UpdateGallery(ctx context.Context, galleryID string, 
 
 // DeleteGallery is the resolver for the deleteGallery field.
 func (r *mutationResolver) DeleteGallery(ctx context.Context, id string) (*bool, error) {
+	// Get the service ID from context for authorization
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	
 	// Parse the gallery ID
 	galleryID, err := uuid.Parse(id)
 	if err != nil {
@@ -744,9 +750,9 @@ func (r *mutationResolver) DeleteGallery(ctx context.Context, id string) (*bool,
 
 	// Find the gallery to verify ownership and get image URLs for cleanup
 	var gallery model.GalleryProfession
-	if err := r.DB.Where("id = ?", galleryID).First(&gallery).Error; err != nil {
+	if err := r.DB.Where("id = ? AND service_id = ?", galleryID, serviceIDStr).First(&gallery).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("gallery not found with ID: %s", galleryID)
+			return nil, fmt.Errorf("gallery not found with ID: %s or it does not belong to the service", galleryID)
 		}
 		return nil, fmt.Errorf("failed to fetch gallery: %w", err)
 	}

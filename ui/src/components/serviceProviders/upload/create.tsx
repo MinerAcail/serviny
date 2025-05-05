@@ -155,7 +155,7 @@ export const CreateGalleryForm: React.FC = () => {
         description: data.description,
         categories: selectedCategories,
       };
-      console.log("input", input);
+      // console.log("input", input);
 
       await createGallery({
         variables: {
@@ -274,6 +274,11 @@ export const CreateGalleryForm: React.FC = () => {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      handleAddCategory(inputValue);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (inputValue.trim()) {
                       handleAddCategory(inputValue);
                     }
                   }}

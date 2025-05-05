@@ -23,12 +23,16 @@ export function GalleryDetailDialog({
   open,
   onOpenChange,
   refetch,
+  serviceId
 }: {
   gallery: Gallery | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   refetch: () => void;
+  serviceId:string ;
 }) {
+  const { isMatch } = useCheckAuthId(serviceId);
+
   const [deleteGallery] = useMutation(DELETE_GALLERY, {
     onError: (error) => {
       console.error("Error deleting gallery:", error);
@@ -85,8 +89,12 @@ export function GalleryDetailDialog({
               </div>
 
               <div className="flex flex-wrap gap-2 mt-2 sm:mt-3">
-                {gallery?.categories?.map((category :string, index:number) => (
-                  <Badge key={index} variant="secondary" className="text-xs sm:text-sm">
+                {gallery?.categories?.map((category: string, index: number) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="text-xs sm:text-sm"
+                  >
                     {category}
                   </Badge>
                 ))}
@@ -100,48 +108,52 @@ export function GalleryDetailDialog({
                     Description
                   </h4>
                   <p className="text-xs sm:text-sm overflow-y-auto">
-                  {gallery.description}
-
+                    {gallery.description}
                   </p>
                 </div>
               </div>
             </div>
-
-            <DialogFooter className="flex flex-col sm:flex-row justify-end gap-2 mt-auto pt-4 border-t">
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 sm:flex-initial"
-                  onClick={() => {
-                    handleDeleteGallery(gallery.id);
-                    onOpenChange(false);
-                    refetch();
-                  }}
-                >
-                  Delete
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1 sm:flex-initial"
-                  onClick={() => onOpenChange(false)}
-                >
-                  Close
-                </Button>
-              <UpdateGalleryDialog
-                gallery={gallery}
-                onSuccess={() => {
-                  onOpenChange(false);
-                  refetch();
-                }}
-              >
-                <Button variant="default" size="sm" className="w-full sm:w-auto">
-                  Edit Gallery
-                </Button>
-              </UpdateGalleryDialog>
-              </div>
-            </DialogFooter>
+            {isMatch && (
+              <DialogFooter className="flex flex-col sm:flex-row justify-end gap-2 mt-auto pt-4 border-t">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 sm:flex-initial"
+                    onClick={() => {
+                      handleDeleteGallery(gallery.id);
+                      onOpenChange(false);
+                      refetch();
+                    }}
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 sm:flex-initial"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Close
+                  </Button>
+                  <UpdateGalleryDialog
+                    gallery={gallery}
+                    onSuccess={() => {
+                      onOpenChange(false);
+                      refetch();
+                    }}
+                  >
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      Edit Gallery
+                    </Button>
+                  </UpdateGalleryDialog>
+                </div>
+              </DialogFooter>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -236,6 +248,7 @@ import { Button } from "../ui/button";
 import { GalleryCard, UpdateGalleryDialog } from "./updates";
 
 import { DialogClose } from "@radix-ui/react-dialog";
+import { useCheckAuthId } from "@/middleware/context/checkID";
 //
 export function WorkGallery() {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -307,7 +320,7 @@ export function WorkGallery() {
         gallery={selectedGallery}
         open={!!selectedGallery}
         onOpenChange={(open: boolean) => !open && handleDialogClose()}
-
+        serviceId={serviceId ?? ""}
         refetch={() => {
           // Refetch the gallery data after closing the dialog
           refetch();
