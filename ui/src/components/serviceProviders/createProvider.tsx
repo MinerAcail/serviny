@@ -1,20 +1,45 @@
-
-import type React from "react"
-import { useState } from "react"
-import { useMutation, gql } from "@apollo/client"
-import { type FieldValues, useForm } from "react-hook-form"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Loader2, X, Upload, CheckCircle, EyeOff, Eye, User, MapPin, Phone, Mail, Briefcase } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import OtpCard from "./createOTP"
-import MainNaveBar from "./menuBar"
+import type React from "react";
+import { useState } from "react";
+import { useMutation, gql } from "@apollo/client";
+import { type FieldValues, useForm } from "react-hook-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  X,
+  Upload,
+  CheckCircle,
+  EyeOff,
+  Eye,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  Briefcase,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import OtpCard from "./createOTP";
+import MainNaveBar from "./menuBar";
+import { countries } from "./data/countries";
 
 // GraphQL Mutation
 const CREATE_SERVICE = gql`
@@ -29,7 +54,7 @@ const CREATE_SERVICE = gql`
       profession
     }
   }
-`
+`;
 const REQUEST_OTP = gql`
   mutation RequestOtp($input: RequestOtpInput!) {
     requestOtp(input: $input) {
@@ -39,7 +64,7 @@ const REQUEST_OTP = gql`
       email
     }
   }
-`
+`;
 
 const VERIFY_OTP = gql`
   mutation VerifyOtp($input: VerifyOtpInput!) {
@@ -51,7 +76,7 @@ const VERIFY_OTP = gql`
       email
     }
   }
-`
+`;
 
 const RESEND_OTP = gql`
   mutation ResendOtp($input: RequestOtpInput!) {
@@ -64,20 +89,20 @@ const RESEND_OTP = gql`
       email
     }
   }
-`
+`;
 // Types
 interface Profession {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface CreateServiceInput {
-  name: string
-  number: string
-  email: string
-  location?: string
-  profession?: string[]
-  password: string
+  name: string;
+  number: string;
+  email: string;
+  location?: string;
+  profession?: string[];
+  password: string;
 }
 
 // Available professions for selection
@@ -90,22 +115,22 @@ const availableProfessions: Profession[] = [
   { value: "plumber", label: "Plumber" },
   { value: "carpenter", label: "Carpenter" },
   { value: "painter", label: "Painter" },
-]
+];
 
 export const CreateServiceProvider: React.FC = () => {
-  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([])
-  const [inputValue, setInputValue] = useState("")
-  const [profilePic, setProfilePic] = useState<File | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [activeTab, setActiveTab] = useState("personal")
+  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState("personal");
 
   // OTP verification states
-  const [showOtpVerification, setShowOtpVerification] = useState(false)
-  const [verifyingOtp, setVerifyingOtp] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState<{
     name: string;
     number: string;
@@ -113,8 +138,8 @@ export const CreateServiceProvider: React.FC = () => {
     location?: string;
     password?: string;
     confirmPassword?: string;
-  } | null>(null)
-console.log(otpSent);
+  } | null>(null);
+  // console.log(otpSent);
 
   const {
     register,
@@ -138,52 +163,59 @@ console.log(otpSent);
       password: "",
       confirmPassword: "",
     },
-  })
+  });
 
   // Watch form values to enable form progression
-  const watchedName = watch("name")
-  const watchedEmail = watch("email")
-  const watchedNumber = watch("number")
-  const watchedPassword = watch("password")
-  const watchedConfirmPassword = watch("confirmPassword")
+  const watchedName = watch("name");
+  const watchedEmail = watch("email");
+  const watchedNumber = watch("number");
+  const watchedPassword = watch("password");
+  const watchedConfirmPassword = watch("confirmPassword");
 
   // GraphQL mutations
-  const [createService] = useMutation(CREATE_SERVICE)
-  const [requestOtp] = useMutation(REQUEST_OTP)
-  const [verifyOtp] = useMutation(VERIFY_OTP)
-  const [resendOTP] = useMutation(RESEND_OTP)
+  const [createService] = useMutation(CREATE_SERVICE);
+  const [requestOtp] = useMutation(REQUEST_OTP);
+  const [verifyOtp] = useMutation(VERIFY_OTP);
+  const [resendOTP] = useMutation(RESEND_OTP);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0]
-      setProfilePic(file)
-      setPreviewImage(URL.createObjectURL(file))
+      const file = event.target.files[0];
+      setProfilePic(file);
+      setPreviewImage(URL.createObjectURL(file));
     }
-  }
+  };
 
   const handleRemoveImage = () => {
-    setProfilePic(null)
+    setProfilePic(null);
     if (previewImage) {
-      URL.revokeObjectURL(previewImage)
-      setPreviewImage(null)
+      URL.revokeObjectURL(previewImage);
+      setPreviewImage(null);
     }
-  }
+  };
 
   const handleAddProfession = (profession: string) => {
     if (profession.trim() && !selectedProfessions.includes(profession)) {
-      setSelectedProfessions([...selectedProfessions, profession])
+      setSelectedProfessions([...selectedProfessions, profession]);
     }
-    setInputValue("") // Clear input after adding
-  }
+    setInputValue(""); // Clear input after adding
+  };
 
   const handleRemoveProfession = (profession: string) => {
-    setSelectedProfessions(selectedProfessions.filter((p) => p !== profession))
-  }
+    setSelectedProfessions(selectedProfessions.filter((p) => p !== profession));
+  };
 
   // Send OTP before submitting form
-  const handleSendOtp = async (data: { name: string; number: string; email: string; location?: string; password?: string; confirmPassword?: string }) => {
-    setIsLoading(true)
-    setFormData(data)
+  const handleSendOtp = async (data: {
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password?: string;
+    confirmPassword?: string;
+  }) => {
+    setIsLoading(true);
+    setFormData(data);
 
     try {
       const result = await requestOtp({
@@ -192,34 +224,39 @@ console.log(otpSent);
             email: data.email,
             name: data.name,
             number: data.number,
-            type:"SERVICE"
+            type: "SERVICE",
           },
         },
-      })
+      });
 
       if (result.data?.requestOtp?.success) {
-        setOtpSent(true)
-        setShowOtpVerification(true)
+        // setOtpSent(true);
+        setShowOtpVerification(true);
         toast.success("OTP Sent", {
           description: `Verification code sent to ${data.email}`,
-        })
+        });
       } else {
         toast.error("Error", {
-          description: result.data?.requestOtp?.message || "Failed to send verification code",
-        })
+          description:
+            result.data?.requestOtp?.message ||
+            "Failed to send verification code",
+        });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Failed to send verification code",
-      })
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to send verification code",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Handle OTP verification
   const handleVerifyOtp = async (otpCode: string) => {
-    setVerifyingOtp(true)
+    setVerifyingOtp(true);
 
     try {
       const result = await verifyOtp({
@@ -227,16 +264,15 @@ console.log(otpSent);
           input: {
             email: formData?.email,
             otp: otpCode,
-            type:"SERVICE"
-
+            type: "SERVICE",
           },
         },
-      })
+      });
 
       if (result.data?.verifyOtp?.success && result.data?.verifyOtp?.IsValid) {
         toast.success("Verification Successful", {
           description: "Your email has been verified successfully",
-        })
+        });
 
         // Submit the form data after successful verification
         if (formData) {
@@ -245,35 +281,37 @@ console.log(otpSent);
               ...formData,
               password: formData.password,
               confirmPassword: formData.confirmPassword,
-            })
+            });
           } else {
             toast.error("Error", {
               description: "Password and Confirm Password are required.",
-            })
+            });
           }
         }
       } else {
         toast.error("Verification Failed", {
-          description: result.data?.verifyOtp?.message || "Invalid verification code",
-        })
+          description:
+            result.data?.verifyOtp?.message || "Invalid verification code",
+        });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Verification failed",
-      })
+        description:
+          error instanceof Error ? error.message : "Verification failed",
+      });
     } finally {
-      setVerifyingOtp(false)
+      setVerifyingOtp(false);
     }
-  }
+  };
 
   // Handle OTP resend
   const handleResendOtp = async (data: {
-    name: string
-    number: string
-    email: string
-    location?: string
-    password?: string
-    confirmPassword?: string
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password?: string;
+    confirmPassword?: string;
   }) => {
     try {
       const result = await resendOTP({
@@ -282,39 +320,42 @@ console.log(otpSent);
             email: data.email,
             name: data.name,
             number: data.number,
-            type:"SERVICE"
-
-
+            type: "SERVICE",
           },
         },
-      })
+      });
 
       if (result.data?.resendOTP?.success) {
         toast.success("OTP Resent", {
           description: `New verification code sent to ${formData?.email}`,
-        })
+        });
       } else {
         toast.error("Error", {
-          description: result.data?.resendOTP?.message || "Failed to resend verification code",
-        })
+          description:
+            result.data?.resendOTP?.message ||
+            "Failed to resend verification code",
+        });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Failed to resend verification code",
-      })
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to resend verification code",
+      });
     }
-  }
+  };
 
   // Submit form data to database after OTP verification
   const submitFormData = async (data: {
-    name: string
-    number: string
-    email: string
-    location?: string
-    password: string
-    confirmPassword: string
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password: string;
+    confirmPassword: string;
   }) => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       const input: CreateServiceInput = {
@@ -324,71 +365,84 @@ console.log(otpSent);
         location: data.location,
         profession: selectedProfessions,
         password: data.password,
-      }
+      };
 
       await createService({
         variables: {
           dpfile: profilePic,
           input,
         },
-      })
+      });
 
       // Reset form and states
-      reset()
-      setSelectedProfessions([])
-      setProfilePic(null)
-      setShowOtpVerification(false)
-      setOtpSent(false)
-      setFormData(null)
+      reset();
+      setSelectedProfessions([]);
+      setProfilePic(null);
+      setShowOtpVerification(false);
+      // setOtpSent(false);
+      setFormData(null);
 
       if (previewImage) {
-        URL.revokeObjectURL(previewImage)
-        setPreviewImage(null)
+        URL.revokeObjectURL(previewImage);
+        setPreviewImage(null);
       }
 
       toast.success("Success!", {
         description: "Service provider profile created successfully.",
-      })
+      });
     } catch (err) {
       toast.error("Error", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
-      })
+        description:
+          err instanceof Error ? err.message : "An unexpected error occurred",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Form validation for each step
   const isPersonalInfoComplete = Boolean(
-    watchedName && watchedEmail && !errors.name && !errors.email && watchedNumber && !errors.number,
-  )
+    watchedName &&
+      watchedEmail &&
+      !errors.name &&
+      !errors.email &&
+      watchedNumber &&
+      !errors.number
+  );
 
   const isPasswordValid: boolean =
     !!watchedPassword &&
     !!watchedConfirmPassword &&
     watchedPassword === watchedConfirmPassword &&
     !errors.password &&
-    !errors.confirmPassword
+    !errors.confirmPassword;
 
   // Initial form submission handler - triggers OTP flow
-  const onSubmit = async (data: { name: string; number: string; email: string; location?: string; password?: string; confirmPassword?: string }) => {
+  const onSubmit = async (data: {
+    name: string;
+    number: string;
+    email: string;
+    location?: string;
+    password?: string;
+    confirmPassword?: string;
+  }) => {
     // Check if password and confirm password match
     if (data.password !== data.confirmPassword) {
       toast.error("Error", {
         description: "Passwords do not match",
-      })
-      return
+      });
+      return;
     }
 
     // Initiate OTP verification process
-    await handleSendOtp(data)
-  }
+    await handleSendOtp(data);
+  };
 
   // Cancel OTP verification and go back to form
   const handleCancelOtp = () => {
-    setShowOtpVerification(false)
-    setOtpSent(false)
-  }
+    setShowOtpVerification(false);
+    // setOtpSent(false);
+  };
 
   return (
     <div className="min-h-screen w-full">
@@ -408,7 +462,11 @@ console.log(otpSent);
                 loading={verifyingOtp}
               />
               <div className="flex justify-center">
-                <Button variant="outline" onClick={handleCancelOtp} disabled={verifyingOtp}>
+                <Button
+                  variant="outline"
+                  onClick={handleCancelOtp}
+                  disabled={verifyingOtp}
+                >
                   Back to Form
                 </Button>
               </div>
@@ -420,7 +478,10 @@ console.log(otpSent);
                   <Briefcase className="h-6 w-6 text-primary" />
                   Create Service Provider Profile
                 </CardTitle>
-                <CardDescription>Fill out the information below to create your professional profile</CardDescription>
+                <CardDescription>
+                  Fill out the information below to create your professional
+                  profile
+                </CardDescription>
               </CardHeader>
               <FormsInfor
                 activeTab={activeTab}
@@ -431,7 +492,7 @@ console.log(otpSent);
                 // @ts-expect-error: Type mismatch due to custom form handling logic
                 onSubmit={handleSubmit(onSubmit)}
                 // @ts-expect-error: Type mismatch due to custom form handling logic
-                
+
                 register={register}
                 watchedPassword={watchedPassword || ""}
                 errors={errors}
@@ -456,12 +517,12 @@ console.log(otpSent);
                 <Button
                   variant="outline"
                   onClick={() => {
-                    reset()
-                    setSelectedProfessions([])
-                    setProfilePic(null)
+                    reset();
+                    setSelectedProfessions([]);
+                    setProfilePic(null);
                     if (previewImage) {
-                      URL.revokeObjectURL(previewImage)
-                      setPreviewImage(null)
+                      URL.revokeObjectURL(previewImage);
+                      setPreviewImage(null);
                     }
                   }}
                   disabled={isLoading}
@@ -471,7 +532,10 @@ console.log(otpSent);
 
                 <div className="text-sm text-gray-500">
                   Already have an account?{" "}
-                  <a href="/login" className="text-primary font-medium hover:underline">
+                  <a
+                    href="/login"
+                    className="text-primary font-medium hover:underline"
+                  >
                     Sign in here
                   </a>
                 </div>
@@ -481,33 +545,33 @@ console.log(otpSent);
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 interface FormsInforProps {
-  activeTab: string
-  setActiveTab: React.Dispatch<React.SetStateAction<string>>
-  isPersonalInfoComplete: boolean
-  isPasswordValid: boolean
-  handleSubmit: ReturnType<typeof useForm>["handleSubmit"]
-  onSubmit: (data: FieldValues) => void
-  register: ReturnType<typeof useForm>["register"]
-  errors: ReturnType<typeof useForm>["formState"]["errors"]
-  watchedPassword: string
-  selectedProfessions: string[]
-  inputValue: string
-  setInputValue: React.Dispatch<React.SetStateAction<string>>
-  handleAddProfession: (profession: string) => void
-  handleRemoveProfession: (profession: string) => void
-  availableProfessions: Profession[]
-  previewImage: string | null
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void
-  handleRemoveImage: () => void
-  isLoading: boolean
-  showPassword: boolean
-  setShowPassword: React.Dispatch<React.SetStateAction<boolean>>
-  showConfirmPassword: boolean
-  setShowConfirmPassword: React.Dispatch<React.SetStateAction<boolean>>
+  activeTab: string;
+  setActiveTab: React.Dispatch<React.SetStateAction<string>>;
+  isPersonalInfoComplete: boolean;
+  isPasswordValid: boolean;
+  handleSubmit: ReturnType<typeof useForm>["handleSubmit"];
+  onSubmit: (data: FieldValues) => void;
+  register: ReturnType<typeof useForm>["register"];
+  errors: ReturnType<typeof useForm>["formState"]["errors"];
+  watchedPassword: string;
+  selectedProfessions: string[];
+  inputValue: string;
+  setInputValue: React.Dispatch<React.SetStateAction<string>>;
+  handleAddProfession: (profession: string) => void;
+  handleRemoveProfession: (profession: string) => void;
+  availableProfessions: Profession[];
+  previewImage: string | null;
+  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleRemoveImage: () => void;
+  isLoading: boolean;
+  showPassword: boolean;
+  setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
+  showConfirmPassword: boolean;
+  setShowConfirmPassword: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const FormsInfor: React.FC<FormsInforProps> = ({
@@ -535,6 +599,31 @@ const FormsInfor: React.FC<FormsInforProps> = ({
   showConfirmPassword,
   setShowConfirmPassword,
 }) => {
+  const [selectedCountry, setSelectedCountry] = useState("");
+  // This will update hidden location field whenever country or city changes
+  interface UpdateLocationValueParams {
+    country: string;
+    city: string;
+  }
+
+  const updateLocationValue = ({
+    country,
+    city,
+  }: UpdateLocationValueParams): void => {
+    const locationValue =
+      country && city ? `${country}, ${city}` : country || city || "";
+
+    // If using React Hook Form's setValue
+    // setValue("location", locationValue);
+
+    // For direct DOM manipulation (fallback)
+    const locationInput = document.getElementById(
+      "location"
+    ) as HTMLInputElement | null;
+    if (locationInput) {
+      locationInput.value = locationValue;
+    }
+  };
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="px-6 pt-6">
@@ -573,7 +662,12 @@ const FormsInfor: React.FC<FormsInforProps> = ({
           <TabsContent value="personal" className="mt-0 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className={`flex items-center gap-2 ${errors.name ? "text-destructive" : ""}`}>
+                <Label
+                  htmlFor="name"
+                  className={`flex items-center gap-2 ${
+                    errors.name ? "text-destructive" : ""
+                  }`}
+                >
                   <User className="h-4 w-4" />
                   Full Name / Business Name
                 </Label>
@@ -585,13 +679,19 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">
-                    {typeof errors.name.message === "string" && errors.name.message}
+                    {typeof errors.name.message === "string" &&
+                      errors.name.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className={`flex items-center gap-2 ${errors.email ? "text-destructive" : ""}`}>
+                <Label
+                  htmlFor="email"
+                  className={`flex items-center gap-2 ${
+                    errors.email ? "text-destructive" : ""
+                  }`}
+                >
                   <Mail className="h-4 w-4" />
                   Email Address
                 </Label>
@@ -610,7 +710,8 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">
-                    {typeof errors.email.message === "string" && errors.email.message}
+                    {typeof errors.email.message === "string" &&
+                      errors.email.message}
                   </p>
                 )}
               </div>
@@ -618,7 +719,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
               <div className="space-y-2">
                 <Label
                   htmlFor="number"
-                  className={`flex items-center gap-2 ${errors.number ? "text-destructive" : ""}`}
+                  className={`flex items-center gap-2 ${
+                    errors.number ? "text-destructive" : ""
+                  }`}
                 >
                   <Phone className="h-4 w-4" />
                   Phone Number
@@ -638,7 +741,8 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 {errors.number && (
                   <p className="text-sm text-destructive">
                     {/* {errors.number.message} */}
-                    {typeof errors.number.message === "string" && errors.number.message}
+                    {typeof errors.number.message === "string" &&
+                      errors.number.message}
                   </p>
                 )}
               </div>
@@ -646,28 +750,83 @@ const FormsInfor: React.FC<FormsInforProps> = ({
               <div className="space-y-2">
                 <Label
                   htmlFor="location"
-                  className={`flex items-center gap-2 ${errors.location ? "text-destructive" : ""}`}
+                  className={`flex items-center gap-2 ${
+                    errors.location ? "text-destructive" : ""
+                  }`}
                 >
                   <MapPin className="h-4 w-4" />
                   Location / Service Area
                 </Label>
-                <Input
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select
+                    onValueChange={(value) => {
+                      setSelectedCountry(value);
+                      const cityValue =
+                        (document.getElementById("city") as HTMLInputElement)
+                          ?.value || "";
+                      updateLocationValue({ country: value, city: cityValue });
+                    }}
+                  >
+                    <SelectTrigger
+                      id="country"
+                      className={`w-full sm:w-1/2 ${
+                        errors.location ? "border-destructive" : ""
+                      }`}
+                    >
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    id="city"
+                    placeholder="Enter your city"
+                    className={`w-full sm:w-1/2 ${
+                      errors.location ? "border-destructive" : ""
+                    }`}
+                    onChange={(e) => {
+                      updateLocationValue({
+                        country: selectedCountry,
+                        city: e.target.value,
+                      });
+                    }}
+                  />
+                </div>
+
+                {/* Hidden field that stores the combined location value */}
+                <input
+                  type="hidden"
                   id="location"
-                  placeholder="E.g., New York City, NY"
-                  {...register("location")}
-                  className={errors.location ? "border-destructive" : ""}
+                  {...register("location", {
+                    required: "Location is required",
+                  })}
                 />
+
                 {errors.location && (
                   <p className="text-sm text-destructive">
-                    {typeof errors.location.message === "string" && errors.location.message}
+                    {typeof errors.location.message === "string" &&
+                      errors.location.message}
                   </p>
                 )}
               </div>
             </div>
 
+            {/* </div> */}
+
             {isPersonalInfoComplete && (
               <div className="flex justify-end mt-6">
-                <Button type="button" onClick={() => setActiveTab("professional")} className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={() => setActiveTab("professional")}
+                  className="flex items-center gap-2"
+                >
                   Continue to Professional Info
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -715,7 +874,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                           <SelectItem
                             key={profession.value}
                             value={profession.value}
-                            disabled={selectedProfessions.includes(profession.value)}
+                            disabled={selectedProfessions.includes(
+                              profession.value
+                            )}
                           >
                             {profession.label}
                           </SelectItem>
@@ -733,8 +894,8 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                          e.preventDefault()
-                          handleAddProfession(inputValue)
+                          e.preventDefault();
+                          handleAddProfession(inputValue);
                         }
                       }}
                       onBlur={() => {
@@ -777,9 +938,15 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                     <div className="flex flex-wrap gap-2">
                       {selectedProfessions.map((profession) => {
                         const professionLabel =
-                          availableProfessions.find((p) => p.value === profession)?.label || profession
+                          availableProfessions.find(
+                            (p) => p.value === profession
+                          )?.label || profession;
                         return (
-                          <Badge key={profession} variant="secondary" className="pl-2 pr-1 py-1 text-sm">
+                          <Badge
+                            key={profession}
+                            variant="secondary"
+                            className="pl-2 pr-1 py-1 text-sm"
+                          >
                             {professionLabel}
                             <Button
                               variant="ghost"
@@ -790,7 +957,7 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                               <X className="h-3 w-3" />
                             </Button>
                           </Badge>
-                        )
+                        );
                       })}
                     </div>
                   ) : (
@@ -812,11 +979,19 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                     className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors ${
                       previewImage ? "border-primary" : "border-gray-300"
                     }`}
-                    onClick={() => document.getElementById("profile-picture")?.click()}
+                    onClick={() =>
+                      document.getElementById("profile-picture")?.click()
+                    }
                   >
                     <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-sm font-medium">{previewImage ? "Change picture" : "Upload profile picture"}</p>
-                    <p className="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, WebP (Max 5MB)</p>
+                    <p className="text-sm font-medium">
+                      {previewImage
+                        ? "Change picture"
+                        : "Upload profile picture"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported formats: JPG, PNG, WebP (Max 5MB)
+                    </p>
                     <Input
                       id="profile-picture"
                       type="file"
@@ -835,7 +1010,13 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <Button type="button" variant="outline" size="sm" className="text-xs" onClick={handleRemoveImage}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={handleRemoveImage}
+                      >
                         <X className="h-3 w-3 mr-1" />
                         Remove
                       </Button>
@@ -845,7 +1026,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                       <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
                         <User className="h-12 w-12 text-gray-400" />
                       </div>
-                      <p className="text-xs text-gray-500 mt-3">No image selected</p>
+                      <p className="text-xs text-gray-500 mt-3">
+                        No image selected
+                      </p>
                     </div>
                   )}
                 </div>
@@ -874,7 +1057,11 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                   </svg>
                   Back
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("account")} className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={() => setActiveTab("account")}
+                  className="flex items-center gap-2"
+                >
                   Continue to Security
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -913,7 +1100,8 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
                   <path d="m9 12 2 2 4-4" />
                 </svg>
-                Create a strong password to secure your service provider account.
+                Create a strong password to secure your service provider
+                account.
               </AlertDescription>
             </Alert>
 
@@ -921,7 +1109,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
               <div className="space-y-2 relative">
                 <Label
                   htmlFor="password"
-                  className={`flex items-center gap-2 ${errors.password ? "text-destructive" : ""}`}
+                  className={`flex items-center gap-2 ${
+                    errors.password ? "text-destructive" : ""
+                  }`}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -963,7 +1153,8 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 </div>
                 {errors.password && (
                   <p className="text-sm text-destructive">
-                    {typeof errors.password.message === "string" && errors.password.message}
+                    {typeof errors.password.message === "string" &&
+                      errors.password.message}
                   </p>
                 )}
               </div>
@@ -971,7 +1162,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
               <div className="space-y-2 relative">
                 <Label
                   htmlFor="confirmPassword"
-                  className={`flex items-center gap-2 ${errors.confirmPassword ? "text-destructive" : ""}`}
+                  className={`flex items-center gap-2 ${
+                    errors.confirmPassword ? "text-destructive" : ""
+                  }`}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -997,21 +1190,30 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                     placeholder="Confirm your password"
                     {...register("confirmPassword", {
                       required: "Please confirm your password",
-                      validate: (value, formValues) => value === formValues.password || "Passwords do not match",
+                      validate: (value, formValues) =>
+                        value === formValues.password ||
+                        "Passwords do not match",
                     })}
-                    className={errors.confirmPassword ? "border-destructive" : ""}
+                    className={
+                      errors.confirmPassword ? "border-destructive" : ""
+                    }
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                     className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
                   >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showConfirmPassword ? (
+                      <EyeOff size={20} />
+                    ) : (
+                      <Eye size={20} />
+                    )}
                   </button>
                 </div>
                 {errors.confirmPassword && (
                   <p className="text-sm text-destructive">
-                    {typeof errors.confirmPassword.message === "string" && errors.confirmPassword.message}
+                    {typeof errors.confirmPassword.message === "string" &&
+                      errors.confirmPassword.message}
                   </p>
                 )}
               </div>
@@ -1023,7 +1225,9 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                   <div className="bg-green-100 text-green-800 rounded-full p-1">
                     <CheckCircle className="h-4 w-4" />
                   </div>
-                  <span className="text-sm text-green-800">Password meets minimum length requirement</span>
+                  <span className="text-sm text-green-800">
+                    Password meets minimum length requirement
+                  </span>
                 </div>
               </div>
             )}
@@ -1051,7 +1255,11 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 </svg>
                 Back
               </Button>
-              <Button type="submit" disabled={isLoading || !isPasswordValid} className="min-w-[140px]">
+              <Button
+                type="submit"
+                disabled={isLoading || !isPasswordValid}
+                className="min-w-[140px]"
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1069,5 +1277,5 @@ const FormsInfor: React.FC<FormsInforProps> = ({
         </form>
       </CardContent>
     </Tabs>
-  )
-}
+  );
+};

@@ -7,6 +7,171 @@ import { Product } from "@/app/vendors/upload/types";
 import { Badge } from "../ui/badge";
 import { Plus } from "lucide-react";
 
+export const allSim = {
+  "Afghanistan": "؋", // Afghan Afghani
+  "Albania": "L", // Albanian Lek
+  "Algeria": "د.ج", // Algerian Dinar
+  "Andorra": "€", // Euro
+  "Angola": "Kz", // Angolan Kwanza
+  "Antigua and Barbuda": "$", // East Caribbean Dollar
+  "Argentina": "$", // Argentine Peso
+  "Armenia": "֏", // Armenian Dram
+  "Australia": "$", // Australian Dollar
+  "Austria": "€", // Euro
+  "Azerbaijan": "₼", // Azerbaijani Manat
+  "Bahamas": "$", // Bahamian Dollar
+  "Bahrain": ".د.ب", // Bahraini Dinar
+  "Bangladesh": "৳", // Bangladeshi Taka
+  "Barbados": "$", // Barbadian Dollar
+  "Belarus": "Br", // Belarusian Ruble
+  "Belgium": "€", // Euro
+  "Belize": "$", // Belize Dollar
+  "Benin": "CFA", // West African CFA Franc
+  "Bhutan": "Nu.", // Bhutanese Ngultrum
+  "Bolivia": "Bs.", // Bolivian Boliviano
+  "Bosnia and Herzegovina": "KM", // Convertible Mark
+  "Botswana": "P", // Botswana Pula
+  "Brazil": "R$", // Brazilian Real
+  "Brunei": "$", // Brunei Dollar
+  "Bulgaria": "лв", // Bulgarian Lev
+  "Burkina Faso": "CFA", // West African CFA Franc
+  "Burundi": "FBu", // Burundian Franc
+  "Cabo Verde": "$", // Cape Verdean Escudo
+  "Cambodia": "៛", // Cambodian Riel
+  "Cameroon": "CFA", // Central African CFA Franc
+  "Canada": "$", // Canadian Dollar
+  "Central African Republic": "CFA", // Central African CFA Franc
+  "Chad": "CFA", // Central African CFA Franc
+  "Chile": "$", // Chilean Peso
+  "China": "¥", // Chinese Yuan
+  "Colombia": "$", // Colombian Peso
+  "Comoros": "CF", // Comorian Franc
+  "Congo (Congo-Brazzaville)": "CFA", // Central African CFA Franc
+  "Costa Rica": "₡", // Costa Rican Colón
+  "Croatia": "€", // Euro
+  "Cuba": "$", // Cuban Peso
+  "Cyprus": "€", // Euro
+  "Czech Republic": "Kč", // Czech Koruna
+  "Democratic Republic of the Congo": "FC", // Congolese Franc
+  "Denmark": "kr", // Danish Krone
+  "Djibouti": "Fdj", // Djiboutian Franc
+  "Dominica": "$", // East Caribbean Dollar
+  "Dominican Republic": "RD$", // Dominican Peso
+  "Ecuador": "$", // United States Dollar
+  "Egypt": "£", // Egyptian Pound
+  "El Salvador": "$", // United States Dollar
+  "Equatorial Guinea": "CFA", // Central African CFA Franc
+  "Eritrea": "Nfk", // Eritrean Nakfa
+  "Estonia": "€", // Euro
+  "Eswatini (fmr. 'Swaziland')": "E", // Swazi Lilangeni
+  "Ethiopia": "Br", // Ethiopian Birr
+  "Fiji": "$", // Fijian Dollar
+  "Finland": "€", // Euro
+  "France": "€", // Euro
+  "Gabon": "CFA", // Central African CFA Franc
+  "Gambia": "D", // Gambian Dalasi
+  "Georgia": "₾", // Georgian Lari
+  "Germany": "€", // Euro
+  "Ghana": "GH¢", // Ghanaian Cedi
+  "Greece": "€", // Euro
+  "Grenada": "$", // East Caribbean Dollar
+  "Guatemala": "Q", // Guatemalan Quetzal
+  "Guinea": "FG", // Guinean Franc
+  "Guinea-Bissau": "CFA", // West African CFA Franc
+  "Guyana": "$", // Guyanese Dollar
+  "Haiti": "G", // Haitian Gourde
+  "Honduras": "L", // Honduran Lempira
+  "Hungary": "Ft", // Hungarian Forint
+  "Iceland": "kr", // Icelandic Króna
+  "India": "₹", // Indian Rupee
+  "Indonesia": "Rp", // Indonesian Rupiah
+  "Iran": "﷼", // Iranian Rial
+  "Iraq": "ع.د", // Iraqi Dinar
+  "Ireland": "€", // Euro
+  "Israel": "₪", // Israeli New Shekel
+  "Italy": "€", // Euro
+  "Ivory Coast": "CFA", // West African CFA Franc
+  "Jamaica": "J$", // Jamaican Dollar
+  "Japan": "¥", // Japanese Yen
+  "Jordan": "د.ا", // Jordanian Dinar
+  "Kazakhstan": "₸", // Kazakhstani Tenge
+  "Kenya": "KSh", // Kenyan Shilling
+  "Kiribati": "$", // Australian Dollar
+  "Kuwait": "د.ك", // Kuwaiti Dinar
+  "Kyrgyzstan": "с", // Kyrgyzstani Som
+  "Laos": "₭", // Lao Kip
+  "Latvia": "€", // Euro
+  "Lebanon": "ل.ل", // Lebanese Pound
+  "Lesotho": "L", // Lesotho Loti
+  "Liberia": "$", // Liberian Dollar
+  "Libya": "ل.د", // Libyan Dinar
+  "Liechtenstein": "CHF", // Swiss Franc
+  "Lithuania": "€", // Euro
+  "Luxembourg": "€", // Euro
+  "Madagascar": "Ar", // Malagasy Ariary
+  "Malawi": "MK", // Malawian Kwacha
+  "Malaysia": "RM", // Malaysian Ringgit
+  "Maldives": "Rf", // Maldivian Rufiyaa
+  "Mali": "CFA", // West African CFA Franc
+  "Malta": "€", // Euro
+  "Marshall Islands": "$", // United States Dollar
+  "Mauritania": "UM", // Mauritanian Ouguiya
+  "Mauritius": "₨", // Mauritian Rupee
+  "Mexico": "$", // Mexican Peso
+  "Micronesia": "$", // United States Dollar
+  "Moldova": "L", // Moldovan Leu
+  "Monaco": "€", // Euro
+  "Mongolia": "₮", // Mongolian Tögrög
+  "Montenegro": "€", // Euro
+  "Morocco": "د.م.", // Moroccan Dirham
+  "Mozambique": "MT", // Mozambican Metical
+  "Myanmar (formerly Burma)": "K", // Burmese Kyat
+  "Namibia": "$", // Namibian Dollar
+  "Nauru": "$", // Australian Dollar
+  "Nepal": "₨", // Nepalese Rupee
+  "Netherlands": "€", // Euro
+  "New Zealand": "$", // New Zealand Dollar
+  "Nicaragua": "C$", // Nicaraguan Córdoba
+  "Niger": "CFA", // West African CFA Franc
+  "Nigeria": "₦", // Nigerian Naira
+  "North Korea": "₩", // North Korean Won
+  "North Macedonia": "ден", // Macedonian Denar
+  "Norway": "kr", // Norwegian Krone
+  "Oman": "ر.ع.", // Omani Rial
+  "Pakistan": "₨", // Pakistani Rupee
+  "Palau": "$", // United States Dollar
+  "Palestine State": "₪", // Israeli New Shekel
+  "Panama": "B/.", // Panamanian Balboa
+  "Papua New Guinea": "K", // Papua New Guinean Kina
+  "Paraguay": "₲", // Paraguayan Guaraní
+  "Peru": "S/", // Peruvian Sol
+  "Philippines": "₱", // Philippine Peso
+  "Poland": "zł", // Polish Złoty
+  "Portugal": "€", // Euro
+  "Qatar": "ر.ق", // Qatari Riyal
+  "Romania": "lei", // Romanian Leu
+  "Russia": "₽", // Russian Ruble
+  "Rwanda": "FRw", // Rwandan Franc
+  "Saint Kitts and Nevis": "$", // East Caribbean Dollar
+  "Saint Lucia": "$", // East Caribbean Dollar
+  "Saint Vincent and the Grenadines": "$", // East Caribbean Dollar
+  "Samoa": "T", // Samoan Tala
+  "San Marino": "€", // Euro
+  "Sao Tome and Principe": "Db", // São Tomé and Príncipe Dobra
+  "Saudi Arabia": "ر.س", // Saudi Riyal
+  "Senegal": "CFA", // West African CFA Franc
+  "Serbia": "дин.", // Serbian Dinar
+  "Seychelles": "₨", // Seychellois Rupee
+  "Sierra Leone": "Le", // Sierra Leonean Leone
+  "Singapore": "$", // Singapore Dollar
+  "Slovakia": "€", // Euro
+  "Slovenia": "€", // Euro
+  "Solomon Islands": "$", // Solomon Islands Dollar
+  "Somalia": "Sh", // Somali Shilling
+  "South Africa": "R",
+}
+ 
+
 // Currency symbol for Ghana Cedis
 export const ghSim = "GH¢";
 
