@@ -6,6 +6,8 @@ import {
   Edit,
   HardDriveUpload,
   LayoutDashboard,
+  Mail,
+  MapPin,
   NotepadText,
   Phone,
 } from "lucide-react";
@@ -35,6 +37,9 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
+import Socials from "../custom/Socials";
+import SocialDialog from "../custom/Socials/social-dialog";
+import SocialMediaManager from "../custom/Socials/forms";
 
 const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -94,7 +99,7 @@ export function ServiceProviderProfile() {
   const provider = data?.getProvider;
 
   return (
-    <div className="bg-gradient-to-b from-background to-muted/30 mt-4 justify-center items-center ">
+    <div className="bg-gradient-to-b from-background to-muted/30 mt-4 w-full flex-col justify-center items-center ">
       <div className="pb-11">
         <MainNaveBar />
       </div>
@@ -105,7 +110,7 @@ export function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
-            <>
+            <div className="flex-col justify-center items-center">
               <ProviderProfile
                 isDialogOpen={isDialogOpen}
                 provider={provider}
@@ -168,7 +173,7 @@ export function ServiceProviderProfile() {
                   </Tabs>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </>
       )}
@@ -253,37 +258,47 @@ const ProviderProfile = ({
                 </Badge>
               ))}
 
-              <div className="flex flex-col md:flex-row md:gap-4 text-muted-foreground">
-                {provider?.number && (
-                  <p className="flex items-center gap-1">
-                    <Phone className="h-4 w-4" />
-                    {provider?.number}
-                  </p>
-                )}
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row md:gap-4 text-muted-foreground">
+                  {provider?.number && (
+                    <p className="flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      {provider?.number}
+                    </p>
+                  )}
 
-                {provider?.email && (
-                  <p className="flex items-center gap-1">
-                    <span className="h-4 w-4 flex items-center justify-center">
-                      @
-                    </span>
-                    {provider?.email}
-                  </p>
-                )}
+                  {provider?.email && (
+                    <p className="flex items-center gap-1">
+                      <span className="h-4 w-4 flex items-center justify-center">
+                        <Mail className="h-4 w-4" />
+                      </span>
+                      {provider?.email}
+                    </p>
+                  )}
 
-                {provider?.location && (
-                  <p className="flex items-center gap-1">
-                    <span className="h-4 w-4 flex items-center justify-center">
-                      📍
-                    </span>
-                    {provider?.location}
-                  </p>
-                )}
+                  {provider?.location && (
+                    <p className="flex items-center gap-1">
+                      <span className="h-4 w-4 flex items-center justify-center">
+                        <MapPin className="h-4 w-4" />
+                      </span>
+                      {provider?.location}
+                    </p>
+                  )}
+                </div>
+                <div className="block lg:hidden">
+                  <SocialMediaManager serviceId={serviceId ?? ""} />
+                </div>
               </div>
             </div>
 
             {/* Rating */}
             <div className="mt-4 flex flex-col items-start justify-start lg:items-start lg:justify-start">
-              <h2 className="text-xl font-light">About Me</h2>
+              <div className="flex gap-4">
+                <h2 className="text-xl font-light">About Me</h2>
+                <div className="lg:block hidden">
+                <SocialMediaManager serviceId={serviceId ?? ""}/>
+                </div>
+              </div>
               <p className="mt-3 leading-relaxed text-muted-foreground">
                 {provider?.aboutMe?.length > 100
                   ? `${provider?.aboutMe.substring(0, 100)}...`

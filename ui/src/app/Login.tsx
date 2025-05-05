@@ -75,7 +75,7 @@ const Login = ({ children }: { children: ReactNode }) => {
         const userType = result.data.serviceLogin.type;
         console.log(userType);
 
-        if (userType === ProtectType.Driver) {
+        if (userType === ProtectType.Service) {
           navigate(`/providers/${result.data.serviceLogin.id}`);
         } else {
           setError("Invalid user type. Please contact support.");

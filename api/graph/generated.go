@@ -57,6 +57,7 @@ type ResolverRoot interface {
 	PriceCard() PriceCardResolver
 	Query() QueryResolver
 	Service() ServiceResolver
+	SocialMedia() SocialMediaResolver
 	TimeSlot() TimeSlotResolver
 	UnavailablePeriod() UnavailablePeriodResolver
 	User() UserResolver
@@ -240,6 +241,7 @@ type ComplexityRoot struct {
 		CreateRecurringEvents    func(childComplexity int, input model.EventInput, endDate time.Time) int
 		CreateRentalItem         func(childComplexity int, input model.RentalInput) int
 		CreateService            func(childComplexity int, dpfile *graphql.Upload, input model.CreateServiceInput) int
+		CreateSocialMedia        func(childComplexity int, input *model.SocialMediaInput) int
 		CreateTimeSlot           func(childComplexity int, input model.TimeSlotInput) int
 		CreateUnavailablePeriod  func(childComplexity int, input model.CreateUnavailablePeriodInput) int
 		CreateUser               func(childComplexity int, input model.InputUser) int
@@ -405,6 +407,7 @@ type ComplexityRoot struct {
 		GetRentalItems                    func(childComplexity int, serviceID *string) int
 		GetService                        func(childComplexity int) int
 		GetSharedService                  func(childComplexity int, serviceID string) int
+		GetSocialMedia                    func(childComplexity int, serviceID string) int
 		GetUnavailablePeriods             func(childComplexity int) int
 		GetUserBookings                   func(childComplexity int, bookTypeID string, userID string) int
 		GetUserByID                       func(childComplexity int, id string) int
@@ -464,6 +467,14 @@ type ComplexityRoot struct {
 		UpdatedAt func(childComplexity int) int
 		UserAgent func(childComplexity int) int
 		UserID    func(childComplexity int) int
+	}
+
+	SocialMedia struct {
+		CreatedAt  func(childComplexity int) int
+		ID         func(childComplexity int) int
+		ServiceID  func(childComplexity int) int
+		SocialData func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
 	}
 
 	SystemInfo struct {
@@ -659,6 +670,7 @@ type MutationResolver interface {
 	UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) (*model.GalleryProfession, error)
 	DeleteGallery(ctx context.Context, id string) (*bool, error)
 	CreateFavorite(ctx context.Context, input *model.CreateFavoriteInput) (*model.Favorite, error)
+	CreateSocialMedia(ctx context.Context, input *model.SocialMediaInput) (*model.SocialMedia, error)
 	CreateUnavailablePeriod(ctx context.Context, input model.CreateUnavailablePeriodInput) (*model.UnavailablePeriod, error)
 	DeleteUnavailablePeriod(ctx context.Context, id string) (*bool, error)
 	GetGrowthData(ctx context.Context, id string) (*model.GrowthData, error)
@@ -732,6 +744,7 @@ type QueryResolver interface {
 	GetDashboardData(ctx context.Context) (*model.DashboardData, error)
 	GetFavorites(ctx context.Context) ([]*model.Favorite, error)
 	GetProvidersUsersContact(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.UserData, error)
+	GetSocialMedia(ctx context.Context, serviceID string) (*model.SocialMedia, error)
 	GetUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error)
 	GetConfirmedBookingsAsUnavailable(ctx context.Context) ([]*model.AppointmentBooking, error)
 	GetAllUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error)
@@ -750,6 +763,11 @@ type ServiceResolver interface {
 	Profession(ctx context.Context, obj *model.Service) ([]*string, error)
 
 	BookTypes(ctx context.Context, obj *model.Service) ([]*string, error)
+}
+type SocialMediaResolver interface {
+	ID(ctx context.Context, obj *model.SocialMedia) (string, error)
+
+	SocialData(ctx context.Context, obj *model.SocialMedia) (*string, error)
 }
 type TimeSlotResolver interface {
 	ID(ctx context.Context, obj *model.TimeSlot) (string, error)
@@ -1772,6 +1790,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateService(childComplexity, args["dpfile"].(*graphql.Upload), args["input"].(model.CreateServiceInput)), true
+
+	case "Mutation.createSocialMedia":
+		if e.complexity.Mutation.CreateSocialMedia == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createSocialMedia_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateSocialMedia(childComplexity, args["input"].(*model.SocialMediaInput)), true
 
 	case "Mutation.createTimeSlot":
 		if e.complexity.Mutation.CreateTimeSlot == nil {
@@ -3129,6 +3159,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetSharedService(childComplexity, args["ServiceId"].(string)), true
 
+	case "Query.getSocialMedia":
+		if e.complexity.Query.GetSocialMedia == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getSocialMedia_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetSocialMedia(childComplexity, args["serviceId"].(string)), true
+
 	case "Query.getUnavailablePeriods":
 		if e.complexity.Query.GetUnavailablePeriods == nil {
 			break
@@ -3471,6 +3513,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Session.UserID(childComplexity), true
+
+	case "SocialMedia.createdAt":
+		if e.complexity.SocialMedia.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.SocialMedia.CreatedAt(childComplexity), true
+
+	case "SocialMedia.id":
+		if e.complexity.SocialMedia.ID == nil {
+			break
+		}
+
+		return e.complexity.SocialMedia.ID(childComplexity), true
+
+	case "SocialMedia.ServiceId":
+		if e.complexity.SocialMedia.ServiceID == nil {
+			break
+		}
+
+		return e.complexity.SocialMedia.ServiceID(childComplexity), true
+
+	case "SocialMedia.socialData":
+		if e.complexity.SocialMedia.SocialData == nil {
+			break
+		}
+
+		return e.complexity.SocialMedia.SocialData(childComplexity), true
+
+	case "SocialMedia.updatedAt":
+		if e.complexity.SocialMedia.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.SocialMedia.UpdatedAt(childComplexity), true
 
 	case "SystemInfo.bdTable":
 		if e.complexity.SystemInfo.BdTable == nil {
@@ -3955,6 +4032,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRequestOtpInput,
 		ec.unmarshalInputResetPassWordOtpInput,
 		ec.unmarshalInputResetPasswordInput,
+		ec.unmarshalInputSocialMediaInput,
 		ec.unmarshalInputTimeSlotInput,
 		ec.unmarshalInputUpdateAdminInput,
 		ec.unmarshalInputUpdateEventInput,
@@ -4847,6 +4925,29 @@ func (ec *executionContext) field_Mutation_createService_argsInput(
 	}
 
 	var zeroVal model.CreateServiceInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createSocialMedia_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createSocialMedia_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createSocialMedia_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.SocialMediaInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalOSocialMediaInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSocialMediaInput(ctx, tmp)
+	}
+
+	var zeroVal *model.SocialMediaInput
 	return zeroVal, nil
 }
 
@@ -7177,6 +7278,29 @@ func (ec *executionContext) field_Query_getSharedService_argsServiceID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("ServiceId"))
 	if tmp, ok := rawArgs["ServiceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getSocialMedia_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getSocialMedia_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getSocialMedia_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
+	if tmp, ok := rawArgs["serviceId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -16202,6 +16326,70 @@ func (ec *executionContext) fieldContext_Mutation_createFavorite(ctx context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createSocialMedia(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createSocialMedia(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateSocialMedia(rctx, fc.Args["input"].(*model.SocialMediaInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.SocialMedia)
+	fc.Result = res
+	return ec.marshalOSocialMedia2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSocialMedia(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createSocialMedia(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_SocialMedia_id(ctx, field)
+			case "ServiceId":
+				return ec.fieldContext_SocialMedia_ServiceId(ctx, field)
+			case "socialData":
+				return ec.fieldContext_SocialMedia_socialData(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_SocialMedia_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_SocialMedia_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SocialMedia", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createSocialMedia_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createUnavailablePeriod(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createUnavailablePeriod(ctx, field)
 	if err != nil {
@@ -21792,6 +21980,70 @@ func (ec *executionContext) fieldContext_Query_getProvidersUsersContact(ctx cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getSocialMedia(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getSocialMedia(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetSocialMedia(rctx, fc.Args["serviceId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.SocialMedia)
+	fc.Result = res
+	return ec.marshalOSocialMedia2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSocialMedia(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getSocialMedia(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_SocialMedia_id(ctx, field)
+			case "ServiceId":
+				return ec.fieldContext_SocialMedia_ServiceId(ctx, field)
+			case "socialData":
+				return ec.fieldContext_SocialMedia_socialData(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_SocialMedia_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_SocialMedia_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SocialMedia", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getSocialMedia_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getUnavailablePeriods(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getUnavailablePeriods(ctx, field)
 	if err != nil {
@@ -24089,6 +24341,223 @@ func (ec *executionContext) _Session_updatedAt(ctx context.Context, field graphq
 func (ec *executionContext) fieldContext_Session_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Session",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SocialMedia_id(ctx context.Context, field graphql.CollectedField, obj *model.SocialMedia) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SocialMedia_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.SocialMedia().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SocialMedia_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SocialMedia",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SocialMedia_ServiceId(ctx context.Context, field graphql.CollectedField, obj *model.SocialMedia) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SocialMedia_ServiceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ServiceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SocialMedia_ServiceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SocialMedia",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SocialMedia_socialData(ctx context.Context, field graphql.CollectedField, obj *model.SocialMedia) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SocialMedia_socialData(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.SocialMedia().SocialData(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SocialMedia_socialData(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SocialMedia",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SocialMedia_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.SocialMedia) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SocialMedia_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SocialMedia_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SocialMedia",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SocialMedia_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.SocialMedia) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SocialMedia_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SocialMedia_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SocialMedia",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -29936,6 +30405,47 @@ func (ec *executionContext) unmarshalInputResetPasswordInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSocialMediaInput(ctx context.Context, obj any) (model.SocialMediaInput, error) {
+	var it model.SocialMediaInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "icon", "link"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "icon":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("icon"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Icon = data
+		case "link":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("link"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Link = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputTimeSlotInput(ctx context.Context, obj any) (model.TimeSlotInput, error) {
 	var it model.TimeSlotInput
 	asMap := map[string]any{}
@@ -32356,6 +32866,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createFavorite(ctx, field)
 			})
+		case "createSocialMedia":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createSocialMedia(ctx, field)
+			})
 		case "createUnavailablePeriod":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createUnavailablePeriod(ctx, field)
@@ -34059,6 +34573,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getSocialMedia":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getSocialMedia(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getUnavailablePeriods":
 			field := field
 
@@ -34683,6 +35216,124 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Session_createdAt(ctx, field, obj)
 		case "updatedAt":
 			out.Values[i] = ec._Session_updatedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var socialMediaImplementors = []string{"SocialMedia"}
+
+func (ec *executionContext) _SocialMedia(ctx context.Context, sel ast.SelectionSet, obj *model.SocialMedia) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, socialMediaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SocialMedia")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._SocialMedia_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "ServiceId":
+			out.Values[i] = ec._SocialMedia_ServiceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "socialData":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._SocialMedia_socialData(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "createdAt":
+			out.Values[i] = ec._SocialMedia_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._SocialMedia_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -38456,6 +39107,21 @@ func (ec *executionContext) marshalOSession2ᚖgithubᚗcomᚋlehxeesᚋserviny�
 		return graphql.Null
 	}
 	return ec._Session(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOSocialMedia2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSocialMedia(ctx context.Context, sel ast.SelectionSet, v *model.SocialMedia) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SocialMedia(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOSocialMediaInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSocialMediaInput(ctx context.Context, v any) (*model.SocialMediaInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputSocialMediaInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {

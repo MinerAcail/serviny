@@ -250,6 +250,12 @@ type ResetPasswordResponse struct {
 	Email   *string `json:"email,omitempty"`
 }
 
+type SocialMediaInput struct {
+	Name string `json:"name"`
+	Icon string `json:"icon"`
+	Link string `json:"link"`
+}
+
 type SystemInfo struct {
 	BdTable string `json:"bdTable"`
 	DbName  string `json:"dbName"`

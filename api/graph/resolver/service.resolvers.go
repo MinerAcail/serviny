@@ -6,6 +6,7 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -797,6 +798,103 @@ func (r *mutationResolver) CreateFavorite(ctx context.Context, input *model.Crea
 	return favorite, nil
 }
 
+// CreateSocialMedia is the resolver for the createSocialMedia field.
+func (r *mutationResolver) CreateSocialMedia(ctx context.Context, input *model.SocialMediaInput) (*model.SocialMedia, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Service ID: %w", err)
+	}
+
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %v", tx.Error)
+	}
+
+	var existing model.SocialMedia
+	result := tx.Where("service_id = ?", serviceID.String()).First(&existing)
+
+	// Construct new entry
+	newEntry := map[string]string{
+		"name": input.Name,
+		"icon": input.Icon,
+		"link": input.Link,
+	}
+
+	if result.Error == nil {
+		// Existing record found, update its JSON
+		var socialArray []map[string]string
+		if existing.SocialData != nil {
+			if err := json.Unmarshal(*existing.SocialData, &socialArray); err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to unmarshal social data: %v", err)
+			}
+		}
+
+		// Replace or append
+		updated := false
+		for i, entry := range socialArray {
+			if entry["icon"] == input.Icon {
+				socialArray[i] = newEntry
+				updated = true
+				break
+			}
+		}
+		if !updated {
+			socialArray = append(socialArray, newEntry)
+		}
+
+		updatedJSON, err := json.Marshal(socialArray)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to marshal updated social data: %v", err)
+		}
+
+		raw := json.RawMessage(updatedJSON)
+		existing.SocialData = &raw
+
+		if err := tx.Save(&existing).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to update social media: %v", err)
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			return nil, fmt.Errorf("failed to commit transaction: %v", err)
+		}
+
+		return &existing, nil
+	}
+
+	// No existing record — create a new one
+	initialArray := []map[string]string{newEntry}
+	initialJSON, err := json.Marshal(initialArray)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to marshal new social data: %v", err)
+	}
+
+	raw := json.RawMessage(initialJSON)
+	newSocialMedia := &model.SocialMedia{
+		ServiceID:  serviceID.String(),
+		SocialData: &raw,
+	}
+
+	if err := tx.Create(newSocialMedia).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create social media: %v", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return newSocialMedia, nil
+}
+
 // GetService is the resolver for the getService field.
 func (r *queryResolver) GetService(ctx context.Context) (*model.Service, error) {
 	ServiceIDStr, err := r.Query().GetID(ctx)
@@ -845,7 +943,6 @@ func (r *queryResolver) GetSharedService(ctx context.Context, serviceID string) 
 
 // ListServices is the resolver for the listServices field.
 func (r *queryResolver) ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error) {
-
 	limitVal := 10 // Default limit
 	offsetVal := 0 // Default offset
 
@@ -1258,6 +1355,26 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 	return result, nil
 }
 
+// CreateSocialMedia is the resolver for the createSocialMedia field.
+func (r *queryResolver) GetSocialMedia(ctx context.Context, serviceID string) (*model.SocialMedia, error) {
+	// Parse the UUID from the serviceID string
+	serviceUUID, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Find the social media record by service ID
+	var socialMedia model.SocialMedia
+	if err := r.DB.Where("service_id = ?", serviceUUID).First(&socialMedia).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("social media not found for service ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to fetch social media: %w", err)
+	}
+
+	return &socialMedia, nil
+}
+
 // ID is the resolver for the id field.
 func (r *serviceResolver) ID(ctx context.Context, obj *model.Service) (string, error) {
 	id := obj.ID.String()
@@ -1286,6 +1403,22 @@ func (r *serviceResolver) BookTypes(ctx context.Context, obj *model.Service) ([]
 	return eachArray, nil
 }
 
+// ID is the resolver for the id field.
+func (r *socialMediaResolver) ID(ctx context.Context, obj *model.SocialMedia) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// SocialData is the resolver for the socialData field.
+func (r *socialMediaResolver) SocialData(ctx context.Context, obj *model.SocialMedia) (*string, error) {
+	jsonBytes, err := json.Marshal(obj.SocialData)
+	if err != nil {
+		return nil, err
+	}
+	jsonString := string(jsonBytes)
+	return &jsonString, nil
+}
+
 // Favorite returns graph.FavoriteResolver implementation.
 func (r *Resolver) Favorite() graph.FavoriteResolver { return &favoriteResolver{r} }
 
@@ -1297,6 +1430,10 @@ func (r *Resolver) GalleryProfession() graph.GalleryProfessionResolver {
 // Service returns graph.ServiceResolver implementation.
 func (r *Resolver) Service() graph.ServiceResolver { return &serviceResolver{r} }
 
+// SocialMedia returns graph.SocialMediaResolver implementation.
+func (r *Resolver) SocialMedia() graph.SocialMediaResolver { return &socialMediaResolver{r} }
+
 type favoriteResolver struct{ *Resolver }
 type galleryProfessionResolver struct{ *Resolver }
 type serviceResolver struct{ *Resolver }
+type socialMediaResolver struct{ *Resolver }

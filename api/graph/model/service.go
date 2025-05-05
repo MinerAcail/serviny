@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ type Service struct {
 	Dpfile     *string        `json:"dpfile,omitempty"`
 	NumberType *string        `json:"number_type,omitempty"`
 	BookTypes  pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
-	IsAuth    *IsAuth        `json:"is_auth,omitempty"`
+	IsAuth     *IsAuth        `json:"is_auth,omitempty"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 }
@@ -109,9 +110,18 @@ type Favorite struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	UserID      string         `json:"userId"`
 	ServiceID   string         `json:"serviceId"`
-	Address     *string         `json:"address,omitempty"`
+	Address     *string        `json:"address,omitempty"`
 	OtherNumber pq.StringArray `gorm:"type:text[]" json:"otherNumber,omitempty"`
-	Note        *string         `json:"note,omitempty"`
+	Note        *string        `json:"note,omitempty"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
+}
+
+type SocialMedia struct {
+	ID         uuid.UUID          `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	ServiceID  string             `json:"ServiceId"`
+		SocialData *json.RawMessage  `gorm:"type:jsonb" json:"socialData,omitempty"`
+	
+	CreatedAt  time.Time          `json:"createdAt"`
+	UpdatedAt  time.Time          `json:"updatedAt"`
 }

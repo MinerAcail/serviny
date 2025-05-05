@@ -94,6 +94,6 @@ export default async function SharedProviderPage({ params }) {
     );
   }
 
-  redirect(`${MAIN_WEBSITE_URL}/${params.id}`);
+  redirect(`${MAIN_WEBSITE_URL}/providers/${params.id}`);
   return null;
 }

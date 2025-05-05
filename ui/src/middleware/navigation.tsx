@@ -28,6 +28,8 @@ import { PasswordReset } from "@/app/resetPassWord";
 import { ThemeProvider } from "./context/theme-provider";
 import {SpectaclesLoading} from "@/components/custom/loading";
 import { ServiceProviderProfile } from "@/components/serviceProviders/profile";
+import { SocialForm } from "@/components/custom/Socials/forms";
+// import SocialForm from "@/components/custom/Socials/forms";
 // WorksNav
 const router = createBrowserRouter([
   { path: "/icons", element: <LucideIconSelector /> },
@@ -46,6 +48,7 @@ const router = createBrowserRouter([
 
   { path: "/", element: <ServiceProvidersDirectory /> },
   { path: "/upload", element: <CreateGalleryForm /> },
+  { path: "/social/:serviceId", element: <SocialForm /> },
   { path: "/time/:serviceId", element: <ProviderCheckOut /> },
   { path: "/booktypes", element: <BookingTypes /> },
 

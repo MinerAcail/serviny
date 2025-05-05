@@ -61,9 +61,7 @@ extend type Query {
   getAllGallery(ServiceId: String!): [GalleryProfession]
   getAllCategoriesFromGallery(ServiceId: String!): [String]
   getAllProfessionFromService: [String]
-  getBookingType(
-    serviceId: String!
-  ): [BookingType!]!
+  getBookingType(serviceId: String!): [BookingType!]!
   getDashboardData: DashboardData
   getFavorites: [Favorite!]!
   getProvidersUsersContact(
@@ -71,6 +69,8 @@ extend type Query {
     limit: Int = 10
     offset: Int = 0
   ): [UserData!]!
+
+  getSocialMedia(serviceId: String!): SocialMedia
 }
 
 extend type Mutation {
@@ -82,10 +82,8 @@ extend type Mutation {
   ): Service
   deleteService(id: String!): Boolean
 
-  updateBookingType(
-    type: BookingType!
-    # serviceId: String!
-  ): BookingType
+  updateBookingType(type: BookingType!): # serviceId: String!
+  BookingType
   createGallery(
     files: [Upload]
     input: GalleryProfessionInput!
@@ -97,7 +95,8 @@ extend type Mutation {
     removeUrl: [String]
   ): GalleryProfession!
   deleteGallery(id: String!): Boolean
-  createFavorite(input:CreateFavoriteInput): Favorite
+  createFavorite(input: CreateFavoriteInput): Favorite
+  createSocialMedia(input: SocialMediaInput): SocialMedia
 }
 
 input CreateServiceInput {
@@ -119,7 +118,6 @@ input UpdateServiceInput {
   password: String
 }
 
-
 type DashboardData {
   totalUsers: [String!]!
   totalBookingsIds: [String!]!
@@ -127,7 +125,6 @@ type DashboardData {
   recentActivityIds: [String!]!
   categoriesServiceTypes: [BookingType!]!
 }
-
 
 input CreateFavoriteInput {
   address: String
@@ -144,4 +141,18 @@ type Favorite {
   Note: String
   createdAt: Time!
   updatedAt: Time!
+}
+
+type SocialMedia {
+  id: String!
+  ServiceId: String!
+  socialData: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input SocialMediaInput {
+  name: String!
+  icon: String!
+  link: String!
 }
