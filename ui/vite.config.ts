@@ -30,11 +30,8 @@ export default defineConfig({
     host: "0.0.0.0",
   },
   preview: {
-    port: 4173,
-    host: "0.0.0.0",
-    // allowedHosts: [], // Let Caddy handle validation
-    // allowedHosts: [".r.serviny.com", "serviny.com"],
-  }
+    allowedHosts: [".serviny.com",".r.serviny.com"], // Allow serviny.com
+  },
 });
 //
 
