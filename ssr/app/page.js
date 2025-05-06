@@ -19,6 +19,7 @@ async function getProviderBySubdomain(subDomain) {
             dpfile
             profession
             subDomain
+            
           }
         }
       `,
@@ -50,11 +51,11 @@ console.log("subdomain",subdomain);
   const professions = provider.profession?.join(", ") || "Service Provider";
 
   return {
-    title: `Meet ${provider.name} on SERVINY!`,
+    title: `${provider.name}`,
     description: `${provider.name} specializes in ${professions}. Explore more on SERVINY.`,
     openGraph: {
-      title: `Meet ${provider.name} on SERVINY`,
-      description: `${provider.name} offers services in ${professions}.`,
+      title: `${provider.name}`,
+      description: `Offers services in ${professions}.`,
       images: [{ url: imageUrl }],
       type: "profile",
     },

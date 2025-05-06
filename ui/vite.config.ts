@@ -30,7 +30,7 @@ export default defineConfig({
     host: "0.0.0.0",
   },
   preview: {
-    allowedHosts: ["serviny.com"], // Allow serviny.com
+    allowedHosts: [".serviny.com"], // Allow serviny.com
   },
 });
 //
