@@ -19,11 +19,10 @@ async function getProviderBySubdomain(subDomain) {
             dpfile
             profession
             subDomain
-            
           }
         }
       `,
-      variables: {subDomain },
+      variables: { subDomain },
     }),
     cache: "no-store",
   });
@@ -35,13 +34,10 @@ async function getProviderBySubdomain(subDomain) {
 export async function generateMetadata() {
   const host = headers().get("host") || "";
   const subdomain = host.split(".")[0];
-console.log("subdomain",subdomain);
 
   if (!subdomain || subdomain === "www" || subdomain === "serviny") notFound();
 
   const provider = await getProviderBySubdomain(subdomain);
-  console.log("subDomain",provider);
-  
   if (!provider) notFound();
 
   const imageUrl = provider.dpfile?.startsWith("http")
@@ -107,7 +103,6 @@ export default async function SharedProviderPage() {
     );
   }
 
-  // redirect(`${provider.subDomain.MAIN_WEBSITE_URL}/providers/${provider.id}`);
-  redirect(`https://${host}/providers/${provider.id}`);
-
+  // Redirect human users to Vite frontend via subdomain.r.serviny.com
+  redirect(`https://${subdomain}.r.serviny.com/providers/${provider.id}`);
 }
