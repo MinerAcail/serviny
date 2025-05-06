@@ -18,6 +18,7 @@ async function getProviderBySubdomain(subDomain) {
             type
             dpfile
             profession
+            subDomain
           }
         }
       `,
@@ -105,5 +106,7 @@ export default async function SharedProviderPage() {
     );
   }
 
-  redirect(`${MAIN_WEBSITE_URL}/providers/${provider.id}`);
+  // redirect(`${provider.subDomain.MAIN_WEBSITE_URL}/providers/${provider.id}`);
+  redirect(`https://${host}/providers/${provider.id}`);
+
 }
