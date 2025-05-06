@@ -16,6 +16,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
@@ -415,6 +416,65 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 	return &service, nil
 }
 
+// GenerateSubDomain is the resolver for the generateSubDomain field.
+func (r *mutationResolver) GenerateSubDomain(ctx context.Context, serviceID string) (*model.Service, error) {
+	// Generate a subdomain for the service
+	uuid, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Find the service by ID
+	var service model.Service
+	if err := r.DB.Where("id = ?", uuid).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", uuid)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	// Check if service already has a subdomain
+	if service.SubDomain != nil && *service.SubDomain != "" {
+		// Service already has a subdomain, return the service without changes
+		return &service, nil
+	}
+
+	// Generate a new subdomain
+	clear := strings.ReplaceAll(service.Name, " ", "")
+	clear = strings.ReplaceAll(clear, "_", "")
+	// Generate a subdomain using gosimple/slug
+	subdomain := slug.Make(clear)
+
+	// Ensure the subdomain is unique
+	var existingService model.Service
+	attempt := 0
+	originalSubdomain := subdomain
+
+	for {
+		if err := r.DB.Where("sub_domain = ?", subdomain).First(&existingService).Error; err == nil {
+			// Subdomain already exists, append a number to make it unique
+			attempt++
+			subdomain = fmt.Sprintf("%s%d", originalSubdomain, attempt)
+		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+			// No match found, subdomain is unique
+			break
+		} else {
+			// Unexpected error
+			return nil, fmt.Errorf("failed to check for existing subdomain: %w", err)
+		}
+	}
+
+	// Assign the subdomain to the service
+	service.SubDomain = &subdomain
+
+	// Save the updated service to the database
+	if err := r.DB.Save(&service).Error; err != nil {
+		return nil, fmt.Errorf("failed to save subdomain: %w", err)
+	}
+
+	return &service, nil
+}
+
 // DeleteService is the resolver for the deleteService field.
 func (r *mutationResolver) DeleteService(ctx context.Context, id string) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteService - deleteService"))
@@ -741,7 +801,7 @@ func (r *mutationResolver) DeleteGallery(ctx context.Context, id string) (*bool,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
 	}
-	
+
 	// Parse the gallery ID
 	galleryID, err := uuid.Parse(id)
 	if err != nil {
@@ -940,6 +1000,25 @@ func (r *queryResolver) GetProvider(ctx context.Context, serviceID string) (*mod
 	}
 
 	return &Service, nil
+}
+
+// GetProviderByUsername is the resolver for the getProviderByUsername field.
+func (r *queryResolver) GetProviderByUsername(ctx context.Context, subDomain string) (*model.Service, error) {
+	// Validate the subDomain input
+	if subDomain == "" {
+		return nil, fmt.Errorf("subDomain is required")
+	}
+
+	// Find the service by subDomain
+	var service model.Service
+	if err := r.DB.Where("sub_domain = ?", subDomain).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with subDomain: %s", subDomain)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	return &service, nil
 }
 
 // GetSharedService is the resolver for the getSharedService field.

@@ -10,10 +10,10 @@ import (
 
 type Service struct {
 	ID         uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	Name       string         `json:"name"`
+	Name       string         `gorm:"unique" json:"name"`
 	Type       string         `json:"type"`
 	Number     string         `json:"number"`
-	Email      string         `json:"email"`
+	Email      string         `gorm:"unique" json:"email"`
 	Profession pq.StringArray `gorm:"type:text[]" json:"profession,omitempty"`
 	Password   *string        `json:"password,omitempty"`
 	Location   *string        `json:"location,omitempty"`
@@ -22,6 +22,8 @@ type Service struct {
 	NumberType *string        `json:"number_type,omitempty"`
 	BookTypes  pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
 	IsAuth     *IsAuth        `json:"is_auth,omitempty"`
+	SubDomain  *string        `gorm:"unique" json:"sub_domain,omitempty"`
+
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 }

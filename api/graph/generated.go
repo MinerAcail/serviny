@@ -259,6 +259,7 @@ type ComplexityRoot struct {
 		DeleteUnavailablePeriod  func(childComplexity int, id string) int
 		DeleteUserByID           func(childComplexity int, id string) int
 		DeliveryLogin            func(childComplexity int, input *model.LoginInput) int
+		GenerateSubDomain        func(childComplexity int, serviceID string) int
 		GetGrowthData            func(childComplexity int, id string) int
 		JobRequest               func(childComplexity int, input *model.JobRequestInput) int
 		JobResponse              func(childComplexity int, applicantID string, state string) int
@@ -402,6 +403,7 @@ type ComplexityRoot struct {
 		GetPolicyInformation              func(childComplexity int, serviceID string) int
 		GetPriceCardByID                  func(childComplexity int, id string) int
 		GetProvider                       func(childComplexity int, serviceID string) int
+		GetProviderByUsername             func(childComplexity int, subDomain string) int
 		GetProvidersUsersContact          func(childComplexity int, search *string, limit *int32, offset *int32) int
 		GetRentalItem                     func(childComplexity int, id string) int
 		GetRentalItems                    func(childComplexity int, serviceID *string) int
@@ -456,6 +458,7 @@ type ComplexityRoot struct {
 		NumberType func(childComplexity int) int
 		Password   func(childComplexity int) int
 		Profession func(childComplexity int) int
+		SubDomain  func(childComplexity int) int
 		Type       func(childComplexity int) int
 		UpdatedAt  func(childComplexity int) int
 	}
@@ -664,6 +667,7 @@ type MutationResolver interface {
 	CancelUserBookings(ctx context.Context, bookTypeID string, userID string) (bool, error)
 	CreateService(ctx context.Context, dpfile *graphql.Upload, input model.CreateServiceInput) (*model.Service, error)
 	UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error)
+	GenerateSubDomain(ctx context.Context, serviceID string) (*model.Service, error)
 	DeleteService(ctx context.Context, id string) (*bool, error)
 	UpdateBookingType(ctx context.Context, typeArg model.BookingType) (*model.BookingType, error)
 	CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput) (*model.GalleryProfession, error)
@@ -735,6 +739,7 @@ type QueryResolver interface {
 	GetUserBookings(ctx context.Context, bookTypeID string, userID string) (*model.UserBookings, error)
 	GetService(ctx context.Context) (*model.Service, error)
 	GetProvider(ctx context.Context, serviceID string) (*model.Service, error)
+	GetProviderByUsername(ctx context.Context, subDomain string) (*model.Service, error)
 	GetSharedService(ctx context.Context, serviceID string) (*model.Service, error)
 	ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error)
 	GetAllGallery(ctx context.Context, serviceID string) ([]*model.GalleryProfession, error)
@@ -2002,6 +2007,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeliveryLogin(childComplexity, args["input"].(*model.LoginInput)), true
 
+	case "Mutation.generateSubDomain":
+		if e.complexity.Mutation.GenerateSubDomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_generateSubDomain_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GenerateSubDomain(childComplexity, args["serviceId"].(string)), true
+
 	case "Mutation.getGrowthData":
 		if e.complexity.Mutation.GetGrowthData == nil {
 			break
@@ -3104,6 +3121,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetProvider(childComplexity, args["ServiceId"].(string)), true
 
+	case "Query.getProviderByUsername":
+		if e.complexity.Query.GetProviderByUsername == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getProviderByUsername_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetProviderByUsername(childComplexity, args["subDomain"].(string)), true
+
 	case "Query.getProvidersUsersContact":
 		if e.complexity.Query.GetProvidersUsersContact == nil {
 			break
@@ -3457,6 +3486,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Service.Profession(childComplexity), true
+
+	case "Service.subDomain":
+		if e.complexity.Service.SubDomain == nil {
+			break
+		}
+
+		return e.complexity.Service.SubDomain(childComplexity), true
 
 	case "Service.type":
 		if e.complexity.Service.Type == nil {
@@ -5319,6 +5355,29 @@ func (ec *executionContext) field_Mutation_deliveryLogin_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_generateSubDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_generateSubDomain_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_generateSubDomain_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
+	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_getGrowthData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7127,6 +7186,29 @@ func (ec *executionContext) field_Query_getPriceCardById_argsID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getProviderByUsername_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getProviderByUsername_argsSubDomain(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["subDomain"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getProviderByUsername_argsSubDomain(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("subDomain"))
+	if tmp, ok := rawArgs["subDomain"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -15848,6 +15930,8 @@ func (ec *executionContext) fieldContext_Mutation_createService(ctx context.Cont
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -15932,6 +16016,8 @@ func (ec *executionContext) fieldContext_Mutation_updateService(ctx context.Cont
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -15948,6 +16034,92 @@ func (ec *executionContext) fieldContext_Mutation_updateService(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateService_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_generateSubDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_generateSubDomain(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().GenerateSubDomain(rctx, fc.Args["serviceId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_generateSubDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -21314,6 +21486,8 @@ func (ec *executionContext) fieldContext_Query_getService(_ context.Context, fie
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -21387,6 +21561,8 @@ func (ec *executionContext) fieldContext_Query_getProvider(ctx context.Context, 
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -21403,6 +21579,92 @@ func (ec *executionContext) fieldContext_Query_getProvider(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getProvider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getProviderByUsername(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getProviderByUsername(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetProviderByUsername(rctx, fc.Args["subDomain"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getProviderByUsername(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getProviderByUsername_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -21471,6 +21733,8 @@ func (ec *executionContext) fieldContext_Query_getSharedService(ctx context.Cont
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -21558,6 +21822,8 @@ func (ec *executionContext) fieldContext_Query_listServices(ctx context.Context,
 				return ec.fieldContext_Service_isAuth(ctx, field)
 			case "numberType":
 				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Service_createdAt(ctx, field)
 			case "updatedAt":
@@ -23996,6 +24262,47 @@ func (ec *executionContext) _Service_numberType(ctx context.Context, field graph
 }
 
 func (ec *executionContext) fieldContext_Service_numberType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_subDomain(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Service_subDomain(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubDomain, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Service_subDomain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -32836,6 +33143,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateService(ctx, field)
 			})
+		case "generateSubDomain":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_generateSubDomain(ctx, field)
+			})
 		case "deleteService":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteService(ctx, field)
@@ -34390,6 +34701,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getProviderByUsername":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getProviderByUsername(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getSharedService":
 			field := field
 
@@ -35151,6 +35481,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Service_isAuth(ctx, field, obj)
 		case "numberType":
 			out.Values[i] = ec._Service_numberType(ctx, field, obj)
+		case "subDomain":
+			out.Values[i] = ec._Service_subDomain(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Service_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
