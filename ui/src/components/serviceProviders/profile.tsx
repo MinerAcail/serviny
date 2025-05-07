@@ -241,7 +241,7 @@ const ProviderProfile = ({
       }}
     >
       {/* Blur overlay */}
-      <div className="absolute inset-0 backdrop-blur-lg bg-primary/30"></div>
+      <div className="absolute inset-0 backdrop-blur-lg bg-primary-foreground/70 "></div>
       
       {/* Content container with proper padding and spacing */}
       <div className="relative z-10 p-6">
@@ -258,7 +258,7 @@ const ProviderProfile = ({
           </div>
 
           {/* Provider Details */}
-          <div className="flex-1 flex flex-col backdrop-blur-lg bg-primary-foreground/30 p-10 rounded-md px-7">
+          <div className="flex-1 flex flex-col  rounded-md px-7">
             <div className="text-center lg:text-left mb-6">
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-2 text-white">
                 {provider?.name || "Provider Name"}
