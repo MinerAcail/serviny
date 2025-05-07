@@ -460,7 +460,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       <div className="space-y-6">
         <OtpCard
           title="Email Verification"
-          description={`We've sent a verification code to ${formData?.email}. Please enter it below.`}
+          email={formData?.email}
           onSubmit={handleVerifyOtp}
           onResend={handleResendOtp}
           loading={verifyingOtp}
