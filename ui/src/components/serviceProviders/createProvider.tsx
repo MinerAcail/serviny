@@ -130,7 +130,7 @@ export const CreateServiceProvider: React.FC = () => {
   // OTP verification states
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  // const [otpSent, setOtpSent] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState<{
     name: string;
     number: string;
@@ -139,7 +139,7 @@ export const CreateServiceProvider: React.FC = () => {
     password?: string;
     confirmPassword?: string;
   } | null>(null);
-  // console.log(otpSent);
+  console.log(otpSent);
 
   const {
     register,
@@ -230,7 +230,7 @@ export const CreateServiceProvider: React.FC = () => {
       });
 
       if (result.data?.requestOtp?.success) {
-        // setOtpSent(true);
+        setOtpSent(true);
         setShowOtpVerification(true);
         toast.success("OTP Sent", {
           description: `Verification code sent to ${data.email}`,
@@ -379,7 +379,7 @@ export const CreateServiceProvider: React.FC = () => {
       setSelectedProfessions([]);
       setProfilePic(null);
       setShowOtpVerification(false);
-      // setOtpSent(false);
+      setOtpSent(false);
       setFormData(null);
 
       if (previewImage) {
@@ -441,7 +441,7 @@ export const CreateServiceProvider: React.FC = () => {
   // Cancel OTP verification and go back to form
   const handleCancelOtp = () => {
     setShowOtpVerification(false);
-    // setOtpSent(false);
+    setOtpSent(false);
   };
 
   return (
@@ -456,11 +456,12 @@ export const CreateServiceProvider: React.FC = () => {
             <div className="space-y-6">
               <OtpCard
                 title="Email Verification"
-                description={`We've sent a verification code to ${formData?.email}. Please enter it below.`}
+                email={formData?.email}
                 onSubmit={handleVerifyOtp}
                 onResend={() => formData && handleResendOtp(formData)}
                 loading={verifyingOtp}
               />
+
               <div className="flex justify-center">
                 <Button
                   variant="outline"
@@ -600,23 +601,20 @@ const FormsInfor: React.FC<FormsInforProps> = ({
   setShowConfirmPassword,
 }) => {
   const [selectedCountry, setSelectedCountry] = useState("");
-  // This will update hidden location field whenever country or city changes
-  interface UpdateLocationValueParams {
-    country: string;
-    city: string;
-  }
+  const [city, setCity] = useState("");
 
   const updateLocationValue = ({
     country,
     city,
-  }: UpdateLocationValueParams): void => {
+  }: {
+    country: string;
+    city: string;
+  }): void => {
     const locationValue =
-      country && city ? `${country}, ${city}` : country || city || "";
+      country && city ? `${country}-${city}` : country || city || "";
+    console.log("locationValue", locationValue);
 
-    // If using React Hook Form's setValue
-    // setValue("location", locationValue);
-
-    // For direct DOM manipulation (fallback)
+    // Update the hidden input for location
     const locationInput = document.getElementById(
       "location"
     ) as HTMLInputElement | null;
@@ -624,6 +622,7 @@ const FormsInfor: React.FC<FormsInforProps> = ({
       locationInput.value = locationValue;
     }
   };
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="px-6 pt-6">
@@ -740,13 +739,13 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 />
                 {errors.number && (
                   <p className="text-sm text-destructive">
-                    {/* {errors.number.message} */}
                     {typeof errors.number.message === "string" &&
                       errors.number.message}
                   </p>
                 )}
               </div>
 
+              {/* Country-City Selection */}
               <div className="space-y-2">
                 <Label
                   htmlFor="location"
@@ -757,58 +756,55 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                   <MapPin className="h-4 w-4" />
                   Location / Service Area
                 </Label>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Select
-                    onValueChange={(value) => {
-                      setSelectedCountry(value);
-                      const cityValue =
-                        (document.getElementById("city") as HTMLInputElement)
-                          ?.value || "";
-                      updateLocationValue({ country: value, city: cityValue });
-                    }}
-                  >
-                    <SelectTrigger
-                      id="country"
-                      className={`w-full sm:w-1/2 ${
-                        errors.location ? "border-destructive" : ""
-                      }`}
-                    >
-                      <SelectValue placeholder="Select a country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    id="city"
-                    placeholder="Enter your city"
-                    className={`w-full sm:w-1/2 ${
-                      errors.location ? "border-destructive" : ""
-                    }`}
-                    onChange={(e) => {
-                      updateLocationValue({
-                        country: selectedCountry,
-                        city: e.target.value,
-                      });
-                    }}
-                  />
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <Select
+                        onValueChange={(value) => {
+                          setSelectedCountry(value);
+                          updateLocationValue({ country: value, city });
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Country" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {countries.map((country) => (
+                            <SelectItem key={country} value={country}>
+                              {country}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Input
+                        placeholder="Enter City"
+                        value={city}
+                        onChange={(e) => {
+                          const newCity = e.target.value;
+                          setCity(newCity);
+                          updateLocationValue({
+                            country: selectedCountry,
+                            city: newCity,
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {selectedCountry && city && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Selected Location:</span>{" "}
+                      {selectedCountry}-{city}
+                    </div>
+                  )}
                 </div>
-
-                {/* Hidden field that stores the combined location value */}
-                <input
-                  type="hidden"
+                <Input
                   id="location"
-                  {...register("location", {
-                    required: "Location is required",
-                  })}
+                  type="hidden"
+                  {...register("location")}
+                  className={errors.location ? "border-destructive" : ""}
                 />
-
                 {errors.location && (
                   <p className="text-sm text-destructive">
                     {typeof errors.location.message === "string" &&
@@ -817,8 +813,6 @@ const FormsInfor: React.FC<FormsInforProps> = ({
                 )}
               </div>
             </div>
-
-            {/* </div> */}
 
             {isPersonalInfoComplete && (
               <div className="flex justify-end mt-6">
