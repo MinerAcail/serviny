@@ -232,183 +232,194 @@ const ProviderProfile = ({
   const { isMatch } = useCheckAuthId(serviceId);
 
   return (
-    <div className="bg-gradient-to-b from-primary/10 to-primary/5 rounded-lg shadow-md p-6 mb-8">
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Profile Image */}
-        <div className="flex justify-center lg:justify-start">
-          <div className="relative h-48 w-48 overflow-hidden rounded-full border-4 border-white shadow-xl">
-            <img
-              src={provider?.dpfile || "/default-profile.png"}
-              alt={`${provider?.name || "Provider"} Profile`}
-              className="h-full w-full object-cover rounded-full"
-            />
-          </div>
-        </div>
-
-        {/* Provider Details */}
-        <div className="flex-1 flex flex-col">
-          <div className="text-center lg:text-left mb-6">
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-2">
-              {provider?.name || "Provider Name"}
-            </h1>
-
-            <div className="space-y-2">
-              {provider?.profession?.map((profession, idx) => (
-                <Badge key={idx} className="text-xs m-4">
-                  {profession}
-                </Badge>
-              ))}
-
-              <div className="flex justify-between items-center">
-               
-                <ContactInfo provider={provider} />
-                <div className="block ml-2 lg:hidden">
-                  <SocialMediaManager serviceId={serviceId ?? ""} />
-                </div>
-              </div>
+    <div 
+      className="relative rounded-lg shadow-md mb-8 overflow-hidden"
+      style={{
+        backgroundImage: `url(${provider?.dpfile || "/default-profile.png"})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Blur overlay */}
+      <div className="absolute inset-0 backdrop-blur-lg bg-primary/30"></div>
+      
+      {/* Content container with proper padding and spacing */}
+      <div className="relative z-10 p-6">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Profile Image */}
+          <div className="flex justify-center lg:justify-start">
+            <div className="relative h-48 w-48 overflow-hidden rounded-full border-4 border-white shadow-xl">
+              <img
+                src={provider?.dpfile || "/default-profile.png"}
+                alt={`${provider?.name || "Provider"} Profile`}
+                className="h-full w-full object-cover rounded-full"
+              />
             </div>
+          </div>
 
-            {/* Rating */}
-            <div className="mt-4 flex flex-col items-start justify-start lg:items-start lg:justify-start">
-              <div className="flex gap-4">
-                <h2 className="text-xl font-light">About Me</h2>
-                <div className="lg:block hidden">
-                <SocialMediaManager serviceId={serviceId ?? ""} />
+          {/* Provider Details */}
+          <div className="flex-1 flex flex-col backdrop-blur-lg bg-primary-foreground/30 p-10 rounded-md px-7">
+            <div className="text-center lg:text-left mb-6">
+              <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-2 text-white">
+                {provider?.name || "Provider Name"}
+              </h1>
+
+              <div className="space-y-2">
+                {provider?.profession?.map((profession, idx) => (
+                  <Badge key={idx} className="text-xs m-4">
+                    {profession}
+                  </Badge>
+                ))}
+
+                <div className="flex justify-between items-center">
+                  <ContactInfo provider={provider} />
+                  <div className="block ml-2 lg:hidden">
+                    <SocialMediaManager serviceId={serviceId ?? ""} />
+                  </div>
                 </div>
               </div>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                {provider?.aboutMe?.length > 100
-                  ? `${provider?.aboutMe.substring(0, 100)}...`
-                  : provider?.aboutMe}
-              </p>
-              {provider?.aboutMe?.length > 100 && (
-                <Button
-                  variant="link"
-                  className="mt-2 text-primary"
-                  onClick={() => setDialogAbout(true)}
-                >
-                  Read More
-                </Button>
+
+              {/* Rating */}
+              <div className="mt-4 flex flex-col items-start justify-start lg:items-start lg:justify-start">
+                <div className="flex gap-4">
+                  <h2 className="text-xl font-light text-white">About Me</h2>
+                  <div className="lg:block hidden">
+                    <SocialMediaManager serviceId={serviceId ?? ""} />
+                  </div>
+                </div>
+                <p className="mt-3 leading-relaxed text-white/90">
+                  {provider?.aboutMe?.length > 100
+                    ? `${provider?.aboutMe.substring(0, 100)}...`
+                    : provider?.aboutMe}
+                </p>
+                {provider?.aboutMe?.length > 100 && (
+                  <Button
+                    variant="link"
+                    className="mt-2 text-white"
+                    onClick={() => setDialogAbout(true)}
+                  >
+                    Read More
+                  </Button>
+                )}
+              </div>
+
+              {/* About Me Dialog */}
+              {isDialogAbout && (
+                <Dialog open={isDialogAbout} onOpenChange={setDialogAbout}>
+                  <DialogContent className="rounded-lg">
+                    <DialogHeader>
+                      <DialogTitle>About Me</DialogTitle>
+                    </DialogHeader>
+
+                    <DialogDescription className="text-muted-foreground max-h-96 overflow-y-auto">
+                      {provider?.aboutMe}
+                    </DialogDescription>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDialogAbout(false)}
+                      >
+                        Close
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
 
-            {/* About Me Dialog */}
-            {isDialogAbout && (
-              <Dialog open={isDialogAbout} onOpenChange={setDialogAbout}>
-                <DialogContent className=" rounded-lg">
-                  <DialogHeader>
-                    <DialogTitle>About Me</DialogTitle>
-                  </DialogHeader>
-
-                  <DialogDescription className="text-muted-foreground max-h-96 overflow-y-auto">
-                    {provider?.aboutMe}
-                  </DialogDescription>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setDialogAbout(false)}
-                    >
-                      Close
+            {/* Action Buttons */}
+            <div className="mt-2 flex flex-wrap justify-center lg:justify-start gap-3">
+              {isMatch && (
+                <>
+                  <Link to="/upload">
+                    <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                      <HardDriveUpload className="h-4 w-4" />
+                      Upload
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
+                  </Link>
+                  <Link to={`/booktypes`}>
+                    <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                      <Library className="h-4 w-4" />
+                      Business Types
+                    </Button>
+                  </Link>
+                  <Link to="/dashboard">
+                    <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboards
+                    </Button>
+                  </Link>
 
-          {/* Action Buttons */}
-          <div className="mt-2 flex flex-wrap justify-center lg:justify-start gap-3">
-            {isMatch && (
-              <>
-                <Link to="/upload">
-                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                    <HardDriveUpload className="h-4 w-4" />
-                    Upload
-                  </Button>
-                </Link>
-                <Link to={`/booktypes`}>
-                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                    <Library className="h-4 w-4" />
-                    Business Types
-                  </Button>
-                </Link>
-                <Link to="/dashboard">
-                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                    <LayoutDashboard className="h-4 w-4" />
-                    Dashboards
-                  </Button>
-                </Link>
+                  <Link to="/update">
+                    <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  </Link>
 
-                <Link to="/update">
-                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                    <Edit className="h-4 w-4" />
-                    Edit
-                  </Button>
-                </Link>
+                  <Link to={`/time/${provider.id}`}>
+                    <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
+                      <CalendarSync className="h-4 w-4" />
+                      Schedule
+                    </Button>
+                  </Link>
+                </>
+              )}
 
-                <Link to={`/time/${provider.id}`}>
-                  <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
-                    <CalendarSync className="h-4 w-4" />
-                    Schedule
-                  </Button>
-                </Link>
-              </>
-            )}
+              {/* to={`/providers/${provider.id}`} */}
+              {isAuthenticated ? (
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  variant="secondary"
+                  className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
+                >
+                  <NotepadText className="h-4 w-4" />
+                  Book
+                </Button>
+              ) : (
+                <UserAuthCard>
+                  <Button>Book</Button>
+                </UserAuthCard>
+              )}
 
-            {/* to={`/providers/${provider.id}`} */}
-            {isAuthenticated ? (
-              <Button
-                onClick={() => setDialogOpen(true)}
-                variant="secondary"
-                className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
-              >
-                <NotepadText className="h-4 w-4" />
-                Book
-              </Button>
-            ) : (
-              <UserAuthCard>
-                <Button>Book</Button>
-              </UserAuthCard>
-            )}
+              {bookingTypes.length === 0 ? (
+                <CheckForBookTYpe
+                  isDialogOpenMain={isDialogOpen}
+                  setDialogOpenMain={setDialogOpen}
+                />
+              ) : (
+                <>
+                  {bookingTypes.includes(BookType.EVENT) && (
+                    <EventCalendarDialog
+                      isDialogOpenMain={isDialogOpen}
+                      setDialogOpenMain={setDialogOpen}
+                      // serviceId={serviceId}
+                    />
+                  )}
+                  {bookingTypes.includes(BookType.APPOINTMENT) && (
+                    <AppointmentBookingSystem
+                      isDialogOpenMain={isDialogOpen}
+                      setDialogOpenMain={setDialogOpen}
+                      serviceId={serviceId}
+                    />
+                  )}
 
-            {bookingTypes.length === 0 ? (
-              <CheckForBookTYpe
-                isDialogOpenMain={isDialogOpen}
-                setDialogOpenMain={setDialogOpen}
-              />
-            ) : (
-              <>
-                {bookingTypes.includes(BookType.EVENT) && (
-                  <EventCalendarDialog
-                    isDialogOpenMain={isDialogOpen}
-                    setDialogOpenMain={setDialogOpen}
-                    // serviceId={serviceId}
-                  />
-                )}
-                {bookingTypes.includes(BookType.APPOINTMENT) && (
-                  <AppointmentBookingSystem
-                    isDialogOpenMain={isDialogOpen}
-                    setDialogOpenMain={setDialogOpen}
-                    serviceId={serviceId}
-                  />
-                )}
-
-                {bookingTypes.includes(BookType.RENTAL) && (
-                  <InventoryListDialog
-                    isDialogOpenMain={isDialogOpen}
-                    setDialogOpenMain={setDialogOpen}
-                    serviceId={serviceId}
-                  />
-                )}
-              </>
-            )}
+                  {bookingTypes.includes(BookType.RENTAL) && (
+                    <InventoryListDialog
+                      isDialogOpenMain={isDialogOpen}
+                      setDialogOpenMain={setDialogOpen}
+                      serviceId={serviceId}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
 
 
 
