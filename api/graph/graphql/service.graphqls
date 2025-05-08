@@ -12,7 +12,7 @@ type Service {
   bookTypes: [String]
   isAuth: isAuth
   numberType: String
-  subDomain:String
+  subDomain: String
   createdAt: Time!
   updatedAt: Time!
 }
@@ -61,7 +61,12 @@ extend type Query {
   getProviderByUsername(subDomain: String!): Service
 
   getSharedService(ServiceId: String!): Service
-  getAllGallery(ServiceId: String!): [GalleryProfession]
+  getAllGallery(
+    ServiceId: String!
+    query: String
+    limit: Int
+    offset: Int
+  ): [GalleryProfession]
   getGallery(galleryID: String!): GalleryProfession
   getAllCategoriesFromGallery(ServiceId: String!): [String]
   getAllProfessionFromService: [String]
@@ -84,11 +89,12 @@ extend type Mutation {
     input: UpdateServiceInput!
     removeProfession: [String]
   ): Service
-  generateSubDomain(serviceId:String!):Service
+  generateSubDomain(serviceId: String!): Service
   deleteService(id: String!): Boolean
 
-  updateBookingType(type: BookingType!): # serviceId: String!
-  BookingType
+  updateBookingType(
+    type: BookingType! # serviceId: String!
+  ): BookingType
   createGallery(
     files: [Upload]
     input: GalleryProfessionInput!

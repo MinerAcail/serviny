@@ -677,7 +677,6 @@ func (r *queryResolver) GetPolicy(ctx context.Context, policyID string) (*model.
 		Policy:        &policy,
 		PolicyDetails: policyDetails,
 	}, nil
-
 }
 
 // GlobalSearch is the resolver for the globalSearch field.

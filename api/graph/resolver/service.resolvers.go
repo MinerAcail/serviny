@@ -1047,16 +1047,36 @@ func (r *queryResolver) GetSharedService(ctx context.Context, serviceID string) 
 }
 
 // GetAllGallery is the resolver for the getAllGallery field.
-func (r *queryResolver) GetAllGallery(ctx context.Context, serviceID string) ([]*model.GalleryProfession, error) {
+func (r *queryResolver) GetAllGallery(ctx context.Context, serviceID string, query *string, limit *int32, offset *int32) ([]*model.GalleryProfession, error) {
 	providerUUID, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider ID: %w", err)
 	}
 
 	var galleries []*model.GalleryProfession
-	if err := r.DB.Order("created_at DESC").Where("service_id = ?", providerUUID).Find(&galleries).Error; err != nil {
+	db := r.DB.Order("created_at DESC").Where("service_id = ?", providerUUID)
+
+	if query != nil && *query != "" {
+		search := "%" + *query + "%"
+		db = db.Where(`
+			EXISTS (
+				SELECT 1 FROM unnest(categories) AS cat
+				WHERE cat ILIKE ?
+			)
+		`, search)
+	}
+	
+	if limit != nil {
+		db = db.Limit(int(*limit))
+	}
+	if offset != nil {
+		db = db.Offset(int(*offset))
+	}
+
+	if err := db.Find(&galleries).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch galleries for provider ID: %s, error: %w", providerUUID, err)
 	}
+
 	return galleries, nil
 }
 

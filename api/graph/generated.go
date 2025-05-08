@@ -379,7 +379,7 @@ type ComplexityRoot struct {
 		GetAllAppointmentBookings         func(childComplexity int) int
 		GetAllAppointmentBookingsByUserID func(childComplexity int, userID string) int
 		GetAllCategoriesFromGallery       func(childComplexity int, serviceID string) int
-		GetAllGallery                     func(childComplexity int, serviceID string) int
+		GetAllGallery                     func(childComplexity int, serviceID string, query *string, limit *int32, offset *int32) int
 		GetAllProfessionFromService       func(childComplexity int) int
 		GetAllSession                     func(childComplexity int) int
 		GetAllSystemInfo                  func(childComplexity int) int
@@ -765,7 +765,7 @@ type QueryResolver interface {
 	GetProvider(ctx context.Context, serviceID string) (*model.Service, error)
 	GetProviderByUsername(ctx context.Context, subDomain string) (*model.Service, error)
 	GetSharedService(ctx context.Context, serviceID string) (*model.Service, error)
-	GetAllGallery(ctx context.Context, serviceID string) ([]*model.GalleryProfession, error)
+	GetAllGallery(ctx context.Context, serviceID string, query *string, limit *int32, offset *int32) ([]*model.GalleryProfession, error)
 	GetGallery(ctx context.Context, galleryID string) (*model.GalleryProfession, error)
 	GetAllCategoriesFromGallery(ctx context.Context, serviceID string) ([]*string, error)
 	GetAllProfessionFromService(ctx context.Context) ([]*string, error)
@@ -2927,7 +2927,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetAllGallery(childComplexity, args["ServiceId"].(string)), true
+		return e.complexity.Query.GetAllGallery(childComplexity, args["ServiceId"].(string), args["query"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 
 	case "Query.getAllProfessionFromService":
 		if e.complexity.Query.GetAllProfessionFromService == nil {
@@ -7074,6 +7074,21 @@ func (ec *executionContext) field_Query_getAllGallery_args(ctx context.Context, 
 		return nil, err
 	}
 	args["ServiceId"] = arg0
+	arg1, err := ec.field_Query_getAllGallery_argsQuery(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg1
+	arg2, err := ec.field_Query_getAllGallery_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
+	arg3, err := ec.field_Query_getAllGallery_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
 func (ec *executionContext) field_Query_getAllGallery_argsServiceID(
@@ -7086,6 +7101,45 @@ func (ec *executionContext) field_Query_getAllGallery_argsServiceID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getAllGallery_argsQuery(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+	if tmp, ok := rawArgs["query"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getAllGallery_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int32, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
+	}
+
+	var zeroVal *int32
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getAllGallery_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int32, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
+	}
+
+	var zeroVal *int32
 	return zeroVal, nil
 }
 
@@ -22246,7 +22300,7 @@ func (ec *executionContext) _Query_getAllGallery(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetAllGallery(rctx, fc.Args["ServiceId"].(string))
+		return ec.resolvers.Query().GetAllGallery(rctx, fc.Args["ServiceId"].(string), fc.Args["query"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
