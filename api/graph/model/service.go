@@ -23,7 +23,7 @@ type Service struct {
 	BookTypes  pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
 	IsAuth     *IsAuth        `json:"is_auth,omitempty"`
 	SubDomain  *string        `gorm:"unique" json:"sub_domain,omitempty"`
-
+	UseTheme     *string        `json:"use_theme,omitempty"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 }

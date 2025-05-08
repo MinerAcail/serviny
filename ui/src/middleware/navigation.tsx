@@ -68,6 +68,8 @@ const router = createBrowserRouter([
 ]);
 
 export function Navigation() {
+  
+  
   return (
     <ApolloProvider client={Client}>
       <ThemeProvider >

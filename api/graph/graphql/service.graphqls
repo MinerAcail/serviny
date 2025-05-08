@@ -9,6 +9,7 @@ type Service {
   aboutMe: String
   password: String
   dpfile: String
+  useTheme:String
   bookTypes: [String]
   isAuth: isAuth
   numberType: String
@@ -59,6 +60,7 @@ extend type Query {
   getService: Service
   getProvider(ServiceId: String!): Service
   getProviderByUsername(subDomain: String!): Service
+  getUseTheme(ServiceId: String!): String
 
   getSharedService(ServiceId: String!): Service
   getAllGallery(
@@ -90,6 +92,8 @@ extend type Mutation {
     removeProfession: [String]
   ): Service
   generateSubDomain(serviceId: String!): Service
+  useTheme(ServiceId: String!,theme:String): String
+
   deleteService(id: String!): Boolean
 
   updateBookingType(

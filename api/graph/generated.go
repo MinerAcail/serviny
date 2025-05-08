@@ -287,6 +287,7 @@ type ComplexityRoot struct {
 		UpdateRentalItem         func(childComplexity int, id string, input model.RentalInput) int
 		UpdateService            func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
 		UseGetJobRequestTracking func(childComplexity int) int
+		UseTheme                 func(childComplexity int, serviceID string, theme *string) int
 		UserBookings             func(childComplexity int, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) int
 		VerifyOtp                func(childComplexity int, input model.VerifyOtpInput) int
 		WorkersLogin             func(childComplexity int, input model.LoginInput) int
@@ -413,6 +414,7 @@ type ComplexityRoot struct {
 		GetSharedService                  func(childComplexity int, serviceID string) int
 		GetSocialMedia                    func(childComplexity int, serviceID string) int
 		GetUnavailablePeriods             func(childComplexity int) int
+		GetUseTheme                       func(childComplexity int, serviceID string) int
 		GetUserBookings                   func(childComplexity int, bookTypeID string, userID string) int
 		GetUserByID                       func(childComplexity int, id string) int
 		GetpriceCardsinformation          func(childComplexity int, serviceID *string) int
@@ -482,6 +484,7 @@ type ComplexityRoot struct {
 		SubDomain  func(childComplexity int) int
 		Type       func(childComplexity int) int
 		UpdatedAt  func(childComplexity int) int
+		UseTheme   func(childComplexity int) int
 	}
 
 	Session struct {
@@ -689,6 +692,7 @@ type MutationResolver interface {
 	CreateService(ctx context.Context, dpfile *graphql.Upload, input model.CreateServiceInput) (*model.Service, error)
 	UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error)
 	GenerateSubDomain(ctx context.Context, serviceID string) (*model.Service, error)
+	UseTheme(ctx context.Context, serviceID string, theme *string) (*string, error)
 	DeleteService(ctx context.Context, id string) (*bool, error)
 	UpdateBookingType(ctx context.Context, typeArg model.BookingType) (*model.BookingType, error)
 	CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput) (*model.GalleryProfession, error)
@@ -764,6 +768,7 @@ type QueryResolver interface {
 	GetService(ctx context.Context) (*model.Service, error)
 	GetProvider(ctx context.Context, serviceID string) (*model.Service, error)
 	GetProviderByUsername(ctx context.Context, subDomain string) (*model.Service, error)
+	GetUseTheme(ctx context.Context, serviceID string) (*string, error)
 	GetSharedService(ctx context.Context, serviceID string) (*model.Service, error)
 	GetAllGallery(ctx context.Context, serviceID string, query *string, limit *int32, offset *int32) ([]*model.GalleryProfession, error)
 	GetGallery(ctx context.Context, galleryID string) (*model.GalleryProfession, error)
@@ -2357,6 +2362,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UseGetJobRequestTracking(childComplexity), true
 
+	case "Mutation.useTheme":
+		if e.complexity.Mutation.UseTheme == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_useTheme_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UseTheme(childComplexity, args["ServiceId"].(string), args["theme"].(*string)), true
+
 	case "Mutation.UserBookings":
 		if e.complexity.Mutation.UserBookings == nil {
 			break
@@ -3255,6 +3272,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetUnavailablePeriods(childComplexity), true
 
+	case "Query.getUseTheme":
+		if e.complexity.Query.GetUseTheme == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUseTheme_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUseTheme(childComplexity, args["ServiceId"].(string)), true
+
 	case "Query.getUserBookings":
 		if e.complexity.Query.GetUserBookings == nil {
 			break
@@ -3651,6 +3680,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Service.UpdatedAt(childComplexity), true
+
+	case "Service.useTheme":
+		if e.complexity.Service.UseTheme == nil {
+			break
+		}
+
+		return e.complexity.Service.UseTheme(childComplexity), true
 
 	case "Session.createdAt":
 		if e.complexity.Session.CreatedAt == nil {
@@ -6511,6 +6547,47 @@ func (ec *executionContext) field_Mutation_updateService_argsRemoveProfession(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_useTheme_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_useTheme_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["ServiceId"] = arg0
+	arg1, err := ec.field_Mutation_useTheme_argsTheme(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["theme"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_useTheme_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("ServiceId"))
+	if tmp, ok := rawArgs["ServiceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_useTheme_argsTheme(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("theme"))
+	if tmp, ok := rawArgs["theme"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_verifyOtp_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7627,6 +7704,29 @@ func (ec *executionContext) field_Query_getSocialMedia_argsServiceID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
 	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getUseTheme_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getUseTheme_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["ServiceId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getUseTheme_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("ServiceId"))
+	if tmp, ok := rawArgs["ServiceId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -16245,6 +16345,8 @@ func (ec *executionContext) fieldContext_Mutation_createService(ctx context.Cont
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -16331,6 +16433,8 @@ func (ec *executionContext) fieldContext_Mutation_updateService(ctx context.Cont
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -16417,6 +16521,8 @@ func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -16441,6 +16547,58 @@ func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_generateSubDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_useTheme(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_useTheme(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UseTheme(rctx, fc.Args["ServiceId"].(string), fc.Args["theme"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_useTheme(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_useTheme_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -21923,6 +22081,8 @@ func (ec *executionContext) fieldContext_Query_listServices(ctx context.Context,
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -22009,6 +22169,8 @@ func (ec *executionContext) fieldContext_Query_getService(_ context.Context, fie
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -22084,6 +22246,8 @@ func (ec *executionContext) fieldContext_Query_getProvider(ctx context.Context, 
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -22170,6 +22334,8 @@ func (ec *executionContext) fieldContext_Query_getProviderByUsername(ctx context
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -22194,6 +22360,58 @@ func (ec *executionContext) fieldContext_Query_getProviderByUsername(ctx context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getProviderByUsername_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUseTheme(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUseTheme(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUseTheme(rctx, fc.Args["ServiceId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUseTheme(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUseTheme_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -22256,6 +22474,8 @@ func (ec *executionContext) fieldContext_Query_getSharedService(ctx context.Cont
 				return ec.fieldContext_Service_password(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
 			case "isAuth":
@@ -25184,6 +25404,47 @@ func (ec *executionContext) _Service_dpfile(ctx context.Context, field graphql.C
 }
 
 func (ec *executionContext) fieldContext_Service_dpfile(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_useTheme(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Service_useTheme(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UseTheme, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Service_useTheme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -34192,6 +34453,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_generateSubDomain(ctx, field)
 			})
+		case "useTheme":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_useTheme(ctx, field)
+			})
 		case "deleteService":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteService(ctx, field)
@@ -35828,6 +36093,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUseTheme":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUseTheme(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getSharedService":
 			field := field
 
@@ -36662,6 +36946,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Service_password(ctx, field, obj)
 		case "dpfile":
 			out.Values[i] = ec._Service_dpfile(ctx, field, obj)
+		case "useTheme":
+			out.Values[i] = ec._Service_useTheme(ctx, field, obj)
 		case "bookTypes":
 			field := field
 

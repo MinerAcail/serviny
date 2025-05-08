@@ -58,10 +58,30 @@ const GET_PROVIDER = gql`
   }
 `;
 
+
+const GET_THEME = gql`
+   query GetUseTheme($serviceId:String!){
+    getUseTheme(ServiceId:$serviceId)
+  }
+`;
 export function ServiceProviderProfile() {
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // console.log(serviceId);
+  const {setTheme}=useTheme()
 
+  const {
+    data: themeData,
+    // loading: themeLoading,
+    // error: themeError,
+  } = useQuery(GET_THEME, {
+    variables: { serviceId },
+  });
+  useEffect(() => {
+    if (themeData?.getUseTheme) {
+      setTheme(themeData.getUseTheme); // Assuming it's a string like "dark" or "light"
+    }
+  }, [themeData, setTheme]);
+  
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
   });
@@ -429,6 +449,7 @@ import { Check, Copy } from 'lucide-react'
 // import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useTheme } from "@/middleware/context/theme-provider";
 
 interface ContactInfoProps {
   provider?: {

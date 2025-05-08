@@ -475,6 +475,34 @@ func (r *mutationResolver) GenerateSubDomain(ctx context.Context, serviceID stri
 	return &service, nil
 }
 
+// UseTheme is the resolver for the useTheme field.
+func (r *mutationResolver) UseTheme(ctx context.Context, serviceID string, theme *string) (*string, error) {
+	// Parse the UUID from the serviceID string
+	serviceUUID, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Find the service by ID
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceUUID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	// Update the theme if provided
+	if theme != nil {
+		service.UseTheme = theme
+		if err := r.DB.Save(&service).Error; err != nil {
+			return nil, fmt.Errorf("failed to update theme: %w", err)
+		}
+	}
+
+	return service.UseTheme, nil
+}
+
 // DeleteService is the resolver for the deleteService field.
 func (r *mutationResolver) DeleteService(ctx context.Context, id string) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteService - deleteService"))
@@ -1041,6 +1069,27 @@ func (r *queryResolver) GetProviderByUsername(ctx context.Context, subDomain str
 	return &service, nil
 }
 
+// GetUseTheme is the resolver for the getUseTheme field.
+func (r *queryResolver) GetUseTheme(ctx context.Context, serviceID string) (*string, error) {
+	// Parse the UUID from the serviceID string
+	serviceUUID, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Find the service by ID
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceUUID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	// Return the UseTheme field
+	return service.UseTheme, nil
+}
+
 // GetSharedService is the resolver for the getSharedService field.
 func (r *queryResolver) GetSharedService(ctx context.Context, serviceID string) (*model.Service, error) {
 	panic(fmt.Errorf("not implemented: GetSharedService - getSharedService"))
@@ -1065,7 +1114,7 @@ func (r *queryResolver) GetAllGallery(ctx context.Context, serviceID string, que
 			)
 		`, search)
 	}
-	
+
 	if limit != nil {
 		db = db.Limit(int(*limit))
 	}
@@ -1562,3 +1611,15 @@ type favoriteResolver struct{ *Resolver }
 type galleryProfessionResolver struct{ *Resolver }
 type serviceResolver struct{ *Resolver }
 type socialMediaResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *serviceResolver) UseTheme(ctx context.Context, obj *model.Service) (*string, error) {
+	panic(fmt.Errorf("not implemented: UseTheme - useTheme"))
+}
+*/
