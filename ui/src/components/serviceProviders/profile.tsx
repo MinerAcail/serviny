@@ -102,7 +102,7 @@ export function ServiceProviderProfile() {
   return (
     <div className="bg-gradient-to-b from-background to-muted/30 mt-4 w-full flex-col justify-center items-center ">
       <div className="pb-11">
-        <MainNaveBar />
+        <MainNaveBar serviceId={serviceId} />
       </div>
       {loading && !data?.getProvider ? (
         <SpectaclesLoading />

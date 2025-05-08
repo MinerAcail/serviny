@@ -55,13 +55,14 @@ type GalleryProfession {
 }
 
 extend type Query {
+  listServices(search: String, limit: Int, offset: Int): [Service!]!
   getService: Service
   getProvider(ServiceId: String!): Service
   getProviderByUsername(subDomain: String!): Service
 
   getSharedService(ServiceId: String!): Service
-  listServices(search: String, limit: Int, offset: Int): [Service!]!
   getAllGallery(ServiceId: String!): [GalleryProfession]
+  getGallery(galleryID: String!): GalleryProfession
   getAllCategoriesFromGallery(ServiceId: String!): [String]
   getAllProfessionFromService: [String]
   getBookingType(serviceId: String!): [BookingType!]!

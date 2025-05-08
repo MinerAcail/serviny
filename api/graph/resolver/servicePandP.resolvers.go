@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lehxees/serviny/helper"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -648,6 +649,60 @@ func (r *queryResolver) GetPolicyInformation(ctx context.Context, serviceID stri
 	return policyInfoList, nil
 }
 
+// GetPolicy is the resolver for the getPolicy field.
+func (r *queryResolver) GetPolicy(ctx context.Context, policyID string) (*model.PolicyInformation, error) {
+	// Parse the UUID from input
+	id, err := uuid.Parse(policyID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid policy ID: %w", err)
+	}
+
+	// Fetch the policy by ID
+	var policy model.Policy
+	if err := r.DB.Where("id = ?", id).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("policy not found with ID: %s", policyID)
+		}
+		return nil, fmt.Errorf("failed to fetch policy: %w", err)
+	}
+
+	// Fetch associated policy details
+	var policyDetails []*model.PolicyDetail
+	if err := r.DB.Where("policy_id = ?", policyID).Find(&policyDetails).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch policy details for policy ID %s: %w", policyID, err)
+	}
+
+	// Construct and return the PolicyInformation object
+	return &model.PolicyInformation{
+		Policy:        &policy,
+		PolicyDetails: policyDetails,
+	}, nil
+
+}
+
+// GlobalSearch is the resolver for the globalSearch field.
+func (r *queryResolver) GlobalSearch(ctx context.Context, query string, limit *int32, offset *int32, serviceID string) (*model.SearchResults, error) {
+	limitVal := 10 // Default limit
+	offsetVal := 0 // Default offset
+
+	if limit != nil {
+		limitVal = int(*limit)
+	}
+	if offset != nil {
+		offsetVal = int(*offset)
+	}
+
+	results, total, err := helper.ExecuteGlobalSearch(r.DB, query, limitVal, offsetVal, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.SearchResults{
+		Total:   int32(total),
+		Results: results,
+	}, nil
+}
+
 // GetpriceCardsinformation is the resolver for the getpriceCardsinformation field.
 func (r *queryResolver) GetpriceCardsinformation(ctx context.Context, serviceID *string) ([]*model.FullCard, error) {
 	// If serviceID is nil, return an empty slice.
@@ -697,7 +752,33 @@ func (r *queryResolver) GetpriceCardsinformation(ctx context.Context, serviceID 
 
 // GetPriceCardByID is the resolver for the getPriceCardById field.
 func (r *queryResolver) GetPriceCardByID(ctx context.Context, id string) (*model.FullCard, error) {
-	panic(fmt.Errorf("not implemented: GetPriceCardByID - getPriceCardById"))
+	// Fetch the price card by ID
+	var priceCard model.PriceCard
+	if err := r.DB.Where("id = ?", id).First(&priceCard).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("price card not found with ID: %s", id)
+		}
+		return nil, fmt.Errorf("failed to fetch price card: %w", err)
+	}
+
+	// Fetch associated prices
+	var prices []*model.Price
+	if err := r.DB.Where("price_card_id = ?", id).Find(&prices).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch prices for price card %s: %w", id, err)
+	}
+
+	// Fetch associated amenities
+	var amenities []*model.Amenity
+	if err := r.DB.Where("price_card_id = ?", id).Find(&amenities).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch amenities for price card %s: %w", id, err)
+	}
+
+	// Construct and return the FullCard object
+	return &model.FullCard{
+		Card:      &priceCard,
+		Prices:    prices,
+		Amenities: amenities,
+	}, nil
 }
 
 // Amenity returns graph.AmenityResolver implementation.

@@ -31,7 +31,7 @@ type GalleryProfession struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	Title       *string        `json:"title,omitempty"`
 	Categories  pq.StringArray `gorm:"type:text[]" json:"categories,omitempty"`
-	ServiceID   *string        `json:"ServiceId,omitempty"`
+	ServiceID   *string        `gorm:"column:service_id" json:"ServiceId,omitempty"`
 	ImageUrls   pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
 	Description *string        `json:"description,omitempty"`
 	CreatedAt   time.Time      `json:"createdAt"`
@@ -41,7 +41,7 @@ type GalleryProfession struct {
 type Policy struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	Name        string         `json:"name"`
-	ServiceID   *string        `json:"ServiceId,omitempty"`
+	ServiceID   *string        `gorm:"column:service_id" json:"ServiceId,omitempty"`
 	Description string         `json:"description"`
 	DetailsIds  pq.StringArray `gorm:"type:text[]" json:"detailsIds,omitempty"`
 	CreatedAt   time.Time      `json:"createdAt"`

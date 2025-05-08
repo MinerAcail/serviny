@@ -961,6 +961,26 @@ func (r *mutationResolver) CreateSocialMedia(ctx context.Context, input *model.S
 	return newSocialMedia, nil
 }
 
+// ListServices is the resolver for the listServices field.
+func (r *queryResolver) ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error) {
+	limitVal := 10 // Default limit
+	offsetVal := 0 // Default offset
+
+	// Handle empty query
+	if search == nil {
+		if limit != nil {
+			limitVal = int(*limit)
+		}
+		if offset != nil {
+			offsetVal = int(*offset)
+		}
+		return helper.FetchAllService(r.DB, limitVal, offsetVal)
+	}
+
+	// Execute search with the search term
+	return helper.ExecuteSearchQuery(r.DB, *search)
+}
+
 // GetService is the resolver for the getService field.
 func (r *queryResolver) GetService(ctx context.Context) (*model.Service, error) {
 	ServiceIDStr, err := r.Query().GetID(ctx)
@@ -1026,26 +1046,6 @@ func (r *queryResolver) GetSharedService(ctx context.Context, serviceID string) 
 	panic(fmt.Errorf("not implemented: GetSharedService - getSharedService"))
 }
 
-// ListServices is the resolver for the listServices field.
-func (r *queryResolver) ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error) {
-	limitVal := 10 // Default limit
-	offsetVal := 0 // Default offset
-
-	// Handle empty query
-	if search == nil {
-		if limit != nil {
-			limitVal = int(*limit)
-		}
-		if offset != nil {
-			offsetVal = int(*offset)
-		}
-		return helper.FetchAllService(r.DB, limitVal, offsetVal)
-	}
-
-	// Execute search with the search term
-	return helper.ExecuteSearchQuery(r.DB, *search)
-}
-
 // GetAllGallery is the resolver for the getAllGallery field.
 func (r *queryResolver) GetAllGallery(ctx context.Context, serviceID string) ([]*model.GalleryProfession, error) {
 	providerUUID, err := uuid.Parse(serviceID)
@@ -1058,6 +1058,26 @@ func (r *queryResolver) GetAllGallery(ctx context.Context, serviceID string) ([]
 		return nil, fmt.Errorf("failed to fetch galleries for provider ID: %s, error: %w", providerUUID, err)
 	}
 	return galleries, nil
+}
+
+// GetGallery is the resolver for the getGallery field.
+func (r *queryResolver) GetGallery(ctx context.Context, galleryID string) (*model.GalleryProfession, error) {
+	// Parse the gallery ID
+	parsedGalleryID, err := uuid.Parse(galleryID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid gallery ID: %w", err)
+	}
+
+	// Find the gallery by ID
+	var gallery model.GalleryProfession
+	if err := r.DB.Where("id = ?", parsedGalleryID).First(&gallery).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("gallery not found with ID: %s", galleryID)
+		}
+		return nil, fmt.Errorf("failed to fetch gallery: %w", err)
+	}
+
+	return &gallery, nil
 }
 
 // GetAllCategoriesFromGallery is the resolver for the getAllCategoriesFromGallery field.

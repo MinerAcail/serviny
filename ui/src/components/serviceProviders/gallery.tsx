@@ -315,14 +315,13 @@ export function WorkGallery() {
           </div>
         </>
       )}
-
+{/*  */}
       <GalleryDetailDialog
         gallery={selectedGallery}
         open={!!selectedGallery}
         onOpenChange={(open: boolean) => !open && handleDialogClose()}
         serviceId={serviceId ?? ""}
         refetch={() => {
-          // Refetch the gallery data after closing the dialog
           refetch();
         }}
       />

@@ -126,11 +126,7 @@ type Mutation {
   addPrice(priceCardId: String!, price: PriceInput!): Price!
 
   # Update a price within a price card
-  updatePrice(
-    cardId: String!
-    priceCardId: String!
-    input: PriceInput!
-  ): Price!
+  updatePrice(cardId: String!, priceCardId: String!, input: PriceInput!): Price!
 
   # Remove a price from a price card
   removePrice(priceCardId: String!, id: String!): Price!
@@ -153,7 +149,31 @@ type Query {
   getPolicies: [Policy!]!
   getPolicyById(policyId: String!): Policy
   getPolicyInformation(ServiceID: String!): [PolicyInformation]
-
+  getPolicy(policyId: String!): PolicyInformation
+  globalSearch(
+    query: String!
+    limit: Int
+    offset: Int
+    ServiceID: String!
+  ): SearchResults!
   getpriceCardsinformation(serviceId: String): [fullCard!]!
   getPriceCardById(id: String!): fullCard
+}
+
+type SearchResults {
+  total: Int!
+  results: [SearchResult!]!
+}
+
+type SearchResult {
+  id: ID!
+  title: String!
+  description: String
+  modelType: String!
+  relationshipId:String
+  additionalInfo: String
+  imageurl:String
+  score: Float
+  createdAt: Time!
+  updatedAt: Time!
 }

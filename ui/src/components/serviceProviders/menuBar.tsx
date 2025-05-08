@@ -13,12 +13,14 @@ import {
   NavigationMenu,
   NavigationMenuList,
 } from "../ui/navigation-menu.tsx";
+import { SearchDropdown } from "./searchTab.tsx";
 
 interface SelectCategoryFilterProps {
   onSearch?: (value: string) => void;
+  serviceId?:string
 }
 
-const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({ onSearch }) => {
+const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({ onSearch,serviceId }) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const location = useLocation();
@@ -114,6 +116,8 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({ onSearch }) => {
             onSearch={onSearch}
           />
         )}
+
+        <SearchDropdown serviceId={serviceId ?? ""}/>
       </div>
     </nav>
   );

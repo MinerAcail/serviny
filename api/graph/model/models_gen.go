@@ -250,6 +250,24 @@ type ResetPasswordResponse struct {
 	Email   *string `json:"email,omitempty"`
 }
 
+type SearchResult struct {
+	ID             string    `json:"id"`
+	Title          string    `json:"title"`
+	Description    *string   `json:"description,omitempty"`
+	ModelType      string    `json:"modelType"`
+	RelationshipID *string   `json:"relationshipId,omitempty"`
+	AdditionalInfo *string   `json:"additionalInfo,omitempty"`
+	Imageurl       *string   `json:"imageurl,omitempty"`
+	Score          *float64  `json:"score,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+type SearchResults struct {
+	Total   int32           `json:"total"`
+	Results []*SearchResult `json:"results"`
+}
+
 type SocialMediaInput struct {
 	Name string `json:"name"`
 	Icon string `json:"icon"`
