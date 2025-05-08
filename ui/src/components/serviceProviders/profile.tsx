@@ -311,7 +311,7 @@ const ProviderProfile = ({
                       <DialogTitle>About Me</DialogTitle>
                     </DialogHeader>
 
-                    <DialogDescription className="text-muted-foreground max-h-96 overflow-y-auto">
+                    <DialogDescription className="text-muted text-base max-h-96 overflow-y-auto">
                       {provider?.aboutMe}
                     </DialogDescription>
                     <DialogFooter>
