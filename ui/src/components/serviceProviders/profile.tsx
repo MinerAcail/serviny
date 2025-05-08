@@ -58,16 +58,15 @@ const GET_PROVIDER = gql`
   }
 `;
 
-
 const GET_THEME = gql`
-   query GetUseTheme($serviceId:String!){
-    getUseTheme(ServiceId:$serviceId)
+  query GetUseTheme($serviceId: String!) {
+    getUseTheme(ServiceId: $serviceId)
   }
 `;
 export function ServiceProviderProfile() {
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // console.log(serviceId);
-  const {setTheme}=useTheme()
+  const { setTheme } = useTheme();
 
   const {
     data: themeData,
@@ -81,7 +80,7 @@ export function ServiceProviderProfile() {
       setTheme(themeData.getUseTheme); // Assuming it's a string like "dark" or "light"
     }
   }, [themeData, setTheme]);
-  
+
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
   });
@@ -238,6 +237,8 @@ const ProviderProfile = ({
   setDialogAbout: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const { isAuthenticated } = useAuth();
+  const { theme } = useTheme();
+
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   // Add bookingType state
   const { data: bookingTypeData } = useQuery(GET_BOOK_TYPES, {
@@ -252,17 +253,17 @@ const ProviderProfile = ({
   const { isMatch } = useCheckAuthId(serviceId);
 
   return (
-    <div 
+    <div
       className="relative rounded-lg shadow-md mb-8 overflow-hidden"
       style={{
         backgroundImage: `url(${provider?.dpfile || "/default-profile.png"})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
       }}
     >
       {/* Blur overlay */}
       <div className="absolute inset-0 backdrop-blur-lg bg-primary-foreground/70 "></div>
-      
+
       {/* Content container with proper padding and spacing */}
       <div className="relative z-10 lg:p-6 pt-6">
         <div className="flex flex-col lg:flex-row gap-8">
@@ -278,7 +279,14 @@ const ProviderProfile = ({
           </div>
 
           {/* Provider Details */}
-          <div className="flex-1 flex flex-col  rounded-md p-7 w-full inset-0 backdrop-blur-lg bg-primary-foreground/70">
+          <div
+            className={`flex-1 flex flex-col  rounded-md p-7 w-full inset-0 backdrop-blur-lg 
+          ${
+            theme === "blue"
+              ? "bg-secondary-foreground/90"
+              : "bg-primary-foreground"
+          }`}
+          >
             <div className="text-center lg:text-left mb-6">
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-2 text-white">
                 {provider?.name || "Provider Name"}
@@ -307,7 +315,10 @@ const ProviderProfile = ({
                     <SocialMediaManager serviceId={serviceId ?? ""} />
                   </div>
                 </div>
-                <p className="mt-3 leading-relaxed text-white/90">
+                <p
+                  onClick={() => setDialogAbout(true)}
+                  className="mt-3 leading-relaxed text-white/90"
+                >
                   {provider?.aboutMe?.length > 100
                     ? `${provider?.aboutMe.substring(0, 100)}...`
                     : provider?.aboutMe}
@@ -326,17 +337,24 @@ const ProviderProfile = ({
               {/* About Me Dialog */}
               {isDialogAbout && (
                 <Dialog open={isDialogAbout} onOpenChange={setDialogAbout}>
-                  <DialogContent className="rounded-lg">
+                  <DialogContent 
+                 className={`  rounded-md p-7 w-full text-secondary backdrop-blur-lg 
+                  ${
+                    theme === "blue"
+                      ? "bg-secondary-foreground/90"
+                      : "bg-primary-foreground"
+                  }`}
+                  >
                     <DialogHeader>
                       <DialogTitle>About Me</DialogTitle>
                     </DialogHeader>
 
-                    <DialogDescription className="text-muted text-base max-h-96 overflow-y-auto">
+                    <DialogDescription className="text-muted  text-base max-h-96 overflow-y-auto">
                       {provider?.aboutMe}
                     </DialogDescription>
                     <DialogFooter>
                       <Button
-                        variant="outline"
+                        variant="default"
                         onClick={() => setDialogAbout(false)}
                       >
                         Close
@@ -441,52 +459,57 @@ const ProviderProfile = ({
   );
 };
 
-
-
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy } from "lucide-react";
 // import Link from "next/link"
 
 // import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/middleware/context/theme-provider";
 
 interface ContactInfoProps {
   provider?: {
-    number?: string
-    email?: string
-    location?: string
-  }
-  className?: string
+    number?: string;
+    email?: string;
+    location?: string;
+  };
+  className?: string;
 }
 
 export default function ContactInfo({ provider, className }: ContactInfoProps) {
-  const [copied, setCopied] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(type)
-    setTimeout(() => setCopied(null), 2000)
-  }
+    navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   // Format location for Google Maps URL
   const getGoogleMapsUrl = (location: string) => {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
-  }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location
+    )}`;
+  };
 
-  if (!provider) return null
+  if (!provider) return null;
 
   return (
     <TooltipProvider>
       <div
         className={cn(
-          "flex flex-col space-y-3 w-fit md:flex-row md:space-y-0 md:space-x-3",
+          "flex flex-col space-y-3 w-fit text-white md:flex-row md:space-y-0 md:space-x-3",
           className
         )}
       >
         {provider.number && (
           <div className="flex w-fit items-center rounded-md border p-2 transition-colors hover:bg-muted/50">
-            <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Phone className="mr-2 h-4 w-4  text-white text-muted-foreground" />
             <Link
               to={`tel:${provider.number.replace(/\s+/g, "")}`}
               className="mr-2 text-sm hover:underline"
@@ -504,7 +527,7 @@ export default function ContactInfo({ provider, className }: ContactInfoProps) {
                   {copied === "number" ? (
                     <Check className="h-4 w-4 text-green-500" />
                   ) : (
-                    <Copy className="h-4 w-4 text-muted-foreground" />
+                    <Copy className="h-4 w-4  text-white/70" />
                   )}
                   <span className="sr-only">Copy phone number</span>
                 </Button>
@@ -518,12 +541,12 @@ export default function ContactInfo({ provider, className }: ContactInfoProps) {
 
         {provider.email && (
           <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
-            <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+            <Mail className="mr-2 h-4 w-4  text-white text-muted-foreground" />
             <Link
               to={`mailto:${provider.email}`}
               className="mr-2 text-sm hover:underline"
             >
-              {provider.email.slice(0,16)}
+              {provider.email.slice(0, 16)}
             </Link>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -536,7 +559,7 @@ export default function ContactInfo({ provider, className }: ContactInfoProps) {
                   {copied === "email" ? (
                     <Check className="h-4 w-4 text-green-500" />
                   ) : (
-                    <Copy className="h-4 w-4 text-muted-foreground" />
+                    <Copy className="h-4 w-4  text-white/70" />
                   )}
                   <span className="sr-only">Copy email address</span>
                 </Button>
@@ -550,7 +573,7 @@ export default function ContactInfo({ provider, className }: ContactInfoProps) {
 
         {provider.location && (
           <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
-            <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+            <MapPin className="mr-2 h-4 w-4  text-white text-muted-foreground" />
             <Link
               to={getGoogleMapsUrl(provider.location)}
               target="_blank"
@@ -572,7 +595,7 @@ export default function ContactInfo({ provider, className }: ContactInfoProps) {
                   {copied === "location" ? (
                     <Check className="h-4 w-4 text-green-500" />
                   ) : (
-                    <Copy className="h-4 w-4 text-muted-foreground" />
+                    <Copy className="h-4 w-4  text-white/70" />
                   )}
                   <span className="sr-only">Copy address</span>
                 </Button>
