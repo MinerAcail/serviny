@@ -13,8 +13,8 @@ export interface Gallery {
 import { gql } from "@apollo/client";
 //
 export const GET_ALL_GALLERY = gql`
-  query GetAllGallery($serviceId: String!) {
-    getAllGallery(ServiceId: $serviceId) {
+  query GetAllGallery($serviceId: String!, $query: String, $limit: Int, $offset: Int) {
+    getAllGallery(ServiceId: $serviceId, query: $query, limit: $limit, offset: $offset) {
       id
       title
       description
@@ -25,6 +25,7 @@ export const GET_ALL_GALLERY = gql`
     }
   }
 `;
+
 
 export const CREATE_POLICY = gql`
   mutation CreatePolicy($input: CreatePolicyInput!) {

@@ -254,9 +254,42 @@ export function WorkGallery() {
   const { serviceId } = useParams<{ serviceId: string }>();
   const [filter, setFilter] = useState("all");
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
-  const { loading, error, data, refetch } = useQuery(GET_ALL_GALLERY, {
-    variables: { serviceId },
+  const [offset, setOffset] = useState(0);
+  const limit = 12;
+
+  const [galleryItems, setGalleryItems] = useState<Gallery[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+
+  const { loading, error, fetchMore, refetch } = useQuery(GET_ALL_GALLERY, {
+    variables: {
+      serviceId,
+      query: filter === "all" ? null : filter.toLowerCase(),
+      limit,
+      offset: 0,
+    },
+    onCompleted: (data) => {
+      setGalleryItems(data.getAllGallery);
+      setHasMore(data.getAllGallery.length === limit);
+    },
   });
+
+  const handleViewMore = async () => {
+    const newOffset = offset + limit;
+
+    const { data: moreData } = await fetchMore({
+      variables: {
+        serviceId,
+        query: filter === "all" ? null : filter.toLowerCase(),
+        limit,
+        offset: newOffset,
+      },
+    });
+
+    const newItems = moreData?.getAllGallery || [];
+    setGalleryItems((prev) => [...prev, ...newItems]);
+    setOffset(newOffset);
+    setHasMore(newItems.length === limit);
+  };
 
   const handleGalleryClick = (gallery: Gallery) => {
     setSelectedGallery(gallery);
@@ -266,8 +299,9 @@ export function WorkGallery() {
     setSelectedGallery(null);
   };
 
-  if (loading)
+  if (loading && galleryItems.length === 0)
     return <div className="text-center py-12">Loading gallery...</div>;
+
   if (error)
     return (
       <div className="text-center py-12 text-red-500">
@@ -275,30 +309,37 @@ export function WorkGallery() {
       </div>
     );
 
-  const galleryItems = data?.getAllGallery || [];
-
-  const filteredGallery = galleryItems?.filter((item: Gallery) =>
-    filter === "all" ? true : item?.categories?.includes(filter.toLowerCase())
-  );
-
   return (
     <div>
       <div className="mb-3 flex flex-col items-end justify-between gap-4 sm:flex-row sm:items-center">
         <CategoryFilter
           value={filter}
-          onChange={setFilter}
+          onChange={(value) => {
+            const normalizedFilter = value.toLowerCase();
+            setFilter(value);
+            setOffset(0);
+            refetch({
+              serviceId,
+              query: value === "all" ? null : normalizedFilter,
+              limit,
+              offset: 0,
+            }).then(({ data }) => {
+              setGalleryItems(data.getAllGallery);
+              setHasMore(data.getAllGallery.length === limit);
+            });
+          }}
           serviceId={serviceId ?? ""}
         />
       </div>
 
-      {filteredGallery.length === 0 ? (
+      {galleryItems.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No gallery items found. Try changing the filter or add new items.
         </div>
       ) : (
         <>
           <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mx-2">
-            {filteredGallery.map((gallery: Gallery) => (
+            {galleryItems.map((gallery: Gallery) => (
               <GalleryCard
                 key={gallery.id}
                 gallery={gallery}
@@ -307,23 +348,28 @@ export function WorkGallery() {
             ))}
           </div>
 
-          <div className="mt-10 flex justify-center">
-            <Button variant="outline" className="gap-2 rounded-full px-6">
-              <Camera className="h-4 w-4" />
-              View More Projects
-            </Button>
-          </div>
+          {hasMore && (
+            <div className="mt-10 flex justify-center">
+              <Button
+                variant="outline"
+                className="gap-2 rounded-full px-6"
+                onClick={handleViewMore}
+                disabled={loading}
+              >
+                <Camera className="h-4 w-4" />
+                View More Projects
+              </Button>
+            </div>
+          )}
         </>
       )}
-{/*  */}
+
       <GalleryDetailDialog
         gallery={selectedGallery}
         open={!!selectedGallery}
         onOpenChange={(open: boolean) => !open && handleDialogClose()}
         serviceId={serviceId ?? ""}
-        refetch={() => {
-          refetch();
-        }}
+        refetch={() => refetch()}
       />
     </div>
   );
