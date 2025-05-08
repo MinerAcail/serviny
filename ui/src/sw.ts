@@ -1,50 +1,35 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
-import { NetworkFirst, CacheFirst } from "workbox-strategies";
+import { NetworkFirst, CacheFirst, NetworkOnly, StaleWhileRevalidate } from "workbox-strategies";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
 import { BackgroundSyncPlugin } from "workbox-background-sync";
 
-// Inject manifest
 declare let self: ServiceWorkerGlobalScope;
+
+// ✅ Precache assets
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
-// ✅ SPA fallback for navigation
+// ✅ SPA fallback
 registerRoute(
   new NavigationRoute(
     new NetworkFirst({ cacheName: "html-cache" })
   )
 );
 
-// ✅ Cache GraphQL queries (POST) — api.serviny.com/query
-registerRoute(
-  ({ url, request }) =>
-    request.method === "POST" && url.hostname === "api.serviny.com" && url.pathname === "/query",
-  new NetworkFirst({
-    cacheName: "graphql-query-cache",
-    networkTimeoutSeconds: 3,
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
-  }),
-  "POST"
-);
-
-// ✅ Background sync for failed mutations
+// ✅ Background sync for GraphQL POST requests
 const bgSyncPlugin = new BackgroundSyncPlugin("gql-mutations-queue", {
-  maxRetentionTime: 24 * 60,
+  maxRetentionTime: 24 * 60, // 24 hours
 });
 
 registerRoute(
   ({ url, request }) =>
-    request.method === "POST" && url.hostname === "api.serviny.com" && url.pathname === "/query",
-  new NetworkFirst({
-    cacheName: "graphql-mutation-cache",
-    plugins: [
-      bgSyncPlugin,
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
+    request.method === "POST" &&
+    url.hostname === "api.serviny.com" &&
+    url.pathname === "/query",
+  new NetworkOnly({
+    plugins: [bgSyncPlugin],
   }),
   "POST"
 );
@@ -56,7 +41,18 @@ registerRoute(
     cacheName: "images-cache",
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 }),
+      new ExpirationPlugin({
+        maxEntries: 100,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
+      }),
     ],
   })
 );
+
+// Cache manifest.json with fallback
+registerRoute(
+    ({ url }) => url.pathname.endsWith("manifest.json"),
+    new StaleWhileRevalidate({
+      cacheName: "manifest-cache",
+    })
+  );
