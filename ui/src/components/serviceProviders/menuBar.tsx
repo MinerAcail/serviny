@@ -26,7 +26,7 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
   const location = useLocation();
   const home = location.pathname === "/";
   const isBookTypes = location.pathname === "/booktypes";
-  const search = location.pathname === "/providers";
+  const search = location.pathname.startsWith("/providers/");
   const Servicetabs =
     location.pathname.startsWith("/time/") ||
     location.pathname.startsWith("/booktypes");
