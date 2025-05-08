@@ -101,6 +101,7 @@ func CheckDuplicateRecordsEmailNumber(db *gorm.DB, model interface{}, inputEmail
 	return nil
 }
 func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, inputPhoneNumber string) error {
+
 	// Check if a user with the same name and number already exists
 	err := db.Where("name = ? AND number = ?", inputName, inputPhoneNumber).First(model).Error
 	if err == nil {
@@ -114,6 +115,10 @@ func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, 
 	err = db.Where("number = ?", inputPhoneNumber).First(model).Error
 	if err == nil {
 		return fmt.Errorf(" A member with the same number already exists")
+	}
+	// Skip the check for the specific email "serviny360@gmail.com"
+	if email == "serviny360@gmail.com" {
+		return nil
 	}
 	// Check if a user with the same email already exists
 	err = db.Where("email = ?", email).First(model).Error
@@ -284,7 +289,6 @@ func IsValidPhone(number string) bool {
 	return re.MatchString(number)
 }
 
-
 // Helper function to check if two time ranges overlap
 func IsTimeOverlap(start1, end1, start2, end2 string) bool {
 	// If one range ends before or at the same time the other starts, they don't overlap
@@ -293,23 +297,22 @@ func IsTimeOverlap(start1, end1, start2, end2 string) bool {
 
 // Helper function to handle nil string pointers
 func GetStringValue(s *string) string {
-    if s == nil {
-        return ""
-    }
-    return *s
+	if s == nil {
+		return ""
+	}
+	return *s
 }
-
 
 // Helper function to remove duplicate strings from a slice
 func RemoveDuplicates(strSlice []string) []string {
-    keys := make(map[string]bool)
-    list := []string{}
-    
-    for _, entry := range strSlice {
-        if _, value := keys[entry]; !value {
-            keys[entry] = true
-            list = append(list, entry)
-        }
-    }
-    return list
+	keys := make(map[string]bool)
+	list := []string{}
+
+	for _, entry := range strSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

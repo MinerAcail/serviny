@@ -77,7 +77,7 @@ export function ServiceProviderProfile() {
   });
   useEffect(() => {
     if (themeData?.getUseTheme) {
-      setTheme(themeData.getUseTheme); // Assuming it's a string like "dark" or "light"
+      setTheme(themeData.getUseTheme); 
     }
   }, [themeData, setTheme]);
 
@@ -337,8 +337,8 @@ const ProviderProfile = ({
               {/* About Me Dialog */}
               {isDialogAbout && (
                 <Dialog open={isDialogAbout} onOpenChange={setDialogAbout}>
-                  <DialogContent 
-                 className={`  rounded-md p-7 w-full text-secondary backdrop-blur-lg 
+                  <DialogContent
+                    className={`  rounded-md p-7 w-full text-secondary backdrop-blur-lg 
                   ${
                     theme === "blue"
                       ? "bg-secondary-foreground/90"
