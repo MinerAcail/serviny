@@ -100,6 +100,7 @@ func CheckDuplicateRecordsEmailNumber(db *gorm.DB, model interface{}, inputEmail
 
 	return nil
 }
+
 func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, inputPhoneNumber string) error {
 
 	// Check if a user with the same name and number already exists
