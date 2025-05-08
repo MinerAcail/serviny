@@ -9,23 +9,24 @@ import { useAuth } from "@/middleware/context/authContext.tsx";
 import Logout from "@/app/LogOut.tsx";
 import RegisterOptions from "@/app/checkUserCreateUI.tsx";
 import SpectaclesLogo from "./logoicon.tsx";
-import {
-  NavigationMenu,
-  NavigationMenuList,
-} from "../ui/navigation-menu.tsx";
+import { NavigationMenu, NavigationMenuList } from "../ui/navigation-menu.tsx";
 import { SearchDropdown } from "./searchTab.tsx";
 
 interface SelectCategoryFilterProps {
   onSearch?: (value: string) => void;
-  serviceId?:string
+  serviceId?: string;
 }
 
-const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({ onSearch,serviceId }) => {
+const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
+  onSearch,
+  serviceId,
+}) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const location = useLocation();
   const home = location.pathname === "/";
   const isBookTypes = location.pathname === "/booktypes";
+  const search = location.pathname === "/providers";
   const Servicetabs =
     location.pathname.startsWith("/time/") ||
     location.pathname.startsWith("/booktypes");
@@ -116,8 +117,7 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({ onSearch,serviceId }
             onSearch={onSearch}
           />
         )}
-
-        <SearchDropdown serviceId={serviceId ?? ""}/>
+        {search && <SearchDropdown serviceId={serviceId ?? ""} />}
       </div>
     </nav>
   );
