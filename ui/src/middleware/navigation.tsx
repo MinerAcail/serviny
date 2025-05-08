@@ -29,6 +29,7 @@ import { ThemeProvider } from "./context/theme-provider";
 import {SpectaclesLoading} from "@/components/custom/loading";
 import { ServiceProviderProfile } from "@/components/serviceProviders/profile";
 import { SocialForm } from "@/components/custom/Socials/forms";
+import { InstallPage } from "@/components/custom/downloads/install-page";
 // import SocialForm from "@/components/custom/Socials/forms";
 // WorksNav
 const router = createBrowserRouter([
@@ -48,6 +49,8 @@ const router = createBrowserRouter([
 
   { path: "/", element: <ServiceProvidersDirectory /> },
   { path: "/upload", element: <CreateGalleryForm /> },
+  { path: "/install", element: <InstallPage /> },
+
   { path: "/social/:serviceId", element: <SocialForm /> },
   { path: "/time/:serviceId", element: <ProviderCheckOut /> },
   { path: "/booktypes", element: <BookingTypes /> },

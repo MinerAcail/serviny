@@ -4,14 +4,14 @@ import { Button } from "../ui/button";
 import { Link, useLocation } from "react-router";
 import Search from "../../../icons/input-with-button.tsx";
 import Login from "@/app/Login.tsx";
-import { Library, LogIn } from "lucide-react";
+import { ArrowBigDownDash, Library, LogIn } from "lucide-react";
 import { useAuth } from "@/middleware/context/authContext.tsx";
 import Logout from "@/app/LogOut.tsx";
 import RegisterOptions from "@/app/checkUserCreateUI.tsx";
 import SpectaclesLogo from "./logoicon.tsx";
 import { NavigationMenu, NavigationMenuList } from "../ui/navigation-menu.tsx";
 import { SearchDropdown } from "./searchTab.tsx";
-
+ 
 interface SelectCategoryFilterProps {
   onSearch?: (value: string) => void;
   serviceId?: string;
@@ -35,11 +35,11 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-primary shadow-md py-2 px-4 flex justify-between items-center">
       {/* Logo */}
-      <Link to={"/"} className="flex items-center">
+      <Link to={"/"} className="flex w-[30%] items-center">
         <SpectaclesLogo size={"sm"} variant="secondary" />
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex   items-center gap-2">
         {!isSearchExpanded && (
           <>
             {!Servicetabs && <RegisterOptions />}
@@ -97,16 +97,29 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
                 </Logout>
               </>
             ) : (
-              <Login>
+              <>
+                <Login>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 text-sm px-3 py-1 md:px-4 md:py-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sign In</span>
+                  </Button>
+                </Login>
                 <Button
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2 text-sm px-3 py-1 md:px-4 md:py-2"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign In</span>
+                  <Link to="/install" className="flex items-center gap-2 p-2">
+                    <ArrowBigDownDash className="w-4 h-4" />
+
+                    <span className="hidden sm:inline">Download</span>
+                  </Link>
                 </Button>
-              </Login>
+              </>
             )}
           </>
         )}

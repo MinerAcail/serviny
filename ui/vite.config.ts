@@ -1,24 +1,66 @@
 import path from "path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-// import ssr from "vite-plugin-ssr/plugin";
+import { VitePWA } from "vite-plugin-pwa";
+
 export const production = true;
 
 export default defineConfig({
-  plugins: [react(), ],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
+      filename: "sw.ts",
+      srcDir: "src",
+      strategies: "injectManifest",
+      injectManifest: {
+        swSrc: "src/sw.ts",
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 💡 allow 5MB precache files
+      },
+      manifest: {
+        name: "Serviny",
+        short_name: "Serviny",
+        description: "Your Serviny Progressive Web App",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          {
+            src: "pwa-64x64.png",
+            sizes: "64x64",
+            type: "image/png",
+          },
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-
-
   server: {
     proxy: {
       "/minio": {
-        // target: 'http://localhost:9000', // Adjust if MinIO is not running on
-        target: "https://files.serviny.com/", // Adjust if MinIO is not running on 192.168.62.193
-
+        target: "https://files.serviny.com/",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
       },
@@ -30,12 +72,6 @@ export default defineConfig({
     host: "0.0.0.0",
   },
   preview: {
-    allowedHosts: [".serviny.com",".r.serviny.com"], // Allow serviny.com
+    allowedHosts: [".serviny.com", ".r.serviny.com"],
   },
 });
-//
-
-// const API_URL =
-//   window.location.hostname === "localhost"
-//     ? "http://16.16.208.207:9000"
-//     : `https://${window.location.hostname}/9000`; // Changed HTTPS to HTTP

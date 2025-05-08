@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Check,  Info } from "lucide-react";
+import { Search, Check, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery, gql } from "@apollo/client";
@@ -575,7 +575,7 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
                   Error loading results
                 </div>
               ) : results.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-2 ">
                   {results.map((item) => (
                     <li key={item.id}>
                       <a
