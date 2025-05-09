@@ -11,7 +11,7 @@ import RegisterOptions from "@/app/checkUserCreateUI.tsx";
 import SpectaclesLogo from "./logoicon.tsx";
 import { NavigationMenu, NavigationMenuList } from "../ui/navigation-menu.tsx";
 import { SearchDropdown } from "./searchTab.tsx";
- 
+
 interface SelectCategoryFilterProps {
   onSearch?: (value: string) => void;
   serviceId?: string;
@@ -43,6 +43,17 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
         {!isSearchExpanded && (
           <>
             {!Servicetabs && <RegisterOptions />}
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 text-sm px-3 py-1 md:px-4 md:py-2"
+            >
+              <Link to="/install" className="flex items-center gap-2 p-2">
+                <ArrowBigDownDash className="w-4 h-4" />
+
+                <span className="hidden sm:inline">Download</span>
+              </Link>
+            </Button>
 
             {isAuthenticated ? (
               <>
@@ -108,17 +119,6 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
                     <span className="hidden sm:inline">Sign In</span>
                   </Button>
                 </Login>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 text-sm px-3 py-1 md:px-4 md:py-2"
-                >
-                  <Link to="/install" className="flex items-center gap-2 p-2">
-                    <ArrowBigDownDash className="w-4 h-4" />
-
-                    <span className="hidden sm:inline">Download</span>
-                  </Link>
-                </Button>
               </>
             )}
           </>
