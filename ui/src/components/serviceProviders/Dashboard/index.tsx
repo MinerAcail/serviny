@@ -10,7 +10,7 @@ import { Link } from "react-router";
 // import NavBar from "../navBar";
 import { useQuery, gql } from "@apollo/client";
 import SearchDataDasBoard from "./searchDasBoard";
-import MainNaveBar from "../menuBar";
+// import MainNaveBar from "../menuBar";
 
 const GET_DASHBOARD_DATA = gql`
   query GetDashboardData {
@@ -22,6 +22,7 @@ const GET_DASHBOARD_DATA = gql`
     }
   }
 `;
+//
 export default function Dashboard() {
   const { loading, error, data } = useQuery(GET_DASHBOARD_DATA);
 
@@ -35,67 +36,65 @@ export default function Dashboard() {
   } = data.getDashboardData;
 
   return (
-    <div className="flex min-h-screen  items-center w-full flex-col">
-      <div className="pb-11">
-        <MainNaveBar />
-      </div>
-      <main className="flex-1">
-        <div className="container py-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Stats</CardTitle>
-                <CardDescription>
-                  Overview of your contact management
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-                    <span className="text-3xl font-bold">
-                      {totalUsers.length}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Total User
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-                    <span className="text-3xl font-bold">
-                      {totalBookingsIds.length}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Favorites
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-                    <span className="text-3xl font-bold">
-                      {recentActivityIds.length}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Recent Activity
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-                    <span className="text-3xl font-bold">
-                      {categoriesServiceTypes.length}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Categories
-                    </span>
-                  </div>
-                  <Button className="justify-start" variant="outline" asChild>
-                    <Link to="/contacts">All Contacts</Link>
-                  </Button>
-                  <Button className="justify-start" variant="outline" asChild>
-                    <Link to="/favorites">View Favorites</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+    <div className=" py-8 w-full">
+    {/* <div className="pb-14">
+      <MainNaveBar />
+    </div> */}
+
+    <div className=" px-4 py-8 mx-auto ">
+      {/* <div className="max-w-3xl mx-auto"> */}
+      <Card className="  ">
+        <CardHeader>
+          <CardTitle>Quick Stats</CardTitle>
+          <CardDescription>
+            Overview of your contact management
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
+              <span className="text-3xl font-bold">
+                {totalUsers.length}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Total User
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
+              <span className="text-3xl font-bold">
+                {totalBookingsIds.length}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Favorites
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
+              <span className="text-3xl font-bold">
+                {recentActivityIds.length}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Recent Activity
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
+              <span className="text-3xl font-bold">
+                {categoriesServiceTypes.length}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Categories
+              </span>
+            </div>
+            <Button className="justify-start" variant="outline" asChild>
+              <Link to="/contacts">All Contacts</Link>
+            </Button>
+            <Button className="justify-start" variant="outline" asChild>
+              <Link to="/favorites">View Favorites</Link>
+            </Button>
           </div>
-          <SearchDataDasBoard />
-        </div>
-      </main>
+        </CardContent>
+      </Card>
+      <SearchDataDasBoard />
     </div>
+  </div>
   );
 }

@@ -22,6 +22,9 @@ import {
   Edit2,
   Check,
   X,
+  Phone,
+  Mail,
+  MapPin,
 } from "lucide-react";
 import tiktok from "../../../assets/tt.png";
 import reddit from "../../../assets/rr.png";
@@ -46,9 +49,11 @@ import {
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Link, useNavigate, useParams } from "react-router";
-import MainNaveBar from "@/components/serviceProviders/menuBar";
+// import MainNaveBar from "@/components/serviceProviders/menuBar";
 import BackButton from "@/components/back";
 import { useCheckAuthId } from "@/middleware/context/checkID";
+// import ContactInfo from "@/components/serviceProviders/profile";
+// import { provider } from "@/components/landing/providerLandingPage";
 interface SocialDataItem {
   name: string;
   icon: string;
@@ -225,6 +230,7 @@ interface SocialLink {
 interface SocialDialogProps {
   socialLinks?: SocialLink[];
   serviceId: string;
+  provider: provider;
 }
 
 interface SocialAccount {
@@ -235,9 +241,18 @@ interface SocialAccount {
   icon: React.ReactNode;
   color: string;
 }
-
+interface provider {
+  number?: string;
+  email?: string;
+  location?: string;
+}
 // SocialDialog Component
-function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
+
+function SocialDialog({
+  socialLinks = [],
+  serviceId,
+  provider,
+}: SocialDialogProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -249,7 +264,7 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
     <>
       <div
         onClick={() => setOpen(true)}
-        className="relative flex items-center cursor-pointer hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2"
+        className="relative flex items-center  cursor-pointer hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2"
       >
         <div className="relative flex mr-3">
           {buttonIcons.map((social, index) => (
@@ -272,7 +287,7 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
           {buttonIcons.length === 0 && (
             <Button className="gap-2 rounded-full bg-primary hover:bg-primary/90">
               <Plus className="h-4 w-4" />
-              Socials
+              Contact
             </Button>
           )}
         </div>
@@ -281,6 +296,52 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white rounded-2xl shadow-xl max-h-[85vh]">
           <div className="p-6 overflow-y-auto max-h-[calc(85vh-60px)]">
+            {/* Provider Information Section */}
+            <div className="mb-6 border-b pb-6">
+              <div className="mb-4">
+                <h3 className="font-medium text-lg">Contact Information</h3>
+                <p className="text-sm text-gray-500">
+                  Get in touch with this provider
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {provider.number && (
+                  <a
+                    href={`tel:${provider.number}`}
+                    className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                      <Phone className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <span>{provider.number}</span>
+                  </a>
+                )}
+
+                {provider.email && (
+                  <a
+                    href={`mailto:${provider.email}`}
+                    className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                      <Mail className="h-4 w-4 text-green-600" />
+                    </div>
+                    <span>{provider.email.slice(0, 20)}</span>...
+                  </a>
+                )}
+
+                {provider.location && (
+                  <div className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-3">
+                      <MapPin className="h-4 w-4 text-red-600" />
+                    </div>
+                    <span>{provider.location}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Admin Controls */}
             {isMatch && (
               <div className="text-center mb-6">
                 <Button
@@ -295,6 +356,8 @@ function SocialDialog({ socialLinks = [], serviceId }: SocialDialogProps) {
               </div>
             )}
 
+            {/* Social Links Section */}
+            <h3 className="font-medium mb-3">Social Media</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {socialLinks.length > 0 ? (
                 socialLinks.map((social) => (
@@ -560,11 +623,10 @@ export function SocialForm() {
   //   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="pb-20">
-        <MainNaveBar />
-      </div>
-      <div className="flex flex-col md:flex-row gap-6">
+    <div className="flex py-8 w-full">
+ 
+
+    <div className=" px-4 lg:flex gap-4 py-8 mx-auto ">
         {/* Form Section */}
         <Card className="flex-1">
           <BackButton />
@@ -729,8 +791,10 @@ export function SocialForm() {
 // Main SocialMediaManager component
 export default function SocialMediaManager({
   serviceId,
+  provider,
 }: {
   serviceId: string;
+  provider: provider;
 }) {
   // const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   //
@@ -766,7 +830,11 @@ export default function SocialMediaManager({
   }
 
   return (
-    <SocialDialog socialLinks={formatSocialLinks()} serviceId={serviceId} />
+    <SocialDialog
+      provider={provider}
+      socialLinks={formatSocialLinks()}
+      serviceId={serviceId}
+    />
   );
 
   //   return <SocialForm />;

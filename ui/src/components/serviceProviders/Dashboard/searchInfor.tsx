@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { debounce } from "lodash";
 import { Link } from "react-router";
-import MainNaveBar from "../menuBar";
+// import MainNaveBar from "../menuBar";
 
 // GraphQL Query
 const GET_PROVIDERS_USERS_CONTACT = gql`
@@ -135,10 +135,11 @@ export default function SearchData() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="pb-20">
+     <div className=" py-14 w-full">
+
+      {/* <div className="pb-20">
         <MainNaveBar />
-      </div>
+      </div> */}
       <Card className="shadow-md border-0">
         <CardHeader className="border-b bg-muted/50">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -215,7 +216,7 @@ export default function SearchData() {
               {contacts.map((contact) => (
                 <Link
                   key={contact.id}
-                  to={`/c/${contact.id}`}
+                  to={`/dbp/c/${contact.id}`}
                   className="block transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
                 >
                   <div className="flex items-center p-4 sm:p-5">

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { gql, useQuery } from "@apollo/client";
-import { useParams } from "react-router";
+import { useLocation,  useParams } from "react-router";
 import {
   CalendarSync,
   Edit,
@@ -35,14 +35,14 @@ import CheckForBookTYpe from "../custom/checkForBookTYpe";
 import UserAuthCard from "../custom/users/create";
 import { useAuth } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
-import MainNaveBar from "./menuBar";
+// import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
 // import Socials from "../custom/Socials";
 // import SocialDialog from "../custom/Socials/social-dialog";
-import SocialMediaManager from "../custom/Socials/forms";
+// import SocialMediaManager from "../custom/Socials/forms";
 
-const GET_PROVIDER = gql`
+export const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
     getProvider(ServiceId: $serviceId) {
       id
@@ -58,28 +58,33 @@ const GET_PROVIDER = gql`
   }
 `;
 
-const GET_THEME = gql`
-  query GetUseTheme($serviceId: String!) {
-    getUseTheme(ServiceId: $serviceId)
-  }
-`;
+// const GET_THEME = gql`
+//   query GetUseTheme($serviceId: String!) {
+//     getUseTheme(ServiceId: $serviceId)
+//   }
+// `;
 export function ServiceProviderProfile() {
   const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+  const location = useLocation();
   // console.log(serviceId);
-  const { setTheme } = useTheme();
-
-  const {
-    data: themeData,
-    // loading: themeLoading,
-    // error: themeError,
-  } = useQuery(GET_THEME, {
-    variables: { serviceId },
-  });
-  useEffect(() => {
-    if (themeData?.getUseTheme) {
-      setTheme(themeData.getUseTheme); 
-    }
-  }, [themeData, setTheme]);
+  // const { setTheme } = useTheme();
+// inside your component
+// const navigate = useNavigate();
+  // Check if the query string contains ?lt
+  const isLtPresent = new URLSearchParams(location.search).has("lt");
+  const isOpPresent = new URLSearchParams(location.search).has("lo");
+  // const {
+  //   data: themeData,
+  //   // loading: themeLoading,
+  //   // error: themeError,
+  // } = useQuery(GET_THEME, {
+  //   variables: { serviceId },
+  // });
+  // useEffect(() => {
+  //   if (themeData?.getUseTheme) {
+  //     setTheme(themeData.getUseTheme); 
+  //   }
+  // }, [themeData, setTheme]);
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
@@ -90,9 +95,12 @@ export function ServiceProviderProfile() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [isDialogOpen, setDialogOpen] = useState(false);
-  const [isDialogAbout, setDialogAbout] = useState(false);
-
+  // const [isDialogOpen, setDialogOpen] = useState(false);
+  // const [isDialogAbout, setDialogAbout] = useState(false);
+  const [dialogState, setDialogState] = useState(() => {
+    const savedState = localStorage.getItem("isServiceDialogOpen");
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
   useEffect(() => {
     const handleScroll = () => {
       if (tabsRef.current && tabsPlaceholderRef.current) {
@@ -116,13 +124,38 @@ export function ServiceProviderProfile() {
   // if (error) return <p>Error: {error.message}</p>;
   // if () return <p>No provider found.</p>;
 
-  const provider = data?.getProvider;
+  // const provider = data?.getProvider;
+  
+  const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
+
+  
+  
+  if (showLandingPage) {
+ 
+    return (
+      <ServiceLandingPage
+        serviceId={serviceId ?? ""}
+        onClose={() => {
+          setDialogState(false);
+          localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
+        
+          const params = new URLSearchParams(location.search);
+          params.delete("lo");
+        
+          const newUrl = `${location.pathname}?${params.toString()}`;
+          window.location.href = newUrl; // Triggers full page reload
+        }}
+        
+      />
+    );
+  }
+
 
   return (
-    <div className="bg-gradient-to-b from-background to-muted/30 mt-4 w-full flex-col justify-center items-center ">
-      <div className="pb-11">
-        <MainNaveBar serviceId={serviceId} />
-      </div>
+    // <div className="flex py-8 w-full">
+ 
+
+    <div className="px-4 lg:flex gap-4 py-12 mx-auto ">
       {loading && !data?.getProvider ? (
         <SpectaclesLoading />
       ) : (
@@ -130,14 +163,15 @@ export function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
+            
             <div className="flex-col justify-center items-center">
-              <ProviderProfile
+              {/* <ProviderProfile
                 isDialogOpen={isDialogOpen}
                 provider={provider}
                 setDialogOpen={setDialogOpen}
                 isDialogAbout={isDialogAbout}
                 setDialogAbout={setDialogAbout}
-              />
+              /> */}
               <div className="col-span-8 ">
                 <div ref={tabsPlaceholderRef}></div>
 
@@ -157,7 +191,7 @@ export function ServiceProviderProfile() {
                       className="w-full"
                       ref={tabsRef}
                     >
-                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-muted/50 p-1">
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
                         <TabsTrigger value="portfolio" className="rounded-full">
                           Portfolio
                         </TabsTrigger>
@@ -179,7 +213,7 @@ export function ServiceProviderProfile() {
                   <Tabs
                     value={activeTab}
                     onValueChange={setActiveTab}
-                    className="w-full"
+                    className="w-full "
                   >
                     <TabsContent value="portfolio">
                       <WorkGallery />
@@ -223,7 +257,7 @@ enum BookType {
   PACKAGE = "PACKAGE",
   CUSTOM_QUOTE = "CUSTOM_QUOTE",
 }
-const ProviderProfile = ({
+export const ProviderProfile = ({
   provider,
   isDialogOpen,
   setDialogOpen,
@@ -302,7 +336,7 @@ const ProviderProfile = ({
                 <div className="flex justify-between items-center">
                   <ContactInfo provider={provider} />
                   <div className="block ml-2 lg:hidden">
-                    <SocialMediaManager serviceId={serviceId ?? ""} />
+                    {/* <SocialMediaManager serviceId={serviceId ?? ""} /> */}
                   </div>
                 </div>
               </div>
@@ -312,7 +346,7 @@ const ProviderProfile = ({
                 <div className="flex gap-4">
                   <h2 className="text-xl font-light text-white">About Me</h2>
                   <div className="lg:block hidden">
-                    <SocialMediaManager serviceId={serviceId ?? ""} />
+                    {/* <SocialMediaManager serviceId={serviceId ?? ""} /> */}
                   </div>
                 </div>
                 <p
@@ -471,7 +505,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/middleware/context/theme-provider";
-
+import ServiceLandingPage from "../landing/providerLandingPage";
 interface ContactInfoProps {
   provider?: {
     number?: string;

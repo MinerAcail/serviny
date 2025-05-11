@@ -27,7 +27,7 @@ import { ghSim } from "@/components/custom/ItemGrid";
 import { Textarea } from "@/components/ui/textarea";
 
 // GraphQL queries and mutations
-const GET_PRICE_CARDS = gql`
+export const GET_PRICE_CARDS = gql`
   query GetPriceCards($serviceId: String) {
     getpriceCardsinformation(serviceId: $serviceId) {
       card {

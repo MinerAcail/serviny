@@ -44,7 +44,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import OtpCard from "./createOTP";
-import MainNaveBar from "./menuBar";
+// import MainNaveBar from "./menuBar";
 import { countries } from "./data/countries";
 
 // GraphQL Mutation
@@ -451,12 +451,12 @@ export const CreateServiceProvider: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full">
-      <div className="pb-14">
+    <div className=" py-8 w-full">
+      {/* <div className="pb-14">
         <MainNaveBar />
-      </div>
+      </div> */}
 
-      <div className="container px-4 py-8 mx-auto">
+      <div className=" px-4 py-8 mx-auto">
         <div className="max-w-3xl mx-auto">
           {showOtpVerification ? (
             <div className="space-y-6">

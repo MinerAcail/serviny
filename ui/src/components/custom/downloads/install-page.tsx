@@ -6,7 +6,7 @@ import installAnimation from "./index.json";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowUpFromLine, Share } from "lucide-react";
-import MainNaveBar from "@/components/serviceProviders/menuBar";
+// import MainNaveBar from "@/components/serviceProviders/menuBar";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -57,9 +57,9 @@ export function InstallPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#F2F6FF] to-[#FFFFFF] dark:from-[#1A1C29] dark:to-[#121212]">
-        <div className="pb-11">
+        {/* <div className="pb-11">
               <MainNaveBar />
-            </div>
+            </div> */}
       <div
         className={`max-w-md w-full text-center transition-all duration-700 ease-out transform ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"

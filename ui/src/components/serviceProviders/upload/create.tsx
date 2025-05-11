@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import BackButton from "@/components/back";
 import { GET_ALL_GALLERY } from "../data/typesAndGql";
-import MainNaveBar from "../menuBar";
+// import MainNaveBar from "../menuBar";
 
 // GraphQL Mutations
 const CREATE_GALLERY = gql`
@@ -184,10 +184,10 @@ export const CreateGalleryForm: React.FC = () => {
   };
 
   return (
-    <div className="w-full">
-      <div className="pb-11">
-        <MainNaveBar />
-      </div>
+    <div className=" py-14 w-full">
+ 
+
+    {/* <div className=" px-4 py-8 mx-auto "> */}
       <Card className="w-full max-w-3xl mx-auto">
             <BackButton/>
         

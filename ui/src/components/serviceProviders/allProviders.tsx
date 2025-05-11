@@ -9,6 +9,7 @@ import LandingPage from "./page";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ItemNotFound, SpectaclesError, SpectaclesLoading } from "../custom/loading";
 import MainNaveBar from "./menuBar";
+// import MainNaveBar from "./menuBar";
 
 interface Provider {
   id: string;
@@ -121,7 +122,7 @@ export function ServiceProvidersDirectory() {
   }
 
   if (dialogState) {
-    return <LandingPage onClose={() => setDialogState(false)} />;
+    return <LandingPage  onClose={() => setDialogState(false)} />;
   }
 
   // if (loading && !data) return <SpectaclesLoading />;
@@ -143,6 +144,10 @@ export function ServiceProvidersDirectory() {
             to={`/providers/${provider.id}`}
             key={provider.id}
             className="group"
+            onClick={()=>{
+          localStorage.setItem("isServiceDialogOpen", JSON.stringify(true));
+
+            }}
           >
             <Card className="h-full hover:shadow-md transition-all">
               <div className="relative">

@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { GET_BOOK_TYPES } from "@/app/vendors/available";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/middleware/context/authContext";
-import MainNaveBar from "./menuBar";
+// import MainNaveBar from "./menuBar";
 
 const UPDATE_BOOKING_TYPE = gql`
   mutation updateBookingType($type: BookingType!) {
@@ -233,10 +233,11 @@ export default function BookingTypes() {
   ];
 
   return (
-    <div className="container mx-auto py-12 px-4">
-      <div className="pb-10">
+    <div className=" py-14 w-full">
+
+      {/* <div className="pb-10">
         <MainNaveBar />
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {bookingTypes.map((type) => {

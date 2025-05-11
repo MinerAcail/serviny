@@ -412,7 +412,8 @@ export default function AvailabilityPage() {
   };
 
   return (
-    <div className="container mx-auto py-6">
+    <div className=" py-10 w-full">
+
       <Tabs defaultValue="booked" className="container mx-auto py-6">
         {/* Tabs for switching between booked schedule and unavailable times */}
         {bookingType && bookingType.length > 0 ? (

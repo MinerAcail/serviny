@@ -1,33 +1,74 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useRef, useState, useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { gql, useQuery, useMutation } from "@apollo/client"
-import { toast } from "sonner"
+import { useRef, useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { gql, useQuery, useMutation } from "@apollo/client";
+import { toast } from "sonner";
 
 // UI Components
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "../ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Icons
-import { User, KeyRound, Camera, Calendar, ChevronRight, Share, Mails, NotebookTabs, MapPin, X, AlertCircle, Loader2 } from "lucide-react"
-import BackButton from "../back"
+import {
+  User,
+  KeyRound,
+  Camera,
+  Calendar,
+  ChevronRight,
+  Share,
+  Mails,
+  NotebookTabs,
+  MapPin,
+  X,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import BackButton from "../back";
 // import { ThemeSelector } from "@/hooks/theme-selector"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog"
-import { Label } from "../ui/label"
-import { ModeToggle } from "@/hooks/theme-selector"
-import MainNaveBar from "./menuBar"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Label } from "../ui/label";
+import { ModeToggle } from "@/hooks/theme-selector";
+// import MainNaveBar from "./menuBar";
 
 // GraphQL Queries and Mutations
 const GET_SERVICE = gql`
@@ -44,11 +85,19 @@ const GET_SERVICE = gql`
       createdAt
     }
   }
-`
+`;
 
 const UPDATE_SERVICE = gql`
-  mutation updateService($dpfile: Upload, $input: UpdateServiceInput!, $removeProfession: [String]) {
-    updateService(dpfile: $dpfile, input: $input, removeProfession: $removeProfession) {
+  mutation updateService(
+    $dpfile: Upload
+    $input: UpdateServiceInput!
+    $removeProfession: [String]
+  ) {
+    updateService(
+      dpfile: $dpfile
+      input: $input
+      removeProfession: $removeProfession
+    ) {
       id
       dpfile
       name
@@ -59,7 +108,7 @@ const UPDATE_SERVICE = gql`
       location
     }
   }
-`
+`;
 
 // Add these GraphQL mutations after the existing updateService mutation
 const UPDATE_REQUEST_OTP = gql`
@@ -71,7 +120,7 @@ const UPDATE_REQUEST_OTP = gql`
       email
     }
   }
-`
+`;
 
 const VERIFY_OTP = gql`
   mutation VerifyOtp($input: VerifyOtpInput!) {
@@ -83,7 +132,7 @@ const VERIFY_OTP = gql`
       email
     }
   }
-`
+`;
 
 const RESEND_OTP = gql`
   mutation ResendOtp($input: RequestOtpInput!) {
@@ -95,92 +144,103 @@ const RESEND_OTP = gql`
       email
     }
   }
-`
+`;
 
 const useUpdatePasswordOtp = () => {
-  const [showOtpDialog, setShowOtpDialog] = useState(false)
-  const [otpValue, setOtpValue] = useState("")
-  const [otpError, setOtpError] = useState("")
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
-  const [passwordData, setPasswordData] = useState<PasswordFormValues | null>(null)
-  const [otpResendTimer, setOtpResendTimer] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [passwordData, setPasswordData] = useState<PasswordFormValues | null>(
+    null
+  );
+  const [otpResendTimer, setOtpResendTimer] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [requestPasswordOtp, { loading: requestingOtp }] = useMutation(UPDATE_REQUEST_OTP, {
-    onCompleted: (data) => {
-      if (data.reSetPasswordORUpdateOTP.success) {
-        setShowOtpDialog(true)
-        setOtpResendTimer(60) // Start 60 second timer
-        toast.success("Verification code sent", {
-          description: `We've sent a verification code to ${data.reSetPasswordORUpdateOTP.email}`,
-        })
-      } else {
+  const [requestPasswordOtp, { loading: requestingOtp }] = useMutation(
+    UPDATE_REQUEST_OTP,
+    {
+      onCompleted: (data) => {
+        if (data.reSetPasswordORUpdateOTP.success) {
+          setShowOtpDialog(true);
+          setOtpResendTimer(60); // Start 60 second timer
+          toast.success("Verification code sent", {
+            description: `We've sent a verification code to ${data.reSetPasswordORUpdateOTP.email}`,
+          });
+        } else {
+          toast.error("Error", {
+            description:
+              data.reSetPasswordORUpdateOTP.message ||
+              "Failed to send verification code",
+          });
+        }
+        setIsLoading(false);
+      },
+      onError: (error) => {
         toast.error("Error", {
-          description: data.reSetPasswordORUpdateOTP.message || "Failed to send verification code",
-        })
-      }
-      setIsLoading(false)
-    },
-    onError: (error) => {
-      toast.error("Error", {
-        description: error.message || "Failed to send verification code",
-      })
-      setIsLoading(false)
-    },
-  })
+          description: error.message || "Failed to send verification code",
+        });
+        setIsLoading(false);
+      },
+    }
+  );
 
   const [verifyPasswordOtp] = useMutation(VERIFY_OTP, {
     onCompleted: (data) => {
-      setIsVerifyingOtp(false)
+      setIsVerifyingOtp(false);
       if (data.verifyOtp.success && data.verifyOtp.IsValid) {
-        setShowOtpDialog(false)
-        setOtpValue("")
+        setShowOtpDialog(false);
+        setOtpValue("");
 
         // If we have password data, proceed with the password update
         if (passwordData) {
           // Here you would call your actual password update mutation
           // For now, we'll simulate it with a timeout
-          setIsLoading(true)
+          setIsLoading(true);
           setTimeout(() => {
-            setIsLoading(false)
-            toast.success("Password updated successfully")
+            setIsLoading(false);
+            toast.success("Password updated successfully");
             // passwordForm.reset({
             //   currentPassword: "",
             //   newPassword: "",
             //   confirmPassword: "",
             // });
-            setPasswordData(null)
-          }, 1000)
+            setPasswordData(null);
+          }, 1000);
         }
       } else {
-        setOtpError(data.verifyOtp.message || "Invalid verification code")
+        setOtpError(data.verifyOtp.message || "Invalid verification code");
       }
     },
     onError: (error) => {
-      setIsVerifyingOtp(false)
-      setOtpError(error.message || "Verification failed")
+      setIsVerifyingOtp(false);
+      setOtpError(error.message || "Verification failed");
     },
-  })
+  });
 
-  const [resendPasswordOtp, { loading: resendingOtp }] = useMutation(RESEND_OTP, {
-    onCompleted: (data) => {
-      if (data.resendOTP.success) {
-        setOtpResendTimer(60) // Reset timer to 60 seconds
-        toast.success("Code resent", {
-          description: `We've sent a new verification code to ${data.resendOTP.email}`,
-        })
-      } else {
+  const [resendPasswordOtp, { loading: resendingOtp }] = useMutation(
+    RESEND_OTP,
+    {
+      onCompleted: (data) => {
+        if (data.resendOTP.success) {
+          setOtpResendTimer(60); // Reset timer to 60 seconds
+          toast.success("Code resent", {
+            description: `We've sent a new verification code to ${data.resendOTP.email}`,
+          });
+        } else {
+          toast.error("Error", {
+            description:
+              data.resendOTP.message || "Failed to resend verification code",
+          });
+        }
+      },
+      onError: (error) => {
         toast.error("Error", {
-          description: data.resendOTP.message || "Failed to resend verification code",
-        })
-      }
-    },
-    onError: (error) => {
-      toast.error("Error", {
-        description: error.message || "Failed to resend verification code",
-      })
-    },
-  })
+          description: error.message || "Failed to resend verification code",
+        });
+      },
+    }
+  );
 
   return {
     showOtpDialog,
@@ -202,13 +262,13 @@ const useUpdatePasswordOtp = () => {
     resendingOtp,
     isLoading,
     setIsLoading,
-  }
-}
+  };
+};
 
 // Types and Schemas
 interface Profession {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 const AVAILABLE_PROFESSIONS: Profession[] = [
@@ -220,7 +280,7 @@ const AVAILABLE_PROFESSIONS: Profession[] = [
   { value: "plumber", label: "Plumber" },
   { value: "carpenter", label: "Carpenter" },
   { value: "painter", label: "Painter" },
-]
+];
 
 const profileFormSchema = z.object({
   name: z
@@ -239,7 +299,7 @@ const profileFormSchema = z.object({
   profession: z.array(z.string()).optional(),
   aboutMe: z.string().optional(),
   location: z.string().optional(),
-})
+});
 
 const passwordFormSchema = z
   .object({
@@ -256,23 +316,21 @@ const passwordFormSchema = z
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "New passwords don't match.",
     path: ["confirmPassword"],
-  })
+  });
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>
-type PasswordFormValues = z.infer<typeof passwordFormSchema>
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export default function ProfileService() {
   // State
-  const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("profile")
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([])
-  const [customProfession, setCustomProfession] = useState("")
-  const [removedProfessions, setRemovedProfessions] = useState<string[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([]);
+  const [customProfession, setCustomProfession] = useState("");
+  const [removedProfessions, setRemovedProfessions] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     showOtpDialog,
@@ -294,21 +352,24 @@ export default function ProfileService() {
     resendingOtp,
     // isLoading: otpLoading,
     setIsLoading: setOtpLoading,
-  } = useUpdatePasswordOtp()
+  } = useUpdatePasswordOtp();
 
   // GraphQL Hooks
-  const { loading: queryLoading, data: serviceData } = useQuery(GET_SERVICE)
-  const [updateService, { loading: mutationLoading }] = useMutation(UPDATE_SERVICE, {
-    onCompleted: () => {
-      toast("Profile updated successfully.")
-      setIsLoading(false)
-    },
-    onError: (error) => {
-      toast("Error updating profile: " + error.message)
-      setIsLoading(false)
-    },
-    refetchQueries: [{ query: GET_SERVICE }],
-  })
+  const { loading: queryLoading, data: serviceData } = useQuery(GET_SERVICE);
+  const [updateService, { loading: mutationLoading }] = useMutation(
+    UPDATE_SERVICE,
+    {
+      onCompleted: () => {
+        toast("Profile updated successfully.");
+        setIsLoading(false);
+      },
+      onError: (error) => {
+        toast("Error updating profile: " + error.message);
+        setIsLoading(false);
+      },
+      refetchQueries: [{ query: GET_SERVICE }],
+    }
+  );
 
   // Form Hooks
   const profileForm = useForm<ProfileFormValues>({
@@ -321,7 +382,7 @@ export default function ProfileService() {
       aboutMe: "",
       location: "",
     },
-  })
+  });
 
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -330,12 +391,12 @@ export default function ProfileService() {
       newPassword: "",
       confirmPassword: "",
     },
-  })
+  });
 
   // Effects
   useEffect(() => {
     if (serviceData?.getService) {
-      const service = serviceData.getService
+      const service = serviceData.getService;
 
       // Update the form with service data
       profileForm.reset({
@@ -345,108 +406,116 @@ export default function ProfileService() {
         profession: service.profession || [],
         aboutMe: service.aboutMe || "",
         location: service.location || "",
-      })
+      });
       // Reset removed professions when data loads
-      setRemovedProfessions([])
+      setRemovedProfessions([]);
       // Update selected professions state
-      setSelectedProfessions(service.profession || [])
+      setSelectedProfessions(service.profession || []);
     }
-  }, [serviceData, profileForm])
+  }, [serviceData, profileForm]);
 
   // Derived values
-  const isPageLoading = queryLoading || mutationLoading || isLoading
+  const isPageLoading = queryLoading || mutationLoading || isLoading;
 
   // Helper functions
   const getUserInitials = () => {
-    const name = serviceData?.getService?.name || "JD"
+    const name = serviceData?.getService?.name || "JD";
     return name
       .split(" ")
       .map((n: string) => n[0])
       .join("")
       .toUpperCase()
-      .substring(0, 2)
-  }
+      .substring(0, 2);
+  };
 
   const getAvatarSrc = () => {
-    if (previewUrl) return previewUrl
-    if (serviceData?.getService?.dpfile) return serviceData.getService.dpfile
-    return "/placeholder.svg?height=128&width=128"
-  }
+    if (previewUrl) return previewUrl;
+    if (serviceData?.getService?.dpfile) return serviceData.getService.dpfile;
+    return "/placeholder.svg?height=128&width=128";
+  };
 
   // Event handlers
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0]
-      setSelectedFile(file)
+      const file = event.target.files[0];
+      setSelectedFile(file);
 
-      const fileReader = new FileReader()
+      const fileReader = new FileReader();
       fileReader.onload = () => {
-        setPreviewUrl(fileReader.result as string)
-      }
-      fileReader.readAsDataURL(file)
+        setPreviewUrl(fileReader.result as string);
+      };
+      fileReader.readAsDataURL(file);
     }
-  }
+  };
 
   const handleAddProfession = (profession: string) => {
     if (profession.trim() && !selectedProfessions.includes(profession.trim())) {
-      const updatedProfessions = [...selectedProfessions, profession.trim()]
-      setSelectedProfessions(updatedProfessions)
-      profileForm.setValue("profession", updatedProfessions)
+      const updatedProfessions = [...selectedProfessions, profession.trim()];
+      setSelectedProfessions(updatedProfessions);
+      profileForm.setValue("profession", updatedProfessions);
 
       // If we're re-adding a previously removed profession, remove it from removedProfessions
-      setRemovedProfessions((prev) => prev.filter((p) => p !== profession.trim()))
+      setRemovedProfessions((prev) =>
+        prev.filter((p) => p !== profession.trim())
+      );
     }
-  }
+  };
 
   // Updated handleRemoveProfession function
   const handleRemoveProfession = (profession: string) => {
-    const updatedProfessions = selectedProfessions.filter((p) => p !== profession)
-    setSelectedProfessions(updatedProfessions)
-    profileForm.setValue("profession", updatedProfessions)
+    const updatedProfessions = selectedProfessions.filter(
+      (p) => p !== profession
+    );
+    setSelectedProfessions(updatedProfessions);
+    profileForm.setValue("profession", updatedProfessions);
 
     // Add to removed professions list to be sent to the server
-    setRemovedProfessions((prev) => [...prev, profession])
-  }
+    setRemovedProfessions((prev) => [...prev, profession]);
+  };
 
   const triggerFileInput = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   const handleShare = () => {
-    const serviceId = serviceData?.getService?.id
-    const baseUrl = "https://ssr.serviny.com"
-    const shareUrl = serviceId ? `${baseUrl}/${serviceId}` : window.location.href
+    const serviceId = serviceData?.getService?.id;
+    const baseUrl = "https://ssr.serviny.com";
+    const shareUrl = serviceId
+      ? `${baseUrl}/${serviceId}`
+      : window.location.href;
 
-    navigator.clipboard.writeText(shareUrl)
-    toast("Link copied to clipboard.")
-  }
+    navigator.clipboard.writeText(shareUrl);
+    toast("Link copied to clipboard.");
+  };
 
   // Form submission handlers
   const onProfileSubmit = (data: ProfileFormValues) => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     const input = {
       ...(data.name && { name: data.name }),
       ...(data.number && { number: data.number }),
       ...(data.email && { email: data.email }),
-      ...(data.profession && data.profession.length > 0 && { profession: data.profession }),
+      ...(data.profession &&
+        data.profession.length > 0 && { profession: data.profession }),
       ...(data.aboutMe && { aboutMe: data.aboutMe }),
       ...(data.location && { location: data.location }),
-    }
+    };
 
     updateService({
       variables: {
         dpfile: selectedFile,
         input,
-        removeProfession: removedProfessions.length > 0 ? removedProfessions : undefined,
+        removeProfession:
+          removedProfessions.length > 0 ? removedProfessions : undefined,
       },
-    })
-  }
+    });
+  };
 
   // Replace the existing onPasswordSubmit function with this one
   const onPasswordSubmit = (data: PasswordFormValues) => {
-    setOtpLoading(true)
-    setPasswordData(data)
+    setOtpLoading(true);
+    setPasswordData(data);
 
     // Request OTP for password change
     requestPasswordOtp({
@@ -458,20 +527,20 @@ export default function ProfileService() {
           number: serviceData?.getService?.number,
         },
       },
-    })
-  }
+    });
+  };
 
   // Add these handler functions after the existing handler functions
   const handleVerifyOtp = (otp?: string) => {
-    const codeToVerify = otp || otpValue
+    const codeToVerify = otp || otpValue;
 
     if (!codeToVerify.trim()) {
-      setOtpError("Please enter the verification code")
-      return
+      setOtpError("Please enter the verification code");
+      return;
     }
 
-    setIsVerifyingOtp(true)
-    setOtpError("")
+    setIsVerifyingOtp(true);
+    setOtpError("");
 
     verifyPasswordOtp({
       variables: {
@@ -480,11 +549,11 @@ export default function ProfileService() {
           otp: codeToVerify,
         },
       },
-    })
-  }
+    });
+  };
 
   const handleResendOtp = () => {
-    if (otpResendTimer > 0) return
+    if (otpResendTimer > 0) return;
 
     resendPasswordOtp({
       variables: {
@@ -494,19 +563,19 @@ export default function ProfileService() {
           number: serviceData?.getService?.number,
         },
       },
-    })
-  }
+    });
+  };
 
   // Add this effect for the OTP resend timer
   useEffect(() => {
-    let timer: NodeJS.Timeout
+    let timer: NodeJS.Timeout;
     if (otpResendTimer > 0) {
-      timer = setTimeout(() => setOtpResendTimer(otpResendTimer - 1), 1000)
+      timer = setTimeout(() => setOtpResendTimer(otpResendTimer - 1), 1000);
     }
     return () => {
-      if (timer) clearTimeout(timer)
-    }
-  }, [otpResendTimer])
+      if (timer) clearTimeout(timer);
+    };
+  }, [otpResendTimer]);
 
   // Component rendering
   const renderUserInfo = () => (
@@ -515,7 +584,10 @@ export default function ProfileService() {
       <CardContent className="pt-6 flex flex-col items-center text-center">
         <div className="relative mb-4">
           <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-background shadow-lg">
-            <AvatarImage src={getAvatarSrc() || "/placeholder.svg"} alt="Profile picture" />
+            <AvatarImage
+              src={getAvatarSrc() || "/placeholder.svg"}
+              alt="Profile picture"
+            />
             <AvatarFallback className="text-2xl sm:text-3xl font-semibold bg-primary/10">
               {getUserInitials()}
             </AvatarFallback>
@@ -542,26 +614,36 @@ export default function ProfileService() {
         </div>
 
         <div className="space-y-1.5 mb-4">
-          <h2 className="text-lg sm:text-xl font-bold">{serviceData?.getService?.name || "Loading..."}</h2>
+          <h2 className="text-lg sm:text-xl font-bold">
+            {serviceData?.getService?.name || "Loading..."}
+          </h2>
           <div className="grid grid-cols-2 gap-3 px-10">
             <div className="flex items-center justify-center text-xs sm:text-sm text-muted-foreground">
               <NotebookTabs className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-              <span className="truncate max-w-[200px]">{serviceData?.getService?.number || "Loading..."}</span>
+              <span className="truncate max-w-[200px]">
+                {serviceData?.getService?.number || "Loading..."}
+              </span>
             </div>
             <div className="flex items-center justify-center text-xs sm:text-sm text-muted-foreground">
               <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-              <span className="truncate max-w-[200px]">{serviceData?.getService?.location || "Loading..."}</span>
+              <span className="truncate max-w-[200px]">
+                {serviceData?.getService?.location || "Loading..."}
+              </span>
             </div>
             <div className="flex items-center justify-center text-xs sm:text-sm text-muted-foreground">
               <Mails className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-              <span className="truncate max-w-[200px]">{serviceData?.getService?.email || "Loading..."}</span>
+              <span className="truncate max-w-[200px]">
+                {serviceData?.getService?.email || "Loading..."}
+              </span>
             </div>
             <div className="flex items-center justify-center text-xs sm:text-sm text-muted-foreground">
               <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
               <span>
                 Member since{" "}
                 {serviceData?.getService?.createdAt
-                  ? new Date(serviceData.getService.createdAt).toLocaleDateString("en-US", {
+                  ? new Date(
+                      serviceData.getService.createdAt
+                    ).toLocaleDateString("en-US", {
                       year: "numeric",
                       month: "long",
                       day: "numeric",
@@ -576,7 +658,11 @@ export default function ProfileService() {
           <Badge variant="outline" className="bg-primary/5">
             Active
           </Badge>
-          <Badge variant="outline" className="gap-1 bg-primary/5 cursor-pointer" onClick={handleShare}>
+          <Badge
+            variant="outline"
+            className="gap-1 bg-primary/5 cursor-pointer"
+            onClick={handleShare}
+          >
             <Share className="h-3 w-3" />
             <span>Share</span>
           </Badge>
@@ -589,7 +675,9 @@ export default function ProfileService() {
           <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 h-auto">
             <TabsTrigger
               value="profile"
-              className={`flex justify-start px-3 py-2.5 ${activeTab === "profile" ? "bg-primary/10" : ""}`}
+              className={`flex justify-start px-3 py-2.5 ${
+                activeTab === "profile" ? "bg-primary/10" : ""
+              }`}
               onClick={() => setActiveTab("profile")}
             >
               <User className="mr-2 h-4 w-4" />
@@ -597,7 +685,9 @@ export default function ProfileService() {
             </TabsTrigger>
             <TabsTrigger
               value="password"
-              className={`flex justify-start px-3 py-2.5 ${activeTab === "password" ? "bg-primary/10" : ""}`}
+              className={`flex justify-start px-3 py-2.5 ${
+                activeTab === "password" ? "bg-primary/10" : ""
+              }`}
               onClick={() => setActiveTab("password")}
             >
               <KeyRound className="mr-2 h-4 w-4" />
@@ -607,7 +697,7 @@ export default function ProfileService() {
         </Tabs>
       </CardFooter>
     </Card>
-  )
+  );
 
   const renderProfessionSelector = () => (
     <FormItem>
@@ -637,9 +727,9 @@ export default function ProfileService() {
             onChange={(e) => setCustomProfession(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && customProfession.trim()) {
-                e.preventDefault()
-                handleAddProfession(customProfession)
-                setCustomProfession("")
+                e.preventDefault();
+                handleAddProfession(customProfession);
+                setCustomProfession("");
               }
             }}
           />
@@ -647,8 +737,8 @@ export default function ProfileService() {
             type="button"
             onClick={() => {
               if (customProfession.trim()) {
-                handleAddProfession(customProfession)
-                setCustomProfession("")
+                handleAddProfession(customProfession);
+                setCustomProfession("");
               }
             }}
           >
@@ -659,9 +749,15 @@ export default function ProfileService() {
         {selectedProfessions.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {selectedProfessions.map((profession) => {
-              const professionLabel = AVAILABLE_PROFESSIONS.find((p) => p.value === profession)?.label || profession
+              const professionLabel =
+                AVAILABLE_PROFESSIONS.find((p) => p.value === profession)
+                  ?.label || profession;
               return (
-                <Badge key={profession} variant="secondary" className="pl-2 pr-1 py-1">
+                <Badge
+                  key={profession}
+                  variant="secondary"
+                  className="pl-2 pr-1 py-1"
+                >
                   {professionLabel}
                   <Button
                     variant="ghost"
@@ -672,20 +768,27 @@ export default function ProfileService() {
                     <X className="h-3 w-3" />
                   </Button>
                 </Badge>
-              )
+              );
             })}
           </div>
         )}
 
-        <input type="hidden" value={selectedProfessions.join(",")} {...profileForm.register("profession")} />
+        <input
+          type="hidden"
+          value={selectedProfessions.join(",")}
+          {...profileForm.register("profession")}
+        />
       </div>
       <FormMessage />
     </FormItem>
-  )
+  );
 
   const renderProfileForm = () => (
     <Form {...profileForm}>
-      <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+      <form
+        onSubmit={profileForm.handleSubmit(onProfileSubmit)}
+        className="space-y-4"
+      >
         <FormField
           control={profileForm.control}
           name="name"
@@ -706,7 +809,11 @@ export default function ProfileService() {
             <FormItem>
               <FormLabel>Phone Number</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="Enter your phone number" {...field} />
+                <Input
+                  type="tel"
+                  placeholder="Enter your phone number"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -767,8 +874,8 @@ export default function ProfileService() {
               //   aboutMe: "",
               //   location: "",
               // });
-              setSelectedProfessions([])
-              window.history.back()
+              setSelectedProfessions([]);
+              window.history.back();
             }}
             disabled={isLoading}
           >
@@ -780,19 +887,20 @@ export default function ProfileService() {
         </div>
       </form>
     </Form>
-  )
+  );
 
   const renderPasswordForm = () => (
     <Form {...passwordForm}>
       <form
-      
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          passwordForm.handleSubmit(onPasswordSubmit)();
-        }
-      }}
-      onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            passwordForm.handleSubmit(onPasswordSubmit)();
+          }
+        }}
+        onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+        className="space-y-6"
+      >
         <FormField
           control={passwordForm.control}
           name="currentPassword"
@@ -800,7 +908,12 @@ export default function ProfileService() {
             <FormItem>
               <FormLabel>Current Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} className="bg-background" />
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  {...field}
+                  className="bg-background"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -815,7 +928,12 @@ export default function ProfileService() {
               <FormItem>
                 <FormLabel>New Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="bg-background" />
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    {...field}
+                    className="bg-background"
+                  />
                 </FormControl>
                 <FormDescription className="text-xs sm:text-sm">
                   Password must be at least 8 characters long.
@@ -832,7 +950,12 @@ export default function ProfileService() {
               <FormItem>
                 <FormLabel>Confirm New Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="bg-background" />
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    {...field}
+                    className="bg-background"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -849,14 +972,18 @@ export default function ProfileService() {
                 currentPassword: "",
                 newPassword: "",
                 confirmPassword: "",
-              })
-              window.history.back()
+              });
+              window.history.back();
             }}
             disabled={isLoading}
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isPageLoading} className="gap-2 w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={isPageLoading}
+            className="gap-2 w-full sm:w-auto"
+          >
             {isPageLoading ? (
               <>Updating password...</>
             ) : (
@@ -869,22 +996,21 @@ export default function ProfileService() {
         </div>
       </form>
     </Form>
-  )
+  );
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 pb-8">
-      <div className="pb-11">
-        <MainNaveBar />
+    <div className=" py-8 w-full">
+      <div className="hidden sm:flex items-center text-sm text-muted-foreground pl-4">
+        <div>Account</div>
+        <ChevronRight className="h-4 w-4 mx-1" />
+        <span className="font-medium text-foreground">
+          {activeTab === "profile"
+            ? "Profile Information"
+            : "Password & Security"}
+        </span>
       </div>
-      <div className="space-y-6">
+      <div className=" px-4 py-8 mx-auto ">
         {/* Breadcrumb - visible on tablet and larger */}
-        <div className="hidden sm:flex items-center text-sm text-muted-foreground py-4">
-          <div>Account</div>
-          <ChevronRight className="h-4 w-4 mx-1" />
-          <span className="font-medium text-foreground">
-            {activeTab === "profile" ? "Profile Information" : "Password & Security"}
-          </span>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {/* Sidebar with user info */}
@@ -892,17 +1018,25 @@ export default function ProfileService() {
 
           {/* Main content */}
           <div className="md:col-span-2 lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
               <TabsContent value="profile" className="m-0">
                 <Card className="border-none shadow-md">
                   <CardHeader>
                     <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your account details and public profile</CardDescription>
+                    <CardDescription>
+                      Update your account details and public profile
+                    </CardDescription>
                   </CardHeader>
 
                   <CardContent>
                     {queryLoading ? (
-                      <div className="flex justify-center py-8">Loading profile data...</div>
+                      <div className="flex justify-center py-8">
+                        Loading profile data...
+                      </div>
                     ) : (
                       renderProfileForm()
                     )}
@@ -914,7 +1048,9 @@ export default function ProfileService() {
                 <Card className="border-none shadow-md">
                   <CardHeader>
                     <CardTitle>Password & Security</CardTitle>
-                    <CardDescription>Ensure your account stays secure with a strong password</CardDescription>
+                    <CardDescription>
+                      Ensure your account stays secure with a strong password
+                    </CardDescription>
                   </CardHeader>
 
                   <CardContent>{renderPasswordForm()}</CardContent>
@@ -924,13 +1060,18 @@ export default function ProfileService() {
           </div>
         </div>
       </div>
-     
       {/* Remove this Dialog component since we're using OtpCard */}
-       <Dialog open={showOtpDialog} onOpenChange={(open) => !isVerifyingOtp && setShowOtpDialog(open)}>
+      <Dialog
+        open={showOtpDialog}
+        onOpenChange={(open) => !isVerifyingOtp && setShowOtpDialog(open)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Verify your identity</DialogTitle>
-            <DialogDescription>Enter the verification code sent to {serviceData?.getService?.email}</DialogDescription>
+            <DialogDescription>
+              Enter the verification code sent to{" "}
+              {serviceData?.getService?.email}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col space-y-4 py-4">
             <div className="space-y-2">
@@ -969,7 +1110,11 @@ export default function ProfileService() {
               >
                 {otpResendTimer > 0 ? `Resend in ${otpResendTimer}s` : "Resend"}
               </Button>
-              <Button onClick={() =>handleVerifyOtp()} disabled={isVerifyingOtp} className="flex-1">
+              <Button
+                onClick={() => handleVerifyOtp()}
+                disabled={isVerifyingOtp}
+                className="flex-1"
+              >
                 {isVerifyingOtp ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -982,7 +1127,8 @@ export default function ProfileService() {
             </div>
           </DialogFooter>
         </DialogContent>
-      </Dialog> *
+      </Dialog>{" "}
+      *
     </div>
-  )
+  );
 }

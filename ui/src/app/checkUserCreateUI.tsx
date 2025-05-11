@@ -1,14 +1,34 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent, CardFooter, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
-import { BadgeCheck, Truck, User, ArrowRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardDescription,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  BadgeCheck,
+  Truck,
+  User,
+  ArrowRight,
+  UserRoundPlus,
+} from "lucide-react";
 import React, { ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 // Import the UserAuthCard component
 // This is your existing authentication component from @/components/custom/users/create
 import UserAuthCard from "@/components/custom/users/create";
+
 
 interface RegisterOptionProps {
   value: string;
@@ -32,7 +52,7 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
   isUser = false,
 }) => {
   const navigate = useNavigate();
-  
+
   // This function handles the click for service provider option
   const handleServiceClick = () => {
     if (link) {
@@ -50,7 +70,9 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
             </div>
           </div>
           <CardTitle className="text-xl text-center">{title}</CardTitle>
-          <CardDescription className="text-center">{description}</CardDescription>
+          <CardDescription className="text-center">
+            {description}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2">
@@ -66,19 +88,14 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
           {isUser ? (
             // For user option, use the UserAuthCard as a wrapper
             <UserAuthCard>
-              <Button 
-                className="w-full group"
-              >
+              <Button className="w-full group">
                 <span>{buttonText}</span>
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </UserAuthCard>
           ) : (
             // For service provider option, use the normal button
-            <Button 
-              className="w-full group" 
-              onClick={handleServiceClick}
-            >
+            <Button className="w-full group" onClick={handleServiceClick}>
               <span>{buttonText}</span>
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
@@ -90,79 +107,28 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
 };
 // ()
 export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
-    return (
-      <Dialog>
-        <DialogTrigger asChild>
-          {children}
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md md:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl font-semibold">Choose Registration Type</DialogTitle>
-          </DialogHeader>
-          <Tabs defaultValue="user" className="mt-2">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="user" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <User className="h-4 w-4 mr-2" />
-                User
-              </TabsTrigger>
-              <TabsTrigger value="service" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Truck className="h-4 w-4 mr-2" />
-                Service Provider
-              </TabsTrigger>
-            </TabsList>
-            <RegisterOption
-              value="user"
-              icon={<User className="h-8 w-8" />}
-              title="User Account"
-              description="Access services as a regular user"
-              buttonText="Create User Account"
-              isUser={true}
-              benefits={[
-                "Book services from verified providers",
-                "Manage appointments in one place",
-                "Save favorites and preferences",
-                "Access exclusive offers and discounts"
-              ]}
-            />
-            <RegisterOption
-              value="service"
-              icon={<Truck className="h-8 w-8" />}
-              title="Service Provider Account"
-              description="Offer your services to customers"
-              buttonText="Create Provider Account"
-              link="/provider/new"
-              benefits={[
-                "List your services to our growing user base",
-                "Manage bookings and schedule efficiently",
-                "Receive payments securely through our platform",
-                "Build your reputation with verified reviews"
-              ]}
-            />
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-const RegisterOptions = () => {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="font-medium">
-          Register
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl font-semibold">Choose Registration Type</DialogTitle>
+          <DialogTitle className="text-center text-xl font-semibold">
+            Choose Registration Type
+          </DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="user" className="mt-2">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="user" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger
+              value="user"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <User className="h-4 w-4 mr-2" />
               User
             </TabsTrigger>
-            <TabsTrigger value="service" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger
+              value="service"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <Truck className="h-4 w-4 mr-2" />
               Service Provider
             </TabsTrigger>
@@ -178,7 +144,7 @@ const RegisterOptions = () => {
               "Book services from verified providers",
               "Manage appointments in one place",
               "Save favorites and preferences",
-              "Access exclusive offers and discounts"
+              "Access exclusive offers and discounts",
             ]}
           />
           <RegisterOption
@@ -192,7 +158,75 @@ const RegisterOptions = () => {
               "List your services to our growing user base",
               "Manage bookings and schedule efficiently",
               "Receive payments securely through our platform",
-              "Build your reputation with verified reviews"
+              "Build your reputation with verified reviews",
+            ]}
+          />
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
+  return (
+    <Dialog>
+       <DialogTrigger asChild>
+        <Button variant="outline" className="font-medium">
+          <UserRoundPlus />
+          {!isCollapsed && (
+            <span>Register</span>
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md md:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-center text-xl font-semibold">
+            Choose Registration Type
+          </DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="user" className="mt-2">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger
+              value="user"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <User className="h-4 w-4 mr-2" />
+              User
+            </TabsTrigger>
+            <TabsTrigger
+              value="service"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Truck className="h-4 w-4 mr-2" />
+              Service Provider
+            </TabsTrigger>
+          </TabsList>
+          <RegisterOption
+            value="user"
+            icon={<User className="h-8 w-8" />}
+            title="User Account"
+            description="Access services as a regular user"
+            buttonText="Create User Account"
+            isUser={true}
+            benefits={[
+              "Book services from verified providers",
+              "Manage appointments in one place",
+              "Save favorites and preferences",
+              "Access exclusive offers and discounts",
+            ]}
+          />
+          <RegisterOption
+            value="service"
+            icon={<Truck className="h-8 w-8" />}
+            title="Service Provider Account"
+            description="Offer your services to customers"
+            buttonText="Create Provider Account"
+            link="/provider/new"
+            benefits={[
+              "List your services to our growing user base",
+              "Manage bookings and schedule efficiently",
+              "Receive payments securely through our platform",
+              "Build your reputation with verified reviews",
             ]}
           />
         </Tabs>

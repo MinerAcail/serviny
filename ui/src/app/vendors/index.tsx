@@ -5,7 +5,7 @@ import VendorItemManagement from "./vendor-item-management";
 import AvailabilityPage from "./available";
 
 import { EventUpdateForm } from "@/components/serviceProviders/eventBase/event-update-form";
-import MainNaveBar from "@/components/serviceProviders/menuBar";
+// import MainNaveBar from "@/components/serviceProviders/menuBar";
 // import OrderManagement from "./order-management"
 export function VendorDashboard() {
   return (
@@ -33,9 +33,9 @@ export function ProviderCheckOut() {
   // console.log("Servicefdf ID:", serviceId); // Log the serviceId to the console
   return (
     <div className="flex flex-col  w-full">
-      <div className="pb-10">
+      {/* <div className="pb-10">
         <MainNaveBar />
-      </div>
+      </div> */}
 
       <AvailabilityPage />
     </div>

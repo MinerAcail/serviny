@@ -1,18 +1,18 @@
 import { ApolloProvider } from "@apollo/client";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, RouterProvider, useParams } from "react-router";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorPage from "./routError";
 import { AuthProvider } from "./context/authContext";
 import ErrorLogin from "./routErrorLogin";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "./bar";
+// import { SidebarProvider } from "@/components/ui/sidebar";
+// import { AppSidebar } from "./bar";
 import { CartProvider } from "@/hooks/CartContext";
-import { UpdatEvent, ProviderCheckOut } from "@/app/vendors";
+import { UpdatEvent } from "@/app/vendors";
 import ProtectedIsAuthRoute from "./protectedIsAuth";
 import { OrderTrackingProvider } from "@/hooks/orderTrackingContext";
 import { ProtectType } from "./useProtect";
-import HeartbeatUpdater from "@/components/custom/nav/cheackActive";
+// import HeartbeatUpdater from "@/components/custom/nav/cheackActive";
 
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import ProfileService from "@/components/serviceProviders/updateProfile";
@@ -26,60 +26,78 @@ import ContactDetailPage from "@/components/serviceProviders/Dashboard/UserData"
 import SearchData from "@/components/serviceProviders/Dashboard/searchInfor";
 import { PasswordReset } from "@/app/resetPassWord";
 import { ThemeProvider } from "./context/theme-provider";
-import {SpectaclesLoading} from "@/components/custom/loading";
+import { SpectaclesLoading } from "@/components/custom/loading";
 import { ServiceProviderProfile } from "@/components/serviceProviders/profile";
 import { SocialForm } from "@/components/custom/Socials/forms";
 import { InstallPage } from "@/components/custom/downloads/install-page";
-// import SocialForm from "@/components/custom/Socials/forms";
-// WorksNav
+import { SidebarProvider } from "@/components/ui/sidebar";
+
 const router = createBrowserRouter([
-  { path: "/icons", element: <LucideIconSelector /> },
-
-  { path: "/dashboard", element: <Dashboard /> },
-  { path: "/favorites", element: <FavoritesPage /> },
-  { path: "/contacts", element: <SearchData /> },
-  { path: "/c/:userId", element: <ContactDetailPage /> },
-  { path: "/reset", element: <PasswordReset /> },
-  { path: "/red", element: <SpectaclesLoading /> },
-
-  { path: "/provider/new", element: <CreateServiceProvider /> },
-
-  { path: "/providers/:serviceId", element: <ServiceProviderProfile /> },
-  { path: "/event/:eventId", element: <UpdatEvent /> },
-
   { path: "/", element: <ServiceProvidersDirectory /> },
-  { path: "/upload", element: <CreateGalleryForm /> },
-  { path: "/install", element: <InstallPage /> },
-
-  { path: "/social/:serviceId", element: <SocialForm /> },
-  { path: "/time/:serviceId", element: <ProviderCheckOut /> },
-  { path: "/booktypes", element: <BookingTypes /> },
 
   {
-    path: "/update",
-    element: (
-      <ProtectedIsAuthRoute
-        expectedTypes={[ProtectType.Service]}
-        element={<ProfileService />}
-      />
-    ),
+    path: "/",
+    element: <Layout />,
+    children: [
+      {
+        index: true,
+        path: "/providers/:serviceId",
+        element: <ServiceProviderProfile />,
+      },
+
+      { path: "/icons", element: <LucideIconSelector /> },
+      { path: "/provider/new", element: <CreateServiceProvider /> },
+
+      { path: "/dashboard", element: <Dashboard /> },
+      { path: "/favorites", element: <FavoritesPage /> },
+      // { path: "/contacts", element: <SearchData /> },
+      // { path: "/c/:userId", element: <ContactDetailPage /> },
+      { path: "/reset", element: <PasswordReset /> },
+      { path: "/red", element: <SpectaclesLoading /> },
+
+      { path: "/event/:eventId", element: <UpdatEvent /> },
+
+      { path: "/install", element: <InstallPage /> },
+
+      { path: "/login", element: <ErrorLogin /> },
+
+      { path: "*", element: <ErrorPage /> },
+    ],
   },
+  // Routes with sidebar layout using Outlet
+  {
+    path: "/dbp/",
+    element: <SidebarLayout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "upload", element: <CreateGalleryForm /> },
+      { path: "booktypes", element: <BookingTypes /> },
+      { path: "time", element: <AvailabilityPage /> },
+      { path: "contacts", element: <SearchData /> },
+      { path: "social", element: <SocialForm /> },
+      { path: "c/:userId", element: <ContactDetailPage /> },
 
-  { path: "/login", element: <ErrorLogin /> },
+      {
+        path: "update",
 
-  { path: "*", element: <ErrorPage /> },
+        element: (
+          <ProtectedIsAuthRoute
+            expectedTypes={[ProtectType.Service]}
+            element={<ProfileService />}
+          />
+        ),
+      },
+    ],
+  },
 ]);
 
 export function Navigation() {
-  
-  
   return (
     <ApolloProvider client={Client}>
-      <ThemeProvider >
+      <ThemeProvider>
         <SidebarProvider>
           <OrderTrackingProvider>
-            <AppSidebar />
-            <HeartbeatUpdater />
+            {/* <AppSidebar /> */}
             <CartProvider>
               <AuthProvider>
                 <RouterProvider router={router} />
@@ -90,5 +108,38 @@ export function Navigation() {
         </SidebarProvider>
       </ThemeProvider>
     </ApolloProvider>
+  );
+}
+
+import { Outlet } from "react-router";
+
+import AvailabilityPage from "@/app/vendors/available";
+// import { SidebarProvider as SidebarProviders } from "@/components/custom/dashboad/bin/components/ui/sidebar";
+import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
+// import MainNaveBar from "@/components/serviceProviders/menuBar";
+// import { useState } from "react";
+
+export function SidebarLayout() {
+  // const { serviceId } = useParams();
+  return (
+    <div className="flex w-full ">
+      <Sidebar />
+      <div className="flex-1 p-4">
+        <Outlet />
+      </div>
+    </div>
+  );
+}
+
+export function Layout() {
+  const { serviceId } = useParams();
+  // const [isMobileOpen, setIsMobileOpen] = useState(false);
+  return (
+    <div className="flex w-full bg-cyan-100/20">
+      <SidebarMain serviceId={serviceId} />
+      <div className="flex-1 p-4">
+        <Outlet />
+      </div>
+    </div>
   );
 }

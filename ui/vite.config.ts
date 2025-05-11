@@ -61,6 +61,8 @@ export default defineConfig({
     proxy: {
       "/minio": {
         target: "https://files.serviny.com/",
+        
+        // target: 'http://localhost:9000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
       },
