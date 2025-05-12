@@ -60,7 +60,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        target: "https://files.serviny.com/",
+        target: "https://files.winnemart.com/",
         
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
@@ -73,7 +73,9 @@ export default defineConfig({
     host: "0.0.0.0",
   },
   preview: {
-    allowedHosts: [".serviny.com", ".r.serviny.com"],
+    // allowedHosts: [".serviny.com", ".r.serviny.com"],
+    allowedHosts: [".winnemart.com",".r.winnemart.com"], 
+
   },
   // build: {
   //   rollupOptions: {
