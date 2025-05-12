@@ -31,7 +31,6 @@ import { ServiceProviderProfile } from "@/components/serviceProviders/profile";
 import { SocialForm } from "@/components/custom/Socials/forms";
 import { InstallPage } from "@/components/custom/downloads/install-page";
 import { SidebarProvider } from "@/components/ui/sidebar";
-
 const router = createBrowserRouter([
   { path: "/", element: <ServiceProvidersDirectory /> },
 
@@ -92,6 +91,39 @@ const router = createBrowserRouter([
 ]);
 
 export function Navigation() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").then((registration) => {
+        console.log("✅ Service Worker registered:", registration);
+
+        // Listen for waiting SW and skip waiting
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                console.log("🔄 New content available, refreshing...");
+                window.location.reload();
+              }
+            });
+          }
+        });
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
+  }, []);
+  
   return (
     <ApolloProvider client={Client}>
       <ThemeProvider>
@@ -116,6 +148,7 @@ import { Outlet } from "react-router";
 import AvailabilityPage from "@/app/vendors/available";
 // import { SidebarProvider as SidebarProviders } from "@/components/custom/dashboad/bin/components/ui/sidebar";
 import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
+import { useEffect } from "react";
 // import MainNaveBar from "@/components/serviceProviders/menuBar";
 // import { useState } from "react";
 

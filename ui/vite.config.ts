@@ -11,11 +11,11 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
-      filename: "sw.ts",
+      filename: "sw.js",
       srcDir: "src",
       strategies: "injectManifest",
       injectManifest: {
-        swSrc: "src/sw.ts",
+        swSrc: "/sw.js",
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 💡 allow 5MB precache files
       },
       manifest: {
@@ -60,10 +60,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        // target: "http://16.16.193.100:9000",
         target: "https://files.serviny.com/",
         
-        // target: 'http://localhost:9000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
       },
@@ -76,5 +74,10 @@ export default defineConfig({
   },
   preview: {
     allowedHosts: [".serviny.com", ".r.serviny.com"],
+  },
+  build: {
+    rollupOptions: {
+      external: ["src/sw.js"], // Exclude sw.js from the Rollup bundle
+    },
   },
 });
