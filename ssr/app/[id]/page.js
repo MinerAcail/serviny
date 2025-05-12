@@ -1,11 +1,11 @@
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 
-const MAIN_WEBSITE_URL = "https://serviny.com";
-const MINIO_BASE_URL = "https://serviny.com";
+const MAIN_WEBSITE_URL = "https://winnemart.com";
+const MINIO_BASE_URL = "https://winnemart.com";
 
 async function getProvider(id) {
-  const res = await fetch("https://api.serviny.com/query", {
+  const res = await fetch("https://api.winnemart.com/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -41,10 +41,10 @@ export async function generateMetadata({ params }) {
   const professions = provider.profession?.join(", ") || "Service Provider";
 
   return {
-    title: `Meet ${provider.name} on SERVINY!`,
-    description: `${provider.name} specializes in ${professions}. Explore more on SERVINY.`,
+    title: `Meet ${provider.name} on winnemart!`,
+    description: `${provider.name} specializes in ${professions}. Explore more on winnemart.`,
     openGraph: {
-      title: `Meet ${provider.name} on SERVINY`,
+      title: `Meet ${provider.name} on winnemart`,
       description: `${provider.name} offers services in ${professions}.`,
       images: [{ url: imageUrl }],
       type: "profile",
@@ -78,10 +78,10 @@ export default async function SharedProviderPage({ params }) {
     return (
       <html>
         <head>
-          <meta property="og:title" content={`${provider.name} • Profile on SERVINY`} />
+          <meta property="og:title" content={`${provider.name} • Profile on winnemart`} />
           <meta
             property="og:description"
-            content={`Discover ${provider.name}'s services in ${professions} on SERVINY.`}
+            content={`Discover ${provider.name}'s services in ${professions} on winnemart.`}
           />
           <meta property="og:image" content={imageUrl} />
           <meta property="og:url" content={`${MAIN_WEBSITE_URL}/${params.id}`} />

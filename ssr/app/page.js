@@ -1,11 +1,11 @@
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 
-const MAIN_WEBSITE_URL = "https://serviny.com";
-const MINIO_BASE_URL = "https://serviny.com";
+const MAIN_WEBSITE_URL = "https://winnemart.com";
+const MINIO_BASE_URL = "https://winnemart.com";
 
 async function getProviderBySubdomain(subDomain) {
-  const res = await fetch("https://api.serviny.com/query", {
+  const res = await fetch("https://api.winnemart.com/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -35,7 +35,7 @@ export async function generateMetadata() {
   const host = headers().get("host") || "";
   const subdomain = host.split(".")[0];
 
-  if (!subdomain || subdomain === "www" || subdomain === "serviny") notFound();
+  if (!subdomain || subdomain === "www" || subdomain === "winnemart") notFound();
 
   const provider = await getProviderBySubdomain(subdomain);
   if (!provider) notFound();
@@ -48,7 +48,7 @@ export async function generateMetadata() {
 
   return {
     title: `${provider.name}`,
-    description: `${provider.name} specializes in ${professions}. Explore more on SERVINY.`,
+    description: `${provider.name} specializes in ${professions}. Explore more on winnemart.`,
     openGraph: {
       title: `${provider.name}`,
       description: `Offers services in ${professions}.`,
@@ -62,7 +62,7 @@ export default async function SharedProviderPage() {
   const host = headers().get("host") || "";
   const subdomain = host.split(".")[0];
 
-  if (!subdomain || subdomain === "www" || subdomain === "serviny") notFound();
+  if (!subdomain || subdomain === "www" || subdomain === "winnemart") notFound();
 
   const provider = await getProviderBySubdomain(subdomain);
   if (!provider) notFound();
@@ -87,10 +87,10 @@ export default async function SharedProviderPage() {
     return (
       <html>
         <head>
-          <meta property="og:title" content={`${provider.name} • Profile on SERVINY`} />
+          <meta property="og:title" content={`${provider.name} • Profile on winnemart`} />
           <meta
             property="og:description"
-            content={`Discover ${provider.name}'s services in ${professions} on SERVINY.`}
+            content={`Discover ${provider.name}'s services in ${professions} on winnemart.`}
           />
           <meta property="og:image" content={imageUrl} />
           <meta property="og:url" content={`https://${host}`} />
@@ -103,6 +103,6 @@ export default async function SharedProviderPage() {
     );
   }
 
-  // Redirect human users to Vite frontend via subdomain.r.serviny.com
-  redirect(`https://${subdomain}.r.serviny.com/providers/${provider.id}`);
+  // Redirect human users to Vite frontend via subdomain.r.winnemart.com
+  redirect(`https://${subdomain}.r.winnemart.com/providers/${provider.id}`);
 }
