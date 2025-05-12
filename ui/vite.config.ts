@@ -60,7 +60,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        target: "https://files.serviny.com/",
+        // target: "https://files.serviny.com/",
+        target: "http://16.16.193.100:9000",
         
         // target: 'http://localhost:9000',
         changeOrigin: true,
