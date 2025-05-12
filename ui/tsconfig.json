@@ -9,6 +9,6 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "lib": ["WebWorker"]
+    // "lib": ["WebWorker"]
   }
 }
