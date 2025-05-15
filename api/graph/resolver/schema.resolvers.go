@@ -197,6 +197,16 @@ func (r *mutationResolver) CancelUserBookings(ctx context.Context, bookTypeID st
 	return true, nil
 }
 
+// ID is the resolver for the id field.
+func (r *purchaseHistoryResolver) ID(ctx context.Context, obj *model.PurchaseHistory) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// ID is the resolver for the id field.
+func (r *purchaseHistoryItemResolver) ID(ctx context.Context, obj *model.PurchaseHistoryItem) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
 // GetID is the resolver for the getID field.
 func (r *queryResolver) GetID(ctx context.Context) (*string, error) {
 	id, err := middleware.GetIDFromContext(ctx)
@@ -244,7 +254,19 @@ func (r *userBookingsResolver) ID(ctx context.Context, obj *model.UserBookings) 
 	return id, nil
 }
 
+// PurchaseHistory returns graph.PurchaseHistoryResolver implementation.
+func (r *Resolver) PurchaseHistory() graph.PurchaseHistoryResolver {
+	return &purchaseHistoryResolver{r}
+}
+
+// PurchaseHistoryItem returns graph.PurchaseHistoryItemResolver implementation.
+func (r *Resolver) PurchaseHistoryItem() graph.PurchaseHistoryItemResolver {
+	return &purchaseHistoryItemResolver{r}
+}
+
 // UserBookings returns graph.UserBookingsResolver implementation.
 func (r *Resolver) UserBookings() graph.UserBookingsResolver { return &userBookingsResolver{r} }
 
+type purchaseHistoryResolver struct{ *Resolver }
+type purchaseHistoryItemResolver struct{ *Resolver }
 type userBookingsResolver struct{ *Resolver }

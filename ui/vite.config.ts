@@ -60,17 +60,19 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        target: "https://files.winnemart.com/",
+        // target: "https://files.winnemart.com/",
+        target: 'http://localhost:9000', // Adjust if MinIO is not running on
+
         
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
       },
     },
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
-    },
-    host: "0.0.0.0",
+    // headers: {
+    //   "Cross-Origin-Opener-Policy": "same-origin",
+    //   "Cross-Origin-Embedder-Policy": "require-corp",
+    // },
+    // host: "0.0.0.0",
   },
   preview: {
     // allowedHosts: [".serviny.com", ".r.serviny.com"],

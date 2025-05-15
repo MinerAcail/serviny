@@ -43,6 +43,8 @@ const router = createBrowserRouter([
         path: "/providers/:serviceId",
         element: <ServiceProviderProfile />,
       },
+  { path: "/sms", element: <ChatSystem /> },
+
 
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <CreateServiceProvider /> },
@@ -66,7 +68,7 @@ const router = createBrowserRouter([
   // Routes with sidebar layout using Outlet
   {
     path: "/dbp/",
-    element: <SidebarLayout />,
+    element: <SidebarLayoutProvider />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: "upload", element: <CreateGalleryForm /> },
@@ -75,6 +77,7 @@ const router = createBrowserRouter([
       { path: "contacts", element: <SearchData /> },
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
+      { path: "zone", element: <VendorProcessFlow /> },
 
       {
         path: "update",
@@ -86,13 +89,13 @@ const router = createBrowserRouter([
           />
         ),
       },
+
+      { path: "new", element: <ProductForm /> },
     ],
   },
 ]);
 
 export function Navigation() {
-
-  
   return (
     <ApolloProvider client={Client}>
       <ThemeProvider>
@@ -115,13 +118,13 @@ export function Navigation() {
 import { Outlet } from "react-router";
 
 import AvailabilityPage from "@/app/vendors/available";
-// import { SidebarProvider as SidebarProviders } from "@/components/custom/dashboad/bin/components/ui/sidebar";
 import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
-// import { useEffect } from "react";
-// import MainNaveBar from "@/components/serviceProviders/menuBar";
-// import { useState } from "react";
+import ProductForm from "@/vendor/ProductForm";
+import ChatSystem from "@/components/user/chat-system";
+import { VendorProcessFlow } from "@/components/user/Location/vendor";
 
-export function SidebarLayout() {
+
+export function SidebarLayoutProvider() {
   // const { serviceId } = useParams();
   return (
     <div className="flex w-full ">

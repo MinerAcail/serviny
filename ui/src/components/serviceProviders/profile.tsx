@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { gql, useQuery } from "@apollo/client";
-import { useLocation,  useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import {
   CalendarSync,
   Edit,
@@ -68,8 +68,8 @@ export function ServiceProviderProfile() {
   const location = useLocation();
   // console.log(serviceId);
   // const { setTheme } = useTheme();
-// inside your component
-// const navigate = useNavigate();
+  // inside your component
+  // const navigate = useNavigate();
   // Check if the query string contains ?lt
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
@@ -82,7 +82,7 @@ export function ServiceProviderProfile() {
   // });
   // useEffect(() => {
   //   if (themeData?.getUseTheme) {
-  //     setTheme(themeData.getUseTheme); 
+  //     setTheme(themeData.getUseTheme);
   //   }
   // }, [themeData, setTheme]);
 
@@ -125,35 +125,29 @@ export function ServiceProviderProfile() {
   // if () return <p>No provider found.</p>;
 
   // const provider = data?.getProvider;
-  
+
   const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
 
-  
-  
   if (showLandingPage) {
- 
     return (
       <ServiceLandingPage
         serviceId={serviceId ?? ""}
         onClose={() => {
           setDialogState(false);
           localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
-        
+
           const params = new URLSearchParams(location.search);
           params.delete("lo");
-        
+
           const newUrl = `${location.pathname}?${params.toString()}`;
           window.location.href = newUrl; // Triggers full page reload
         }}
-        
       />
     );
   }
 
-
   return (
     // <div className="flex py-8 w-full">
- 
 
     <div className="px-4 lg:flex gap-4 py-12 mx-auto ">
       {loading && !data?.getProvider ? (
@@ -163,7 +157,6 @@ export function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
-            
             <div className="flex-col justify-center items-center">
               {/* <ProviderProfile
                 isDialogOpen={isDialogOpen}
@@ -191,13 +184,22 @@ export function ServiceProviderProfile() {
                       className="w-full"
                       ref={tabsRef}
                     >
-                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                      {/* <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
                         <TabsTrigger value="portfolio" className="rounded-full">
                           Portfolio
                         </TabsTrigger>
                         <TabsTrigger value="price" className="rounded-full">
                           Price
                         </TabsTrigger>
+                        <TabsTrigger value="policies" className="rounded-full">
+                          Policies
+                        </TabsTrigger>
+                      </TabsList> */}
+                      <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
+                        <TabsTrigger value="portfolio" className="rounded-full">
+                          Items
+                        </TabsTrigger>
+
                         <TabsTrigger value="policies" className="rounded-full">
                           Policies
                         </TabsTrigger>
@@ -216,7 +218,7 @@ export function ServiceProviderProfile() {
                     className="w-full "
                   >
                     <TabsContent value="portfolio">
-                      <WorkGallery />
+                      <AllProducts />
                     </TabsContent>
                     <TabsContent value="price">
                       <Price />
@@ -231,6 +233,13 @@ export function ServiceProviderProfile() {
           )}
         </>
       )}
+
+         <ItemChatWidget
+              itemId="product-123"
+              itemName="Wireless Headphones"
+              itemImage="/placeholder.svg?height=40&width=40"
+              sellerName="John Smith"
+            />
     </div>
   );
 }
@@ -506,6 +515,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/middleware/context/theme-provider";
 import ServiceLandingPage from "../landing/providerLandingPage";
+import { AllProducts } from "@/vendor/AllProducts";
+import ItemChatWidget from "../user/item-chat-widget";
 interface ContactInfoProps {
   provider?: {
     number?: string;

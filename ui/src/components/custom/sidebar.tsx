@@ -17,6 +17,12 @@ import {
   LayoutDashboard,
   LucideProps,
   LogOut,
+  ShoppingCart,
+  BaggageClaim,
+  MessageCircle,
+  MessagesSquare,
+  MessageSquare,
+  MapPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +40,7 @@ import Login from "@/app/Login";
 import SpectaclesLogo from "../serviceProviders/logoicon";
 import RegisterOptions from "@/app/checkUserCreateUI";
 import { useCheckAuthId } from "@/middleware/context/checkID";
+import NotificationCenter from "../user/notification-center";
 
 const bottomNavigation = [
   { name: "Settings", to: "/settings", icon: Settings },
@@ -50,13 +57,17 @@ type NavItemProps = {
   };
 };
 export function Sidebar() {
-  const { user,isAuthenticated} = useAuth();
+  const { user, isAuthenticated } = useAuth();
   // const { isMatch } = useCheckAuthId(user?.id);
 
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navigation = [
     { name: "Home", to: `/providers/${user?.id}?lo`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
+    { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
+    { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+    { name: "Delivery Zone", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+
     { name: "Upload", to: "upload", icon: HardDriveUpload },
     { name: "Business Types", to: "booktypes", icon: Library },
     { name: "Edit", to: "update", icon: Edit }, // absolute path outside
@@ -242,17 +253,18 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       to: !install ? `/providers/${serviceId}?lo` : `/`,
       icon: Home,
     },
-  
+
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
+    { name: "Message", to: "/sms", icon: MessageSquare },
 
     // Conditionally include items
     ...(isMatch
       ? [
-        {
-          name: "Dashboard",
-          to: install ? `/dbp/${user?.id}` : `/dbp`,
-          icon: LayoutDashboard,
-        },
+          {
+            name: "Dashboard",
+            to: install ? `/dbp/${user?.id}` : `/dbp`,
+            icon: LayoutDashboard,
+          },
           {
             name: "Schedule",
             to: `/dbp/booktypes`,
@@ -261,9 +273,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
           { name: "Edit", to: `/dbp/update`, icon: Edit },
         ]
       : []),
-  
   ];
-  
 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -341,6 +351,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     <TooltipProvider>
       <div ref={sidebarRef}>
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
+
+          <NotificationCenter />
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button
             className="lg:hidden bg-background p-2 rounded-md shadow-md"

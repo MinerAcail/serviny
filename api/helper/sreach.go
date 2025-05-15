@@ -19,7 +19,56 @@ func FetchAllService(db *gorm.DB, limit int, offset int) ([]*model.Service, erro
 
 	return services, nil
 }
+// executeSearchQuery performs the full-text search with ranking
+func ExecuteSearchQueryProduct(db *gorm.DB, query string) ([]*model.Product, error) {
+	var products []*model.Product
+	similarityThreshold := 0.12
 
+	err := db.Raw(`
+        WITH ranked_products AS (
+            SELECT 
+                * ,
+                ts_rank_cd(search_vector, plainto_tsquery('english', ?)) AS ts_rank_val,
+                similarity(LOWER(name), LOWER(?)) AS name_sim,
+                word_similarity(name, ?) AS word_sim,
+                GREATEST(
+                    similarity(LOWER(name), LOWER(?)),
+                    similarity(LOWER(?), LOWER(name))
+                ) AS bidirectional_sim,
+                levenshtein(LOWER(name), LOWER(?)) AS typo_distance
+            FROM products
+            WHERE 
+                state != 'INACTIVE' AND 
+                (search_vector @@ plainto_tsquery('english', ?) OR 
+                (similarity(LOWER(name), LOWER(?)) > CAST(? AS NUMERIC)) OR 
+                (name ILIKE '%' || ? || '%') OR 
+                (name ILIKE ? || '%') OR 
+                (levenshtein(LOWER(name), LOWER(?)) <= 2))
+        )
+        SELECT * FROM ranked_products
+        ORDER BY
+            CASE 
+                WHEN LOWER(name) = LOWER(?) THEN 10.0
+                WHEN name ILIKE ? THEN 8.0
+                WHEN name ILIKE ? || '%' THEN 6.0
+                WHEN name ILIKE '%' || ? || '%' THEN 4.0
+                ELSE 0 
+            END +
+            (bidirectional_sim * 10.0) +
+            (name_sim * 5.0) +
+            (ts_rank_val * 2.0) +
+            (word_sim * 3.0) +
+            (CASE WHEN typo_distance <= 2 THEN (5 - typo_distance) * 2 ELSE 0 END)
+        DESC LIMIT 50
+    `, query, query, query, query, query, query, query, query, fmt.Sprintf("%f", similarityThreshold),
+		query, query, query, query, query, query, query, query).Find(&products).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to search products: %v", err)
+	}
+
+	return products, nil
+}
 // ExecuteSearchQuery performs the search for services with advanced ranking
 func ExecuteSearchQuery(db *gorm.DB, query string) ([]*model.Service, error) {
 	var services []*model.Service

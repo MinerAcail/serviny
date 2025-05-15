@@ -39,6 +39,7 @@ func PerformMigrations(db *gorm.DB) error {
 
 	// Run GORM AutoMigrate for your models
 	if err := db.AutoMigrate(
+		&model.Product{},
 		&model.Favorite{},
 		&model.SocialMedia{},
 

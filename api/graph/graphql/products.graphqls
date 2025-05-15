@@ -1,0 +1,223 @@
+type Product {
+  id: String
+  name: String
+  price: String
+  state: ProductState
+  VendorId: String
+  categories: [String]
+  imageUrls: [String]
+  itemsType: [String]
+  description: String
+
+  createdAt: Time
+  updatedAt: Time
+  # commission: Float! 
+}
+
+type ProductInfor {
+  product: Product
+  ItemSoldCount: Int
+}
+input ProductInput {
+  name: String!
+  price: String!
+  state: ProductState!
+  categories: [String]
+  itemsType: [String]
+
+  description: String
+
+  # VendorId: String
+
+}
+input ProductInputUpdate {
+  name: String
+  price: String
+  state: ProductState
+  categories: [String]
+  itemsType: [String]
+
+  description: String
+
+  # VendorId: String
+}
+enum ProductState {
+  ACTIVE
+  INACTIVE
+  PREORDER
+}
+
+type CartItem {
+  id: String!
+  productId: String!
+  product: Product
+  quantity: Int!
+  orderId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+type CartItemOrder {
+  orderId: String!
+  productInfor: [orderproductInfor]!
+  customerNumber: String!
+  deliveryAddress: String!
+  status: String!
+  estimatedDeliveryDate: String!
+  createdAt: Time!
+}
+type orderproductInfor {
+  product: [Product]!
+  quantity: Int!
+}
+type Order {
+  id: String!
+  customerNumber: String!
+  deliveryAddress: String!
+  status: String!
+  items: [CartItem!]!
+  estimatedDeliveryDate: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+input OrderInput {
+  customerNumber: String!
+  deliveryAddress: String!
+  item: [OrderItemInput]
+}
+input OrderItemInput {
+  ProductID: String!
+  quantity: Int!
+}
+type ChatMessage {
+  id: String!
+  orderId: String!
+  sender: SenderType!
+  Read: Boolean!
+  content: String!
+
+  createdAt: Time!
+  updatedAt: Time!
+}
+enum SenderType {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  DELIVERY
+}
+type OrderChat {
+  orderId: String!
+  messages: [ChatMessage!]!
+}
+
+input ChatMessageInput {
+  # orderId: String!
+  sender: SenderType!
+  content: String!
+}
+input ChatMessageAdminInput {
+  customerNumber: String!
+  sender: SenderType!
+  content: String!
+}
+
+type UserInfor {
+  customerNumber: String!
+  deliveryAddresses: [String!]!
+  totalitemsOrdered: Int!
+  totalOrders: Int!
+  firstlastOrderDate: String!
+}
+extend type Query {
+  getProduct(id: String!): Product!
+  getAllProducts(query: String,vendorId:String,limit: Int, offset: Int): [Product!]!
+  getAllCategories(vendorId: String!): [String]
+  searchProducts(query: String!): [Product!]!
+  getAllProductsByAdmin: [ProductInfor!]!
+  getNewAddedProducts: [Product!]!
+  getOrder(id: String!): Order!
+  getAllOrderS: [Order]
+  getAllOrderHistory: [Order]
+  getAllOrderItemsByProductId(orderId: String!): CartItemOrder
+  getAllOrderItemsByProductIdDelivery: [CartItemOrder]
+  useGetordertracking(orderId: [String]): [CartItemOrder]
+  getAllUserStats: [UserInfor!]!
+  getOrderChat(orderId: String): OrderChat
+  getAllChatMessageByNumber(customerNumber: String!): [ChatMessage]!
+
+  getAllRequestItems: [RequestItem!]!
+
+  getAllCategoryBox(query: String): [ViewcategoryBox!]!
+  getNewAddedCategoryBox: [categoryBox!]!
+  getCategoryBox(categoryId: String!): categoryBox
+  getProductsByCategory(categoryId: String!): [Product!]!
+}
+
+extend type Mutation {
+  clearCart: Boolean!
+  VendorUpload(files: [Upload], input: ProductInput!): Product!
+  deleteProduct(id: String!): Boolean
+  createOrderItems(input: OrderInput): Order
+  updateOrderbyUser(orderID: String): Boolean
+  updateOrderStatus(orderID: String, status: String!): Boolean
+  sendChatMessage(input: ChatMessageInput!, orderId: String): ChatMessage!
+  sendChatMessageByNumber(input: ChatMessageAdminInput!): ChatMessage!
+  markMessagesAsRead(sender: SenderType!): Boolean!
+  deleteAllChatMessageByNumber(customerNumber: String!): Boolean!
+
+  requestItem(input: RequestInput!): RequestItem
+  updateRequestItemStatus(
+    requestId: String!
+    status: ProductState!
+  ): RequestItem
+  deleteRequestItem(requestId: String!): Boolean
+  deleteAllRequestItems: Boolean
+  deleteProductByAdmin(productId: String!): Boolean
+  updateProductByAdmin(productId: String!, input: ProductInputUpdate!): Product
+  clearLocalStore(orderId: String): Boolean
+  createCategoryBox(name: String): categoryBox
+  deleteCategoryBox(categoryId: String!): Boolean
+  addProductToCategoryBox(input: [CategoryBoxInput]): [categoryBox]
+  removeProductFromCategoryBox(
+    categoryId: String!
+    productId: String!
+  ): [categoryBox]
+}
+input CategoryBoxInput {
+  categoryName: String
+  files: Upload
+  productId: [String]
+}
+type RequestItem {
+  id: String
+  name: String
+  price: String
+  state: ProductState
+  description: String
+  categories: String
+  imageUrls: [String]
+  createdAt: Time
+  updatedAt: Time
+}
+
+input RequestInput {
+  name: String
+  price: String
+  category: String
+  description: String
+  images: [Upload!]
+}
+
+type categoryBox {
+  id: String
+  name: String
+  imageUrl: String
+
+  state: ProductState
+  itemsIds: [String]
+  createdAt: Time!
+  updatedAt: Time!
+}
+type ViewcategoryBox {
+  categoryBox: categoryBox
+  products: [Product]
+}

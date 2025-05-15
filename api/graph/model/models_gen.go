@@ -49,9 +49,36 @@ type BookersInput struct {
 	IsBooked  bool      `json:"isBooked"`
 }
 
+type CartItemOrder struct {
+	OrderID               string               `json:"orderId"`
+	ProductInfor          []*OrderproductInfor `json:"productInfor"`
+	CustomerNumber        string               `json:"customerNumber"`
+	DeliveryAddress       string               `json:"deliveryAddress"`
+	Status                string               `json:"status"`
+	EstimatedDeliveryDate string               `json:"estimatedDeliveryDate"`
+	CreatedAt             time.Time            `json:"createdAt"`
+}
+
+type CategoryBoxInput struct {
+	CategoryName *string         `json:"categoryName,omitempty"`
+	Files        *graphql.Upload `json:"files,omitempty"`
+	ProductID    []*string       `json:"productId,omitempty"`
+}
+
 type CategoryInput struct {
 	Name string  `json:"name"`
 	Icon *string `json:"icon,omitempty"`
+}
+
+type ChatMessageAdminInput struct {
+	CustomerNumber string     `json:"customerNumber"`
+	Sender         SenderType `json:"sender"`
+	Content        string     `json:"content"`
+}
+
+type ChatMessageInput struct {
+	Sender  SenderType `json:"sender"`
+	Content string     `json:"content"`
 }
 
 type CreateAdminInput struct {
@@ -159,6 +186,22 @@ type LoginInput struct {
 type Mutation struct {
 }
 
+type OrderChat struct {
+	OrderID  string         `json:"orderId"`
+	Messages []*ChatMessage `json:"messages"`
+}
+
+type OrderInput struct {
+	CustomerNumber  string            `json:"customerNumber"`
+	DeliveryAddress string            `json:"deliveryAddress"`
+	Item            []*OrderItemInput `json:"item,omitempty"`
+}
+
+type OrderItemInput struct {
+	ProductID string `json:"ProductID"`
+	Quantity  int32  `json:"quantity"`
+}
+
 type OtpResponse struct {
 	Success bool    `json:"success"`
 	Message string  `json:"message"`
@@ -191,20 +234,27 @@ type PriceInput struct {
 	Value string `json:"value"`
 }
 
-type PurchaseHistory struct {
-	ID             string                 `json:"id"`
-	Date           string                 `json:"date"`
-	Items          []*PurchaseHistoryItem `json:"items"`
-	Status         string                 `json:"status"`
-	TrackingNumber *string                `json:"trackingNumber,omitempty"`
+type ProductInfor struct {
+	Product       *Product `json:"product,omitempty"`
+	ItemSoldCount *int32   `json:"ItemSoldCount,omitempty"`
 }
 
-type PurchaseHistoryItem struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Price    string `json:"price"`
-	Quantity string `json:"quantity"`
-	ImageURL string `json:"imageUrl"`
+type ProductInput struct {
+	Name        string       `json:"name"`
+	Price       string       `json:"price"`
+	State       ProductState `json:"state"`
+	Categories  []*string    `json:"categories,omitempty"`
+	ItemsType   []*string    `json:"itemsType,omitempty"`
+	Description *string      `json:"description,omitempty"`
+}
+
+type ProductInputUpdate struct {
+	Name        *string       `json:"name,omitempty"`
+	Price       *string       `json:"price,omitempty"`
+	State       *ProductState `json:"state,omitempty"`
+	Categories  []*string     `json:"categories,omitempty"`
+	ItemsType   []*string     `json:"itemsType,omitempty"`
+	Description *string       `json:"description,omitempty"`
 }
 
 type Query struct {
@@ -222,6 +272,14 @@ type Rating struct {
 type RentalItem struct {
 	Category    *Category        `json:"category,omitempty"`
 	Inventories []*InventoryItem `json:"inventories,omitempty"`
+}
+
+type RequestInput struct {
+	Name        *string           `json:"name,omitempty"`
+	Price       *string           `json:"price,omitempty"`
+	Category    *string           `json:"category,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Images      []*graphql.Upload `json:"images,omitempty"`
 }
 
 type RequestOtpInput struct {
@@ -349,10 +407,23 @@ type UserData struct {
 	Type       string `json:"type"`
 }
 
+type UserInfor struct {
+	CustomerNumber     string   `json:"customerNumber"`
+	DeliveryAddresses  []string `json:"deliveryAddresses"`
+	TotalitemsOrdered  int32    `json:"totalitemsOrdered"`
+	TotalOrders        int32    `json:"totalOrders"`
+	FirstlastOrderDate string   `json:"firstlastOrderDate"`
+}
+
 type VerifyOtpInput struct {
 	Email string `json:"email"`
 	Otp   string `json:"otp"`
 	Type  string `json:"type"`
+}
+
+type ViewcategoryBox struct {
+	CategoryBox *CategoryBox `json:"categoryBox,omitempty"`
+	Products    []*Product   `json:"products,omitempty"`
 }
 
 type FullCard struct {
@@ -382,6 +453,11 @@ type Jobresponse struct {
 	Password string `json:"password"`
 	Number   string `json:"number"`
 	Type     string `json:"type"`
+}
+
+type OrderproductInfor struct {
+	Product  []*Product `json:"product"`
+	Quantity int32      `json:"quantity"`
 }
 
 type RentalInput struct {
@@ -445,6 +521,49 @@ func (e *BookingType) UnmarshalGQL(v any) error {
 }
 
 func (e BookingType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ProductState string
+
+const (
+	ProductStateActive   ProductState = "ACTIVE"
+	ProductStateInactive ProductState = "INACTIVE"
+	ProductStatePreorder ProductState = "PREORDER"
+)
+
+var AllProductState = []ProductState{
+	ProductStateActive,
+	ProductStateInactive,
+	ProductStatePreorder,
+}
+
+func (e ProductState) IsValid() bool {
+	switch e {
+	case ProductStateActive, ProductStateInactive, ProductStatePreorder:
+		return true
+	}
+	return false
+}
+
+func (e ProductState) String() string {
+	return string(e)
+}
+
+func (e *ProductState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ProductState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ProductState", str)
+	}
+	return nil
+}
+
+func (e ProductState) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
@@ -539,6 +658,51 @@ func (e *RecurringType) UnmarshalGQL(v any) error {
 }
 
 func (e RecurringType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SenderType string
+
+const (
+	SenderTypeCustomer SenderType = "CUSTOMER"
+	SenderTypeVendor   SenderType = "VENDOR"
+	SenderTypeAdmin    SenderType = "ADMIN"
+	SenderTypeDelivery SenderType = "DELIVERY"
+)
+
+var AllSenderType = []SenderType{
+	SenderTypeCustomer,
+	SenderTypeVendor,
+	SenderTypeAdmin,
+	SenderTypeDelivery,
+}
+
+func (e SenderType) IsValid() bool {
+	switch e {
+	case SenderTypeCustomer, SenderTypeVendor, SenderTypeAdmin, SenderTypeDelivery:
+		return true
+	}
+	return false
+}
+
+func (e SenderType) String() string {
+	return string(e)
+}
+
+func (e *SenderType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SenderType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SenderType", str)
+	}
+	return nil
+}
+
+func (e SenderType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

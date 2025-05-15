@@ -242,11 +242,32 @@ import { useState } from "react";
 import { useParams } from "react-router";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { Camera } from "lucide-react";
-import { Gallery, GET_ALL_GALLERY } from "./data/typesAndGql";
+// import { Gallery, GET_ALL_GALLERY } from "./data/typesAndGql";
 import { DELETE_GALLERY } from "./view";
 import { Button } from "../ui/button";
 import { GalleryCard, UpdateGalleryDialog } from "./updates";
-
+export const GET_ALL_GALLERY = gql`
+  query GetAllGallery($serviceId: String!, $query: String, $limit: Int, $offset: Int) {
+    getAllGallery(ServiceId: $serviceId, query: $query, limit: $limit, offset: $offset) {
+      id
+      title
+      description
+      categories
+      imageUrls
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export interface Gallery {
+  id: string;
+  title: string;
+  description: string;
+  categories: string[];
+  imageUrls: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 import { DialogClose } from "@radix-ui/react-dialog";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 //

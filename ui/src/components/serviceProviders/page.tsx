@@ -6,9 +6,9 @@ import {
   Users,
   ArrowRight,
   Check,
-  Star,
   Laptop,
   X,
+  ShoppingCart,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router";
+// import { Link, useNavigate } from "react-router";
+// import SpectaclesLogo from "./logoicon";
 
 
 // Custom hook for detecting screen size
@@ -72,7 +74,7 @@ const useScreenSize = () => {
 
 // Animated Text Shuffling Component for Business Models
 const AnimatedModelShuffle = () => {
-  const models = ["Service", "Appointment", "Rental", "Event", "Subscription"];
+  const models = ["Online Store", "Appointment", "Rental", "Event"];
   const [currentModel, setCurrentModel] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -108,6 +110,12 @@ const AnimatedModelShuffle = () => {
 // Booking Types Component for Hero Section
 const BookingTypesShowcase = () => {
   const bookingTypes = [
+    {
+      title: "Online Store",
+      icon: <ShoppingCart className="h-10 w-10 text-primary" />,
+      description: "Sell physical & digital products with ease",
+      color: "bg-muted/50 border-border",
+    },
     {
       title: "Appointment-Based",
       icon: <Calendar className="h-10 w-10 text-primary" />,
@@ -291,7 +299,11 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
       <ScrollArea className="max-h-[95vh]">
         <div className="sticky top-0 z-50 flex items-center justify-between p-3 sm:p-4 backdrop-blur-lg bg-background/80 border-b">
           <div className="flex items-center">
-            <h3 className="text-base sm:text-lg font-semibold">SERVINY</h3>
+          {/* <Link to={"/"} className="bg-red-700 items-center">
+        <SpectaclesLogo size={"sm"} variant="secondary" />
+      </Link> */}
+
+            <h3 className="text-base sm:text-lg font-semibold">WinneMart</h3>
           </div>
           <Button
             variant="ghost"
@@ -336,8 +348,8 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
                           : "text-3xl sm:text-4xl xl:text-5xl/none"
                       )}
                     >
-                      Empower Your <AnimatedModelShuffle /> Service Business
-                      with SERVINY
+                      Empower Your <AnimatedModelShuffle />  Business
+                      with WinneMart
                     </h1>
 
                     <p
@@ -350,9 +362,7 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
                           : "md:text-lg"
                       )}
                     >
-                      The complete platform for service providers,
-                      freelancers, and businesses to showcase, book, and
-                      manage services.
+                    The platform for online store owners to sell products, and for service providers, freelancers, and businesses to showcase, manage, and book services
                     </p>
 
                     <Button
@@ -410,37 +420,20 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
                       : "md:text-lg"
                   )}
                 >
-                  SERVINY combines powerful features with flexible
+                  WinneMart combines powerful features with flexible
                   integration options.
                 </p>
               </div>
 
               <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                <AnimatedFeatureSection
-                  title="Personalized Portfolio"
-                  description="Showcase your services and build client trust"
-                  items={[
-                    "Customizable service listings",
-                    "Portfolio gallery for your work",
-                    "Professional bio and team profiles",
-                    "Client testimonials and reviews",
-                  ]}
-                  icon={
-                    <Star
-                      className={`h-${isSmallMobile ? "4" : "5"} w-${
-                        isSmallMobile ? "4" : "5"
-                      } text-primary`}
-                    />
-                  }
-                  delay={0}
-                />
+            
 
                 <AnimatedFeatureSection
                   title="Standard Version"
                   description="Register on our platform and make it your own"
                   items={[
                     "Quick setup with no technical knowledge",
-                    "Fully hosted and maintained by SERVINY",
+                    "Fully hosted and maintained by WinneMart",
                     "Customizable to match your brand",
                     "Access to all platform features",
                   ]}
@@ -495,7 +488,7 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
           <footer className="border-t py-4 sm:py-6 bg-background">
             <div className="container px-3 sm:px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
               <p className="text-center text-xs sm:text-sm leading-loose text-muted-foreground sm:text-left">
-                © {new Date().getFullYear()} SERVINY. All rights reserved.
+                © {new Date().getFullYear()} WinneMart. All rights reserved.
               </p>
               <div className="flex items-center gap-2 sm:gap-4">
                 <Button
