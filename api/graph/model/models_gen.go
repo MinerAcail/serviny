@@ -178,6 +178,12 @@ type InventoryItemInput struct {
 	File        graphql.Upload `json:"file"`
 }
 
+type IsochroneInput struct {
+	Locations     [][]float64 `json:"locations"`
+	Range         []int32     `json:"range"`
+	TransportMode *string     `json:"transportMode,omitempty"`
+}
+
 type LoginInput struct {
 	Password string  `json:"password"`
 	Number   *string `json:"number,omitempty"`

@@ -1,0 +1,15 @@
+input IsochroneInput {
+  locations: [[Float!]!]!
+  range: [Int!]!
+  transportMode: String
+}
+
+type IsochroneResult {
+  geojson: String!
+}
+
+extend type Mutation {
+  generateIsochrone(input: IsochroneInput!): IsochroneResult!
+}
+
+

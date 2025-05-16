@@ -33,6 +33,7 @@ export function LocationStep({ onLocationSelect, selectedLocation, onNext }: Loc
   const [isLoading, setIsLoading] = useState(false)
   const [showPredictions, setShowPredictions] = useState(false)
   const [mapCenter, setMapCenter] = useState({ lat: 5.6037, lng: -0.187 }) // Default to Accra
+const [mapZoom, setMapZoom] = useState(12) // default zoom
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const mapDivRef = useRef<HTMLDivElement>(null)
@@ -60,6 +61,7 @@ export function LocationStep({ onLocationSelect, selectedLocation, onNext }: Loc
   useEffect(() => {
     if (selectedLocation) {
       setMapCenter({ lat: selectedLocation.lat, lng: selectedLocation.lng })
+      setMapZoom(40); // or 17 for a closer view
     }
   }, [selectedLocation])
 
@@ -301,7 +303,7 @@ export function LocationStep({ onLocationSelect, selectedLocation, onNext }: Loc
               <Map
                 defaultCenter={mapCenter}
                 center={mapCenter}
-                defaultZoom={12}
+                defaultZoom={mapZoom}
                 gestureHandling="greedy"
                 disableDefaultUI={true}
 

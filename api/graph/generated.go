@@ -52,6 +52,7 @@ type ResolverRoot interface {
 	Favorite() FavoriteResolver
 	GalleryProfession() GalleryProfessionResolver
 	InventoryItem() InventoryItemResolver
+	IsochroneResult() IsochroneResultResolver
 	Mutation() MutationResolver
 	Order() OrderResolver
 	Policy() PolicyResolver
@@ -257,6 +258,10 @@ type ComplexityRoot struct {
 		UpdatedAt   func(childComplexity int) int
 	}
 
+	IsochroneResult struct {
+		Geojson func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddAmenity                   func(childComplexity int, priceCardID string, amenity model.AmenityInput) int
 		AddPolicyDetail              func(childComplexity int, policyID string, input model.PolicyDetailInput) int
@@ -308,6 +313,7 @@ type ComplexityRoot struct {
 		DeleteUnavailablePeriod      func(childComplexity int, id string) int
 		DeleteUserByID               func(childComplexity int, id string) int
 		DeliveryLogin                func(childComplexity int, input *model.LoginInput) int
+		GenerateIsochrone            func(childComplexity int, input model.IsochroneInput) int
 		GenerateSubDomain            func(childComplexity int, serviceID string) int
 		GetGrowthData                func(childComplexity int, id string) int
 		JobRequest                   func(childComplexity int, input *model.JobRequestInput) int
@@ -795,6 +801,9 @@ type GalleryProfessionResolver interface {
 type InventoryItemResolver interface {
 	ID(ctx context.Context, obj *model.InventoryItem) (string, error)
 }
+type IsochroneResultResolver interface {
+	Geojson(ctx context.Context, obj *model.IsochroneResult) (string, error)
+}
 type MutationResolver interface {
 	CreatePolicy(ctx context.Context, input model.CreatePolicyInput) (*model.Policy, error)
 	AddPolicyDetail(ctx context.Context, policyID string, input model.PolicyDetailInput) (*model.PolicyDetail, error)
@@ -827,6 +836,7 @@ type MutationResolver interface {
 	BookEvent(ctx context.Context, eventID string, userID string) (*model.EventBookings, error)
 	CancelBookings(ctx context.Context, bookingsID string) (bool, error)
 	CreateRecurringEvents(ctx context.Context, input model.EventInput, endDate time.Time) ([]*model.Event, error)
+	GenerateIsochrone(ctx context.Context, input model.IsochroneInput) (*model.IsochroneResult, error)
 	RequestOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
 	RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error)
 	VerifyOtp(ctx context.Context, input model.VerifyOtpInput) (*model.OtpResponse, error)
@@ -1947,6 +1957,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.InventoryItem.UpdatedAt(childComplexity), true
 
+	case "IsochroneResult.geojson":
+		if e.complexity.IsochroneResult.Geojson == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.Geojson(childComplexity), true
+
 	case "Mutation.addAmenity":
 		if e.complexity.Mutation.AddAmenity == nil {
 			break
@@ -2531,6 +2548,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeliveryLogin(childComplexity, args["input"].(*model.LoginInput)), true
+
+	case "Mutation.generateIsochrone":
+		if e.complexity.Mutation.GenerateIsochrone == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_generateIsochrone_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GenerateIsochrone(childComplexity, args["input"].(model.IsochroneInput)), true
 
 	case "Mutation.generateSubDomain":
 		if e.complexity.Mutation.GenerateSubDomain == nil {
@@ -5396,6 +5425,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputEventInput,
 		ec.unmarshalInputGalleryProfessionInput,
 		ec.unmarshalInputInventoryItemInput,
+		ec.unmarshalInputIsochroneInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputOrderInput,
 		ec.unmarshalInputOrderItemInput,
@@ -5517,7 +5547,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/otp.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/users.graphqls"
+//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/mapworks.graphqls" "graphql/otp.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/users.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -5532,6 +5562,7 @@ var sources = []*ast.Source{
 	{Name: "graphql/admin.graphqls", Input: sourceData("graphql/admin.graphqls"), BuiltIn: false},
 	{Name: "graphql/booking.graphqls", Input: sourceData("graphql/booking.graphqls"), BuiltIn: false},
 	{Name: "graphql/event.graphqls", Input: sourceData("graphql/event.graphqls"), BuiltIn: false},
+	{Name: "graphql/mapworks.graphqls", Input: sourceData("graphql/mapworks.graphqls"), BuiltIn: false},
 	{Name: "graphql/otp.graphqls", Input: sourceData("graphql/otp.graphqls"), BuiltIn: false},
 	{Name: "graphql/products.graphqls", Input: sourceData("graphql/products.graphqls"), BuiltIn: false},
 	{Name: "graphql/rentals.graphqls", Input: sourceData("graphql/rentals.graphqls"), BuiltIn: false},
@@ -6941,6 +6972,29 @@ func (ec *executionContext) field_Mutation_deliveryLogin_argsInput(
 	}
 
 	var zeroVal *model.LoginInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_generateIsochrone_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_generateIsochrone_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_generateIsochrone_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.IsochroneInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNIsochroneInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneInput(ctx, tmp)
+	}
+
+	var zeroVal model.IsochroneInput
 	return zeroVal, nil
 }
 
@@ -15772,6 +15826,50 @@ func (ec *executionContext) fieldContext_InventoryItem_createdAt(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _IsochroneResult_geojson(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_geojson(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.IsochroneResult().Geojson(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_geojson(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createPolicy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createPolicy(ctx, field)
 	if err != nil {
@@ -17898,6 +17996,65 @@ func (ec *executionContext) fieldContext_Mutation_createRecurringEvents(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createRecurringEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_generateIsochrone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_generateIsochrone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().GenerateIsochrone(rctx, fc.Args["input"].(model.IsochroneInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_generateIsochrone(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_generateIsochrone_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -39551,6 +39708,47 @@ func (ec *executionContext) unmarshalInputInventoryItemInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputIsochroneInput(ctx context.Context, obj any) (model.IsochroneInput, error) {
+	var it model.IsochroneInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"locations", "range", "transportMode"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "locations":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("locations"))
+			data, err := ec.unmarshalNFloat2ᚕᚕfloat64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Locations = data
+		case "range":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("range"))
+			data, err := ec.unmarshalNInt2ᚕint32ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Range = data
+		case "transportMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transportMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TransportMode = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	asMap := map[string]any{}
@@ -42440,6 +42638,76 @@ func (ec *executionContext) _InventoryItem(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var isochroneResultImplementors = []string{"IsochroneResult"}
+
+func (ec *executionContext) _IsochroneResult(ctx context.Context, sel ast.SelectionSet, obj *model.IsochroneResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, isochroneResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("IsochroneResult")
+		case "geojson":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._IsochroneResult_geojson(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -42648,6 +42916,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createRecurringEvents":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createRecurringEvents(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generateIsochrone":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_generateIsochrone(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -48832,6 +49107,70 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
+func (ec *executionContext) unmarshalNFloat2ᚕfloat64ᚄ(ctx context.Context, v any) ([]float64, error) {
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]float64, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloat2float64(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNFloat2ᚕfloat64ᚄ(ctx context.Context, sel ast.SelectionSet, v []float64) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNFloat2float64(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNFloat2ᚕᚕfloat64ᚄ(ctx context.Context, v any) ([][]float64, error) {
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([][]float64, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNFloat2ᚕᚕfloat64ᚄ(ctx context.Context, sel ast.SelectionSet, v [][]float64) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNFloat2ᚕfloat64ᚄ(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNGalleryProfession2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐGalleryProfession(ctx context.Context, sel ast.SelectionSet, v model.GalleryProfession) graphql.Marshaler {
 	return ec._GalleryProfession(ctx, sel, &v)
 }
@@ -48879,6 +49218,38 @@ func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNInt2ᚕint32ᚄ(ctx context.Context, v any) ([]int32, error) {
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]int32, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int32(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNInt2ᚕint32ᚄ(ctx context.Context, sel ast.SelectionSet, v []int32) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int32(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNInventoryItem2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInventoryItem(ctx context.Context, sel ast.SelectionSet, v model.InventoryItem) graphql.Marshaler {
@@ -48942,6 +49313,25 @@ func (ec *executionContext) marshalNInventoryItem2ᚖgithubᚗcomᚋlehxeesᚋse
 func (ec *executionContext) unmarshalNInventoryItemInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInventoryItemInput(ctx context.Context, v any) (model.InventoryItemInput, error) {
 	res, err := ec.unmarshalInputInventoryItemInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNIsochroneInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneInput(ctx context.Context, v any) (model.IsochroneInput, error) {
+	res, err := ec.unmarshalInputIsochroneInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNIsochroneResult2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx context.Context, sel ast.SelectionSet, v model.IsochroneResult) graphql.Marshaler {
+	return ec._IsochroneResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx context.Context, sel ast.SelectionSet, v *model.IsochroneResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IsochroneResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v any) (model.LoginInput, error) {

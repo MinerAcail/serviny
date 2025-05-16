@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ChevronLeft, AlertCircle, MapPin } from "lucide-react"
+import { ChevronLeft, AlertCircle, MapPin, Clock } from "lucide-react"
 import { IsochroneMap } from "./isochrone-map"
 
 type Location = {
@@ -13,20 +13,65 @@ type Location = {
 }
 
 type TransportMode = "walking" | "bike" | "motorbike" | "car"
+type RangeType = "time" | "distance"
 
 interface ResultStepProps {
   location: Location | null
   transportMode: TransportMode
-  timeRanges: number[]
+  rangeType: RangeType
+  ranges: number[] // Original ranges (either distance or time)
+  timeRanges: number[] // Converted time ranges in minutes (for API and display)
   isochrones: any[]
   onBack: () => void
   error: string | null
 }
 
-export function ResultStep({ location, transportMode, timeRanges, isochrones, onBack, error }: ResultStepProps) {
+export function ResultStep({ 
+  location, 
+  transportMode, 
+  rangeType,
+  ranges,
+  timeRanges, 
+  isochrones, 
+  onBack, 
+  error 
+}: ResultStepProps) {
   if (!location) return null
 
-  const zoneColors = ["#4ade80", "#facc15", "#f87171"]
+  // Generate a color palette for any number of zones
+  const generateZoneColors = (count: number) => {
+    // Base colors for first 3 zones
+    const baseColors = ["#4ade80", "#facc15", "#f87171"]
+    
+    if (count <= 3) return baseColors.slice(0, count)
+    
+    // For more than 3 zones, generate additional colors
+    const colors = [...baseColors]
+    
+    // Add more colors if needed
+    const additionalColors = [
+      "#60a5fa", // blue
+      "#c084fc", // purple
+      "#2dd4bf", // teal
+      "#fb923c", // orange
+      "#f472b6"  // pink
+    ]
+    
+    for (let i = 3; i < count; i++) {
+      if (i - 3 < additionalColors.length) {
+        colors.push(additionalColors[i - 3])
+      } else {
+        // If we run out of predefined colors, generate random ones
+        // But make them somewhat visually distinct from each other
+        const hue = (i * 137) % 360 // Golden angle approximation for even distribution
+        colors.push(`hsl(${hue}, 70%, 60%)`)
+      }
+    }
+    
+    return colors
+  }
+
+  const zoneColors = generateZoneColors(ranges.length)
 
   return (
     <div className="p-6">
@@ -34,7 +79,7 @@ export function ResultStep({ location, transportMode, timeRanges, isochrones, on
         <div>
           <h2 className="text-xl font-semibold text-[#1D1D1F] dark:text-white">Delivery Zones</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Your delivery zones based on {transportMode} travel time
+            Your delivery zones based on {transportMode} travel {rangeType}
           </p>
         </div>
 
@@ -63,16 +108,40 @@ export function ResultStep({ location, transportMode, timeRanges, isochrones, on
               <IsochroneMap vendorLocation={location} isochrones={isochrones} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {timeRanges.map((time, index) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {ranges.map((value, index) => (
                 <Card key={index} className="border-t-4" style={{ borderTopColor: zoneColors[index] }}>
                   <div className="p-4">
                     <h3 className="font-medium text-[#1D1D1F] dark:text-white">Zone {index + 1}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {index === 0 ? "0" : timeRanges[index - 1]}-{time} min
-                    </p>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center gap-1">
+                        {rangeType === "distance" ? (
+                          <MapPin className="h-3 w-3" />
+                        ) : (
+                          <Clock className="h-3 w-3" />
+                        )}
+                        <p>
+                          {index === 0 ? "0" : ranges[index - 1]}-{value} {rangeType === "distance" ? "km" : "min"}
+                        </p>
+                      </div>
+                      
+                      {rangeType === "distance" && (
+                        <p className="text-xs mt-1">
+                          (~{index === 0 ? "0" : timeRanges[index - 1]}-{timeRanges[index]} min travel time)
+                        </p>
+                      )}
+                      {rangeType === "time" && (
+                        <p className="text-xs mt-1">
+                          (~{index === 0 ? "0" : Math.round(((ranges[index - 1] / 60) * SPEED_MAPPING[transportMode]) * 10) / 10}-
+                          {Math.round(((value / 60) * SPEED_MAPPING[transportMode]) * 10) / 10} km travel distance)
+                        </p>
+                      )}
+                    </div>
                     <p className="text-lg font-semibold mt-2">
-                      {index === 0 ? "Base Price" : `Base + $${index * 3}.00`}
+                      {index === 0 ? 
+                        "Base Price" : 
+                        `Base + $${Math.min(index * 3, 15)}.${index % 2 === 0 ? '00' : '50'}`
+                      }
                     </p>
                   </div>
                 </Card>
@@ -98,4 +167,12 @@ export function ResultStep({ location, transportMode, timeRanges, isochrones, on
       </div>
     </div>
   )
+}
+
+// Conversion speeds in km/h - copied here for distance calculation
+const SPEED_MAPPING = {
+  walking: 5,
+  bike: 15,
+  motorbike: 30,
+  car: 60
 }

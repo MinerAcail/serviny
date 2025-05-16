@@ -34,6 +34,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@reach/combobox": "^0.18.0",
     "@react-google-maps/api": "^2.20.6",
+    "@turf/turf": "^7.2.0",
     "@types/lodash": "^4.17.16",
     "@vis.gl/react-google-maps": "^1.5.2",
     "apollo-upload-client": "^18.0.1",

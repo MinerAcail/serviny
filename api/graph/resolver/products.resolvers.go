@@ -110,7 +110,7 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 		ImageUrls:   productURLs,
 		Categories:  categories,
 		Description: input.Description,
-		ItemsType: itemsTypes,
+		ItemsType:   itemsTypes,
 		VendorID:    &vendorId,
 	}
 
