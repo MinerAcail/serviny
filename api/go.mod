@@ -11,6 +11,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/lib/pq v1.10.9
 	github.com/minio/minio-go/v7 v7.0.85
+	github.com/paulmach/orb v0.11.1
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/vektah/gqlparser/v2 v2.5.22
 	golang.org/x/crypto v0.33.0
@@ -40,7 +41,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

@@ -8,12 +8,17 @@ import { ResultStep } from "./result-step"
 import { Card } from "@/components/ui/card"
 import { StepIndicator } from "./components/step-indicator"
 import { useMutation, gql } from "@apollo/client"
+import { DeliveryZoneVisualizer, ZoneDetail } from "./visualize"
+import { Button } from "@/components/ui/button"
 
 // GraphQL mutation for isochrones
 export const GET_ISOCHRONE = gql`
   mutation GenerateIsochrone($input: IsochroneInput!) {
     generateIsochrone(input: $input) {
-      geojson
+       geojson
+    uuid
+    locations
+
     }
   }
 `
@@ -57,7 +62,20 @@ export function VendorProcessFlow() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [extendedMode, setExtendedMode] = useState(false) // Toggle for extended isochrones
+  const [retryCount, setRetryCount] = useState(0)
+  const [retryTimer, setRetryTimer] = useState<NodeJS.Timeout | null>(null)
   
+
+   // New state for DeliveryZoneVisualizer
+  const [activeZoneIndex, setActiveZoneIndex] = useState<number | null>(null);
+  const [zoneDetails, setZoneDetails] = useState<ZoneDetail[]>([]);
+  const [isExtendingEnabled, setIsExtendingEnabled] = useState(false);
+
+
+   // New function to handle zone click
+  const handleZoneClick = (index: number) => {
+    setActiveZoneIndex(activeZoneIndex === index ? null : index);
+  };
   // Apollo Client mutation hook
   const [generateIsochrone] = useMutation(GET_ISOCHRONE)
 
@@ -213,7 +231,7 @@ export function VendorProcessFlow() {
   }
 
   const nextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -250,8 +268,23 @@ export function VendorProcessFlow() {
     }
   }
 
+  const cancelRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      setRetryTimer(null);
+    }
+    setRetryCount(0);
+    setIsLoading(false);
+  }
+
   const generateIsochrones = async () => {
     if (!location) return
+
+    // If we already have a retry timer, clear it
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      setRetryTimer(null);
+    }
 
     setIsLoading(true)
     setError(null)
@@ -260,11 +293,12 @@ export function VendorProcessFlow() {
       // Get time ranges in minutes
       const timeRanges = getTimeRangesForApi()
       
+      // For now, we'll use 60 minute cap for the initial isochrone
+      // The extension functionality will handle adding more points
+      const cappedRanges = timeRanges.map(time => Math.min(time, 60));
+      
       // Convert minutes to seconds for the API
-      const rangesInSeconds = timeRanges.map((minutes) => {
-        // No need to cap at MAX_RANGE_SECONDS - backend now supports extended isochrones
-        return minutes * 60;
-      })
+      const rangesInSeconds = cappedRanges.map((minutes) => minutes * 60);
 
       console.log("Time ranges for API (seconds):", rangesInSeconds)
       
@@ -281,12 +315,15 @@ export function VendorProcessFlow() {
           input: {
             locations: [[location.lng, location.lat]], // OpenRouteService expects [longitude, latitude]
             range: rangesInSeconds,
-            transportMode: transportMode
+            transportMode: transportMode,
+            address:location.address
+
           }
         }
       })
 
-      console.log("GraphQL API Response:", response)
+      // Reset retry counter on success
+      setRetryCount(0);
 
       // Parse the GeoJSON string returned from the API
       if (response?.data?.generateIsochrone?.geojson) {
@@ -301,13 +338,46 @@ export function VendorProcessFlow() {
       } else {
         throw new Error("No valid isochrone data received")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating isochrones:", error)
-      setError(error instanceof Error ? error.message : "Failed to generate isochrones")
-    } finally {
-      setIsLoading(false)
+      
+      const errorMessage = error?.message || "Failed to generate isochrones";
+      setError(errorMessage);
+      
+      // Check if it's a service unavailable error
+      if (errorMessage.includes("Service Unavailable") || errorMessage.includes("503")) {
+        const maxRetries = 3;
+        
+        if (retryCount < maxRetries) {
+          // Increment retry counter
+          const newRetryCount = retryCount + 1;
+          setRetryCount(newRetryCount);
+          
+          // Calculate exponential backoff delay
+          const delay = Math.pow(2, newRetryCount) * 1000; // 2s, 4s, 8s
+          
+          // Set a more helpful error message
+          setError(`The mapping service is temporarily busy. Retrying in ${delay/1000} seconds... (Attempt ${newRetryCount}/${maxRetries})`);
+          
+          // Set a timeout to retry
+          const timer = setTimeout(() => {
+            generateIsochrones();
+          }, delay);
+          
+          setRetryTimer(timer);
+        } else {
+          // Max retries reached
+          setError("The mapping service is currently unavailable. Please try again later.");
+          setIsLoading(false);
+        }
+      } else {
+        // Not a service unavailable error, just show the error
+        setIsLoading(false);
+      }
     }
   }
+
+
 
   return (
     <div className="space-y-6">
@@ -351,11 +421,21 @@ export function VendorProcessFlow() {
             ranges={ranges}
             timeRanges={rangeType === "time" ? ranges : getTimeRangesForApi()}
             isochrones={isochrones}
-            onBack={prevStep}
+            onBack={() => {
+              // Cancel any pending retries before going back
+              cancelRetry();
+              prevStep();
+            }}
+            nextStep={nextStep}
+
             error={error}
             extendedMode={extendedMode}
+            onRetry={isLoading ? cancelRetry : generateIsochrones}
+            isRetrying={isLoading && retryCount > 0}
           />
         )}
+
+         
       </Card>
     </div>
   )

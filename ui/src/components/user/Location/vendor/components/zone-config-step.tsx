@@ -50,7 +50,9 @@ export function ZoneConfigStep({
 }: ZoneConfigStepProps) {
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [customRanges, setCustomRanges] = useState<number[]>([...ranges])
-  const [showComingSoonMessage, setShowComingSoonMessage] = useState(false)
+  const [showInfoMessage, setShowInfoMessage] = useState(false)
+  const [infoMessageType, setInfoMessageType] = useState<'info' | 'warning' | 'success'>('info')
+  const [infoMessage, setInfoMessage] = useState("")
 
   // Get maximum value based on transport mode, range type, and extended mode
   const getMaxValue = (mode: TransportMode, type: RangeType): number => {
@@ -83,20 +85,34 @@ export function ZoneConfigStep({
     }
   }
 
-  const handleExtendedModeToggle = (checked: boolean) => {
-    // If trying to enable extended mode, show the coming soon message instead
-    if (checked && !extendedMode) {
-      setShowComingSoonMessage(true)
-      // Auto-hide the message after 5 seconds
-      setTimeout(() => {
-        setShowComingSoonMessage(false)
-      }, 5000)
-      return;
-    }
+  const showTemporaryMessage = (message: string, type: 'info' | 'warning' | 'success' = 'info', duration: number = 5000) => {
+    setInfoMessage(message)
+    setInfoMessageType(type)
+    setShowInfoMessage(true)
     
-    // Otherwise, allow disabling it if it was already enabled
+    // Auto-hide the message after specified duration
+    setTimeout(() => {
+      setShowInfoMessage(false)
+    }, duration)
+  }
+
+  const handleExtendedModeToggle = (checked: boolean) => {
+    // Toggle extended mode via parent component
     if (onExtendedModeChange) {
       onExtendedModeChange(checked)
+      
+      // Show appropriate message
+      if (checked) {
+        showTemporaryMessage(
+          "Extended mode enabled! After generating your zones, you'll be able to extend them by clicking on additional points.", 
+          'success'
+        )
+      } else {
+        showTemporaryMessage(
+          "Extended mode disabled. Zones will be limited to the standard 60-minute API constraint.",
+          'info'
+        )
+      }
     }
   }
 
@@ -217,6 +233,33 @@ export function ZoneConfigStep({
     return `${value} ${type === "distance" ? "km" : "min"}`
   }
 
+  // Render appropriate message based on info type
+  const renderInfoMessage = () => {
+    if (!showInfoMessage) return null;
+    
+    let bgClass = "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
+    let Icon = Info;
+    
+    if (infoMessageType === 'warning') {
+      bgClass = "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
+      Icon = AlertTriangle;
+    } else if (infoMessageType === 'success') {
+      bgClass = "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300";
+      Icon = Info;
+    }
+    
+    return (
+      <div className={`${bgClass} p-3 rounded-lg text-sm animate-pulse`}>
+        <div className="flex items-start">
+          <Icon className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <div>
+            <p>{infoMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="space-y-6">
@@ -257,18 +300,19 @@ export function ZoneConfigStep({
                           id="extended-mode" 
                           checked={extendedMode} 
                           onCheckedChange={handleExtendedModeToggle}
-                          disabled={!extendedMode} // Disable enabling it, but allow disabling
                         />
                         <Label htmlFor="extended-mode" className="text-[#1D1D1F] dark:text-white font-medium flex items-center">
                           Enable extended range delivery zones
-                          <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded-full">
-                            Coming Soon
-                          </span>
+                          {!extendedMode && (
+                            <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
+                              New
+                            </span>
+                          )}
                         </Label>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Extended range delivery zones are under development and will be available soon.</p>
+                      <p>Extended mode allows you to create coverage beyond the standard 60-minute API limit by adding extra points to your delivery area.</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -277,23 +321,14 @@ export function ZoneConfigStep({
           )}
         </div>
 
-        {showComingSoonMessage && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-sm animate-pulse">
-            <div className="flex items-start">
-              <Info className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Coming Soon!</p>
-                <p className="mt-1">We're working on extended range delivery zones. This feature will be available soon.</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Dynamic info/success message */}
+        {renderInfoMessage()}
 
         {rangeType === "time" && !extendedMode && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 p-3 rounded-lg text-sm">
             <div className="flex items-start">
               <AlertTriangle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-              <p>Time ranges are limited to a maximum of 60 minutes due to API constraints. Extended range zones will be available soon.</p>
+              <p>Time ranges are limited to a maximum of 60 minutes due to API constraints. Enable extended mode to create larger delivery zones.</p>
             </div>
           </div>
         )}
@@ -301,10 +336,10 @@ export function ZoneConfigStep({
         {extendedMode && (
           <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-sm">
             <div className="flex items-start">
-              <AlertTriangle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <Info className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-medium">Extended Mode Enabled</p>
-                <p className="mt-1">You can now create delivery zones with up to {maxExtendedTimeMinutes} minutes ({Math.round(maxExtendedTimeMinutes/60)} hours) of travel time. Generating extended zones may take longer.</p>
+                <p className="mt-1">You'll be able to expand your delivery zones by clicking on additional points after the initial zone is generated. This helps overcome the 60-minute API limit.</p>
               </div>
             </div>
           </div>

@@ -130,6 +130,16 @@ type ComplexityRoot struct {
 		UpdatedAt func(childComplexity int) int
 	}
 
+	CacheEntry struct {
+		Key func(childComplexity int) int
+		TTL func(childComplexity int) int
+	}
+
+	CacheStats struct {
+		Entries      func(childComplexity int) int
+		TotalEntries func(childComplexity int) int
+	}
+
 	CartItem struct {
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
@@ -259,7 +269,12 @@ type ComplexityRoot struct {
 	}
 
 	IsochroneResult struct {
-		Geojson func(childComplexity int) int
+		Address       func(childComplexity int) int
+		Geojson       func(childComplexity int) int
+		Locations     func(childComplexity int) int
+		Range         func(childComplexity int) int
+		TransportMode func(childComplexity int) int
+		UUID          func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -319,6 +334,7 @@ type ComplexityRoot struct {
 		JobRequest                   func(childComplexity int, input *model.JobRequestInput) int
 		JobResponse                  func(childComplexity int, applicantID string, state string) int
 		LogOut                       func(childComplexity int) int
+		ManageCacheIsochrone         func(childComplexity int, input model.CacheManagementInput) int
 		MarkMessagesAsRead           func(childComplexity int, sender model.SenderType) int
 		ReSetPasswordORUpdateOtp     func(childComplexity int, input model.RequestOtpInput) int
 		RemoveAmenity                func(childComplexity int, priceCardID string, amenityID string) int
@@ -484,6 +500,7 @@ type ComplexityRoot struct {
 		GetAllCategoryBox                   func(childComplexity int, query *string) int
 		GetAllChatMessageByNumber           func(childComplexity int, customerNumber string) int
 		GetAllGallery                       func(childComplexity int, serviceID string, query *string, limit *int32, offset *int32) int
+		GetAllIsochroneResults              func(childComplexity int) int
 		GetAllOrderHistory                  func(childComplexity int) int
 		GetAllOrderItemsByProductID         func(childComplexity int, orderID string) int
 		GetAllOrderItemsByProductIDDelivery func(childComplexity int) int
@@ -512,6 +529,7 @@ type ComplexityRoot struct {
 		GetGallery                          func(childComplexity int, galleryID string) int
 		GetGrowthData                       func(childComplexity int, id string) int
 		GetID                               func(childComplexity int) int
+		GetIsochroneResult                  func(childComplexity int, location []float64, uuid string) int
 		GetNewAddedCategoryBox              func(childComplexity int) int
 		GetNewAddedProducts                 func(childComplexity int) int
 		GetOrder                            func(childComplexity int, id string) int
@@ -837,6 +855,7 @@ type MutationResolver interface {
 	CancelBookings(ctx context.Context, bookingsID string) (bool, error)
 	CreateRecurringEvents(ctx context.Context, input model.EventInput, endDate time.Time) ([]*model.Event, error)
 	GenerateIsochrone(ctx context.Context, input model.IsochroneInput) (*model.IsochroneResult, error)
+	ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error)
 	RequestOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
 	RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error)
 	VerifyOtp(ctx context.Context, input model.VerifyOtpInput) (*model.OtpResponse, error)
@@ -961,6 +980,8 @@ type QueryResolver interface {
 	UserBookings(ctx context.Context, userID string) ([]*model.EventBookings, error)
 	GetBookEvent(ctx context.Context, eventID string, userID string) (*model.EventBookings, error)
 	GetBookedData(ctx context.Context) ([]*model.BookedData, error)
+	GetIsochroneResult(ctx context.Context, location []float64, uuid string) (*model.IsochroneResult, error)
+	GetAllIsochroneResults(ctx context.Context) ([]*model.IsochroneResult, error)
 	GetProduct(ctx context.Context, id string) (*model.Product, error)
 	GetAllProducts(ctx context.Context, query *string, vendorID *string, limit *int32, offset *int32) ([]*model.Product, error)
 	GetAllCategories(ctx context.Context, vendorID string) ([]*string, error)
@@ -1312,6 +1333,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Booker.UpdatedAt(childComplexity), true
+
+	case "CacheEntry.key":
+		if e.complexity.CacheEntry.Key == nil {
+			break
+		}
+
+		return e.complexity.CacheEntry.Key(childComplexity), true
+
+	case "CacheEntry.ttl":
+		if e.complexity.CacheEntry.TTL == nil {
+			break
+		}
+
+		return e.complexity.CacheEntry.TTL(childComplexity), true
+
+	case "CacheStats.entries":
+		if e.complexity.CacheStats.Entries == nil {
+			break
+		}
+
+		return e.complexity.CacheStats.Entries(childComplexity), true
+
+	case "CacheStats.totalEntries":
+		if e.complexity.CacheStats.TotalEntries == nil {
+			break
+		}
+
+		return e.complexity.CacheStats.TotalEntries(childComplexity), true
 
 	case "CartItem.createdAt":
 		if e.complexity.CartItem.CreatedAt == nil {
@@ -1957,12 +2006,47 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.InventoryItem.UpdatedAt(childComplexity), true
 
+	case "IsochroneResult.address":
+		if e.complexity.IsochroneResult.Address == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.Address(childComplexity), true
+
 	case "IsochroneResult.geojson":
 		if e.complexity.IsochroneResult.Geojson == nil {
 			break
 		}
 
 		return e.complexity.IsochroneResult.Geojson(childComplexity), true
+
+	case "IsochroneResult.locations":
+		if e.complexity.IsochroneResult.Locations == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.Locations(childComplexity), true
+
+	case "IsochroneResult.range":
+		if e.complexity.IsochroneResult.Range == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.Range(childComplexity), true
+
+	case "IsochroneResult.transportMode":
+		if e.complexity.IsochroneResult.TransportMode == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.TransportMode(childComplexity), true
+
+	case "IsochroneResult.uuid":
+		if e.complexity.IsochroneResult.UUID == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.UUID(childComplexity), true
 
 	case "Mutation.addAmenity":
 		if e.complexity.Mutation.AddAmenity == nil {
@@ -2615,6 +2699,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.LogOut(childComplexity), true
+
+	case "Mutation.manageCacheIsochrone":
+		if e.complexity.Mutation.ManageCacheIsochrone == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_manageCacheIsochrone_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ManageCacheIsochrone(childComplexity, args["input"].(model.CacheManagementInput)), true
 
 	case "Mutation.markMessagesAsRead":
 		if e.complexity.Mutation.MarkMessagesAsRead == nil {
@@ -3788,6 +3884,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllGallery(childComplexity, args["ServiceId"].(string), args["query"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 
+	case "Query.getAllIsochroneResults":
+		if e.complexity.Query.GetAllIsochroneResults == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllIsochroneResults(childComplexity), true
+
 	case "Query.getAllOrderHistory":
 		if e.complexity.Query.GetAllOrderHistory == nil {
 			break
@@ -4038,6 +4141,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetID(childComplexity), true
+
+	case "Query.getIsochroneResult":
+		if e.complexity.Query.GetIsochroneResult == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getIsochroneResult_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetIsochroneResult(childComplexity, args["location"].([]float64), args["uuid"].(string)), true
 
 	case "Query.getNewAddedCategoryBox":
 		if e.complexity.Query.GetNewAddedCategoryBox == nil {
@@ -5412,6 +5527,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAmenityInput,
 		ec.unmarshalInputBookerInput,
 		ec.unmarshalInputBookersInput,
+		ec.unmarshalInputCacheManagementInput,
 		ec.unmarshalInputCategoryBoxInput,
 		ec.unmarshalInputCategoryInput,
 		ec.unmarshalInputChatMessageAdminInput,
@@ -7105,6 +7221,29 @@ func (ec *executionContext) field_Mutation_jobResponse_argsState(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_manageCacheIsochrone_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_manageCacheIsochrone_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_manageCacheIsochrone_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.CacheManagementInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNCacheManagementInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheManagementInput(ctx, tmp)
+	}
+
+	var zeroVal model.CacheManagementInput
 	return zeroVal, nil
 }
 
@@ -9367,6 +9506,47 @@ func (ec *executionContext) field_Query_getGrowthData_argsID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getIsochroneResult_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getIsochroneResult_argsLocation(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["location"] = arg0
+	arg1, err := ec.field_Query_getIsochroneResult_argsUUID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["uuid"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_getIsochroneResult_argsLocation(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]float64, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("location"))
+	if tmp, ok := rawArgs["location"]; ok {
+		return ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, tmp)
+	}
+
+	var zeroVal []float64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getIsochroneResult_argsUUID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("uuid"))
+	if tmp, ok := rawArgs["uuid"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -11793,6 +11973,188 @@ func (ec *executionContext) fieldContext_Booker_updatedAt(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CacheEntry_key(ctx context.Context, field graphql.CollectedField, obj *model.CacheEntry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CacheEntry_key(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Key, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CacheEntry_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CacheEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CacheEntry_ttl(ctx context.Context, field graphql.CollectedField, obj *model.CacheEntry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CacheEntry_ttl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TTL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int32)
+	fc.Result = res
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CacheEntry_ttl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CacheEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CacheStats_totalEntries(ctx context.Context, field graphql.CollectedField, obj *model.CacheStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CacheStats_totalEntries(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalEntries, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int32)
+	fc.Result = res
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CacheStats_totalEntries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CacheStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CacheStats_entries(ctx context.Context, field graphql.CollectedField, obj *model.CacheStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CacheStats_entries(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Entries, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CacheEntry)
+	fc.Result = res
+	return ec.marshalNCacheEntry2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheEntryᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CacheStats_entries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CacheStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_CacheEntry_key(ctx, field)
+			case "ttl":
+				return ec.fieldContext_CacheEntry_ttl(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CacheEntry", field.Name)
 		},
 	}
 	return fc, nil
@@ -15870,6 +16232,214 @@ func (ec *executionContext) fieldContext_IsochroneResult_geojson(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _IsochroneResult_uuid(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_uuid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_uuid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneResult_locations(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_locations(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Locations, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([][]float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚕᚕfloat64ᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_locations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneResult_range(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_range(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Range, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]int32)
+	fc.Result = res
+	return ec.marshalNInt2ᚕint32ᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_range(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneResult_transportMode(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TransportMode, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_transportMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneResult_address(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_address(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Address, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_address(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createPolicy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createPolicy(ctx, field)
 	if err != nil {
@@ -18043,6 +18613,16 @@ func (ec *executionContext) fieldContext_Mutation_generateIsochrone(ctx context.
 			switch field.Name {
 			case "geojson":
 				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "uuid":
+				return ec.fieldContext_IsochroneResult_uuid(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -18055,6 +18635,67 @@ func (ec *executionContext) fieldContext_Mutation_generateIsochrone(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_generateIsochrone_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_manageCacheIsochrone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_manageCacheIsochrone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ManageCacheIsochrone(rctx, fc.Args["input"].(model.CacheManagementInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CacheStats)
+	fc.Result = res
+	return ec.marshalNCacheStats2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_manageCacheIsochrone(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalEntries":
+				return ec.fieldContext_CacheStats_totalEntries(ctx, field)
+			case "entries":
+				return ec.fieldContext_CacheStats_entries(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CacheStats", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_manageCacheIsochrone_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -26803,6 +27444,127 @@ func (ec *executionContext) fieldContext_Query_getBookedData(_ context.Context, 
 				return ec.fieldContext_BookedData_usersData(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BookedData", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getIsochroneResult(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getIsochroneResult(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetIsochroneResult(rctx, fc.Args["location"].([]float64), fc.Args["uuid"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalOIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getIsochroneResult(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "uuid":
+				return ec.fieldContext_IsochroneResult_uuid(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getIsochroneResult_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllIsochroneResults(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllIsochroneResults(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllIsochroneResults(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalOIsochroneResult2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResultᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllIsochroneResults(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "uuid":
+				return ec.fieldContext_IsochroneResult_uuid(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
 	}
 	return fc, nil
@@ -39070,6 +39832,68 @@ func (ec *executionContext) unmarshalInputBookersInput(ctx context.Context, obj 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCacheManagementInput(ctx context.Context, obj any) (model.CacheManagementInput, error) {
+	var it model.CacheManagementInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"action", "locations", "ranges", "transportModes", "ttl", "Addresses"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "action":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("action"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Action = data
+		case "locations":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("locations"))
+			data, err := ec.unmarshalOFloat2ᚕᚕfloat64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Locations = data
+		case "ranges":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ranges"))
+			data, err := ec.unmarshalOInt2ᚕint32ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Ranges = data
+		case "transportModes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transportModes"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TransportModes = data
+		case "ttl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ttl"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TTL = data
+		case "Addresses":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Addresses"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Addresses = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCategoryBoxInput(ctx context.Context, obj any) (model.CategoryBoxInput, error) {
 	var it model.CategoryBoxInput
 	asMap := map[string]any{}
@@ -39715,7 +40539,7 @@ func (ec *executionContext) unmarshalInputIsochroneInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"locations", "range", "transportMode"}
+	fieldsInOrder := [...]string{"locations", "range", "transportMode", "address"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -39743,6 +40567,13 @@ func (ec *executionContext) unmarshalInputIsochroneInput(ctx context.Context, ob
 				return it, err
 			}
 			it.TransportMode = data
+		case "address":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("address"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Address = data
 		}
 	}
 
@@ -41501,6 +42332,94 @@ func (ec *executionContext) _Booker(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
+var cacheEntryImplementors = []string{"CacheEntry"}
+
+func (ec *executionContext) _CacheEntry(ctx context.Context, sel ast.SelectionSet, obj *model.CacheEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cacheEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CacheEntry")
+		case "key":
+			out.Values[i] = ec._CacheEntry_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ttl":
+			out.Values[i] = ec._CacheEntry_ttl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cacheStatsImplementors = []string{"CacheStats"}
+
+func (ec *executionContext) _CacheStats(ctx context.Context, sel ast.SelectionSet, obj *model.CacheStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cacheStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CacheStats")
+		case "totalEntries":
+			out.Values[i] = ec._CacheStats_totalEntries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "entries":
+			out.Values[i] = ec._CacheStats_entries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var cartItemImplementors = []string{"CartItem"}
 
 func (ec *executionContext) _CartItem(ctx context.Context, sel ast.SelectionSet, obj *model.CartItem) graphql.Marshaler {
@@ -42685,6 +43604,19 @@ func (ec *executionContext) _IsochroneResult(ctx context.Context, sel ast.Select
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "uuid":
+			out.Values[i] = ec._IsochroneResult_uuid(ctx, field, obj)
+		case "locations":
+			out.Values[i] = ec._IsochroneResult_locations(ctx, field, obj)
+		case "range":
+			out.Values[i] = ec._IsochroneResult_range(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "transportMode":
+			out.Values[i] = ec._IsochroneResult_transportMode(ctx, field, obj)
+		case "address":
+			out.Values[i] = ec._IsochroneResult_address(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -42923,6 +43855,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "generateIsochrone":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_generateIsochrone(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "manageCacheIsochrone":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_manageCacheIsochrone(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -44947,6 +45886,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getBookedData(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getIsochroneResult":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getIsochroneResult(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllIsochroneResults":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllIsochroneResults(ctx, field)
 				return res
 			}
 
@@ -48674,6 +49651,79 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCacheEntry2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CacheEntry) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCacheEntry2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCacheEntry2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheEntry(ctx context.Context, sel ast.SelectionSet, v *model.CacheEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CacheEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCacheManagementInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheManagementInput(ctx context.Context, v any) (model.CacheManagementInput, error) {
+	res, err := ec.unmarshalInputCacheManagementInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCacheStats2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheStats(ctx context.Context, sel ast.SelectionSet, v model.CacheStats) graphql.Marshaler {
+	return ec._CacheStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCacheStats2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCacheStats(ctx context.Context, sel ast.SelectionSet, v *model.CacheStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CacheStats(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNCartItem2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCartItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CartItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -51463,6 +52513,44 @@ func (ec *executionContext) marshalOFavorite2ᚖgithubᚗcomᚋlehxeesᚋserviny
 	return ec._Favorite(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOFloat2ᚕᚕfloat64ᚄ(ctx context.Context, v any) ([][]float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([][]float64, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOFloat2ᚕᚕfloat64ᚄ(ctx context.Context, sel ast.SelectionSet, v [][]float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNFloat2ᚕfloat64ᚄ(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
 	if v == nil {
 		return nil, nil
@@ -51550,6 +52638,44 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalOInt2ᚕint32ᚄ(ctx context.Context, v any) ([]int32, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]int32, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int32(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOInt2ᚕint32ᚄ(ctx context.Context, sel ast.SelectionSet, v []int32) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int32(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint32(ctx context.Context, v any) (*int32, error) {
 	if v == nil {
 		return nil, nil
@@ -51620,6 +52746,60 @@ func (ec *executionContext) unmarshalOInventoryItemInput2ᚖgithubᚗcomᚋlehxe
 	}
 	res, err := ec.unmarshalInputInventoryItemInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOIsochroneResult2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.IsochroneResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx context.Context, sel ast.SelectionSet, v *model.IsochroneResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._IsochroneResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOLoginInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v any) (*model.LoginInput, error) {

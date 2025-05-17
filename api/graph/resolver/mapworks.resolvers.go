@@ -7,44 +7,73 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
 )
 
-const MAX_ORS_TIME_SECONDS = 3600 // 1 hour
-
 // Geojson is the resolver for the geojson field.
 func (r *isochroneResultResolver) Geojson(ctx context.Context, obj *model.IsochroneResult) (string, error) {
-	jsonBytes, err := json.Marshal(obj.GeoJSON)
-	if err != nil {
-		return "", err
+	var data map[string]interface{}
+	if err := json.Unmarshal(obj.GeoJSON, &data); err != nil {
+		return "", fmt.Errorf("failed to unmarshal GeoJSON: %w", err)
 	}
-	return string(jsonBytes), nil
+
+	// Reverse the "features" array if it exists
+	if features, ok := data["features"].([]interface{}); ok {
+		for i, j := 0, len(features)-1; i < j; i, j = i+1, j-1 {
+			features[i], features[j] = features[j], features[i]
+		}
+		data["features"] = features
+	}
+
+	// Marshal back to string
+	reversedJSON, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal reversed GeoJSON: %w", err)
+	}
+
+	return string(reversedJSON), nil
 }
 
 // GenerateIsochrone is the resolver for the generateIsochrone field.
 func (r *mutationResolver) GenerateIsochrone(ctx context.Context, input model.IsochroneInput) (*model.IsochroneResult, error) {
-	// Check if we need extended isochrones (beyond 1 hour)
-	needsExtendedIsochrones := false
-	var maxRange int
-	for _, rangeVal := range input.Range {
-		if rangeVal > MAX_ORS_TIME_SECONDS {
-			needsExtendedIsochrones = true
-		}
-		if rangeVal > int32(maxRange) {
-			maxRange = int(rangeVal)
-		}
+	// Use the helper function that handles caching and generation
+	return helper.GetCachedOrGenerateIsochrone(ctx, input)
+}
+
+// ManageCacheIsochrone is the resolver for the manageCacheIsochrone field.
+func (r *mutationResolver) ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error) {
+	panic(fmt.Errorf("not implemented: ManageCacheIsochrone - manageCacheIsochrone"))
+}
+
+// GetIsochroneResult is the resolver for the getIsochroneResult field.
+func (r *queryResolver) GetIsochroneResult(ctx context.Context, location []float64, uuid string) (*model.IsochroneResult, error) {
+	// Call the helper function to retrieve isochrone by location and UUID
+	result, err := helper.GetIsochroneResult(ctx, location, uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get isochrone: %w", err)
+	}
+	return result, nil
+}
+
+// GetAllIsochroneResults is the resolver for the getAllIsochroneResults field.
+func (r *queryResolver) GetAllIsochroneResults(ctx context.Context) ([]*model.IsochroneResult, error) {
+	// Call the helper function to retrieve all isochrones
+	results, err := helper.NewIsochroneCache().GetAllIsochroneResults(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all isochrones: %w", err)
 	}
 
-	// For regular isochrones within API limits
-	if !needsExtendedIsochrones {
-		return helper.GenerateRegularIsochrone(input)
+	// If no results, return empty slice instead of nil
+	if results == nil {
+		return []*model.IsochroneResult{}, nil
 	}
 
-	// For extended isochrones beyond API limits
-	return helper.GenerateExtendedIsochrone(input)
+	fmt.Printf("Resolver returning %d isochrone results\n", len(results))
+	return results, nil
 }
 
 // IsochroneResult returns graph.IsochroneResultResolver implementation.

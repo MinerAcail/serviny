@@ -49,6 +49,25 @@ type BookersInput struct {
 	IsBooked  bool      `json:"isBooked"`
 }
 
+type CacheEntry struct {
+	Key string `json:"key"`
+	TTL int32  `json:"ttl"`
+}
+
+type CacheManagementInput struct {
+	Action         string      `json:"action"`
+	Locations      [][]float64 `json:"locations,omitempty"`
+	Ranges         []int32     `json:"ranges,omitempty"`
+	TransportModes []string    `json:"transportModes,omitempty"`
+	TTL            *int32      `json:"ttl,omitempty"`
+	Addresses      *string     `json:"Addresses,omitempty"`
+}
+
+type CacheStats struct {
+	TotalEntries int32         `json:"totalEntries"`
+	Entries      []*CacheEntry `json:"entries"`
+}
+
 type CartItemOrder struct {
 	OrderID               string               `json:"orderId"`
 	ProductInfor          []*OrderproductInfor `json:"productInfor"`
@@ -182,6 +201,7 @@ type IsochroneInput struct {
 	Locations     [][]float64 `json:"locations"`
 	Range         []int32     `json:"range"`
 	TransportMode *string     `json:"transportMode,omitempty"`
+	Address       *string     `json:"address,omitempty"`
 }
 
 type LoginInput struct {

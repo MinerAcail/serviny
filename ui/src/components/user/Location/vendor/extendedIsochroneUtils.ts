@@ -1,308 +1,669 @@
 /**
- * Extended Isochrone Utilities
- * Provides functionality to generate isochrones beyond OpenRouteService's 1-hour limit
- * using a chaining approach with Turf.js.
+ * Enhanced Isochrone Utilities
+ * Provides improved functionality for extending isochrones using Turf.js with better
+ * performance, accuracy, and visualization capabilities.
  */
 
 import * as turf from '@turf/turf';
 
-// Maximum time limit for OpenRouteService API (in seconds)
+// Maximum time limit for OpenRouteService API in seconds
 export const MAX_ORS_TIME_SECONDS = 3600; // 1 hour
 
-interface ExtendedIsochroneOptions {
-  locations: number[][]; // [[lng, lat], ...] coordinates
-  maxRangeSeconds: number; // Total desired range in seconds
-  transportMode: string; // "walking", "bike", "motorbike", "car"
-  apiRequestFn: (coords: number[][], rangeSeconds: number[], transportMode: string) => Promise<any>;
-  samplePointsCount?: number; // Number of edge points to sample (default: 8)
-  buffer?: number; // Buffer distance in kilometers for sample points (default: 0.2)
+// Types for isochrone data
+export interface IsochroneZone {
+  id: string;
+  geojson: any; // The GeoJSON polygon
+  isOriginal: boolean; // Whether this is the original isochrone or an extension
+  sourcePoint: [number, number]; // The source point [lng, lat] that generated this isochrone
+  rangeInSeconds: number; // Time range in seconds
+  transportMode: string; // Transport mode used
+  areaInSqKm?: number; // Area in square kilometers
+  additionalCoverage?: any; // The difference between this zone and the existing coverage
+  timestamp?: number; // When this zone was created
+  compactness?: number; // Compactness ratio (1 = perfect circle)
+  boundaryLength?: number; // Boundary length in kilometers
 }
 
 /**
- * Generates extended isochrones beyond the OpenRouteService API limit
- * by chaining multiple isochrone requests and merging the results.
+ * Generates a unique ID for a zone
  */
-export async function generateExtendedIsochrones({
-  locations,
-  maxRangeSeconds,
-  transportMode,
-  apiRequestFn,
-  samplePointsCount = 8,
-  buffer = 0.2
-}: ExtendedIsochroneOptions): Promise<any> {
+export function generateZoneId(): string {
+  return `zone_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+}
+
+/**
+ * Calculate the area of a GeoJSON polygon in square kilometers
+ */
+export function calculateArea(geojson: any): number {
+  if (!geojson) return 0;
   
-  // If within API limits, just make a single request
-  if (maxRangeSeconds <= MAX_ORS_TIME_SECONDS) {
-    return await apiRequestFn(locations, [maxRangeSeconds], transportMode);
+  try {
+    const area = turf.area(geojson);
+    return area / 1000000; // Convert from square meters to square kilometers
+  } catch (error) {
+    console.error("Error calculating area:", error);
+    return 0;
+  }
+}
+
+/**
+ * Calculate the length of a polygon's boundary in kilometers
+ */
+export function calculateBoundaryLength(geojson: any): number {
+  if (!geojson) return 0;
+  
+  try {
+    // For Polygon type
+    if (geojson.geometry.type === 'Polygon') {
+      const line = turf.lineString(geojson.geometry.coordinates[0]);
+      return turf.length(line, { units: 'kilometers' });
+    } 
+    // For MultiPolygon type
+    else if (geojson.geometry.type === 'MultiPolygon') {
+      let totalLength = 0;
+      geojson.geometry.coordinates.forEach((polygon: any) => {
+        const line = turf.lineString(polygon[0]);
+        totalLength += turf.length(line, { units: 'kilometers' });
+      });
+      return totalLength;
+    }
+    return 0;
+  } catch (error) {
+    console.error("Error calculating boundary length:", error);
+    return 0;
+  }
+}
+
+/**
+ * Calculate the compactness ratio of a polygon
+ * Formula: 4π * area / (perimeter²)
+ * A circle has compactness of 1 (most compact)
+ */
+export function calculateCompactness(geojson: any): number {
+  if (!geojson) return 0;
+  
+  try {
+    const area = turf.area(geojson);
+    const perimeter = calculateBoundaryLength(geojson) * 1000; // Convert to meters
+    
+    if (perimeter === 0) return 0;
+    
+    const compactness = (4 * Math.PI * area) / (perimeter * perimeter);
+    
+    // Clamp to 0-1 and round
+    return Math.min(1, Math.max(0, parseFloat(compactness.toFixed(2))));
+  } catch (error) {
+    console.error("Error calculating compactness:", error);
+    return 0;
+  }
+}
+
+/**
+ * Calculates the difference between a new zone and existing coverage
+ * Returns the portion of the new zone that wasn't already covered
+ * with optimized handling of complex geometry
+ */
+export function calculateNewCoverage(newZone: any, existingCoverage: any): any {
+  if (!existingCoverage) {
+    return newZone; // If there's no existing coverage, the entire new zone is additional
   }
 
-  // Calculate how many "hops" we need
-  const hopsNeeded = Math.ceil(maxRangeSeconds / MAX_ORS_TIME_SECONDS);
-  console.log(`Generating extended isochrone with ${hopsNeeded} hops`);
-  
-  // Start with initial locations
-  let currentPoints = [...locations];
-  let allIsochrones: any[] = [];
-  let allSourcePoints: number[][] = [...locations]; // Track all source points
-  let remainingSeconds = maxRangeSeconds;
-
-  // Process each hop
-  for (let hop = 0; hop < hopsNeeded; hop++) {
-    // For the last hop, use remaining seconds, otherwise use max allowed
-    const currentRangeSeconds = Math.min(remainingSeconds, MAX_ORS_TIME_SECONDS);
+  try {
+    // Simplify geometries slightly to avoid topology errors
+    const simplifiedNewZone = turf.simplify(newZone, { tolerance: 0.00001 });
+    const simplifiedExistingCoverage = turf.simplify(existingCoverage, { tolerance: 0.00001 });
     
-    // Skip if we don't have any remaining seconds
-    if (currentRangeSeconds <= 0) break;
+    // Use turf.difference to calculate the difference
+    const difference = turf.difference(simplifiedNewZone, simplifiedExistingCoverage);
     
-    console.log(`Hop ${hop+1}/${hopsNeeded}: From ${currentPoints.length} points, range: ${currentRangeSeconds} seconds`);
+    // If difference is null, it means the new zone is completely contained in the existing coverage
+    if (!difference) {
+      return null;
+    }
     
+    // Calculate area of the difference and only return it if significant
+    const diffArea = calculateArea(difference);
+    if (diffArea < 0.01) { // Less than 0.01 km² is considered negligible
+      return null;
+    }
+    
+    return difference;
+  } catch (error) {
+    console.error("Error calculating difference between zones:", error);
+    // Fallback: If the difference operation fails, try using a buffer approach
     try {
-      // Request isochrones for current points
-      const response = await apiRequestFn(currentPoints, [currentRangeSeconds], transportMode);
-      
-      // Parse the GeoJSON
-      const geojsonData = typeof response.data?.generateIsochrone?.geojson === 'string' 
-        ? JSON.parse(response.data.generateIsochrone.geojson)
-        : response.data?.generateIsochrone?.geojson;
-      
-      if (!geojsonData?.features || !geojsonData.features.length) {
-        throw new Error(`Invalid GeoJSON response in hop ${hop+1}`);
-      }
-      
-      // Add to our collection
-      allIsochrones.push(...geojsonData.features);
-      
-      // If we've reached the last hop, we're done
-      if (hop === hopsNeeded - 1) break;
-      
-      // Get next set of sample points from the isochrone boundaries
-      currentPoints = [];
-      
-      for (const feature of geojsonData.features) {
-        const points = samplePointsFromPolygon(feature, samplePointsCount, buffer);
-        currentPoints.push(...points);
-      }
-      
-      // Add to the collection of all source points
-      allSourcePoints.push(...currentPoints);
-      
-      // Update remaining seconds
-      remainingSeconds -= currentRangeSeconds;
-      
-    } catch (error) {
-      console.error(`Error in isochrone hop ${hop+1}:`, error);
-      // Return what we have so far if there's an error
-      break;
+      // Buffer the existing coverage slightly inward to avoid edge artifacts
+      const bufferedExisting = turf.buffer(existingCoverage, -0.01, { units: 'kilometers' });
+      return turf.difference(newZone, bufferedExisting);
+    } catch (innerError) {
+      console.error("Fallback difference calculation also failed:", innerError);
+      // In case all attempts fail, return null (no additional coverage)
+      return null;
     }
   }
-  
-  // Combine all isochrones into a single polygon using Turf.js
-  const mergedIsochrone = mergeIsochrones(allIsochrones);
-  
-  // Return as GeoJSON FeatureCollection
-  return {
-    data: {
-      generateIsochrone: {
-        geojson: JSON.stringify({
-          type: "FeatureCollection",
-          features: [
-            {
-              ...mergedIsochrone,
-              properties: {
-                ...mergedIsochrone.properties,
-                value: maxRangeSeconds,
-                total_pop: allIsochrones.reduce((sum, iso) => sum + (iso.properties?.total_pop || 0), 0),
-                group_index: 0, // Single isochrone result
-                extended: true,
-                source_points: allSourcePoints
-              }
-            }
-          ]
-        })
+}
+
+/**
+ * Merges multiple isochrone zones into a single GeoJSON polygon
+ * with improved handling of complex geometries
+ */
+export function mergeZones(zones: IsochroneZone[]): any {
+  if (!zones.length) return null;
+  if (zones.length === 1) return zones[0].geojson;
+
+  try {
+    // Start with the first zone
+    let mergedPolygon = zones[0].geojson;
+    
+    // Union with each subsequent zone
+    for (let i = 1; i < zones.length; i++) {
+      try {
+        // Simplify geometries slightly before union to avoid topology errors
+        const simplifiedMerged = turf.simplify(mergedPolygon, { tolerance: 0.00001 });
+        const simplifiedCurrent = turf.simplify(zones[i].geojson, { tolerance: 0.00001 });
+        
+        const union = turf.union(simplifiedMerged, simplifiedCurrent);
+        if (union) {
+          mergedPolygon = union;
+        }
+      } catch (error) {
+        console.error(`Error merging zone ${i}:`, error);
+        // Alternative approach using buffer to handle complex geometries
+        try {
+          // Create a tiny buffer to fix potential topology issues
+          const bufferedMerged = turf.buffer(mergedPolygon, 0.001, { units: 'kilometers' });
+          const bufferedCurrent = turf.buffer(zones[i].geojson, 0.001, { units: 'kilometers' });
+          
+          const union = turf.union(bufferedMerged, bufferedCurrent);
+          if (union) {
+            mergedPolygon = union;
+          }
+        } catch (bufferError) {
+          console.error(`Buffer-based union also failed for zone ${i}:`, bufferError);
+          // Continue with what we have
+        }
       }
     }
+    
+    return mergedPolygon;
+  } catch (error) {
+    console.error("Error merging zones:", error);
+    return zones[0].geojson; // Return the first one if merger fails
+  }
+}
+
+/**
+ * Process a new isochrone zone, calculating its unique coverage and merging it with existing zones
+ * with enhanced error handling and additional metrics
+ */
+export function processNewIsochroneZone(
+  newZoneGeojson: any, 
+  existingZones: IsochroneZone[], 
+  sourcePoint: [number, number],
+  rangeInSeconds: number,
+  transportMode: string,
+  isOriginal: boolean = false
+): { 
+  newZone: IsochroneZone, 
+  mergedCoverage: any,
+  allZones: IsochroneZone[]
+} {
+  // Create the merged coverage from existing zones
+  const existingCoverage = mergeZones(existingZones);
+  
+  // Calculate the additional coverage provided by this new zone
+  const additionalCoverage = calculateNewCoverage(newZoneGeojson, existingCoverage);
+  
+  // Calculate area metrics
+  const areaInSqKm = calculateArea(newZoneGeojson);
+  const boundaryLength = calculateBoundaryLength(newZoneGeojson);
+  const compactness = calculateCompactness(newZoneGeojson);
+  
+  // Create the new zone object with enhanced metrics
+  const newZone: IsochroneZone = {
+    id: generateZoneId(),
+    geojson: newZoneGeojson,
+    isOriginal,
+    sourcePoint,
+    rangeInSeconds,
+    transportMode,
+    areaInSqKm,
+    boundaryLength,
+    compactness,
+    additionalCoverage,
+    timestamp: Date.now()
+  };
+  
+  // Add the new zone to the list
+  const allZones = [...existingZones, newZone];
+  
+  // Merge all zones together
+  const mergedCoverage = mergeZones(allZones);
+  
+  return {
+    newZone,
+    mergedCoverage,
+    allZones
   };
 }
 
 /**
- * Samples points from the boundary of a polygon feature
+ * Intelligently selects optimal boundary points for extending isochrones
+ * using an improved algorithm that considers both distance and directional coverage
  */
-function samplePointsFromPolygon(feature: any, count: number, bufferDistance: number): number[][] {
+export function selectOptimalBoundaryPoints(
+  isochronePolygon: any, 
+  numPoints: number = 8,
+  existingPoints: [number, number][] = []
+): [number, number][] {
+  if (!isochronePolygon || !isochronePolygon.geometry) return [];
+  
   try {
-    // Get the polygon coordinates
-    if (!feature.geometry || !feature.geometry.coordinates) {
-      console.error("Invalid feature geometry", feature);
-      return [];
+    const geometry = isochronePolygon.geometry || isochronePolygon;
+    let coordinates: number[][] = [];
+    
+    // Extract coordinates based on geometry type
+    if (geometry.type === 'Polygon' && geometry.coordinates && geometry.coordinates.length > 0) {
+      coordinates = geometry.coordinates[0]; // Outer ring
+    } else if (geometry.type === 'MultiPolygon' && geometry.coordinates) {
+      // Find the largest polygon
+      let maxLength = 0;
+      geometry.coordinates.forEach((poly: number[][][]) => {
+        if (poly[0] && poly[0].length > maxLength) {
+          coordinates = poly[0];
+          maxLength = poly[0].length;
+        }
+      });
     }
     
-    // Create a line from the polygon boundary
-    let line;
-    if (feature.geometry.type === 'Polygon') {
-      // Use outer ring of the polygon
-      line = turf.lineString(feature.geometry.coordinates[0]);
-    } else if (feature.geometry.type === 'MultiPolygon') {
-      // Get the largest polygon from the multi-polygon
-      let maxArea = 0;
-      let largestPolygon: number[][] = [];
-      
-      for (const polygonCoords of feature.geometry.coordinates) {
-        const poly = turf.polygon([polygonCoords[0]]);
-        const area = turf.area(poly);
-        if (area > maxArea) {
-          maxArea = area;
-          largestPolygon = polygonCoords[0];
+    if (coordinates.length < 3) return []; // Not a valid polygon
+    
+    // Create a simplified version of the polygon for analysis
+    const simplified = turf.simplify(isochronePolygon, { tolerance: 0.01 });
+    
+    // Get the centroid
+    const centroid = turf.centroid(simplified);
+    const centerCoords = centroid.geometry.coordinates;
+    
+    // Calculate distances from centroid to boundary points
+    const boundaryWithDistances = coordinates.map(coord => {
+      const distance = turf.distance(centerCoords, coord, { units: 'kilometers' });
+      // Calculate bearing (direction) from center to point
+      const bearing = turf.bearing(centerCoords, coord);
+      return {
+        coord,
+        distance,
+        bearing
+      };
+    });
+    
+    // Filter out points too close to each other (within 10% of the max distance)
+    const filteredPoints: { coord: number[], distance: number, bearing: number }[] = [];
+    const maxDist = Math.max(...boundaryWithDistances.map(p => p.distance));
+    const minDistBetweenPoints = maxDist * 0.1;
+    
+    // First, divide the circle into sectors for better directional distribution
+    const sectors: { sector: number, points: typeof boundaryWithDistances[0][] }[] = [];
+    for (let i = 0; i < 8; i++) {
+      sectors.push({
+        sector: i,
+        points: []
+      });
+    }
+    
+    // Assign points to sectors based on bearing
+    boundaryWithDistances.forEach(point => {
+      const normalizedBearing = (point.bearing + 360) % 360;
+      const sectorIndex = Math.floor(normalizedBearing / 45);
+      sectors[sectorIndex].points.push(point);
+    });
+    
+    // Get the furthest point in each sector
+    sectors.forEach(sector => {
+      if (sector.points.length > 0) {
+        // Sort by distance (descending) to prioritize points furthest from center
+        sector.points.sort((a, b) => b.distance - a.distance);
+        
+        // Get the furthest point that's not too close to existing points
+        const validPoint = sector.points.find(point => {
+          return existingPoints.every(existingPoint => {
+            return turf.distance(point.coord, existingPoint, { units: 'kilometers' }) >= minDistBetweenPoints;
+          });
+        });
+        
+        if (validPoint) {
+          filteredPoints.push(validPoint);
         }
       }
-      
-      line = turf.lineString(largestPolygon);
-    } else {
-      console.error("Unsupported geometry type:", feature.geometry.type);
-      return [];
-    }
+    });
     
-    // Sample points along the boundary
-    const length = turf.length(line);
-    const interval = length / count;
+    // Sort by distance (descending) to prioritize points furthest from center
+    filteredPoints.sort((a, b) => b.distance - a.distance);
     
-    const points: number[][] = [];
-    for (let i = 0; i < count; i++) {
-      const distance = i * interval;
-      const point = turf.along(line, distance);
-      
-      // Move the point slightly inward to avoid edge effects
-      const bufferedPoint = turf.buffer(point, bufferDistance, {units: 'kilometers'});
-      const center = turf.center(bufferedPoint);
-      
-      points.push(center.geometry.coordinates);
-    }
-    
-    return points;
+    // Take the top N points, respecting maximum requested
+    return filteredPoints.slice(0, numPoints).map(p => p.coord as [number, number]);
   } catch (error) {
-    console.error("Error sampling points from polygon:", error);
+    console.error("Error selecting optimal boundary points:", error);
     return [];
   }
 }
 
 /**
- * Merges multiple isochrone polygons into a single polygon
+ * Suggests optimal points to add to extend coverage further
+ * with improved distribution and coverage optimization
  */
-function mergeIsochrones(isochrones: any[]): any {
-  if (!isochrones.length) return null;
-  if (isochrones.length === 1) return isochrones[0];
+export function suggestExtensionPoints(
+  currentZones: IsochroneZone[],
+  mergedCoverage: any,
+  numSuggestions: number = 3
+): [number, number][] {
+  if (!mergedCoverage || currentZones.length === 0) return [];
   
+  // Get all existing source points
+  const existingPoints = currentZones.map(zone => zone.sourcePoint);
+  
+  // Calculate the convex hull of the merged coverage to find the overall shape
+  let convexHull;
   try {
-    // Start with the first isochrone
-    let merged = isochrones[0];
-    
-    // Merge with each subsequent isochrone
-    for (let i = 1; i < isochrones.length; i++) {
-      try {
-        const union = turf.union(merged, isochrones[i]);
-        if (union) merged = union;
-      } catch (error) {
-        console.error(`Error merging isochrone ${i}:`, error);
-        // Continue with what we have
-      }
-    }
-    
-    return merged;
+    const points = turf.explode(mergedCoverage);
+    convexHull = turf.convex(points);
   } catch (error) {
-    console.error("Error merging isochrones:", error);
-    return isochrones[0]; // Return the first one if merger fails
+    console.error("Error calculating convex hull:", error);
+    convexHull = mergedCoverage; // Fallback to the original coverage
   }
+  
+  // Find optimal boundary points based on the convex hull (for better extension)
+  return selectOptimalBoundaryPoints(convexHull || mergedCoverage, numSuggestions, existingPoints);
 }
 
 /**
- * Client-side utility to visualize extended isochrones
- * This function can be used directly in the browser to visualize extended isochrones
- * without relying on server-side processing.
+ * Helper function to create a GeoJSON feature from a point
+ * with improved properties for visualization
  */
-export function visualizeExtendedIsochrone(geojson: any, options: {
-  fillColor?: string;
-  fillOpacity?: number;
-  strokeColor?: string;
-  strokeWidth?: number;
-  showSourcePoints?: boolean;
-} = {}) {
-  // Default options
-  const {
-    fillColor = "#4ade80",
-    fillOpacity = 0.4,
-    strokeColor = "#10b981",
-    strokeWidth = 2,
-    showSourcePoints = false
-  } = options;
+export function createPointFeature(coordinates: [number, number], properties: any = {}): any {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates
+    },
+    properties: {
+      // Default properties for visualization
+      pointColor: "#4ade80",
+      pointSize: 6,
+      pointStrokeWidth: 1,
+      pointStrokeColor: "#ffffff",
+      // Override with custom properties
+      ...properties
+    }
+  };
+}
 
-  // Parse GeoJSON if it's a string
-  const geojsonData = typeof geojson === 'string' ? JSON.parse(geojson) : geojson;
+/**
+ * Creates a GeoJSON feature collection for visualization
+ * with enhanced styling and feature properties
+ */
+export function createVisualizationData(
+  zones: IsochroneZone[], 
+  mergedCoverage: any,
+  showAdditionalAreas: boolean = true
+): any {
+  const features = [];
   
-  // Ensure it's a valid GeoJSON object
-  if (!geojsonData || !geojsonData.features) {
-    console.error("Invalid GeoJSON data", geojsonData);
-    return null;
-  }
-  
-  // Find extended isochrones
-  const extendedFeatures = geojsonData.features.filter((f: any) => 
-    f.properties && f.properties.extended === true
-  );
-  
-  if (extendedFeatures.length === 0) {
-    console.log("No extended isochrones found in the GeoJSON data");
-    // Just return the original GeoJSON
-    return geojsonData;
-  }
-  
-  // Create a styled version of the GeoJSON for visualization
-  const styledGeoJSON = {
-    ...geojsonData,
-    features: geojsonData.features.map((feature: any) => {
-      const isExtended = feature.properties && feature.properties.extended === true;
-      
-      // Apply special styling to extended isochrones
-      if (isExtended) {
-        return {
-          ...feature,
-          properties: {
-            ...feature.properties,
-            fillColor: fillColor,
-            fillOpacity: fillOpacity,
-            strokeColor: strokeColor,
-            strokeWidth: strokeWidth,
-            isExtended: true
-          }
-        };
+  // Add the merged coverage polygon
+  if (mergedCoverage) {
+    features.push({
+      ...mergedCoverage,
+      properties: {
+        ...mergedCoverage.properties,
+        isMergedCoverage: true,
+        fillColor: "#4ade80",
+        fillOpacity: 0.3,
+        strokeColor: "#10b981",
+        strokeWidth: 2,
+        area_km2: calculateArea(mergedCoverage)
       }
-      
-      // Keep regular isochrones as is
-      return feature;
-    })
+    });
+  }
+  
+  // Add additional coverage areas if requested
+  if (showAdditionalAreas) {
+    zones.forEach((zone, index) => {
+      if (zone.additionalCoverage) {
+        const additionalArea = calculateArea(zone.additionalCoverage);
+        features.push({
+          ...zone.additionalCoverage,
+          properties: {
+            ...zone.additionalCoverage.properties,
+            isAdditionalCoverage: true,
+            zoneId: zone.id,
+            fillColor: "#60a5fa",
+            fillOpacity: 0.5,
+            strokeColor: "#2563eb",
+            strokeWidth: 1,
+            zIndex: index + 1,
+            area_km2: additionalArea,
+            percent_increase: zone.areaInSqKm ? 
+              Math.round((additionalArea / zone.areaInSqKm) * 100) : 0
+          }
+        });
+      }
+    });
+  }
+  
+  // Add source points with improved styling
+  zones.forEach((zone, index) => {
+    // Different styling for original vs extension points
+    const pointColor = zone.isOriginal ? "#ef4444" : "#8b5cf6";
+    const pointSize = zone.isOriginal ? 10 : 8;
+    const label = zone.isOriginal ? "Origin" : `Extension ${index}`;
+    
+    features.push(createPointFeature(zone.sourcePoint, {
+      isSourcePoint: true,
+      zoneId: zone.id,
+      isOriginal: zone.isOriginal,
+      pointColor,
+      pointSize,
+      label,
+      additionalArea: zone.additionalCoverage ? 
+        calculateArea(zone.additionalCoverage).toFixed(2) + " km²" : "0 km²"
+    }));
+  });
+  
+  // Add suggested extension points with improved visibility
+  const suggestedPoints = suggestExtensionPoints(zones, mergedCoverage, 3);
+  
+  suggestedPoints.forEach((point, index) => {
+    features.push(createPointFeature(point, {
+      isSuggestedPoint: true,
+      pointColor: "#f97316", // Orange
+      pointSize: 6,
+      pointStrokeColor: "#ffffff",
+      pointStrokeWidth: 2,
+      label: `Suggested ${index + 1}`,
+      zIndex: 1000 + index // Ensure they're on top
+    }));
+  });
+  
+  return {
+    type: "FeatureCollection",
+    features
+  };
+}
+
+/**
+ * Analyze the extended isochrone coverage and provide comprehensive statistical insights
+ */
+export function analyzeExtendedCoverage(
+  originalZone: IsochroneZone | null, 
+  extendedZones: IsochroneZone[],
+  mergedCoverage: any
+): {
+  totalArea: number;
+  originalArea: number;
+  extendedArea: number;
+  extensionPercentage: number;
+  uniqueCoverage: number;
+  uniqueCoveragePercentage: number;
+  pointEfficiency: { pointId: string, addedArea: number, efficiency: number }[];
+  overallCompactness: number;
+  boundaryLength: number;
+} {
+  // Default values
+  const result = {
+    totalArea: 0,
+    originalArea: 0,
+    extendedArea: 0,
+    extensionPercentage: 0,
+    uniqueCoverage: 0,
+    uniqueCoveragePercentage: 0,
+    pointEfficiency: [] as { pointId: string, addedArea: number, efficiency: number }[],
+    overallCompactness: 0,
+    boundaryLength: 0
   };
   
-  // Add source points if requested
-  if (showSourcePoints) {
-    for (const feature of extendedFeatures) {
-      if (feature.properties && feature.properties.source_points) {
-        const sourcePoints = feature.properties.source_points;
-        
-        // Create a new feature for each source point
-        for (const point of sourcePoints) {
-          styledGeoJSON.features.push({
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: point
-            },
-            properties: {
-              isSourcePoint: true,
-              pointColor: "#f87171",
-              pointSize: 5
-            }
-          });
-        }
-      }
-    }
+  // Calculate the total merged area
+  if (mergedCoverage) {
+    result.totalArea = calculateArea(mergedCoverage);
+    result.boundaryLength = calculateBoundaryLength(mergedCoverage);
+    result.overallCompactness = calculateCompactness(mergedCoverage);
   }
   
-  return styledGeoJSON;
+  // Find the original zone
+  const original = originalZone || extendedZones.find(z => z.isOriginal);
+  
+  if (original) {
+    result.originalArea = original.areaInSqKm || calculateArea(original.geojson);
+    
+    // Calculate extension stats
+    result.extendedArea = result.totalArea - result.originalArea;
+    result.extensionPercentage = result.originalArea > 0 
+      ? (result.extendedArea / result.originalArea) * 100 
+      : 0;
+    
+    // Calculate unique coverage
+    result.uniqueCoverage = extendedZones
+      .filter(zone => !zone.isOriginal && zone.additionalCoverage)
+      .reduce((sum, zone) => {
+        return sum + (zone.additionalCoverage ? calculateArea(zone.additionalCoverage) : 0);
+      }, 0);
+      
+    result.uniqueCoveragePercentage = result.totalArea > 0 
+      ? (result.uniqueCoverage / result.totalArea) * 100 
+      : 0;
+      
+    // Calculate point efficiency
+    result.pointEfficiency = extendedZones
+      .filter(zone => !zone.isOriginal)
+      .map(zone => {
+        const addedArea = zone.additionalCoverage ? calculateArea(zone.additionalCoverage) : 0;
+        const efficiency = result.originalArea > 0 
+          ? (addedArea / result.originalArea) * 100 
+          : 0;
+          
+        return {
+          pointId: zone.id,
+          addedArea,
+          efficiency
+        };
+      })
+      .sort((a, b) => b.efficiency - a.efficiency);
+  }
+  
+  return result;
+}
+
+/**
+ * Create a comprehensive coverage report with enhanced information
+ */
+export function createCoverageReport(
+  vendorLocation: { lat: number, lng: number, address: string },
+  rangeType: string,
+  transportMode: string,
+  ranges: number[],
+  extendedZones: IsochroneZone[],
+  mergedCoverage: any
+): any {
+  // Calculate statistics
+  const originalZone = extendedZones.find(z => z.isOriginal);
+  const stats = analyzeExtendedCoverage(originalZone || null, extendedZones, mergedCoverage);
+  
+  // Format transport mode for display
+  const formatTransportMode = (mode: string): string => {
+    switch (mode) {
+      case "walking": return "Walking";
+      case "bike": return "Cycling";
+      case "motorbike": return "Motorcycle";
+      case "car": return "Driving";
+      default: return mode;
+    }
+  };
+  
+  // Calculate delivery time estimates
+  const calculateTimeEstimates = () => {
+    // Conversion speeds in km/h
+    const SPEED_MAPPING: Record<string, number> = {
+      walking: 5,
+      bike: 15,
+      motorbike: 30,
+      car: 60
+    };
+    
+    // Get the speed for selected mode
+    const speed = SPEED_MAPPING[transportMode] || 30;
+    
+    // Calculate radius in kilometers (assuming roughly circular shape)
+    const radius = Math.sqrt(stats.totalArea / Math.PI);
+    
+    // Estimate travel time in minutes
+    return {
+      radius_km: parseFloat(radius.toFixed(1)),
+      estimated_time_minutes: parseFloat(((radius / speed) * 60).toFixed(1)),
+      speed_kmh: speed
+    };
+  };
+  
+  // Get extension points metrics
+  const getExtensionMetrics = () => {
+    const extensionPoints = extendedZones.filter(zone => !zone.isOriginal);
+    
+    return {
+      count: extensionPoints.length,
+      total_additional_area: extensionPoints.reduce((sum, zone) => {
+        return sum + (zone.additionalCoverage ? calculateArea(zone.additionalCoverage) : 0);
+      }, 0),
+      average_addition_per_point: extensionPoints.length > 0 
+        ? stats.extendedArea / extensionPoints.length 
+        : 0,
+      most_efficient_point: stats.pointEfficiency[0] || null
+    };
+  };
+  
+  // Create report
+  return {
+    vendor: {
+      location: vendorLocation,
+      transportMode: formatTransportMode(transportMode),
+      rangeType,
+      ranges
+    },
+    coverage: {
+      totalAreaKm2: stats.totalArea,
+      originalAreaKm2: stats.originalArea,
+      extendedAreaKm2: stats.extendedArea,
+      extensionPercentage: stats.extensionPercentage,
+      uniqueCoverageKm2: stats.uniqueCoverage,
+      uniqueCoveragePercentage: stats.uniqueCoveragePercentage,
+      boundaryLengthKm: stats.boundaryLength,
+      compactness: stats.overallCompactness,
+      pointsAdded: extendedZones.filter(z => !z.isOriginal).length,
+      totalPoints: extendedZones.length
+    },
+    timeEstimates: calculateTimeEstimates(),
+    extensionMetrics: getExtensionMetrics(),
+    pointEfficiency: stats.pointEfficiency,
+    suggestedNextPoints: suggestExtensionPoints(extendedZones, mergedCoverage, 3),
+    visualizationData: createVisualizationData(extendedZones, mergedCoverage),
+    timestamp: new Date().toISOString()
+  };
 }

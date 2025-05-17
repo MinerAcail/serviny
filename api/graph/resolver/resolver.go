@@ -7,6 +7,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 )
+
 // var OtpStore = otp.NewOtpStore()
 
 type Resolver struct {

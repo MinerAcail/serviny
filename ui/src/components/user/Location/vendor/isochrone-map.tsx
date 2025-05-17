@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
+import * as extendedUtils from "./extendedIsochroneUtils"
+import { Button } from "@/components/ui/button"
+import { PlusCircle, Loader2, Map as MapIcon, Info } from "lucide-react"
 
 type Location = {
   address: string
@@ -20,12 +23,17 @@ interface IsochroneMapProps {
   transportMode: TransportMode
   rangeType: RangeType
   ranges: number[] // in km or minutes
-  activeZoneIndex?: number | null // New prop for showing only selected zone
-  onZoneClick?: (index: number) => void // New callback for zone click
+  activeZoneIndex?: number | null // Prop for showing only selected zone
+  onZoneClick?: (index: number) => void // Callback for zone click
+  extendedMode?: boolean // Whether extended mode is enabled
+  allowExtending?: boolean // Whether to allow adding new zones
+  onExtendGenerated?: (extendedData: any) => void // Callback when extended data is generated
+  generateZoneForPoint?: (point: [number, number]) => Promise<any> // Function to generate isochrone for a point
+  suggestedPoints?: [number, number][] // Optional suggested points for extending coverage
 }
+const envApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
 // The API key should be imported from environment variables
-const envApiKey = import.meta.env.VITE_MAPTILER_API_KEY
 
 export function IsochroneMap({ 
   vendorLocation, 
@@ -34,14 +42,27 @@ export function IsochroneMap({
   rangeType,
   ranges,
   activeZoneIndex = null,
-  onZoneClick
+  onZoneClick,
+  extendedMode = false,
+  allowExtending = false,
+  onExtendGenerated,
+  generateZoneForPoint,
+  suggestedPoints = []
 }: IsochroneMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null)
   const mapInstance = useRef<maplibregl.Map | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [extendModeActive, setExtendModeActive] = useState(false)
+  const [selectedPoint, setSelectedPoint] = useState<[number, number] | null>(null)
+  const [tempMarker, setTempMarker] = useState<maplibregl.Marker | null>(null)
+  const [isGeneratingExtension, setIsGeneratingExtension] = useState(false)
+  const [extendedZones, setExtendedZones] = useState<extendedUtils.IsochroneZone[]>([])
+  const [mergedCoverage, setMergedCoverage] = useState<any>(null)
+  const [suggestedMarkers, setSuggestedMarkers] = useState<maplibregl.Marker[]>([])
+  const [infoPopup, setInfoPopup] = useState<maplibregl.Popup | null>(null)
 
   // Define a color palette for zones (from green to yellow to red)
-  const zoneColors = ["#4ade80", "#facc15", "#f87171"]
+  const zoneColors = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
 
   // Get appropriate zoom level based on transportation mode
   const getInitialZoom = (mode: TransportMode, rangeValues: number[]): number => {
@@ -49,7 +70,15 @@ export function IsochroneMap({
     if (rangeType === "time") {
       const maxRange = Math.max(...rangeValues)
       
-      // Rough distance estimation - using a simple heuristic
+      // If in extended mode, adjust zoom levels for larger areas
+      if (extendedMode && maxRange > 60) {
+        if (mode === "walking") return 9 // Lower zoom for extended walking
+        if (mode === "bike") return 8    // Lower zoom for extended biking
+        if (mode === "motorbike") return 7 // Lower zoom for extended motorbike
+        return 6 // Even lower zoom for extended car trips
+      }
+      
+      // Standard zoom calculations for regular ranges
       if (mode === "walking") return maxRange > 60 ? 11 : 13
       if (mode === "bike") return maxRange > 60 ? 10 : 12
       if (mode === "motorbike") return maxRange > 60 ? 9 : 11
@@ -58,6 +87,14 @@ export function IsochroneMap({
       // For distance-based ranges
       const maxRange = Math.max(...rangeValues)
       
+      // If in extended mode, adjust zoom levels
+      if (extendedMode && maxRange > 30) {
+        if (maxRange > 100) return 6 // Very far distances
+        if (maxRange > 50) return 7
+        return 8
+      }
+      
+      // Standard zoom calculations
       if (maxRange > 50) return 8 // Far distances
       if (maxRange > 30) return 9
       if (maxRange > 20) return 10
@@ -66,6 +103,293 @@ export function IsochroneMap({
       return 13 // Short distances
     }
   }
+
+  // Handle generating an extension for the currently selected point
+  const handleGenerateExtension = async () => {
+    if (!selectedPoint || !generateZoneForPoint || !mapInstance.current) return;
+    
+    setIsGeneratingExtension(true);
+    
+    try {
+      // Generate isochrone for the selected point
+      const newIsochroneData = await generateZoneForPoint(selectedPoint);
+      
+      // Process the new isochrone
+      const result = extendedUtils.processNewIsochroneZone(
+        newIsochroneData,
+        extendedZones,
+        selectedPoint,
+        ranges[0] * 60, // Convert first range to seconds
+        transportMode,
+        false // Not the original isochrone
+      );
+      
+      // Update state with new zones and merged coverage
+      setExtendedZones(result.allZones);
+      setMergedCoverage(result.mergedCoverage);
+      
+      // Call the callback if provided
+      if (onExtendGenerated) {
+        onExtendGenerated(result);
+      }
+      
+      // Visualize the result on the map
+      const vizData = extendedUtils.createVisualizationData(
+        result.allZones,
+        result.mergedCoverage,
+        true // Show additional areas
+      );
+      
+      updateMapVisualization(vizData);
+      
+      // Show statistics popup
+      showStatisticsPopup(result);
+      
+      // Exit extend mode after generating
+      cancelExtendMode();
+    } catch (error) {
+      console.error("Error generating extension:", error);
+    } finally {
+      setIsGeneratingExtension(false);
+    }
+  };
+  
+  // Show a popup with statistics about the new extension
+  const showStatisticsPopup = (result: any) => {
+    if (!mapInstance.current || !result.newZone) return;
+    
+    const map = mapInstance.current;
+    
+    // Calculate how much area this point added
+    const additionalAreaKm2 = result.newZone.additionalCoverage 
+      ? extendedUtils.calculateArea(result.newZone.additionalCoverage)
+      : 0;
+    
+    // Calculate total area now
+    const totalAreaKm2 = extendedUtils.calculateArea(result.mergedCoverage);
+    
+    // Create popup content
+    const popupContent = `
+      <div class="p-2">
+        <h3 class="font-medium text-sm">Coverage Extended</h3>
+        <p class="text-xs mt-1">Added: ${additionalAreaKm2.toFixed(1)} km²</p>
+        <p class="text-xs">Total: ${totalAreaKm2.toFixed(1)} km²</p>
+      </div>
+    `;
+    
+    // Create and show popup
+    const popup = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      maxWidth: '200px'
+    })
+    .setLngLat(result.newZone.sourcePoint)
+    .setHTML(popupContent)
+    .addTo(map);
+    
+    // Store popup reference
+    setInfoPopup(popup);
+    
+    // Remove popup after a few seconds
+    setTimeout(() => {
+      popup.remove();
+      setInfoPopup(null);
+    }, 5000);
+  };
+
+  // Update map visualization with new data
+  const updateMapVisualization = (vizData: any) => {
+    if (!mapInstance.current) return;
+    
+    const map = mapInstance.current;
+    
+    // Check if the source already exists
+    if (map.getSource('extended-isochrones')) {
+      // Update the existing source
+      const source = map.getSource('extended-isochrones');
+      source.setData(vizData);
+    } else {
+      // Add the source and layers for extended isochrones
+      map.addSource('extended-isochrones', {
+        type: 'geojson',
+        data: vizData
+      });
+      
+      // Add merged coverage fill layer
+      map.addLayer({
+        id: 'merged-coverage-fill',
+        type: 'fill',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isMergedCoverage'], true],
+        paint: {
+          'fill-color': ['get', 'fillColor'],
+          'fill-opacity': ['get', 'fillOpacity']
+        }
+      });
+      
+      // Add merged coverage outline
+      map.addLayer({
+        id: 'merged-coverage-line',
+        type: 'line',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isMergedCoverage'], true],
+        paint: {
+          'line-color': ['get', 'strokeColor'],
+          'line-width': ['get', 'strokeWidth'],
+          'line-opacity': 0.8
+        }
+      });
+      
+      // Add additional coverage layer
+      map.addLayer({
+        id: 'additional-coverage-fill',
+        type: 'fill',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isAdditionalCoverage'], true],
+        paint: {
+          'fill-color': ['get', 'fillColor'],
+          'fill-opacity': ['get', 'fillOpacity']
+        }
+      });
+      
+      // Add additional coverage outline
+      map.addLayer({
+        id: 'additional-coverage-line',
+        type: 'line',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isAdditionalCoverage'], true],
+        paint: {
+          'line-color': ['get', 'strokeColor'],
+          'line-width': ['get', 'strokeWidth'],
+          'line-opacity': 0.8
+        }
+      });
+      
+      // Add source points layer
+      map.addLayer({
+        id: 'source-points',
+        type: 'circle',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isSourcePoint'], true],
+        paint: {
+          'circle-radius': ['get', 'pointSize'],
+          'circle-color': ['get', 'pointColor'],
+          'circle-opacity': 0.8,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        }
+      });
+      
+      // Add suggested points layer
+      map.addLayer({
+        id: 'suggested-points',
+        type: 'circle',
+        source: 'extended-isochrones',
+        filter: ['==', ['get', 'isSuggestedPoint'], true],
+        paint: {
+          'circle-radius': ['get', 'pointSize'],
+          'circle-color': ['get', 'pointColor'],
+          'circle-opacity': 0.6,
+          'circle-stroke-width': ['get', 'pointStrokeWidth'],
+          'circle-stroke-color': ['get', 'pointStrokeColor']
+        }
+      });
+    }
+  };
+
+  // Start extend mode
+  const startExtendMode = () => {
+    if (!mapInstance.current) return;
+    
+    setExtendModeActive(true);
+    
+    // Change cursor to crosshair
+    mapInstance.current.getCanvas().style.cursor = 'crosshair';
+  };
+  
+  // Cancel extend mode
+  const cancelExtendMode = () => {
+    if (!mapInstance.current) return;
+    
+    setExtendModeActive(false);
+    setSelectedPoint(null);
+    
+    // Remove temp marker if it exists
+    if (tempMarker) {
+      tempMarker.remove();
+      setTempMarker(null);
+    }
+    
+    // Restore cursor
+    mapInstance.current.getCanvas().style.cursor = '';
+  };
+
+  // Add suggested points to the map
+  const addSuggestedPointsToMap = () => {
+    // Clear existing markers
+    suggestedMarkers.forEach(marker => marker.remove());
+    
+    if (!mapInstance.current || !suggestedPoints || suggestedPoints.length === 0) {
+      setSuggestedMarkers([]);
+      return;
+    }
+    
+    const map = mapInstance.current;
+    const newMarkers: maplibregl.Marker[] = [];
+    
+    // Add markers for suggested points
+    suggestedPoints.forEach((point, index) => {
+      // Create popup with suggestion info
+      const popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 15,
+        className: 'suggestion-popup'
+      }).setHTML(`
+        <div class="p-2">
+          <p class="text-xs font-medium">Suggested Point ${index + 1}</p>
+          <p class="text-xs text-gray-500">Click to add coverage</p>
+        </div>
+      `);
+      
+      // Create marker
+      const marker = new maplibregl.Marker({
+        color: '#f97316', // Orange
+        scale: 0.8,
+        draggable: false
+      })
+      .setLngLat(point)
+      .setPopup(popup)
+      .addTo(map);
+      
+      // Add click handler to select this suggested point
+      marker.getElement().addEventListener('click', () => {
+        if (tempMarker) {
+          tempMarker.remove();
+        }
+        
+        // Set as selected point
+        setSelectedPoint(point);
+        
+        // Create new temp marker
+        const selectedMarker = new maplibregl.Marker({
+          color: '#8b5cf6', // Purple
+          draggable: false
+        })
+        .setLngLat(point)
+        .addTo(map);
+        
+        setTempMarker(selectedMarker);
+        
+        // Close popup
+        marker.getPopup().remove();
+      });
+      
+      newMarkers.push(marker);
+    });
+    
+    setSuggestedMarkers(newMarkers);
+  };
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -76,9 +400,13 @@ export function IsochroneMap({
     }
 
     // Create a new map instance
+    const mapStyle = envApiKey 
+      ? `https://api.maptiler.com/maps/streets/style.json?key=${envApiKey}` 
+      : 'https://demotiles.maplibre.org/style.json'; // Fallback style if no API key
+    
     const map = new maplibregl.Map({
       container: mapRef.current,
-      style: `https://api.maptiler.com/maps/streets/style.json?key=${envApiKey}`,
+      style: mapStyle,
       center: [vendorLocation.lng, vendorLocation.lat],
       zoom: getInitialZoom(transportMode, ranges),
       attributionControl: false,
@@ -94,112 +422,192 @@ export function IsochroneMap({
       compact: true
     }))
 
+    // Add vendor marker with popup
+    const popup = new maplibregl.Popup({ offset: 25 })
+      .setHTML(`<strong>${vendorLocation.address}</strong>`)
+    
+    new maplibregl.Marker({ 
+      color: "#0071E3",
+      draggable: false,
+    })
+    .setLngLat([vendorLocation.lng, vendorLocation.lat])
+    .setPopup(popup)
+    .addTo(map)
+
+    // Add click handler for map to place markers in extend mode
+    map.on('click', (e) => {
+      if (allowExtending && !isGeneratingExtension) {
+        const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        
+        // Remove previous temp marker if it exists
+        if (tempMarker) {
+          tempMarker.remove();
+        }
+        
+        // Create new marker
+        const marker = new maplibregl.Marker({
+          color: '#8b5cf6', // Purple color for extension points
+          draggable: false
+        })
+        .setLngLat(coordinates)
+        .addTo(map);
+        
+        // Save the marker and point
+        setTempMarker(marker);
+        setSelectedPoint(coordinates);
+      }
+    });
+
     map.on("load", () => {
       setMapLoaded(true)
 
-      // Add vendor marker with popup
-      const popup = new maplibregl.Popup({ offset: 25 })
-        .setHTML(`<strong>${vendorLocation.address}</strong>`)
-      
-      new maplibregl.Marker({ 
-        color: "#0071E3",
-        draggable: false,
-      })
-      .setLngLat([vendorLocation.lng, vendorLocation.lat])
-      .setPopup(popup)
-      .addTo(map)
-
-      // Only add isochrones if we have them
+      // Process the original isochrone if available
       if (isochrones && isochrones.length > 0) {
         // Process the isochrones to ensure proper ordering
         // We need to reverse them so that smaller areas are drawn on top
         const sortedIsochrones = [...isochrones].reverse()
 
-        // Add isochrone polygons as a source
-        map.addSource("isochrones", {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: activeZoneIndex !== null 
-              ? [sortedIsochrones[activeZoneIndex]] 
-              : sortedIsochrones,
-          },
-        })
-
-        // Add a fill layer for the isochrones
-        map.addLayer({
-          id: "isochrone-fill",
-          type: "fill",
-          source: "isochrones",
-          layout: {},
-          paint: {
-            // Use the range index for color selection
-            "fill-color": [
-              "case",
-              // For active zone index view, always use the specific color
-              ["==", ["literal", activeZoneIndex !== null], true],
-              zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
-              // Otherwise, determine by the isochrone order
-              ["match",
-                ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-                // Map each group index to a color from our palette
-                0, zoneColors[0],
-                1, zoneColors[1],
-                2, zoneColors[2],
-                // Default color if no match
-                zoneColors[0]]
-            ],
-            "fill-opacity": 0.4,
-          },
-        })
-
-        // Add an outline layer for the isochrones
-        map.addLayer({
-          id: "isochrone-outline",
-          type: "line",
-          source: "isochrones",
-          layout: {},
-          paint: {
-            "line-color": [
-              "case",
-              // For active zone index view, always use the specific color
-              ["==", ["literal", activeZoneIndex !== null], true],
-              zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
-              // Otherwise, determine by the isochrone order
-              ["match",
-                ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-                // Map each group index to a color from our palette
-                0, zoneColors[0],
-                1, zoneColors[1],
-                2, zoneColors[2],
-                // Default color if no match
-                zoneColors[0]]
-            ],
-            "line-width": 2,
-            "line-opacity": 0.8,
-          },
-        })
-
-        // Add click interaction for zones
-        if (onZoneClick) {
-          map.on('click', 'isochrone-fill', (e) => {
-            if (e.features && e.features.length > 0) {
-              const feature = e.features[0];
-              const groupIndex = feature.properties.group_index || 0;
-              
-              // Call the onZoneClick callback with the zone index
-              onZoneClick(Number(groupIndex));
-            }
-          });
+        // If we're in extend mode, process the isochrones as extended zones
+        if (allowExtending && extendedZones.length === 0) {
+          // For the first isochrone, process it as the original zone
+          const mainIsochrone = sortedIsochrones[0];
           
-          // Change cursor when hovering over zones
-          map.on('mouseenter', 'isochrone-fill', () => {
-            map.getCanvas().style.cursor = 'pointer';
-          });
-          
-          map.on('mouseleave', 'isochrone-fill', () => {
-            map.getCanvas().style.cursor = '';
-          });
+          if (mainIsochrone) {
+            const result = extendedUtils.processNewIsochroneZone(
+              mainIsochrone,
+              [], // No existing zones yet
+              [vendorLocation.lng, vendorLocation.lat], // Original vendor location
+              ranges[0] * 60, // Convert first range to seconds
+              transportMode,
+              true // This is the original isochrone
+            );
+            
+            // Update state with zones and coverage
+            setExtendedZones([result.newZone]);
+            setMergedCoverage(result.mergedCoverage);
+            
+            // Create visualization data
+            const vizData = extendedUtils.createVisualizationData(
+              [result.newZone],
+              result.mergedCoverage,
+              true // Show additional areas
+            );
+            
+            // Visualize on the map
+            updateMapVisualization(vizData);
+          }
+        }
+        
+        // For standard view (not extending), use the regular layers
+        if (!allowExtending) {
+          // Add isochrone polygons as a source
+          map.addSource("isochrones", {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: activeZoneIndex !== null 
+                ? [sortedIsochrones[activeZoneIndex]] 
+                : sortedIsochrones,
+            },
+          })
+
+          // Add a fill layer for the isochrones
+          map.addLayer({
+            id: "isochrone-fill",
+            type: "fill",
+            source: "isochrones",
+            layout: {},
+            paint: {
+              // Use the range index for color selection
+              "fill-color": [
+                "case",
+                // For active zone index view, always use the specific color
+                ["==", ["literal", activeZoneIndex !== null], true],
+                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                // Otherwise, determine by the isochrone order
+                ["match",
+                  ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
+                  // Map each group index to a color from our palette
+                  0, zoneColors[0],
+                  1, zoneColors[1],
+                  2, zoneColors[2],
+                  // Default color if no match
+                  zoneColors[0]]
+              ],
+              "fill-opacity": [
+                "case",
+                // If it's an extended isochrone, make it slightly more translucent
+                ["==", ["get", "extended"], true],
+                0.3,
+                // Otherwise use standard opacity
+                0.4
+              ]
+            },
+          })
+
+          // Add an outline layer for the isochrones
+          map.addLayer({
+            id: "isochrone-outline",
+            type: "line",
+            source: "isochrones",
+            layout: {},
+            paint: {
+              "line-color": [
+                "case",
+                // For active zone index view, always use the specific color
+                ["==", ["literal", activeZoneIndex !== null], true],
+                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                // Otherwise, determine by the isochrone order
+                ["match",
+                  ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
+                  // Map each group index to a color from our palette
+                  0, zoneColors[0],
+                  1, zoneColors[1],
+                  2, zoneColors[2],
+                  // Default color if no match
+                  zoneColors[0]]
+              ],
+              "line-width": [
+                "case",
+                // If it's an extended isochrone, use thicker line
+                ["==", ["get", "extended"], true],
+                3,
+                // Otherwise use standard width
+                2
+              ],
+              "line-opacity": 0.8,
+              "line-dasharray": [
+                "case",
+                // If it's an extended isochrone, use dashed line
+                ["==", ["get", "extended"], true],
+                ["literal", [2, 2]],
+                // Otherwise use solid line
+                ["literal", [1, 0]]
+              ]
+            },
+          })
+
+          // Add click interaction for zones
+          if (onZoneClick) {
+            map.on('click', 'isochrone-fill', (e) => {
+              if (e.features && e.features.length > 0) {
+                const feature = e.features[0];
+                const groupIndex = feature.properties.group_index || 0;
+                
+                // Call the onZoneClick callback with the zone index
+                onZoneClick(Number(groupIndex));
+              }
+            });
+            
+            // Change cursor when hovering over zones
+            map.on('mouseenter', 'isochrone-fill', () => {
+              map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'isochrone-fill', () => {
+              map.getCanvas().style.cursor = '';
+            });
+          }
         }
 
         // Fit the map to show all isochrones plus some padding
@@ -247,12 +655,26 @@ export function IsochroneMap({
         mapInstance.current.remove()
         mapInstance.current = null
       }
+      
+      // Clean up markers
+      suggestedMarkers.forEach(marker => marker.remove());
+      
+      if (tempMarker) {
+        tempMarker.remove();
+      }
+      
+      if (infoPopup) {
+        infoPopup.remove();
+      }
     }
-  }, [vendorLocation, isochrones, transportMode, rangeType, ranges, activeZoneIndex, onZoneClick])
+  }, [vendorLocation, isochrones, transportMode, rangeType, ranges, activeZoneIndex, onZoneClick, extendedMode]);
 
   // Update isochrones when activeZoneIndex changes
   useEffect(() => {
     if (!mapLoaded || !mapInstance.current || !isochrones || isochrones.length === 0) return
+
+    // Skip if we're in extend mode
+    if (allowExtending) return;
 
     const map = mapInstance.current
     const sortedIsochrones = [...isochrones].reverse()
@@ -268,13 +690,72 @@ export function IsochroneMap({
           : sortedIsochrones,
       })
     }
-  }, [isochrones, mapLoaded, activeZoneIndex])
+  }, [isochrones, mapLoaded, activeZoneIndex, allowExtending])
+
+  // Add or update suggested points when they change
+  useEffect(() => {
+    if (mapLoaded && mapInstance.current && allowExtending && suggestedPoints.length > 0) {
+      addSuggestedPointsToMap();
+    }
+  }, [mapLoaded, suggestedPoints, allowExtending]);
+
+  // Set to extend mode when allowExtending changes
+  useEffect(() => {
+    if (allowExtending && mapLoaded && !extendModeActive) {
+      startExtendMode();
+    } else if (!allowExtending && extendModeActive) {
+      cancelExtendMode();
+    }
+  }, [allowExtending, mapLoaded]);
 
   return (
-    <div ref={mapRef} className="w-full h-full relative rounded-lg">
-      {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800 bg-opacity-80 dark:bg-opacity-80">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0071E3]"></div>
+    <div className="w-full h-full relative">
+      <div ref={mapRef} className="w-full h-full relative rounded-lg">
+        {!mapLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800 bg-opacity-80 dark:bg-opacity-80">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0071E3]"></div>
+          </div>
+        )}
+      </div>
+
+      {/* Processing indicator */}
+      {isGeneratingExtension && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 z-10 rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">
+            <Loader2 className="h-8 w-8 mb-2 animate-spin text-blue-500" />
+            <p className="text-sm font-medium">Generating Extended Coverage...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Generate button for selected point */}
+      {selectedPoint && !isGeneratingExtension && allowExtending && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+          <Button
+            onClick={handleGenerateExtension}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-4 py-2 shadow-lg"
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Generate Zone
+          </Button>
+        </div>
+      )}
+      
+      {/* Map info badge */}
+      <div className="absolute top-2 left-2 z-10">
+        <div className="bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-md text-xs flex items-center">
+          <MapIcon className="h-3 w-3 mr-1" />
+          <span>MapTiler</span>
+        </div>
+      </div>
+
+      {/* Suggested points info */}
+      {allowExtending && suggestedPoints.length > 0 && (
+        <div className="absolute top-2 right-12 z-10">
+          <div className="bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded-md text-xs flex items-center">
+            <Info className="h-3 w-3 mr-1" />
+            <span>Orange dots suggest optimal extension points</span>
+          </div>
         </div>
       )}
     </div>

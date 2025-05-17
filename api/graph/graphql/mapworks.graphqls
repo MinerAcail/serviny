@@ -2,14 +2,50 @@ input IsochroneInput {
   locations: [[Float!]!]!
   range: [Int!]!
   transportMode: String
+  address: String
+
 }
 
 type IsochroneResult {
   geojson: String!
+  uuid: String
+  locations: [[Float!]!]
+  range: [Int!]!
+  transportMode: String
+  address: String
+}
+
+type CacheStats {
+  totalEntries: Int!
+  entries: [CacheEntry!]!
+
+}
+
+type CacheEntry {
+  key: String!
+  ttl: Int!
+}
+
+input CacheManagementInput {
+  action: String!  # "purge", "refresh", "stats", "prewarm"
+  locations: [[Float!]!]  # For prewarm/refresh actions
+  ranges: [Int!]          # For prewarm/refresh actions
+  transportModes: [String!] # For prewarm/refresh actions
+  ttl: Int                # For refresh action (seconds)
+  Addresses: String
+
+}
+
+
+extend type Query {
+  # Get isochrone result by UUID and location
+  getIsochroneResult(location: [Float!]!, uuid: String!): IsochroneResult
+  getAllIsochroneResults: [IsochroneResult!]
 }
 
 extend type Mutation {
   generateIsochrone(input: IsochroneInput!): IsochroneResult!
+  manageCacheIsochrone(input: CacheManagementInput!): CacheStats!
 }
 
 
