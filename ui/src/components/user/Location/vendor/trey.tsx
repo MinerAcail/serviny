@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DeliveryZoneVisualizer } from "./visualize";
+import { DeliveryZoneVisualizer } from "./mapsWork/visualize";
 
 function MyDeliveryZoneComponent() {
   // Your state management

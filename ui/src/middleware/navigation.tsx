@@ -123,7 +123,7 @@ import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
 import ProductForm from "@/vendor/ProductForm";
 import ChatSystem from "@/components/user/chat-system";
 import { VendorProcessFlow } from "@/components/user/Location/vendor";
-import { DeliveryZoneVisualizer } from "@/components/user/Location/vendor/visualize";
+import { DeliveryZoneVisualizer } from "@/components/user/Location/vendor/mapsWork/visualize";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

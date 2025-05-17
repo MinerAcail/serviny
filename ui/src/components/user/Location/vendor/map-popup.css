@@ -1,0 +1,26 @@
+/* Custom styles for MapLibre popups to match iOS design */
+.ios-style-popup .maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e5ea;
+  overflow: hidden;
+}
+
+.ios-style-popup .maplibregl-popup-close-button {
+  color: #86868b;
+  font-size: 18px;
+  padding: 8px;
+  right: 4px;
+  top: 4px;
+}
+
+.ios-style-popup .maplibregl-popup-close-button:hover {
+  background: none;
+  color: #1d1d1f;
+}
+
+.ios-style-popup .maplibregl-popup-tip {
+  border-top-color: #fff;
+  border-bottom-color: #fff;
+}

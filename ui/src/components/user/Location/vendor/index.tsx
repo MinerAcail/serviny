@@ -8,7 +8,7 @@ import { ResultStep } from "./result-step"
 import { Card } from "@/components/ui/card"
 import { StepIndicator } from "./components/step-indicator"
 import { useMutation, gql } from "@apollo/client"
-import { DeliveryZoneVisualizer, ZoneDetail } from "./visualize"
+import { DeliveryZoneVisualizer, ZoneDetail } from "./mapsWork/visualize"
 import { Button } from "@/components/ui/button"
 
 // GraphQL mutation for isochrones

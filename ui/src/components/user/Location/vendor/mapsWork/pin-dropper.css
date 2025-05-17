@@ -1,0 +1,115 @@
+/* pin-dropper.css */
+
+/* Styling for pin dropper mode */
+.pin-marker-bounce {
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0) translateX(-50%);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-50%);
+  }
+}
+
+/* Styling for the position indicator tooltip */
+.position-tooltip {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1D1D1F;
+  pointer-events: none;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.position-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Style for the map when pin dropper is active */
+.map-pin-dropper-active {
+  cursor: move; /* Show move cursor */
+}
+
+/* Pulsing effect around the pin */
+.pin-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -100%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(0, 113, 227, 0.2);
+  z-index: 19;
+  pointer-events: none;
+  animation: pulse 2s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -100%) scale(0.5);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(-50%, -100%) scale(2);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -100%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* Toast notification for pin dropper mode */
+.pin-mode-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1D1D1F;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 100px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.ios-style-pin-controls {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Button press animation */
+.button-press {
+  transition: transform 0.1s ease;
+}
+
+.button-press:active {
+  transform: scale(0.97);
+}
