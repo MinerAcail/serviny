@@ -25,27 +25,20 @@ export function ZoneCard({
       }`}
       onClick={onClick}
     >
+    
       <div className="relative">
         <div className="h-3" style={{ backgroundColor: zone.color }} />
         <CardContent className="p-5">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-[#1D1D1F] text-sm">
-              Zone {index + 1}
-            </h3>
+            <h3 className="font-medium text-[#1D1D1F] text-sm">Zone {index + 1}</h3>
             <div className="flex items-center text-xs text-[#86868B]">
               <Compass className="h-3.5 w-3.5 mr-1" />
               <span>{zone.area.toFixed(1)} km²</span>
             </div>
           </div>
 
-          <p
-            className={`text-lg font-semibold ${
-              zone.deliveryFee === 0 ? "text-green-600" : "text-[#1D1D1F]"
-            }`}
-          >
-            {zone.deliveryFee === 0
-              ? "Free Delivery"
-              : `$${zone.deliveryFee.toFixed(2)}`}
+          <p className={`text-lg font-semibold ${zone.deliveryFee === 0 ? "text-green-600" : "text-[#1D1D1F]"}`}>
+            {zone.deliveryFee === 0 ? "Free Delivery" : `$${zone.deliveryFee.toFixed(2)}`}
           </p>
         </CardContent>
       </div>

@@ -1,10 +1,20 @@
 // Complete implementation for URL sharing in the MapAndSearch component
 
 import { Button } from "@/components/ui/button";
-import { Loader2, MapIcon, MapPin, Navigation, Search, X, Share2, Copy } from "lucide-react";
+import {
+  Loader2,
+  MapIcon,
+  MapPin,
+  Navigation,
+  Search,
+  X,
+  Share2,
+  Copy,
+  Info,
+} from "lucide-react";
 import { PinDropper } from "./PinDropper";
 import { Input } from "@/components/ui/input";
-import { RefObject, useState } from "react";
+import { RefObject, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { TransportMode } from "./dataUtils";
 import { toast } from "sonner";
@@ -26,7 +36,7 @@ interface MapAndSearchProps {
   isSearchLoading: boolean;
   handleClearSearch: () => void;
   handlePredictionSelect: (place: any) => void;
-  
+
   // Map state props
   isLoaded: boolean;
   loading: boolean;
@@ -36,30 +46,33 @@ interface MapAndSearchProps {
   directionsReady: boolean;
   directionsDistance: number | null;
   directionsTime: string | null;
-  
+
   // URL-aware location state
   clickedPoint: { lng: number; lat: number } | null;
   setClickedPoint: (point: { lng: number; lat: number } | null) => void;
-  
+
   // Map refs
   mapRef: RefObject<HTMLDivElement>;
   mapDivRef: RefObject<HTMLDivElement>;
   mapInstance: { current: maplibregl.Map | null };
-  
+
   // Action handlers
   handleTogglePinDropper: () => void;
   handleShowDirectionsClick: () => void;
   handleRefetch: () => void;
-  handlePinDropperLocationSelected: (coordinates: { lng: number; lat: number }) => void;
+  handlePinDropperLocationSelected: (coordinates: {
+    lng: number;
+    lat: number;
+  }) => void;
   handlePinDropperCancel: () => void;
-  
+
   // Direction state modifiers
   setShowDirections: (show: boolean) => void;
   clearDirections: (mapInstance: { current: maplibregl.Map | null }) => void;
-  
+
   // Error handling
   error: string | null;
-  
+
   // Transport mode
   transportMode: TransportMode;
 }
@@ -94,30 +107,41 @@ export function MapAndSearch({
   clearDirections,
   transportMode,
   clickedPoint,
-  setClickedPoint
+  setClickedPoint,
 }: MapAndSearchProps) {
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
+   // Effect to automatically show info panel when directions are available
+  useEffect(() => {
+    if (showDirections && directionsDistance !== null && directionsTime) {
+      setShowInfoPanel(true);
+    }
+  }, [showDirections, directionsDistance, directionsTime]);
   // Function to copy the current URL to clipboard
   const copyUrlToClipboard = () => {
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard
+      .writeText(window.location.href)
       .then(() => {
-        toast.success(
-           "URL copied!",{
+        toast.success("URL copied!", {
           description: "You can now share this location with others.",
           duration: 3000,
         });
         setShowShareOptions(false);
       })
       .catch(() => {
-        toast.error(
-           "Failed to copy URL",{
+        toast.error("Failed to copy URL", {
           description: "Please try again or copy the URL manually.",
           duration: 3000,
         });
       });
   };
-  
+
+
+  // Function to toggle info panel
+  const toggleInfoPanel = () => {
+    setShowInfoPanel(!showInfoPanel);
+  };
   return (
     <div className="space-y-1">
       <div className="relative" ref={searchInputRef}>
@@ -291,44 +315,57 @@ export function MapAndSearch({
           </Button>
         </div>
         {/* Directions info card */}
-        {showDirections && directionsDistance !== null && directionsTime && (
-          <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-4 max-w-xs border border-[#E5E5EA]">
-            <div className="flex items-center mb-2">
-              <div className="h-6 w-6 rounded-full bg-[#0071E3] flex items-center justify-center mr-2">
-                <Navigation className="h-3 w-3 text-white" />
-              </div>
-              <h3 className="font-medium text-[#1D1D1F]">Route Details</h3>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#86868B]">Distance</span>
-                <span className="font-medium">
-                  {directionsDistance.toFixed(2)} km
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#86868B]">Est. Travel Time</span>
-                <span className="font-medium">{directionsTime}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#86868B]">Transport Mode</span>
-                <span className="font-medium">
-                  {transportMode.charAt(0).toUpperCase() +
-                    transportMode.slice(1)}
-                </span>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-3 text-xs w-full rounded-full border-[#0071E3] text-[#0071E3]"
-              onClick={() => {
-                clearDirections(mapInstance);
-                setShowDirections(false);
-              }}
-            >
-              Hide Directions
-            </Button>
+        {showInfoPanel ? (
+          <>
+            {showDirections &&
+              directionsDistance !== null &&
+              directionsTime && (
+                <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-4 max-w-xs border border-[#E5E5EA]">
+                  <div className="flex items-center mb-2">
+                    <div className="h-6 w-6 rounded-full bg-[#0071E3] flex items-center justify-center mr-2">
+                      <Navigation className="h-3 w-3 text-white" />
+                    </div>
+                    <h3 className="font-medium text-[#1D1D1F]">
+                      Route Details
+                    </h3>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[#86868B]">Distance</span>
+                      <span className="font-medium">
+                        {directionsDistance.toFixed(2)} km
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#86868B]">Est. Travel Time</span>
+                      <span className="font-medium">{directionsTime}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#86868B]">Transport Mode</span>
+                      <span className="font-medium">
+                        {transportMode.charAt(0).toUpperCase() +
+                          transportMode.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs px-4 border-[#0071E3] text-[#0071E3]"
+                    onClick={toggleInfoPanel}
+                  >
+                    <Info className="h-3 w-3 mr-1.5" />
+                    {showInfoPanel ? "Hide Info" : "Show Info"}
+                  </Button>
+                </div>
+              )}
+          </>
+        ) : (
+          <div
+            onClick={toggleInfoPanel}
+            className="absolute bottom-4 left-4 z-10   p-2"
+          >
+            <Info className="h-3 w-3 mr-1.5" />
           </div>
         )}
       </div>

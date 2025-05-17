@@ -474,7 +474,8 @@ export function DeliveryZoneVisualizer() {
         setClickMarker,
         infoPopup,
         setInfoPopup,
-        handleSetClickedPoint,
+        // handleSetClickedPoint,
+        () => {}, 
         setDirectionsReady
       );
     },
@@ -870,7 +871,7 @@ export function DeliveryZoneVisualizer() {
 
         {/* Zone cards */}
         {isochrones.length > 0 && !loading && !isochroneLoading && (
-          <div className="grid grid-cols-3 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {zoneDetails.map((zone, index) => (
               <ZoneCard
                 key={index}
