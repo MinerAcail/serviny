@@ -64,7 +64,7 @@ export const useScreenSize = () => {
 };
 
 // Animated Text Shuffling Component for Service Provider Features
-const AnimatedFeatureShuffle = ({ profession }: { profession: string[] }) => {
+const AnimatedFeatureShuffle = ({ categories }: { categories: string[] }) => {
   const [currentFeature, setCurrentFeature] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -72,7 +72,7 @@ const AnimatedFeatureShuffle = ({ profession }: { profession: string[] }) => {
     const interval = setInterval(() => {
       setIsAnimating(true);
       setTimeout(() => {
-        setCurrentFeature((prev) => (prev + 1) % profession.length);
+        setCurrentFeature((prev) => (prev + 1) % categories.length);
         setIsAnimating(false);
       }, 500);
     }, 3000);
@@ -88,10 +88,10 @@ const AnimatedFeatureShuffle = ({ profession }: { profession: string[] }) => {
         }`}
         aria-hidden={isAnimating}
       >
-        {profession[currentFeature]}
+        {categories[currentFeature]}
       </span>
       <span className="opacity-0 invisible" aria-live="polite">
-        {profession[currentFeature]}
+        {categories[currentFeature]}
       </span>
     </div>
   );
@@ -250,7 +250,7 @@ export type provider = {
     name: string;
     number: string;
     email: string;
-    profession: string[];
+    categories: string[];
 
     aboutMe: string;
     location: string;
@@ -329,9 +329,9 @@ export default function ServiceLandingPage({
                           <div className="space-y-3 sm:space-y-4">
                             <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                               <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-primary/20 text-primary w-fit text-sm sm:text-sm">
-                                {Array.isArray(provider?.profession)
-                                  ? provider?.profession[0]
-                                  : provider?.profession}
+                                {Array.isArray(provider?.categories)
+                                  ? provider?.categories[0]
+                                  : provider?.categories}
                               </Badge>
                             </div>
 
@@ -346,13 +346,13 @@ export default function ServiceLandingPage({
                               )}
                             >
                               {provider?.name} Expert In{" "}
-                              {Array.isArray(provider?.profession) ? (
+                              {Array.isArray(provider?.categories) ? (
                                 <AnimatedFeatureShuffle
-                                  profession={provider?.profession}
+                                  categories={provider?.categories}
                                 />
                               ) : (
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-teal-400">
-                                  {provider?.profession}
+                                  {provider?.categories}
                                 </span>
                               )}
                             </h1>

@@ -1,6 +1,13 @@
 # Use the latest stable Golang Alpine image
 FROM golang:1.23.6-alpine3.21
+# Required to build CGO-based packages like h3-go
 
+
+# Enable CGO for cgo-based builds
+ENV CGO_ENABLED=1
+
+# Install build dependencies (GCC, musl-dev, etc.)
+RUN apk add --no-cache git build-base
 # Set the current working directory inside the container
 WORKDIR /usr/src/app
 

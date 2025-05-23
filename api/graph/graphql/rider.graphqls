@@ -1,0 +1,75 @@
+type Rider {
+  id: String!
+  name: String!
+  email: String!
+  type: String!
+  number: String!
+  state: String
+  password: String
+  availability: Boolean
+  dpfile: String
+  idCard: [String]
+  location: String
+  IsochroneID: String
+  coordinates: [Float]
+  h3Indexes: [String]
+  experience: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+input RiderInput {
+  name: String!
+  email: String!
+  type: String!
+  number: String!
+  state: String
+  password: String
+  availability: Boolean
+  dpfile: String
+  idCard: [String]
+  location: String
+  coordinates: [Float]
+  h3Indexes: [String]
+  experience: String!
+}
+
+extend type Query {
+  reviewApplicate: [Rider]
+  reviewAllWorks: [Rider]
+  getAllWorks: [Rider]
+
+  rider(id: ID!): Rider
+  riders(status: String): [Rider!]!
+  nearbyRiders(location: [Float!]!, radius: Int!): [Rider!]!
+
+
+ testNearbyRiders(center: CoordinateInput!, riders: [CoordinateInput!]!): [NearbyRider!]!
+
+  
+}
+
+extend type Mutation {
+  craeteRider(dpfile: Upload,idCardfiles: [Upload] input: RiderInput): Rider
+  updateRiderStatus(id: String!, status: String!): Rider
+  updateRider(id: String!, input: RiderInput!): Rider
+  deleteRider(id: String!): Boolean
+
+  useGetRiderTracking: Rider
+
+  jobResponse(applicantId: String!, State: String!): Rider
+}
+
+
+input CoordinateInput {
+  name: String!
+  lat: Float!
+  lng: Float!
+}
+
+type NearbyRider {
+  name: String!
+  lat: Float!
+  lng: Float!
+  h3Dist: Int!
+  distance: Float!
+}

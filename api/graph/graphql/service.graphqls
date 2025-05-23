@@ -5,15 +5,20 @@ type Service {
   number: String!
   email: String!
   profession: [String]
+  categories: [String]
+  businessType: String
   location: String
   aboutMe: String
   password: String
   dpfile: String
-  useTheme:String
+  useTheme: String
   bookTypes: [String]
+  isVerified: Boolean
   isAuth: isAuth
   numberType: String
   subDomain: String
+  coordinates: [Float]
+  h3Indexes: [String]
   createdAt: Time!
   updatedAt: Time!
 }
@@ -92,7 +97,7 @@ extend type Mutation {
     removeProfession: [String]
   ): Service
   generateSubDomain(serviceId: String!): Service
-  useTheme(ServiceId: String!,theme:String): String
+  useTheme(ServiceId: String!, theme: String): String
 
   deleteService(id: String!): Boolean
 
@@ -120,6 +125,10 @@ input CreateServiceInput {
   email: String!
   location: String
   profession: [String]
+  categories: [String]
+  coordinates: [Float]
+
+  businessType: String
   password: String
 }
 input UpdateServiceInput {

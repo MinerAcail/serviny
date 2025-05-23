@@ -1,4 +1,4 @@
-import { Loader2, X } from "lucide-react";
+import { Loader2, NotepadText, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,20 +16,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 // import { Button } from "@/components/ui/button";
 
-
-
 export function GalleryDetailDialog({
   gallery,
   open,
   onOpenChange,
   refetch,
-  serviceId
+  serviceId,
 }: {
   gallery: Gallery | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   refetch: () => void;
-  serviceId:string ;
+  serviceId: string;
 }) {
   const { isMatch } = useCheckAuthId(serviceId);
 
@@ -41,7 +39,7 @@ export function GalleryDetailDialog({
 
   if (!gallery) return null;
 
-  const handleDeleteGallery = (galleryId:string) => {
+  const handleDeleteGallery = (galleryId: string) => {
     deleteGallery({
       variables: { id: galleryId },
     });
@@ -247,8 +245,18 @@ import { DELETE_GALLERY } from "./view";
 import { Button } from "../ui/button";
 import { GalleryCard, UpdateGalleryDialog } from "./updates";
 export const GET_ALL_GALLERY = gql`
-  query GetAllGallery($serviceId: String!, $query: String, $limit: Int, $offset: Int) {
-    getAllGallery(ServiceId: $serviceId, query: $query, limit: $limit, offset: $offset) {
+  query GetAllGallery(
+    $serviceId: String!
+    $query: String
+    $limit: Int
+    $offset: Int
+  ) {
+    getAllGallery(
+      ServiceId: $serviceId
+      query: $query
+      limit: $limit
+      offset: $offset
+    ) {
       id
       title
       description
@@ -270,9 +278,16 @@ export interface Gallery {
 }
 import { DialogClose } from "@radix-ui/react-dialog";
 import { useCheckAuthId } from "@/middleware/context/checkID";
+import UserAuthCard from "../custom/users/create";
+import { useAuth } from "@/middleware/context/authContext";
+import { DeliveryServiceSystem } from "./APPOINTMENT/completeDeliveryOrder";
+// import AppointmentBookingSystem, { DeliveryServiceSystem } from "./APPOINTMENT/book";
 //
 export function WorkGallery() {
+  const { isAuthenticated } = useAuth();
   const { serviceId } = useParams<{ serviceId: string }>();
+  const [isDialogOpen, setDialogOpen] = useState(false);
+
   const [filter, setFilter] = useState("all");
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
   const [offset, setOffset] = useState(0);
@@ -332,7 +347,21 @@ export function WorkGallery() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-col items-end justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="mb-3 flex  items-end justify-between gap-4 sm:flex-row sm:items-center">
+        {isAuthenticated ? (
+          <Button
+            onClick={() => setDialogOpen(true)}
+            variant="secondary"
+            className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
+          >
+            <NotepadText className="h-4 w-4" />
+            Book
+          </Button>
+        ) : (
+          <UserAuthCard>
+            <Button>Book</Button>
+          </UserAuthCard>
+        )}
         <CategoryFilter
           value={filter}
           onChange={(value) => {
@@ -392,6 +421,17 @@ export function WorkGallery() {
         serviceId={serviceId ?? ""}
         refetch={() => refetch()}
       />
+
+      <DeliveryServiceSystem
+        isDialogOpenMain={isDialogOpen}
+        setDialogOpenMain={setDialogOpen}
+        serviceId={serviceId}
+      />
+       {/* <AppointmentBookingSystem
+        isDialogOpenMain={isDialogOpen}
+        setDialogOpenMain={setDialogOpen}
+        serviceId={serviceId}
+      /> */}
     </div>
   );
 }

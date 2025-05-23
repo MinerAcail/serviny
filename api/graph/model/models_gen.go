@@ -32,7 +32,8 @@ type BookedData struct {
 type BookerInput struct {
 	UserType  UserType `json:"userType"`
 	StartTime string   `json:"startTime"`
-	EndTime   string   `json:"endTime"`
+	EndTime   *string  `json:"endTime,omitempty"`
+	Item      *string  `json:"item,omitempty"`
 	Notes     *string  `json:"notes,omitempty"`
 	TableSize int32    `json:"tableSize"`
 	UserID    string   `json:"userId"`
@@ -100,6 +101,12 @@ type ChatMessageInput struct {
 	Content string     `json:"content"`
 }
 
+type CoordinateInput struct {
+	Name string  `json:"name"`
+	Lat  float64 `json:"lat"`
+	Lng  float64 `json:"lng"`
+}
+
 type CreateAdminInput struct {
 	Name     string  `json:"name"`
 	Type     string  `json:"type"`
@@ -122,12 +129,15 @@ type CreatePolicyInput struct {
 }
 
 type CreateServiceInput struct {
-	Name       string    `json:"name"`
-	Number     string    `json:"number"`
-	Email      string    `json:"email"`
-	Location   *string   `json:"location,omitempty"`
-	Profession []*string `json:"profession,omitempty"`
-	Password   *string   `json:"password,omitempty"`
+	Name         string     `json:"name"`
+	Number       string     `json:"number"`
+	Email        string     `json:"email"`
+	Location     *string    `json:"location,omitempty"`
+	Profession   []*string  `json:"profession,omitempty"`
+	Categories   []*string  `json:"categories,omitempty"`
+	Coordinates  []*float64 `json:"coordinates,omitempty"`
+	BusinessType *string    `json:"businessType,omitempty"`
+	Password     *string    `json:"password,omitempty"`
 }
 
 type CreateUnavailablePeriodInput struct {
@@ -198,10 +208,20 @@ type InventoryItemInput struct {
 }
 
 type IsochroneInput struct {
-	Locations     [][]float64 `json:"locations"`
-	Range         []int32     `json:"range"`
-	TransportMode *string     `json:"transportMode,omitempty"`
-	Address       *string     `json:"address,omitempty"`
+	Locations     [][]float64          `json:"locations"`
+	Range         []int32              `json:"range"`
+	TransportMode *string              `json:"transportMode,omitempty"`
+	VendorID      string               `json:"vendorId"`
+	Address       *string              `json:"address,omitempty"`
+	MetaData      []*ZoneMetaDataInput `json:"metaData"`
+}
+
+type IsochroneZoneMetaData struct {
+	ID       string  `json:"id"`
+	Price    float64 `json:"price"`
+	Duration int32   `json:"duration"`
+	Distance float64 `json:"distance"`
+	Zone     int32   `json:"zone"`
 }
 
 type LoginInput struct {
@@ -210,6 +230,14 @@ type LoginInput struct {
 }
 
 type Mutation struct {
+}
+
+type NearbyRider struct {
+	Name     string  `json:"name"`
+	Lat      float64 `json:"lat"`
+	Lng      float64 `json:"lng"`
+	H3Dist   int32   `json:"h3Dist"`
+	Distance float64 `json:"distance"`
 }
 
 type OrderChat struct {
@@ -334,6 +362,28 @@ type ResetPasswordResponse struct {
 	Email   *string `json:"email,omitempty"`
 }
 
+type RiderInput struct {
+	Name         string     `json:"name"`
+	Email        string     `json:"email"`
+	Type         string     `json:"type"`
+	Number       string     `json:"number"`
+	State        *string    `json:"state,omitempty"`
+	Password     *string    `json:"password,omitempty"`
+	Availability *bool      `json:"availability,omitempty"`
+	Dpfile       *string    `json:"dpfile,omitempty"`
+	IDCard       []*string  `json:"idCard,omitempty"`
+	Location     *string    `json:"location,omitempty"`
+	Coordinates  []*float64 `json:"coordinates,omitempty"`
+	H3Indexes    []*string  `json:"h3Indexes,omitempty"`
+	Experience   string     `json:"experience"`
+}
+
+type RiderWithMapData struct {
+	Rider        *Rider             `json:"rider,omitempty"`
+	RiderService *Service           `json:"riderService,omitempty"`
+	MapData      []*IsochroneResult `json:"mapData,omitempty"`
+}
+
 type SearchResult struct {
 	ID             string    `json:"id"`
 	Title          string    `json:"title"`
@@ -441,6 +491,20 @@ type UserInfor struct {
 	FirstlastOrderDate string   `json:"firstlastOrderDate"`
 }
 
+type UsersInfor struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Number   string  `json:"number"`
+	Email    string  `json:"email"`
+	Location *string `json:"location,omitempty"`
+	Dpfile   *string `json:"dpfile,omitempty"`
+}
+
+type VendorMapData struct {
+	Riders *RiderWithMapData `json:"riders,omitempty"`
+}
+
 type VerifyOtpInput struct {
 	Email string `json:"email"`
 	Otp   string `json:"otp"`
@@ -450,6 +514,10 @@ type VerifyOtpInput struct {
 type ViewcategoryBox struct {
 	CategoryBox *CategoryBox `json:"categoryBox,omitempty"`
 	Products    []*Product   `json:"products,omitempty"`
+}
+
+type ZoneMetaDataInput struct {
+	Price float64 `json:"price"`
 }
 
 type FullCard struct {
@@ -464,21 +532,6 @@ type InputUser struct {
 	Password   string  `json:"password"`
 	NumberType *string `json:"numberType,omitempty"`
 	Email      *string `json:"email,omitempty"`
-}
-
-type JobRequestInput struct {
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Type       string `json:"type"`
-	Number     string `json:"number"`
-	Experience string `json:"experience"`
-}
-
-type Jobresponse struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Number   string `json:"number"`
-	Type     string `json:"type"`
 }
 
 type OrderproductInfor struct {

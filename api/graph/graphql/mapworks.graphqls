@@ -2,23 +2,41 @@ input IsochroneInput {
   locations: [[Float!]!]!
   range: [Int!]!
   transportMode: String
+  vendorId: String!
   address: String
-
+  metaData: [ZoneMetaDataInput]!
 }
-
+input ZoneMetaDataInput {
+  price: Float!
+  # distance: Float!
+}
 type IsochroneResult {
+  id: String!
   geojson: String!
-  uuid: String
+  metaData: [IsochroneZoneMetaData!]!
   locations: [[Float!]!]
   range: [Int!]!
+  vendorId: String!
   transportMode: String
   address: String
+  createdAt: String
+  updatedAt: String
+  status: String
+  riderId: String
+  error: String
+  errorCode: String
+}
+type IsochroneZoneMetaData {
+  id: String!
+  price: Float!
+  duration: Int!
+  distance: Float!
+  zone: Int!
 }
 
 type CacheStats {
   totalEntries: Int!
   entries: [CacheEntry!]!
-
 }
 
 type CacheEntry {
@@ -27,25 +45,44 @@ type CacheEntry {
 }
 
 input CacheManagementInput {
-  action: String!  # "purge", "refresh", "stats", "prewarm"
-  locations: [[Float!]!]  # For prewarm/refresh actions
-  ranges: [Int!]          # For prewarm/refresh actions
+  action: String! # "purge", "refresh", "stats", "prewarm"
+  locations: [[Float!]!] # For prewarm/refresh actions
+  ranges: [Int!] # For prewarm/refresh actions
   transportModes: [String!] # For prewarm/refresh actions
-  ttl: Int                # For refresh action (seconds)
+  ttl: Int # For refresh action (seconds)
   Addresses: String
-
 }
-
 
 extend type Query {
   # Get isochrone result by UUID and location
   getIsochroneResult(location: [Float!]!, uuid: String!): IsochroneResult
   getAllIsochroneResults: [IsochroneResult!]
+  # Get isochrone result by ID
+  getIsochroneById(id: String!): IsochroneResult
+
+  # Get isochrones by rider ID
+  getIsochronesByRider(riderId: String!): IsochroneResult!
+  getAllIsochronesByRider(riderId: String!): [IsochroneResult!]
+  getAllIsochronesByVendor(vendorId: String!): [VendorMapData!]
+
+
+  #  Get isochrones by rider ID and location
+  getClosestIsochroneForLocation(
+    riderID: String!
+    location: [Float!]!
+  ): IsochroneResult
+}
+type RiderWithMapData{
+  rider:Rider
+  riderService: Service
+  mapData: [IsochroneResult]
+}
+type VendorMapData{
+  riders: RiderWithMapData
 }
 
 extend type Mutation {
   generateIsochrone(input: IsochroneInput!): IsochroneResult!
+
   manageCacheIsochrone(input: CacheManagementInput!): CacheStats!
 }
-
-

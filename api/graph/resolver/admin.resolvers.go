@@ -6,14 +6,9 @@ package graph
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
-	"github.com/lehxees/serviny/helper"
-	"github.com/lehxees/serviny/middleware"
-	"gorm.io/gorm"
 )
 
 // ID is the resolver for the id field.
@@ -88,152 +83,6 @@ func (r *mutationResolver) DeleteAdmin(ctx context.Context, id string) (*bool, e
 	return &state, nil
 }
 
-// JobRequest is the resolver for the jobRequest field.
-func (r *mutationResolver) JobRequest(ctx context.Context, input *model.JobRequestInput) (*model.JobRequest, error) {
-	// Validate input fields
-	if input.Name == "" || input.Email == "" || input.Type == "" || input.Number == "" || input.Experience == "" {
-		return nil, errors.New("all fields are required")
-	}
-
-	if !helper.IsValidEmail(input.Email) {
-		return nil, errors.New("invalid email format")
-	}
-
-	if !helper.IsValidPhone(input.Number) {
-		return nil, errors.New("invalid phone number format")
-	}
-	w, ok := middleware.GetResponseWriter(ctx) // Retrieve response writer from context
-	if !ok {
-		return nil, fmt.Errorf("unable to access response writer")
-	}
-	// Check if email or number already exists in a single query
-	var existingJob model.JobRequest
-	if err := r.DB.Where("email = ? OR number = ?", input.Email, input.Number).First(&existingJob).Error; err == nil {
-		if existingJob.Email == input.Email {
-			return nil, errors.New("job request with this email already exists")
-		}
-		if existingJob.Number == input.Number {
-			return nil, errors.New("job request with this number already exists")
-		}
-	} else if err != gorm.ErrRecordNotFound {
-		return nil, fmt.Errorf("database error: %v", err) // Return DB error if it's not "record not found"
-	}
-
-	// Create new job request entry using a transaction
-	job := &model.JobRequest{
-		Name:       input.Name,
-		Email:      input.Email,
-		Type:       input.Type,
-		Number:     input.Number,
-		Experience: input.Experience,
-		State:      "PENDING",
-	}
-
-	if err := r.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(job).Error; err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("failed to create job request: %v", err)
-	}
-	// Set HTTP-only cookie with the job request tracking ID
-	if err := middleware.SetjobRequestCookie(w, job.ID.String()); err != nil {
-		return nil, fmt.Errorf("failed to set tracking cookie: %v", err)
-	}
-	return job, nil
-}
-
-// UseGetJobRequestTracking is the resolver for the useGetJobRequestTracking field.
-func (r *mutationResolver) UseGetJobRequestTracking(ctx context.Context) (*model.JobRequest, error) {
-	// Clean up request tracking cookie
-	middleware.CleanupRequestrackingCookie(ctx, r.DB)
-
-	// Retrieve request from context
-	rq := middleware.GetRequest(ctx)
-	if rq == nil {
-		return nil, fmt.Errorf("unable to access request")
-	}
-
-	// Get tracking ID from cookie
-	requestId, err := middleware.GetOrderTrackingCookie(rq)
-	if err != nil {
-		return nil, fmt.Errorf("no tracking cookie found: %v", err)
-	}
-
-	// Update the password in the database for the given request ID
-	jobRequest := &model.JobRequest{}
-	if err := r.DB.Model(jobRequest).Where("id = ?", requestId).Update("password", "").Error; err != nil {
-		return nil, fmt.Errorf("failed to update password: %v", err)
-	}
-
-	// Return the response with updated password
-	// return &model.Jobresponse{
-	// 	Email:    jobRequest.Email,
-	// 	// Password: newPassword,
-	// 	Number:   jobRequest.Number,
-	// 	Type:     jobRequest.Type,
-	// }, nil
-
-	return nil, nil
-}
-
-// Jobresponse is the resolver for the jobresponse field.
-func (r *mutationResolver) JobResponse(ctx context.Context, applicantID string, state string) (*model.JobRequest, error) {
-	// Fetch job request from database
-	var jobRequest model.JobRequest
-	if err := r.DB.Where("id = ?", applicantID).First(&jobRequest).Error; err != nil {
-		return nil, fmt.Errorf("failed to find job request: %w", err)
-	}
-	password := helper.GeneratePassword()
-	jobRequest.Password = &password
-	jobRequest.State = state
-
-	if err := r.DB.Save(jobRequest).Error; err != nil {
-		return nil, err
-	}
-
-	return &jobRequest, nil
-}
-
-// WorksUpdate is the resolver for the worksUpdate field.
-func (r *mutationResolver) WorksUpdate(ctx context.Context, applicantID string, input *model.WorksInput) (*model.JobRequest, error) {
-	// Fetch job request from database
-	var jobRequest model.JobRequest
-	if err := r.DB.Where("id = ?", applicantID).First(&jobRequest).Error; err != nil {
-		return nil, fmt.Errorf("failed to find job request: %w", err)
-	}
-
-	// Check if input fields are available and update them
-	if input.Name != nil {
-		jobRequest.Name = *input.Name
-	}
-	if input.Email != nil {
-		jobRequest.Email = *input.Email
-	}
-	if input.Type != nil {
-		jobRequest.Type = *input.Type
-	}
-	if input.Number != nil {
-		jobRequest.Number = *input.Number
-	}
-	if input.Experience != nil {
-		jobRequest.Experience = *input.Experience
-	}
-	if input.Password != nil {
-		jobRequest.Password = input.Password
-	}
-	if input.State != nil {
-		jobRequest.State = *input.State
-	}
-
-	if err := r.DB.Save(&jobRequest).Error; err != nil {
-		return nil, err
-	}
-
-	return &jobRequest, nil
-}
-
 // GetAllSession is the resolver for the getAllSession field.
 func (r *queryResolver) GetAllSession(ctx context.Context) ([]*model.Session, error) {
 	var sessions []*model.Session
@@ -274,40 +123,7 @@ func (r *queryResolver) ListAdmins(ctx context.Context) ([]*model.Admin, error) 
 	return admins, nil
 }
 
-// ReviewApplicate is the resolver for the reviewApplicate field.
-func (r *queryResolver) ReviewApplicate(ctx context.Context) ([]*model.JobRequest, error) {
-	var applicants []*model.JobRequest
-	if err := r.DB.Where("state IN ?", []string{"PENDING", "REJECTED"}).Order("created_at DESC").Find(&applicants).Error; err != nil {
-		return nil, err
-	}
-	return applicants, nil
-}
-
-// ReviewAllWorks is the resolver for the reviewAllWorks field.
-func (r *queryResolver) ReviewAllWorks(ctx context.Context) ([]*model.JobRequest, error) {
-	panic(fmt.Errorf("not implemented: ReviewAllWorks - reviewAllWorks"))
-}
-
-// GetAllWorks is the resolver for the getAllWorks field.
-func (r *queryResolver) GetAllWorks(ctx context.Context) ([]*model.JobRequest, error) {
-	var works []*model.JobRequest
-	if err := r.DB.Order("created_at DESC").Find(&works).Error; err != nil {
-		return nil, err
-	}
-	return works, nil
-}
-
-// ID is the resolver for the id field.
-func (r *jobRequestResolver) ID(ctx context.Context, obj *model.JobRequest) (string, error) {
-	id := obj.ID.String()
-	return id, nil
-}
-
 // Admin returns graph.AdminResolver implementation.
 func (r *Resolver) Admin() graph.AdminResolver { return &adminResolver{r} }
 
-// JobRequest returns graph.JobRequestResolver implementation.
-func (r *Resolver) JobRequest() graph.JobRequestResolver { return &jobRequestResolver{r} }
-
 type adminResolver struct{ *Resolver }
-type jobRequestResolver struct{ *Resolver }

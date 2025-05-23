@@ -2,13 +2,12 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Search, MapPin, Loader2 } from "lucide-react"
+import { Search, MapPin, Loader2, Building2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { APIProvider, Map, AdvancedMarker, Pin, useMap, type MapMouseEvent } from "@vis.gl/react-google-maps"
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api"
-// import { google } from "googlemaps"
 
 type Location = {
   address: string
@@ -21,19 +20,21 @@ interface LocationStepProps {
   onLocationSelect: (location: Location) => void
   selectedLocation: Location | null
   onNext: () => void
+  vendorLocation?: Location | null // Add vendor location prop
 }
+
 const envApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 // Libraries to load with the Google Maps API
 const libraries: Libraries = ["places"]
 
-export function LocationStep({ onLocationSelect, selectedLocation, onNext }: LocationStepProps) {
+export function LocationStep({ onLocationSelect, selectedLocation, onNext, vendorLocation }: LocationStepProps) {
   const [searchValue, setSearchValue] = useState("")
   const [predictions, setPredictions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showPredictions, setShowPredictions] = useState(false)
   const [mapCenter, setMapCenter] = useState({ lat: 5.6037, lng: -0.187 }) // Default to Accra
-const [mapZoom, setMapZoom] = useState(12) // default zoom
+  const [mapZoom, setMapZoom] = useState(12) // default zoom
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const mapDivRef = useRef<HTMLDivElement>(null)
@@ -57,11 +58,24 @@ const [mapZoom, setMapZoom] = useState(12) // default zoom
     geocoderRef.current = new google.maps.Geocoder()
   }, [isLoaded])
 
+  // Set initial map center and search value based on vendor location
+  useEffect(() => {
+    if (vendorLocation) {
+      setMapCenter({ lat: vendorLocation.lat, lng: vendorLocation.lng })
+      setMapZoom(15) // Closer zoom for vendor location
+      
+      // Pre-fill search with vendor address if no current search value
+      if (!searchValue) {
+        setSearchValue(vendorLocation.address)
+      }
+    }
+  }, [vendorLocation, searchValue])
+
   // Update map center when location is selected
   useEffect(() => {
     if (selectedLocation) {
       setMapCenter({ lat: selectedLocation.lat, lng: selectedLocation.lng })
-      setMapZoom(40); // or 17 for a closer view
+      setMapZoom(17); // or 17 for a closer view
     }
   }, [selectedLocation])
 
@@ -205,6 +219,14 @@ const [mapZoom, setMapZoom] = useState(12) // default zoom
     })
   }
 
+  // Handle vendor location button click
+  const handleUseVendorLocation = () => {
+    if (vendorLocation) {
+      onLocationSelect(vendorLocation)
+      setSearchValue(vendorLocation.address)
+    }
+  }
+
   // Close predictions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -244,9 +266,39 @@ const [mapZoom, setMapZoom] = useState(12) // default zoom
         <div>
           <h2 className="text-xl font-semibold text-[#1D1D1F] dark:text-white">Select Your Location</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Enter your business address or select a location on the map
+            {vendorLocation 
+              ? "Confirm or modify your business location for delivery zone calculation"
+              : "Enter your business address or select a location on the map"
+            }
           </p>
         </div>
+
+        {/* Vendor location suggestion card */}
+        {vendorLocation && (
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start">
+                  <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-blue-900 dark:text-blue-100">Your Vendor Location</h3>
+                    <p className="text-blue-700 dark:text-blue-200 text-sm mt-1">{vendorLocation.address}</p>
+                    <p className="text-blue-600 dark:text-blue-300 text-xs mt-1">
+                      Coordinates: {vendorLocation.lat.toFixed(6)}, {vendorLocation.lng.toFixed(6)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleUseVendorLocation}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
+                >
+                  Use This Location
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="relative" ref={searchInputRef}>
           <div className="relative">
@@ -304,13 +356,22 @@ const [mapZoom, setMapZoom] = useState(12) // default zoom
                 defaultCenter={mapCenter}
                 center={mapCenter}
                 defaultZoom={mapZoom}
-                gestureHandling="greedy"
+                zoom={mapZoom}
+                // gestureHandling="greedy"
                 disableDefaultUI={true}
-
                 mapId="map"
                 onClick={handleMapClick}
                 className="h-full w-full"
               >
+                {/* Vendor location marker (if different from selected) */}
+                {vendorLocation && (!selectedLocation || 
+                  (selectedLocation.lat !== vendorLocation.lat || selectedLocation.lng !== vendorLocation.lng)) && (
+                  <AdvancedMarker position={{ lat: vendorLocation.lat, lng: vendorLocation.lng }}>
+                    <Pin background={"#3B82F6"} glyphColor={"#FFFFFF"} borderColor={"#FFFFFF"} scale={0.8} />
+                  </AdvancedMarker>
+                )}
+                
+                {/* Selected location marker */}
                 {selectedLocation && (
                   <AdvancedMarker position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}>
                     <Pin background={"#0071E3"} glyphColor={"#FFFFFF"} borderColor={"#FFFFFF"} />
@@ -333,6 +394,11 @@ const [mapZoom, setMapZoom] = useState(12) // default zoom
                   <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
                     Coordinates: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
                   </p>
+                  {vendorLocation && (selectedLocation.lat === vendorLocation.lat && selectedLocation.lng === vendorLocation.lng) && (
+                    <p className="text-blue-600 dark:text-blue-400 text-xs mt-1 font-medium">
+                      ✓ Using vendor location
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

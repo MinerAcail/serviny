@@ -2,12 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map-popup.css";
-import { useQuery } from "@apollo/client";
 
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 import {
   createMarkerAtLocation,
-  handleMapClick,
   clearAllMarkersAndPopups,
   clearDirections,
   createDirectRoute,
@@ -18,32 +16,30 @@ import {
   calculateZoneDetails,
   calculatePointDeliveryInfo,
   TransportMode,
-  // RangeType,
   Location,
-  GET_ISOCHRONE_RESULT,
+  safeParseGeoJSON,
 } from "./dataUtils";
-import { ZoneCard } from "./ZoneCard";
 import { MapAndSearch } from "./mapAndSearch";
-import { useNavigate, useSearchParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
+import { DeliveryZoneVisualizerMenu } from "./integrationMenu";
+import { toast } from "sonner";
+import { useClosestIsochrone } from "./useClosestIsochrone";
 
 // Libraries to load with the Google Maps API
 const libraries: Libraries = ["places"];
 
 export function DeliveryZoneVisualizer() {
+  const { riderId } = useParams<{ riderId: string }>(); // Get riderId from URL
+
   // ==========================================
   // Environment and API Keys
   // ==========================================
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
-  // Example UUID for isochrone data - would come from props in real app
-  const isochroneUuid = "72bf2db2-dffc-46f8-86dc-edfbb6b960ef";
-  const initialLocation = [-0.2649412, 5.5582733]; // Default location
-
   // Add React Router hooks
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  
+
   // ==========================================
   // State Management
   // ==========================================
@@ -58,7 +54,7 @@ export function DeliveryZoneVisualizer() {
 
   // Map state
   const [mapLoaded, setMapLoaded] = useState(false);
-  
+
   // Location state - initialize from URL if available
   const [clickedPoint, setClickedPoint] = useState<{
     lng: number;
@@ -76,9 +72,11 @@ export function DeliveryZoneVisualizer() {
 
     return null;
   });
-  
+
   const [showDirections, setShowDirections] = useState(false);
-  const [directionsDistance, setDirectionsDistance] = useState<number | null>(null);
+  const [directionsDistance, setDirectionsDistance] = useState<number | null>(
+    null
+  );
   const [directionsTime, setDirectionsTime] = useState<string | null>(null);
   const [directionsReady, setDirectionsReady] = useState(false);
 
@@ -103,68 +101,92 @@ export function DeliveryZoneVisualizer() {
   // Refs for markers and popups
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const popupsRef = useRef<maplibregl.Popup[]>([]);
-  const [clickMarker, setClickMarker] = useState<maplibregl.Marker | null>(null);
+  const [clickMarker, setClickMarker] = useState<maplibregl.Marker | null>(
+    null
+  );
   const [infoPopup, setInfoPopup] = useState<maplibregl.Popup | null>(null);
 
   // Pin dropper state
   const [isPinDropperActive, setIsPinDropperActive] = useState(false);
-  const [mapInteractionEnabled, setMapInteractionEnabled] = useState(true);
+  // const [mapInteractionEnabled, setMapInteractionEnabled] = useState(true);
+  const [
+    isOpenDeliveryZoneVisualizerMenu,
+    setIsOpenDeliveryZoneVisualizerMenu,
+  ] = useState(true);
 
   // Refs for Google Maps services
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
-
-  // ==========================================
-  // Google Maps API Loading
-  // ==========================================
+  const autocompleteServiceRef =
+    useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(
+    null
+  );
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: googleMapsApiKey || "",
     libraries,
   });
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  // ==========================================
+  // Use the closest isochrone hook with the GraphQL query
+  // ==========================================
+  // Initialize with location from URL if available
+  const initialLocation = clickedPoint
+    ? [clickedPoint.lng, clickedPoint.lat]
+    : null;
+
+  const {
+    riderIsochrones,
+    // closestIsochrone,
+    isLoading: isochroneLoading,
+    // error: isochroneError,
+    selectedIsochroneIndex,
+    setSelectedIsochroneIndex,
+    updateLocation,
+    // currentLocation,
+  } = useClosestIsochrone(riderId, initialLocation);
 
   // ==========================================
   // URL State Management
   // ==========================================
-  
+
   // Create URL-aware clicked point setter
-  const handleSetClickedPoint = useCallback((point: { lng: number; lat: number } | null) => {
-    setClickedPoint(point);
-    
-    if (point) {
-      // Update URL with new coordinates
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("lat", point.lat.toString());
-      newParams.set("lng", point.lng.toString());
-      setSearchParams(newParams);
-    } else {
-      // Remove coordinates from URL if point is null
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete("lat");
-      newParams.delete("lng");
-      setSearchParams(newParams);
-    }
-  }, [setSearchParams, searchParams]);
+  const handleSetClickedPoint = useCallback(
+    (point: { lng: number; lat: number } | null) => {
+      setClickedPoint(point);
+
+      if (point) {
+        // Update URL with new coordinates
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("lat", point.lat.toString());
+        newParams.set("lng", point.lng.toString());
+        setSearchParams(newParams);
+
+        // Update location in the hook
+        updateLocation([point.lng, point.lat]);
+      } else {
+        // Remove coordinates from URL if point is null
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("lat");
+        newParams.delete("lng");
+        setSearchParams(newParams);
+      }
+    },
+    [setSearchParams, searchParams, updateLocation]
+  );
 
   // ==========================================
-  // Data Fetching - Isochrone API
+  // Effect to process isochrone data when selected isochrone changes
   // ==========================================
-  const {
-    loading: isochroneLoading,
-    refetch,
-  } = useQuery(GET_ISOCHRONE_RESULT, {
-    variables: {
-      uuid: isochroneUuid,
-      location: initialLocation,
-    },
-    onError: (err) => {
-      console.error("Error fetching isochrone:", err);
-      setError("Failed to fetch isochrone data. Please try again.");
-      setLoading(false);
-    },
-    onCompleted: (data) => {
+  useEffect(() => {
+    if (
+      riderIsochrones &&
+      riderIsochrones.length > 0 &&
+      selectedIsochroneIndex < riderIsochrones.length
+    ) {
+      const selectedIsochrone = riderIsochrones[selectedIsochroneIndex];
+
       processIsochroneData(
-        data,
+        { getIsochroneResult: selectedIsochrone },
         setRanges,
         setTransportMode,
         setVendorLocation,
@@ -185,19 +207,22 @@ export function DeliveryZoneVisualizer() {
         setLoading,
         ranges
       );
-    },
-  });
+    }
+  }, [selectedIsochroneIndex, riderIsochrones, mapLoaded]);
 
-  // Load point from URL when map is ready
+  // ==========================================
+  // Effect to restore location from URL params and create marker when map loads
+  // ==========================================
   useEffect(() => {
     if (
       mapLoaded &&
       mapInstance.current &&
       clickedPoint &&
       vendorLocation &&
-      isochrones.length > 0
+      isochrones.length > 0 &&
+      zoneDetails.length > 0
     ) {
-      // Calculate point info for the location from URL
+      // Restore the marker from URL params
       const pointInfo = calculatePointDeliveryInfo(
         [clickedPoint.lng, clickedPoint.lat],
         isochrones,
@@ -207,7 +232,6 @@ export function DeliveryZoneVisualizer() {
       );
 
       if (pointInfo) {
-        // Create marker and popup for the loaded point
         createMarkerAtLocation(
           clickedPoint.lng,
           clickedPoint.lat,
@@ -220,21 +244,13 @@ export function DeliveryZoneVisualizer() {
           popupsRef,
           setInfoPopup
         );
-
-        // Center map on the loaded point
-        mapInstance.current.flyTo({
-          center: [clickedPoint.lng, clickedPoint.lat],
-          zoom: 14,
-          duration: 1000,
-        });
       }
     }
-  }, [mapLoaded, isochrones, vendorLocation, zoneDetails, transportMode, clickedPoint]);
+  }, [mapLoaded, isochrones, vendorLocation, zoneDetails, clickedPoint]);
 
   // ==========================================
   // Google Places Search Functions
   // ==========================================
-
   // Handle search input change
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +314,7 @@ export function DeliveryZoneVisualizer() {
       setSearchValue(place.description);
       setShowPredictions(false);
 
-      if (!isLoaded || !mapDivRef.current) return;
+      if (!mapDivRef.current) return;
 
       // Initialize Places service if not already initialized
       if (!placesServiceRef.current && mapDivRef.current) {
@@ -331,46 +347,12 @@ export function DeliveryZoneVisualizer() {
                 setClickMarker,
                 infoPopup,
                 setInfoPopup,
-                handleSetClickedPoint,
+                () => {}, // Don't clear clickedPoint yet
                 setDirectionsReady
               );
 
-              // Set the clicked point using URL-aware setter
+              // Update the clicked point (this will also update the hook)
               handleSetClickedPoint({ lng, lat });
-
-              // Calculate delivery info
-              const pointInfo = calculatePointDeliveryInfo(
-                [lng, lat],
-                isochrones,
-                vendorLocation,
-                zoneDetails,
-                transportMode
-              );
-
-              if (pointInfo) {
-                // Create marker and show popup
-                createMarkerAtLocation(
-                  lng,
-                  lat,
-                  pointInfo,
-                  mapInstance,
-                  markersRef,
-                  setClickMarker,
-                  setDirectionsReady,
-                  zoneDetails,
-                  popupsRef,
-                  setInfoPopup
-                );
-
-                // If the map is loaded, center on the location
-                if (mapInstance.current) {
-                  mapInstance.current.flyTo({
-                    center: [lng, lat],
-                    zoom: 14,
-                    duration: 1000,
-                  });
-                }
-              }
             } else {
               console.error("Error getting place details:", status);
             }
@@ -398,46 +380,12 @@ export function DeliveryZoneVisualizer() {
                 setClickMarker,
                 infoPopup,
                 setInfoPopup,
-                handleSetClickedPoint,
+                () => {}, // Don't clear clickedPoint yet
                 setDirectionsReady
               );
 
-              // Set the clicked point using URL-aware setter
+              // Update the clicked point (this will also update the hook)
               handleSetClickedPoint({ lng, lat });
-
-              // Calculate delivery info
-              const pointInfo = calculatePointDeliveryInfo(
-                [lng, lat],
-                isochrones,
-                vendorLocation,
-                zoneDetails,
-                transportMode
-              );
-
-              if (pointInfo) {
-                // Create marker and show popup
-                createMarkerAtLocation(
-                  lng,
-                  lat,
-                  pointInfo,
-                  mapInstance,
-                  markersRef,
-                  setClickMarker,
-                  setDirectionsReady,
-                  zoneDetails,
-                  popupsRef,
-                  setInfoPopup
-                );
-
-                // If the map is loaded, center on the location
-                if (mapInstance.current) {
-                  mapInstance.current.flyTo({
-                    center: [lng, lat],
-                    zoom: 14,
-                    duration: 1000,
-                  });
-                }
-              }
             } else {
               console.error("Geocoding failed:", status);
             }
@@ -446,11 +394,7 @@ export function DeliveryZoneVisualizer() {
       }
     },
     [
-      isLoaded,
-      isochrones,
-      vendorLocation,
-      zoneDetails,
-      transportMode,
+      // isLoaded,
       clickMarker,
       infoPopup,
       handleSetClickedPoint,
@@ -460,38 +404,13 @@ export function DeliveryZoneVisualizer() {
   // ==========================================
   // UI Event Handlers
   // ==========================================
-
-  // Handle zone card click
-  const handleZoneCardClick = useCallback(
-    (index: number) => {
-      // Toggle active zone index
-      setActiveZoneIndex(activeZoneIndex === index ? null : index);
-      // Clear any existing markers and popups
-      clearAllMarkersAndPopups(
-        markersRef,
-        popupsRef,
-        clickMarker,
-        setClickMarker,
-        infoPopup,
-        setInfoPopup,
-        // handleSetClickedPoint,
-        () => {}, 
-        setDirectionsReady
-      );
-    },
-    [activeZoneIndex, clickMarker, infoPopup, handleSetClickedPoint]
-  );
-
   // Reload isochrone data
   const handleRefetch = useCallback(() => {
     setLoading(true);
     setError(null);
-    refetch().catch((err) => {
-      console.error("Error refetching isochrone data:", err);
-      setError("Failed to refresh isochrone data.");
-      setLoading(false);
-    });
-  }, [refetch]);
+    // Use window.location.reload() as a simple way to refresh all data
+    window.location.reload();
+  }, []);
 
   // Handle showing directions for current clicked point
   const handleShowDirectionsClick = useCallback(() => {
@@ -540,12 +459,12 @@ export function DeliveryZoneVisualizer() {
         setClickMarker,
         infoPopup,
         setInfoPopup,
-        handleSetClickedPoint,
+        () => {}, // Don't reset URL state until we have a new point
         setDirectionsReady
       );
 
       // Disable other map interactions
-      setMapInteractionEnabled(false);
+      // setMapInteractionEnabled(false);
 
       // If directions are shown, clear them
       if (showDirections) {
@@ -554,49 +473,24 @@ export function DeliveryZoneVisualizer() {
       }
     } else {
       // Re-enable map interactions
-      setMapInteractionEnabled(true);
+      // setMapInteractionEnabled(true);
     }
 
     // Toggle pin dropper mode
     setIsPinDropperActive(!isPinDropperActive);
-  }, [isPinDropperActive, clickMarker, infoPopup, showDirections, handleSetClickedPoint]);
+  }, [isPinDropperActive, clickMarker, infoPopup, showDirections]);
 
   // Handle location selection from pin dropper
   const handlePinDropperLocationSelected = useCallback(
     (coordinates: { lng: number; lat: number }) => {
-      // Calculate delivery info for the selected point
-      const pointInfo = calculatePointDeliveryInfo(
-        [coordinates.lng, coordinates.lat],
-        isochrones,
-        vendorLocation,
-        zoneDetails,
-        transportMode
-      );
-
-      if (pointInfo) {
-        // Create marker and show popup
-        createMarkerAtLocation(
-          coordinates.lng,
-          coordinates.lat,
-          pointInfo,
-          mapInstance,
-          markersRef,
-          setClickMarker,
-          setDirectionsReady,
-          zoneDetails,
-          popupsRef,
-          setInfoPopup
-        );
-
-        // Store clicked point with URL-aware setter
-        handleSetClickedPoint({ lng: coordinates.lng, lat: coordinates.lat });
-      }
+      // Update URL state and hook location
+      handleSetClickedPoint({ lng: coordinates.lng, lat: coordinates.lat });
 
       // Exit pin dropper mode
       setIsPinDropperActive(false);
-      setMapInteractionEnabled(true);
+      // setMapInteractionEnabled(true);
     },
-    [isochrones, vendorLocation, zoneDetails, transportMode, handleSetClickedPoint]
+    [handleSetClickedPoint]
   );
 
   // Handler for when the user cancels pin dropper mode
@@ -605,39 +499,15 @@ export function DeliveryZoneVisualizer() {
     setIsPinDropperActive(false);
 
     // Re-enable map interactions
-    setMapInteractionEnabled(true);
+    // setMapInteractionEnabled(true);
 
-    // Optional: You can provide feedback to the user that pin dropping was canceled
-    // For example, you could show a brief toast notification
-    const toast = document.createElement("div");
-    toast.className = "pin-mode-toast";
-    toast.style.backgroundColor = "#6B7280"; // Gray color for cancelation
-    toast.innerHTML = `
-    <span class="flex items-center">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-1.5">
-    <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>Pin dropping canceled
-    </span>
-  `;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.style.transform = "translate(-50%, 10px)";
-      toast.style.transition = "opacity 0.3s ease, transform 0.3s ease";
-
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 300);
-    }, 2000);
+    // Show toast notification for canceled pin dropping
+    toast.info("Pin dropping canceled");
   }, []);
 
   // ==========================================
   // Effects
   // ==========================================
-
   // Initialize Google services when API is loaded
   useEffect(() => {
     if (!isLoaded) return;
@@ -667,16 +537,6 @@ export function DeliveryZoneVisualizer() {
 
     mapInstance.current = map;
 
-    // Add navigation controls
-    // map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-    // Add attribution
-    // map.addControl(
-    //   new maplibregl.AttributionControl({
-    //     compact: true,
-    //   })
-    // );
-
     // Add vendor marker
     new maplibregl.Marker({ color: "#0071E3" })
       .setLngLat([vendorLocation.lng, vendorLocation.lat])
@@ -686,55 +546,6 @@ export function DeliveryZoneVisualizer() {
         )
       )
       .addTo(map);
-
-    // Add click handler for map
-    map.on("click", (e) => {
-      if (!mapInteractionEnabled || isPinDropperActive) return;
-      
-      // Get clicked coordinates
-      const { lng, lat } = e.lngLat;
-      
-      // Clear existing markers and popups
-      clearAllMarkersAndPopups(
-        markersRef,
-        popupsRef,
-        clickMarker,
-        setClickMarker,
-        infoPopup,
-        setInfoPopup,
-        handleSetClickedPoint,
-        setDirectionsReady,
-        setActiveZoneIndex
-      );
-      
-      // Calculate delivery info for the clicked point
-      const pointInfo = calculatePointDeliveryInfo(
-        [lng, lat],
-        isochrones,
-        vendorLocation,
-        zoneDetails,
-        transportMode
-      );
-      
-      if (pointInfo) {
-        // Create marker and show popup
-        createMarkerAtLocation(
-          lng,
-          lat,
-          pointInfo,
-          mapInstance,
-          markersRef,
-          setClickMarker,
-          setDirectionsReady,
-          zoneDetails,
-          popupsRef,
-          setInfoPopup
-        );
-        
-        // Set clicked point with URL-aware setter
-        handleSetClickedPoint({ lng, lat });
-      }
-    });
 
     map.on("load", () => {
       setMapLoaded(true);
@@ -776,8 +587,9 @@ export function DeliveryZoneVisualizer() {
       // Clear any directions
       clearDirections(mapInstance);
     };
-  }, [vendorLocation, isLoaded, maptilerApiKey, transportMode, mapInteractionEnabled, isPinDropperActive, isochrones, zoneDetails, handleSetClickedPoint]);
+  }, [vendorLocation, isLoaded, maptilerApiKey]);
 
+  // Update map isochrones when activeZoneIndex changes
   useEffect(() => {
     const map = mapInstance.current;
 
@@ -814,13 +626,140 @@ export function DeliveryZoneVisualizer() {
     };
   }, []);
 
+  // Store the current isochrone index in URL params when it changes
+  useEffect(() => {
+    if (selectedIsochroneIndex !== undefined) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("isochroneIndex", selectedIsochroneIndex.toString());
+      setSearchParams(newParams, { replace: true }); // Use replace to avoid adding to history
+    }
+  }, [selectedIsochroneIndex, searchParams, setSearchParams]);
+
+  // Restore isochrone index from URL when component mounts
+  useEffect(() => {
+    const isochroneIndexParam = searchParams.get("isochroneIndex");
+    if (isochroneIndexParam && !Number.isNaN(parseInt(isochroneIndexParam))) {
+      const index = parseInt(isochroneIndexParam);
+      if (
+        index >= 0 &&
+        riderIsochrones &&
+        riderIsochrones.length > 0 &&
+        index < riderIsochrones.length
+      ) {
+        setSelectedIsochroneIndex(index);
+      }
+    }
+  }, [riderIsochrones, searchParams, setSelectedIsochroneIndex]);
+
+  // Function to update map to show all rider isochrones at once
+// Function to update map to show all rider isochrones at once
+// FIXED showAllRiderIsochrones function implementation
+  const showAllRiderIsochrones = useCallback(() => {
+    console.log("showAllRiderIsochrones called");
+    
+    // Check if map is loaded first
+    if (!mapLoaded || !mapInstance.current) {
+      console.error("Map not loaded yet");
+      toast.error("Map not loaded yet", { duration: 3000 });
+      return;
+    }
+    
+    // Check if we have isochrones data
+    if (!riderIsochrones || riderIsochrones.length === 0 || selectedIsochroneIndex >= riderIsochrones.length) {
+      console.error("No isochrones data available");
+      toast.error("No isochrones data available", { duration: 3000 });
+      return;
+    }
+    
+    try {
+      // First clear any active zone index to ensure all zones will be shown
+      setActiveZoneIndex(null);
+      
+      // Direct approach - update the map with all isochrones if they're already processed
+      if (isochrones.length > 0) {
+        console.log("Using existing isochrones:", isochrones.length);
+        updateMapIsochrones(isochrones, null, mapInstance);
+        toast.success("Showing all delivery zones", { duration: 3000 });
+        return;
+      }
+      
+      // If we don't have processed isochrones yet, we need to process them from the selected isochrone
+      const selectedIsochrone = riderIsochrones[selectedIsochroneIndex];
+      console.log("Selected isochrone:", selectedIsochrone?.id);
+      
+      if (!selectedIsochrone || !selectedIsochrone.geojson) {
+        console.error("No geojson data in selected isochrone");
+        toast.error("No zone data available", { duration: 3000 });
+        return;
+      }
+      
+      // Parse the GeoJSON directly
+      const parsedGeoJSON = safeParseGeoJSON(selectedIsochrone.geojson);
+      
+      if (!parsedGeoJSON || !parsedGeoJSON.features || !parsedGeoJSON.features.length) {
+        console.error("Invalid GeoJSON data or no features");
+        toast.error("Invalid zone data", { duration: 3000 });
+        return;
+      }
+      
+      console.log(`Found ${parsedGeoJSON.features.length} features in GeoJSON`);
+      
+      // Process the features directly
+      const processedFeatures = parsedGeoJSON.features.map((feature, index) => {
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            group_index: index,
+            range: selectedIsochrone.range && selectedIsochrone.range[index] 
+              ? selectedIsochrone.range[index] 
+              : (index + 1) * 5, // Fallback value if range not provided
+            color: ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"][index % 6],
+          },
+        };
+      });
+      
+      // Store the processed features in state
+      setIsochrones(processedFeatures);
+      
+      // Calculate zone details for these features
+      const tempRanges = selectedIsochrone.range || [5, 10, 15, 20, 25, 30];
+      const details = calculateZoneDetails(
+        processedFeatures,
+        tempRanges,
+        "time",
+        selectedIsochrone.transportMode || "car"
+      );
+      setZoneDetails(details);
+      
+      // Update the map with all zones (null activeZoneIndex)
+      updateMapIsochrones(processedFeatures, null, mapInstance);
+      
+      toast.success("Showing all delivery zones", { duration: 3000 });
+    } catch (error) {
+      console.error("Error in showAllRiderIsochrones:", error);
+      toast.error("Failed to display zones", { duration: 3000 });
+    }
+  }, [
+    mapLoaded,
+    mapInstance,
+    riderIsochrones,
+    selectedIsochroneIndex,
+    isochrones,
+    setActiveZoneIndex,
+    setIsochrones,
+    setZoneDetails,
+  ]);
+
+
+
   // ==========================================
   // Render Component
   // ==========================================
   return (
     <div className="py-6 font-sans w-full min-h-screen">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Replace your existing search and map UI with the MapAndSearch component */}
+        {/* Map and Search UI */}
         <MapAndSearch
           // Search related props
           handleSearchChange={handleSearchChange}
@@ -831,7 +770,6 @@ export function DeliveryZoneVisualizer() {
           isSearchLoading={isSearchLoading}
           handleClearSearch={handleClearSearch}
           handlePredictionSelect={handlePredictionSelect}
-          
           // Map state props
           isLoaded={isLoaded}
           loading={loading}
@@ -841,48 +779,42 @@ export function DeliveryZoneVisualizer() {
           directionsReady={directionsReady}
           directionsDistance={directionsDistance}
           directionsTime={directionsTime}
-          
           // URL-aware location state
           clickedPoint={clickedPoint}
           setClickedPoint={handleSetClickedPoint}
-          
           // Map refs
           mapRef={mapRef}
           mapDivRef={mapDivRef}
           mapInstance={mapInstance}
-          
           // Action handlers
           handleTogglePinDropper={handleTogglePinDropper}
           handleShowDirectionsClick={handleShowDirectionsClick}
           handleRefetch={handleRefetch}
           handlePinDropperLocationSelected={handlePinDropperLocationSelected}
           handlePinDropperCancel={handlePinDropperCancel}
-          
           // Direction state modifiers
           setShowDirections={setShowDirections}
           clearDirections={clearDirections}
-          
           // Error handling
           error={error}
-          
           // Transport mode
           transportMode={transportMode}
+          isOpenDeliveryZoneVisualizerMenu={isOpenDeliveryZoneVisualizerMenu}
         />
 
-        {/* Zone cards */}
-        {isochrones.length > 0 && !loading && !isochroneLoading && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {zoneDetails.map((zone, index) => (
-              <ZoneCard
-                key={index}
-                index={index}
-                zone={zone}
-                activeZoneIndex={activeZoneIndex}
-                onClick={() => handleZoneCardClick(index)}
-              />
-            ))}
-          </div>
-        )}
+        {/* Delivery Zone Visualizer Menu with enhanced isochrone selection */}
+        <DeliveryZoneVisualizerMenu
+          riderIsochrones={riderIsochrones || []}
+          selectedIsochroneIndex={selectedIsochroneIndex}
+          zoneDetails={zoneDetails}
+          activeZoneIndex={activeZoneIndex}
+          setActiveZoneIndex={setActiveZoneIndex}
+          setSelectedIsochroneIndex={setSelectedIsochroneIndex}
+          isOpen={isOpenDeliveryZoneVisualizerMenu}
+          setIsOpen={setIsOpenDeliveryZoneVisualizerMenu}
+          showAllRiderIsochrones={showAllRiderIsochrones}
+          setOpenDeliveryZoneVisualizerMenu={setIsOpenDeliveryZoneVisualizerMenu}
+        />
       </div>
     </div>
   );

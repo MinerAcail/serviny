@@ -7,7 +7,7 @@ import { AuthProvider } from "./context/authContext";
 import ErrorLogin from "./routErrorLogin";
 // import { SidebarProvider } from "@/components/ui/sidebar";
 // import { AppSidebar } from "./bar";
-import { CartProvider } from "@/hooks/CartContext";
+// import { CartProvider } from "@/hooks/CartContext";
 import { UpdatEvent } from "@/app/vendors";
 import ProtectedIsAuthRoute from "./protectedIsAuth";
 import { OrderTrackingProvider } from "@/hooks/orderTrackingContext";
@@ -17,7 +17,7 @@ import { ProtectType } from "./useProtect";
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import ProfileService from "@/components/serviceProviders/updateProfile";
 import { CreateGalleryForm } from "@/components/serviceProviders/upload/create";
-import { CreateServiceProvider } from "@/components/serviceProviders/createProvider";
+// import { CreateServiceProvider } from "@/components/serviceProviders/createProvider";
 import BookingTypes from "@/components/serviceProviders/bookingType";
 import LucideIconSelector from "@/app/vendors/icons";
 import Dashboard from "@/components/serviceProviders/Dashboard";
@@ -43,11 +43,13 @@ const router = createBrowserRouter([
         path: "/providers/:serviceId",
         element: <ServiceProviderProfile />,
       },
-  { path: "/sms", element: <ChatSystem /> },
-
+      { path: "/sms", element: <ChatSystem /> },
+      { path: "/zonex/:vendorId", element: <DeliveryZoneVisualizerVendor /> },
+      { path: "/merge/:serviceId", element: <CheckType /> },
 
       { path: "/icons", element: <LucideIconSelector /> },
-      { path: "/provider/new", element: <CreateServiceProvider /> },
+      { path: "/provider/new", element: <ImprovedServiceProvider /> },
+      { path: "/rider/new", element: <RiderRegistration /> },
 
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/favorites", element: <FavoritesPage /> },
@@ -55,6 +57,8 @@ const router = createBrowserRouter([
       // { path: "/c/:userId", element: <ContactDetailPage /> },
       { path: "/reset", element: <PasswordReset /> },
       { path: "/red", element: <SpectaclesLoading /> },
+      { path: "/type", element: <BusinessType /> },
+
 
       { path: "/event/:eventId", element: <UpdatEvent /> },
 
@@ -78,7 +82,7 @@ const router = createBrowserRouter([
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
       { path: "zone", element: <VendorProcessFlow /> },
-      { path: "zonex", element: <DeliveryZoneVisualizer /> },
+      { path: "zonex", element: <ResultStepData /> },
 
       {
         path: "update",
@@ -124,9 +128,17 @@ import ProductForm from "@/vendor/ProductForm";
 import ChatSystem from "@/components/user/chat-system";
 import { VendorProcessFlow } from "@/components/user/Location/vendor";
 import { DeliveryZoneVisualizer } from "@/components/user/Location/vendor/mapsWork/visualize";
+import { ResultStepData } from "@/components/user/Location/vendor/resultData";
+import { CartProvider } from "@/components/custom/cart/cart-context";
+import { CartDrawer } from "@/components/custom/cart/cart-drawer";
+import BusinessType from "@/components/serviceProviders/createProvider/business-type-selector-app";
+import { ImprovedServiceProvider } from "@/components/serviceProviders/createProvider";
+import { RiderRegistration } from "@/components/rider/create";
+import {  MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
+import { DeliveryZoneVisualizerVendor } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/deliveryZoneVisualizer";
+import CheckType from "@/components/user/Location/vendor/mapsWork/checkType";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
-
 
 export function SidebarLayoutProvider() {
   // const { serviceId } = useParams();
@@ -147,6 +159,7 @@ export function Layout() {
     <div className="flex w-full bg-cyan-100/20">
       <SidebarMain serviceId={serviceId} />
       <div className="flex-1 p-4">
+         <CartDrawer />
         <Outlet />
       </div>
     </div>

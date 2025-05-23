@@ -51,9 +51,12 @@ export const GET_PROVIDER = gql`
       number
       email
       profession
+      categories
       aboutMe
       location
       createdAt
+      businessType
+      coordinates
     }
   }
 `;
@@ -184,18 +187,28 @@ export function ServiceProviderProfile() {
                       className="w-full"
                       ref={tabsRef}
                     >
-                      {/* <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                      
+                        {data?.getProvider?.businessType === BusinessTypeEnum.PRE_ORDER
+                      || data?.getProvider?.businessType === BusinessTypeEnum.DROP_SHIPPING
+                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_STANDARD
+                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                        <TabsTrigger value="portfolio" className="rounded-full">
+                          Items
+                        </TabsTrigger>
+                      ) : (
                         <TabsTrigger value="portfolio" className="rounded-full">
                           Portfolio
                         </TabsTrigger>
+                      )}
                         <TabsTrigger value="price" className="rounded-full">
                           Price
                         </TabsTrigger>
                         <TabsTrigger value="policies" className="rounded-full">
                           Policies
                         </TabsTrigger>
-                      </TabsList> */}
-                      <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
+                      </TabsList>
+                      {/* <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
                         <TabsTrigger value="portfolio" className="rounded-full">
                           Items
                         </TabsTrigger>
@@ -203,7 +216,7 @@ export function ServiceProviderProfile() {
                         <TabsTrigger value="policies" className="rounded-full">
                           Policies
                         </TabsTrigger>
-                      </TabsList>
+                      </TabsList> */}
                     </Tabs>
                   </div>
                 </div>
@@ -218,7 +231,16 @@ export function ServiceProviderProfile() {
                     className="w-full "
                   >
                     <TabsContent value="portfolio">
-                      <AllProducts />
+                         {data?.getProvider?.businessType === BusinessTypeEnum.PRE_ORDER
+                      || data?.getProvider?.businessType === BusinessTypeEnum.DROP_SHIPPING
+                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_STANDARD
+                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                          <AllProducts />
+                      ) : (
+                       <WorkGallery />
+                      )}
+                    
+                      
                     </TabsContent>
                     <TabsContent value="price">
                       <Price />
@@ -234,16 +256,22 @@ export function ServiceProviderProfile() {
         </>
       )}
 
-         <ItemChatWidget
-              itemId="product-123"
-              itemName="Wireless Headphones"
-              itemImage="/placeholder.svg?height=40&width=40"
-              sellerName="John Smith"
-            />
+      <ItemChatWidget
+        itemId="product-123"
+        itemName="Wireless Headphones"
+        itemImage="/placeholder.svg?height=40&width=40"
+        sellerName="John Smith"
+      />
     </div>
   );
 }
-
+//  {
+//                           data?.getProvider?.businessType ===
+//                             BusinessTypeEnum.PRE_ORDER && (
+//                             <span className="text-xs text-primary-foreground/80">
+//                               Pre-order
+//                             </span>
+//                           )}
 type provider = {
   id: string;
   dpfile: string;
@@ -266,6 +294,16 @@ enum BookType {
   PACKAGE = "PACKAGE",
   CUSTOM_QUOTE = "CUSTOM_QUOTE",
 }
+
+enum BusinessTypeEnum {
+  ECOMMERCE_STANDARD = "ecommerce-standard",
+  ECOMMERCE_ENTERPRISE = "ecommerce-enterprise",
+  PRE_ORDER = "pre-order",
+  DROP_SHIPPING = "drop-shipping",
+  DELIVERY_STANDARD = "delivery-standard",
+  DELIVERY_ENTERPRISE = "delivery-enterprise",
+}
+
 export const ProviderProfile = ({
   provider,
   isDialogOpen,
@@ -515,8 +553,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/middleware/context/theme-provider";
 import ServiceLandingPage from "../landing/providerLandingPage";
-import { AllProducts } from "@/vendor/AllProducts";
+// import { AllProducts } from "@/vendor/AllProducts";
 import ItemChatWidget from "../user/item-chat-widget";
+import { AllProducts } from "@/vendor/AllProducts";
 interface ContactInfoProps {
   provider?: {
     number?: string;

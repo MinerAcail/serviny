@@ -43,6 +43,10 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Favorite{},
 		&model.SocialMedia{},
 
+		&model.Rider{},
+		&model.IsochroneResult{},
+
+
 		&model.AppointmentBooking{},
 		&model.UserBookings{},
 		&model.Category{},

@@ -160,17 +160,28 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 	bookings := make([]*model.AppointmentBooking, 0, len(input))
 
 	for _, bookerInput := range input {
-		// Parse start and end times to validate and extract day
+		// Parse start time
 		startTime, err := time.Parse(time.RFC3339, bookerInput.StartTime)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("invalid start time format for booking: %w", err)
 		}
 
-		endTime, err := time.Parse(time.RFC3339, bookerInput.EndTime)
-		if err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("invalid end time format for booking: %w", err)
+		// Check if EndTime is empty or invalid, set default to 1 hour after start time
+		var endTime time.Time
+		if bookerInput.EndTime == nil {
+			// Default to 1 hour after start time
+			endTime = startTime.Add(time.Hour)
+			// Update the bookerInput.EndTime to reflect the default
+			formattedEndTime := endTime.Format(time.RFC3339)
+			bookerInput.EndTime = &formattedEndTime
+		} else {
+			// Parse provided end time
+			endTime, err = time.Parse(time.RFC3339, *bookerInput.EndTime)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid end time format for booking: %w", err)
+			}
 		}
 
 		// Check if end time is after start time
@@ -208,8 +219,9 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 			UserID:    USERID.String(),
 			UserType:  bookerInput.UserType,
 			StartTime: bookerInput.StartTime,
-			EndTime:   bookerInput.EndTime,
+			EndTime:   *bookerInput.EndTime,
 			Day:       day,
+			Item:      bookerInput.Item,
 			Notes:     bookerInput.Notes,
 			TableSize: bookerInput.TableSize,
 		}

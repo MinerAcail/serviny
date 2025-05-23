@@ -68,6 +68,16 @@ func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginIn
 			}
 		}
 	}
+	rider := &model.Rider{}
+	if err := r.DB.Where("number = ?", input.Number).First(rider).Error; err == nil {
+		if rider.Password != nil {
+			if err := bcrypt.CompareHashAndPassword([]byte(*rider.Password), []byte(input.Password)); err == nil {
+
+				middleware.SetTokenForContext(ctx, rider.Type, rider.ID.String())
+				return rider, nil
+			}
+		}
+	}
 
 	return nil, fmt.Errorf("invalid number or password")
 }
@@ -75,19 +85,6 @@ func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginIn
 // AdminLogin is the resolver for the adminLogin field.
 func (r *mutationResolver) AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error) {
 	panic(fmt.Errorf("not implemented: AdminLogin - adminLogin"))
-}
-
-// WorkersLogin is the resolver for the workersLogin field.
-func (r *mutationResolver) WorkersLogin(ctx context.Context, input model.LoginInput) (*model.JobRequest, error) {
-	// Try to find a user with the given number and pin
-	user := &model.JobRequest{}
-	if err := r.DB.Where("number = ? AND password = ?", input.Number, input.Password).First(user).Error; err == nil {
-		// Generate a new token for the authenticated vendor
-		middleware.SetTokenForContext(ctx, user.Type, user.ID.String())
-
-		return user, nil
-	}
-	return user, fmt.Errorf("invalid number or pin")
 }
 
 // DeliveryLogin is the resolver for the deliveryLogin field.
@@ -246,6 +243,59 @@ func (r *queryResolver) GetUserBookings(ctx context.Context, bookTypeID string, 
 	}
 
 	return &booking, nil
+}
+
+// GetUserInfor is the resolver for the getUserInfor field.
+func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model.UsersInfor, error) {
+	// Try to find a service by ID
+	service := &model.Service{}
+	if err := r.DB.First(service, "id = ?", userID).Error; err == nil {
+		return &model.UsersInfor{
+			ID:       service.ID.String(),
+			Name:     service.Name,
+			Type:     service.Type,
+			Number:   service.Number,
+			Email:    service.Email,
+			Location: service.Location,
+			Dpfile:   service.Dpfile,
+		}, nil
+	}
+
+	// Try to find a user by ID
+	user := &model.User{}
+	if err := r.DB.First(user, "id = ?", userID).Error; err == nil {
+		email := ""
+		if user.Email != nil {
+			email = *user.Email
+		}
+		return &model.UsersInfor{
+			ID:       user.ID.String(),
+			Name:     user.Name,
+			Type:     user.Type,
+			Number:   user.Number,
+			Email:    email,
+			Location: nil,
+			Dpfile:   nil,
+		}, nil
+	}
+	rider := &model.Rider{}
+	if err := r.DB.First(rider, "id = ?", userID).Error; err == nil {
+		email := ""
+		if rider.Email != "" {
+			email = rider.Email
+		}
+		return &model.UsersInfor{
+			ID:       rider.ID.String(),
+			Name:     rider.Name,
+			Type:     rider.Type,
+			Number:   rider.Number,
+			Email:    email,
+			Location: rider.Location,
+			Dpfile:   rider.Dpfile,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 
 // ID is the resolver for the id field.

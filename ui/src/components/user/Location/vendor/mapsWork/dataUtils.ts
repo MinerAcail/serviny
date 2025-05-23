@@ -18,7 +18,19 @@ export const GET_ISOCHRONE_RESULT = gql`
     }
   }
 `
-
+// Replace the existing GET_ISOCHRONE_RESULT query
+export const GET_ISOCHRONES_BY_RIDER = gql`
+  query GetAllIsochronesByRider($riderId: String!) {
+    getAllIsochronesByRider(riderId: $riderId) {
+      id
+      geojson
+      range
+      transportMode
+      address
+      locations
+    }
+  }
+`;
 // Types
 export type Location = {
   address: string
@@ -76,6 +88,9 @@ export const ZONE_COLORS = [
 // ==========================================
 
 // Process isochrone data from API response
+
+// Process isochrone data from API response - unchanged
+// Process isochrone data from API response - with additional logging
 export const processIsochroneData = (
   data: any,
   setRanges: (ranges: number[]) => void,
@@ -91,57 +106,70 @@ export const processIsochroneData = (
   ranges: number[]
 ) => {
   try {
+    console.log("Processing isochrone data:", data);
+    
     if (!data?.getIsochroneResult?.geojson) {
-      setError("Failed to fetch isochrone data.")
-      setLoading(false)
-      return
+      console.error("Missing geojson data in response:", data);
+      setError("Failed to fetch isochrone data.");
+      setLoading(false);
+      return;
     }
 
     // Parse the GeoJSON - handle potential double encoding
-    let geojsonData
-    const geojsonString = data.getIsochroneResult.geojson
-
+    let geojsonData;
+    const geojsonString = data.getIsochroneResult.geojson;
+    console.log("Raw geojson string length:", geojsonString.length);
+    
     try {
-      geojsonData = JSON.parse(geojsonString)
+      geojsonData = JSON.parse(geojsonString);
       // Check if it's a string (double-encoded)
       if (typeof geojsonData === "string") {
-        geojsonData = JSON.parse(geojsonData)
+        console.log("Double-encoded GeoJSON detected, parsing again");
+        geojsonData = JSON.parse(geojsonData);
       }
     } catch (err) {
-      console.error("Failed to parse GeoJSON:", err)
-      setError("Failed to parse GeoJSON data.")
-      return
+      console.error("Failed to parse GeoJSON:", err);
+      setError("Failed to parse GeoJSON data.");
+      return;
     }
 
+    console.log("Parsed GeoJSON data type:", typeof geojsonData);
+    
     // Extract data from GraphQL response
     if (data.getIsochroneResult.range) {
-      setRanges(data.getIsochroneResult.range)
+      console.log("Setting ranges:", data.getIsochroneResult.range);
+      setRanges(data.getIsochroneResult.range);
     }
 
     if (data.getIsochroneResult.transportMode) {
-      setTransportMode(data.getIsochroneResult.transportMode as TransportMode)
+      console.log("Setting transport mode:", data.getIsochroneResult.transportMode);
+      setTransportMode(data.getIsochroneResult.transportMode as TransportMode);
     }
 
     // Extract vendor location
     if (data.getIsochroneResult.locations && data.getIsochroneResult.locations.length > 0) {
-      const location = data.getIsochroneResult.locations[0]
+      const location = data.getIsochroneResult.locations[0];
+      console.log("Setting vendor location from locations:", location);
       setVendorLocation({
         lng: location[0],
         lat: location[1],
         address: data.getIsochroneResult.address || "Vendor Location",
-      })
+      });
     } else if (geojsonData.metadata?.query?.locations) {
       // Fallback to GeoJSON metadata
-      const location = geojsonData.metadata.query.locations[0]
+      const location = geojsonData.metadata.query.locations[0];
+      console.log("Setting vendor location from metadata:", location);
       setVendorLocation({
         lng: location[0],
         lat: location[1],
         address: data.getIsochroneResult.address || "Vendor Location",
-      })
+      });
     }
 
     if (geojsonData.features && geojsonData.features.length > 0) {
       // Process the features
+      console.log("Processing features, count:", geojsonData.features.length);
+      
       const processedFeatures = geojsonData.features.map((feature: any, index: number) => {
         return {
           ...feature,
@@ -151,30 +179,37 @@ export const processIsochroneData = (
             range: ranges[index < ranges.length ? index : ranges.length - 1],
             color: ZONE_COLORS[index % ZONE_COLORS.length],
           },
-        }
-      })
+        };
+      });
 
-      setIsochrones(processedFeatures)
+      console.log("Processed features, count:", processedFeatures.length);
+      setIsochrones(processedFeatures);
 
       // Calculate zone details
-      calculateZoneDetails(processedFeatures, ranges)
+      calculateZoneDetails(processedFeatures, ranges);
 
       // Update map if already loaded
       if (mapLoaded && mapInstance.current) {
-        updateMapIsochrones(processedFeatures, null, mapInstance)
+        console.log("Map is loaded, updating isochrones on map (null activeZoneIndex)");
+        updateMapIsochrones(processedFeatures, null, mapInstance);
+      } else {
+        console.log("Map not loaded yet, will update later");
       }
     } else {
-      setError("No isochrone data available for this location.")
+      console.error("No features found in GeoJSON data");
+      setError("No isochrone data available for this location.");
     }
   } catch (err) {
-    console.error("Error processing isochrones:", err)
-    setError("An error occurred while processing delivery zones.")
+    console.error("Error processing isochrones:", err);
+    setError("An error occurred while processing delivery zones.");
   } finally {
-    setLoading(false)
+    setLoading(false);
   }
-}
+};
 
 // Calculate zone details based on isochrones
+
+// Calculate zone details based on isochrones - unchanged
 export const calculateZoneDetails = (
   isoFeatures: any[], 
   ranges: number[],
@@ -227,7 +262,6 @@ export const calculateZoneDetails = (
 
   return details
 }
-
 // Calculate delivery info for a specific point
 export const calculatePointDeliveryInfo = (
   point: [number, number],
@@ -277,3 +311,203 @@ export const calculatePointDeliveryInfo = (
     travelTime,
   }
 }
+
+
+
+/**
+ * Enhanced function to find the best isochrone for a given location
+ * with better error handling and performance optimization
+ */
+export const findBestIsochroneForLocation = (
+  point: [number, number],
+  allRiderIsochrones: any[]
+): { isochroneIndex: number; isInAnyZone: boolean } => {
+  if (!allRiderIsochrones || allRiderIsochrones.length === 0) {
+    console.warn("No isochrones available to find best match");
+    return { isochroneIndex: 0, isInAnyZone: false };
+  }
+  
+  // Default to first isochrone
+  let bestIndex = 0;
+  let isInAnyZone = false;
+  let smallestArea = Infinity;
+  
+  // Keep track of isochrones containing the point, sorted by area
+  const containingIsochrones: { index: number; area: number }[] = [];
+  
+  // Create a turf point for point-in-polygon checking
+  try {
+    const clickedPoint = turf.point(point);
+    
+    // Find all isochrones that contain the point
+    for (let i = 0; i < allRiderIsochrones.length; i++) {
+      try {
+        const isochrone = allRiderIsochrones[i];
+        if (!isochrone || !isochrone.geojson) {
+          console.warn(`Isochrone at index ${i} is missing or has no geojson`);
+          continue;
+        }
+        
+        const geojsonString = isochrone.geojson;
+        
+        // Parse the GeoJSON
+        let geojsonData;
+        try {
+          geojsonData = JSON.parse(geojsonString);
+          // Handle double-encoded JSON
+          if (typeof geojsonData === "string") {
+            geojsonData = JSON.parse(geojsonData);
+          }
+        } catch (err) {
+          console.error(`Failed to parse GeoJSON for isochrone ${i}:`, err);
+          continue;
+        }
+        
+        if (!geojsonData.features || geojsonData.features.length === 0) {
+          console.warn(`No features in geojson for isochrone ${i}`);
+          continue;
+        }
+        
+        // Check each feature/zone in this isochrone, from smallest to largest
+        let isInThisIsochrone = false;
+        let smallestContainingFeatureArea = Infinity;
+        
+        // Try checking with the largest feature first for quick exclusion
+        const largestFeatureIndex = geojsonData.features.length - 1;
+        const largestFeature = geojsonData.features[largestFeatureIndex];
+        
+        try {
+          // If not in the largest zone, we can skip the rest
+          if (!turf.booleanPointInPolygon(clickedPoint, largestFeature)) {
+            continue;
+          }
+          
+          // Point is in the largest zone, now check all zones to find the smallest containing one
+          isInThisIsochrone = true;
+          
+          for (const feature of geojsonData.features) {
+            if (turf.booleanPointInPolygon(clickedPoint, feature)) {
+              try {
+                const area = turf.area(feature);
+                if (area < smallestContainingFeatureArea) {
+                  smallestContainingFeatureArea = area;
+                }
+              } catch (areaErr) {
+                console.warn("Error calculating area:", areaErr);
+              }
+            }
+          }
+        } catch (pointInPolyErr) {
+          console.warn("Error in point-in-polygon check:", pointInPolyErr);
+          continue;
+        }
+        
+        if (isInThisIsochrone) {
+          containingIsochrones.push({
+            index: i,
+            area: smallestContainingFeatureArea
+          });
+        }
+      } catch (isochroneError) {
+        console.error(`Error processing isochrone ${i}:`, isochroneError);
+        continue;
+      }
+    }
+    
+    // If point is in one or more isochrones, select the one with the smallest containing zone
+    if (containingIsochrones.length > 0) {
+      isInAnyZone = true;
+      
+      // Sort by area (smallest first)
+      containingIsochrones.sort((a, b) => a.area - b.area);
+      bestIndex = containingIsochrones[0].index;
+      
+      console.log(`Found ${containingIsochrones.length} isochrones containing the point. Selected index ${bestIndex}`);
+    } else {
+      // If not in any isochrone, find the closest one by center point
+      console.log("Point not in any isochrone, finding closest center");
+      let closestDistance = Infinity;
+      
+      for (let i = 0; i < allRiderIsochrones.length; i++) {
+        try {
+          const isochrone = allRiderIsochrones[i];
+          if (isochrone.locations && isochrone.locations.length > 0) {
+            const isoCenter = isochrone.locations[0]; // [lng, lat]
+            
+            const distance = turf.distance(
+              turf.point(point),
+              turf.point(isoCenter),
+              { units: "kilometers" }
+            );
+            
+            console.log(`Distance to isochrone ${i} center: ${distance.toFixed(2)} km`);
+            
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              bestIndex = i;
+            }
+          }
+        } catch (error) {
+          console.warn(`Error calculating distance for isochrone ${i}:`, error);
+          continue;
+        }
+      }
+      
+      console.log(`Selected closest isochrone at index ${bestIndex}, distance: ${closestDistance.toFixed(2)} km`);
+    }
+  } catch (error) {
+    console.error("Error in findBestIsochroneForLocation:", error);
+    // In case of error, return the first isochrone
+    return { isochroneIndex: 0, isInAnyZone: false };
+  }
+  
+  return { isochroneIndex: bestIndex, isInAnyZone };
+};
+
+
+// Function to safely parse GeoJSON which might be a string or already an object
+export const safeParseGeoJSON = (geojsonData) => {
+  if (!geojsonData) return null;
+  
+  try {
+    // If it's already an object, return it
+    if (typeof geojsonData === 'object') return geojsonData;
+    
+    // Parse string to object
+    const parsed = JSON.parse(geojsonData);
+    
+    // Check if it's double encoded (sometimes happens with APIs)
+    if (typeof parsed === 'string') {
+      return JSON.parse(parsed);
+    }
+    
+    return parsed;
+  } catch (error) {
+    console.error("Error parsing GeoJSON:", error);
+    return null;
+  }
+};
+
+// Enhanced function to process GeoJSON from various sources
+export const processGeoJSONForIsochrone = (geojsonData, ranges) => {
+  // Parse the GeoJSON if it's a string
+  const parsedGeoJSON = safeParseGeoJSON(geojsonData);
+  
+  if (!parsedGeoJSON || !parsedGeoJSON.features) {
+    console.error("Invalid GeoJSON data:", geojsonData);
+    return [];
+  }
+  
+  // Process the features
+  return parsedGeoJSON.features.map((feature, index) => {
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        group_index: index,
+        range: ranges[index < ranges.length ? index : ranges.length - 1],
+        color: ZONE_COLORS[index % ZONE_COLORS.length],
+      },
+    };
+  });
+};

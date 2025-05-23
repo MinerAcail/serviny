@@ -44,13 +44,24 @@ extend type Query {
     # bookType: String!
     userId: String!
   ): UserBookings!
-}
 
+  getUserInfor(userId:String!): UsersInfor
+
+}
+type UsersInfor {
+  id: String!
+  name: String!
+  type: String!
+  number: String!
+  email: String!
+  location: String
+  dpfile: String
+}
 extend type Mutation {
   deleteTable: Boolean!
   serviceLogin(input: LoginInput!): Returns
   adminLogin(input: LoginInput!): Admin
-  workersLogin(input: LoginInput!): jobRequest
+  # workersLogin(input: LoginInput!): jobRequest
   deliveryLogin(input: LoginInput): Returns
   logOut: Boolean!
 
@@ -89,4 +100,4 @@ type PurchaseHistory {
   trackingNumber: String
 }
 
-union Returns = User | Service
+union Returns = User | Service | Admin | Rider

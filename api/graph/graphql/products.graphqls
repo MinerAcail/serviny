@@ -72,7 +72,8 @@ type orderproductInfor {
 type Order {
   id: String!
   customerNumber: String!
-  deliveryAddress: String!
+  deliveryAddress: [Float!]!
+  h3Indexes: String
   status: String!
   items: [CartItem!]!
   estimatedDeliveryDate: String!
@@ -80,6 +81,7 @@ type Order {
   updatedAt: Time!
 }
 input OrderInput {
+  
   customerNumber: String!
   deliveryAddress: String!
   item: [OrderItemInput]

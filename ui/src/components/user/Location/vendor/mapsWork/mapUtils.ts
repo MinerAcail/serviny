@@ -2,6 +2,8 @@ import maplibregl from "maplibre-gl"
 import * as turf from "@turf/turf"
 
 // Create marker at a location
+
+// Create marker at a location - updated for consistency
 export const createMarkerAtLocation = (
   lng: number, 
   lat: number, 
@@ -15,6 +17,18 @@ export const createMarkerAtLocation = (
   setInfoPopup: (popup: maplibregl.Popup | null) => void
 ) => {
   if (!mapInstance.current) return
+
+  // First clear any existing markers to ensure consistency
+  clearAllMarkersAndPopups(
+    markersRef,
+    popupsRef,
+    markersRef.current[0] || null,
+    setClickMarker,
+    popupsRef.current[0] || null,
+    setInfoPopup,
+    () => {}, // We don't want to reset clickedPoint here
+    setDirectionsReady
+  )
 
   // Create new marker
   const marker = new maplibregl.Marker({
@@ -34,9 +48,19 @@ export const createMarkerAtLocation = (
 
   // Indicate that we have a point that can be used for directions
   setDirectionsReady(true)
+  
+  // Center the map on the marker
+  mapInstance.current.flyTo({
+    center: [lng, lat],
+    zoom: 14,
+    duration: 1000,
+  })
 }
 
+
 // Show info popup for a point
+
+// Show info popup for a point - unchanged
 export const showPointInfoPopup = (
   point: { lng: number; lat: number }, 
   info: any,
@@ -71,10 +95,7 @@ export const showPointInfoPopup = (
             <span class="text-[#86868B]">Estimated Time</span>
             <span class="font-medium">${info.estimatedTime}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-[#86868B]">Minimum Order</span>
-            <span class="font-medium">$${info.minimumOrder.toFixed(2)}</span>
-          </div>
+       
         </div>
         <p class="mt-3 text-[12px] text-[#86868B]">${info.zone!.description}</p>
       </div>
@@ -100,7 +121,7 @@ export const showPointInfoPopup = (
             <span class="font-medium">${info.estimatedTime}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-[#86868B]">Minimum Order</span>
+            <span class="text-[#86868B]">Minimum Ordefdfdr</span>
             <span class="font-medium">$${info.minimumOrder.toFixed(2)}</span>
           </div>
         </div>
@@ -123,18 +144,8 @@ export const showPointInfoPopup = (
   // Track this popup
   popupsRef.current.push(popup)
   setInfoPopup(popup)
-
-  // Add event listener to the directions button
-  popup.on("open", () => {
-    const directionsButton = document.getElementById("show-directions-btn")
-    if (directionsButton) {
-      directionsButton.addEventListener("click", (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-      })
-    }
-  })
 }
+
 
 // Map click handler
 export const handleMapClick = (
@@ -192,6 +203,8 @@ export const handleMapClick = (
   )
 }
 
+
+// Clear all markers and popups - unchanged
 export const clearAllMarkersAndPopups = (
   markersRef: React.MutableRefObject<maplibregl.Marker[]>,
   popupsRef: React.MutableRefObject<maplibregl.Popup[]>,
@@ -234,7 +247,7 @@ export const clearAllMarkersAndPopups = (
   }
 }
 
-// Clear directions
+// Clear directions - unchanged
 export const clearDirections = (
   mapInstance: React.MutableRefObject<maplibregl.Map | null>
 ) => {
@@ -261,7 +274,11 @@ export const clearDirections = (
   }
 }
 
-// Update isochrones on the map
+
+
+
+
+
 export const updateMapIsochrones = (
   isoFeatures: any[],
   activeZoneIndex: number | null,
@@ -272,21 +289,35 @@ export const updateMapIsochrones = (
 
   // Defensive: make sure source/layer ops are only attempted after style is ready
   const sourceExists = map.getSource("isochrones");
+  
+  // Generate the GeoJSON data based on activeZoneIndex
+  const geojsonData = {
+    type: "FeatureCollection",
+    features: activeZoneIndex !== null 
+      ? [isoFeatures[activeZoneIndex]] // Show only the selected zone
+      : isoFeatures // Show all zones when activeZoneIndex is null
+  };
+  
   if (sourceExists) {
+    // Update existing source
     const source = sourceExists as maplibregl.GeoJSONSource;
-    source.setData({
-      type: "FeatureCollection",
-      features: activeZoneIndex !== null ? [isoFeatures[activeZoneIndex]] : isoFeatures,
-    });
+    source.setData(geojsonData);
+    
+    // Debug output
+    console.log(`Updating isochrones source - showing ${activeZoneIndex !== null ? 'single zone' : 'all zones'}`);
+    console.log(`Number of features: ${geojsonData.features.length}`);
   } else if (isoFeatures.length > 0) {
+    // Add new source and layers
     map.addSource("isochrones", {
       type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: activeZoneIndex !== null ? [isoFeatures[activeZoneIndex]] : isoFeatures,
-      },
+      data: geojsonData,
     });
 
+    // Debug output
+    console.log(`Adding new isochrones source - showing ${activeZoneIndex !== null ? 'single zone' : 'all zones'}`);
+    console.log(`Number of features: ${geojsonData.features.length}`);
+
+    // Add fill layer
     map.addLayer({
       id: "isochrone-fill",
       type: "fill",
@@ -295,18 +326,19 @@ export const updateMapIsochrones = (
         "fill-color": [
           "match",
           ["to-number", ["get", "group_index"]],
-          0, "#4ade80",
-          1, "#facc15",
-          2, "#f87171",
-          3, "#60a5fa",
-          4, "#a78bfa",
-          5, "#f472b6",
-          "#4ade80",
+          0, "#4ade80", // green
+          1, "#facc15", // yellow
+          2, "#f87171", // red
+          3, "#60a5fa", // blue
+          4, "#a78bfa", // purple
+          5, "#f472b6", // pink
+          "#4ade80", // default to green
         ],
-        "fill-opacity": 0.4,
+        "fill-opacity": 0.1,
       },
     });
 
+    // Add outline layer
     map.addLayer({
       id: "isochrone-outline",
       type: "line",
@@ -315,36 +347,22 @@ export const updateMapIsochrones = (
         "line-color": [
           "match",
           ["to-number", ["get", "group_index"]],
-          0, "#4ade80",
-          1, "#facc15",
-          2, "#f87171",
-          3, "#60a5fa",
-          4, "#a78bfa",
-          5, "#f472b6",
-          "#4ade80",
+          0, "#4ade80", // green
+          1, "#facc15", // yellow
+          2, "#f87171", // red
+          3, "#60a5fa", // blue
+          4, "#a78bfa", // purple
+          5, "#f472b6", // pink
+          "#4ade80", // default to green
         ],
-        "line-width": 2,
-        "line-opacity": 0.8,
+        "line-width": 5,
+        "line-opacity": 0.6,
       },
-    });
-
-    map.on("click", "isochrone-fill", (e) => {
-      if (e.features && e.features.length > 0) {
-        const feature = e.features[0];
-        const groupIndex = feature.properties.group_index || 0;
-        e.preventDefault();
-      }
-    });
-
-    map.on("mouseenter", "isochrone-fill", () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-
-    map.on("mouseleave", "isochrone-fill", () => {
-      map.getCanvas().style.cursor = "";
     });
   }
 };
+
+
 
 // Get route from OpenRouteService API
 export const getRouteFromOpenRouteService = async (
@@ -601,7 +619,8 @@ export const createDirectFallbackRoute = (
   setShowDirections(true)
 }
 
-// Create route between vendor and clicked point
+
+// Create a direct route (now the primary method)
 export const createDirectRoute = (
   destination: { lng: number; lat: number },
   vendorLocation: any,
@@ -613,17 +632,108 @@ export const createDirectRoute = (
   mapInstance: React.MutableRefObject<maplibregl.Map | null>,
   transportMode: string
 ) => {
-  if (vendorLocation) {
-    getRouteFromOpenRouteService(
-      destination, 
-      vendorLocation, 
-      setLoading, 
-      setError, 
-      setDirectionsDistance, 
-      setDirectionsTime, 
-      setShowDirections,
-      mapInstance,
-      transportMode
+  if (!mapInstance.current || !vendorLocation) return
+
+  const map = mapInstance.current
+  setLoading(true)
+  
+  try {
+    const SPEED_MAPPING: Record<string, number> = {
+      walking: 5,
+      bike: 15,
+      motorbike: 30,
+      car: 60,
+    }
+
+    // Create a GeoJSON LineString
+    const route = {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [vendorLocation.lng, vendorLocation.lat],
+          [destination.lng, destination.lat],
+        ],
+      },
+    }
+
+    // Calculate straight-line distance
+    const distance = turf.distance(
+      turf.point([vendorLocation.lng, vendorLocation.lat]),
+      turf.point([destination.lng, destination.lat]),
+      { units: "kilometers" },
     )
+
+    setDirectionsDistance(distance)
+
+    // Calculate estimated time
+    const timeInMinutes = Math.round((distance / SPEED_MAPPING[transportMode]) * 60)
+    setDirectionsTime(`${timeInMinutes} min`)
+
+    // Add the route to the map
+    if (map.getSource("route")) {
+      // Update existing source
+      const source = map.getSource("route") as maplibregl.GeoJSONSource
+      source.setData(route as any)
+    } else {
+      // Add new source and layer
+      map.addSource("route", {
+        type: "geojson",
+        data: route as any,
+      })
+
+      // Add the route line layer
+      map.addLayer({
+        id: "route-line",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#0071E3",
+          "line-width": 4,
+        },
+      })
+
+      // Add direction arrows
+      map.addLayer({
+        id: "route-arrows",
+        type: "symbol",
+        source: "route",
+        layout: {
+          "symbol-placement": "line",
+          "text-field": "▶",
+          "text-size": 15,
+          "text-keep-upright": true,
+          "symbol-spacing": 60,
+        },
+        paint: {
+          "text-color": "#0071E3",
+          "text-halo-color": "#fff",
+          "text-halo-width": 1,
+        },
+      })
+    }
+
+    // Adjust the map view to fit the route
+    const bounds = new maplibregl.LngLatBounds()
+    bounds.extend([vendorLocation.lng, vendorLocation.lat])
+    bounds.extend([destination.lng, destination.lat])
+
+    map.fitBounds(bounds, {
+      padding: 80,
+      maxZoom: 15,
+      duration: 1000,
+    })
+
+    setShowDirections(true)
+  } catch (error) {
+    console.error("Error creating route:", error)
+    setError("Failed to create direction route.")
+  } finally {
+    setLoading(false)
   }
 }

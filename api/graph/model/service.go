@@ -15,17 +15,29 @@ type Service struct {
 	Number     string         `json:"number"`
 	Email      string         `gorm:"unique" json:"email"`
 	Profession pq.StringArray `gorm:"type:text[]" json:"profession,omitempty"`
-	Password   *string        `json:"password,omitempty"`
-	Location   *string        `json:"location,omitempty"`
-	AboutMe    *string        `json:"about_me,omitempty"`
-	Dpfile     *string        `json:"dpfile,omitempty"`
-	NumberType *string        `json:"number_type,omitempty"`
-	BookTypes  pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
-	IsAuth     *IsAuth        `json:"is_auth,omitempty"`
-	SubDomain  *string        `gorm:"unique" json:"sub_domain,omitempty"`
+
+	Categories pq.StringArray `gorm:"type:text[]" json:"categories,omitempty"`
+
+	Password     *string        `json:"password,omitempty"`
+	Location     *string        `json:"location,omitempty"`
+	AboutMe      *string        `json:"about_me,omitempty"`
+	Dpfile       *string        `json:"dpfile,omitempty"`
+	NumberType   *string        `json:"number_type,omitempty"`
+	BookTypes    pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
+	BusinessType *string        `json:"business_type,omitempty"`
+	IsVerified   *bool          `json:"is_verified,omitempty"`
+	IsAuth       *IsAuth        `json:"is_auth,omitempty"`
+	SubDomain    *string        `gorm:"unique" json:"sub_domain,omitempty"`
 	UseTheme     *string        `json:"use_theme,omitempty"`
-	CreatedAt  time.Time      `json:"createdAt"`
-	UpdatedAt  time.Time      `json:"updatedAt"`
+	
+	// Coordinates []float64 `json:"coordinates" gorm:"type:float[]"`  // [lng, lat]
+	//   H3Indexes   []string  `json:"h3Indexes" gorm:"type:text[]"` // Multiple resolutions
+	  Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]
+	
+	// H3Indexes    []*string  `json:"h3Indexes,omitempty"`
+	H3Indexes    pq.StringArray `gorm:"type:text[]" json:"h3Indexes,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 type GalleryProfession struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
@@ -120,10 +132,10 @@ type Favorite struct {
 }
 
 type SocialMedia struct {
-	ID         uuid.UUID          `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	ServiceID  string             `json:"ServiceId"`
-		SocialData *json.RawMessage  `gorm:"type:jsonb" json:"socialData,omitempty"`
-	
-	CreatedAt  time.Time          `json:"createdAt"`
-	UpdatedAt  time.Time          `json:"updatedAt"`
+	ID         uuid.UUID        `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	ServiceID  string           `json:"ServiceId"`
+	SocialData *json.RawMessage `gorm:"type:jsonb" json:"socialData,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

@@ -7,35 +7,8 @@ type Admin {
   createdAt: Time!
   updatedAt: Time!
 }
-type jobRequest {
-  id: String!
-  name: String!
-  email: String!
-  type: String!
-  number: String!
-  state: String!
-  password: String
-  availability: Boolean
-  dpfile: String
-  location: String
-  experience: String!
-  createdAt: Time!
-  updatedAt: Time!
-}
 
-input jobRequestInput {
-  name: String!
-  email: String!
-  type: String!
-  number: String!
-  experience: String!
-}
-type jobresponse {
-  email: String!
-  password: String!
-  number: String!
-  type: String!
-}
+
 type GrowthData {
   totalOrders: String!
   currentOrders: String!
@@ -47,9 +20,9 @@ extend type Query {
   getAdmin(id: String!): Admin
   getGrowthData(id: String!): GrowthData
   listAdmins: [Admin!]!
-  reviewApplicate: [jobRequest]
-  reviewAllWorks: [jobRequest]
-  getAllWorks: [jobRequest]
+  # reviewApplicate: [RiderRequest]
+  # reviewAllWorks: [RiderRequest]
+  # getAllWorks: [RiderRequest]
 }
 
 extend type Mutation {
@@ -57,11 +30,11 @@ extend type Mutation {
   updateAdminStatus(id: String!, status: String!): Admin
   updateAdmin(id: String!, input: UpdateAdminInput!): Admin
   deleteAdmin(id: String!): Boolean
-  jobRequest(input: jobRequestInput): jobRequest
-  useGetJobRequestTracking: jobRequest
+  # RiderRequest(input: RiderRequestInput): RiderRequest
+  # useGetRiderRequestTracking: RiderRequest
 
-  jobResponse(applicantId: String!, State: String!): jobRequest
-  worksUpdate(applicantId: String!, input: worksInput): jobRequest
+  # jobResponse(applicantId: String!, State: String!): RiderRequest
+  # worksUpdate(applicantId: String!, input: worksInput): RiderRequest
 }
 
 input CreateAdminInput {

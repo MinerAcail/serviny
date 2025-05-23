@@ -1,13 +1,24 @@
 package model
 
-import "encoding/json"
-// IsochroneResult represents the result of an isochrone generation
-// IsochroneResult represents the result of an isochrone generation
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+)
+
 type IsochroneResult struct {
-    GeoJSON       json.RawMessage `json:"geojson"`
-    UUID          string          `json:"uuid,omitempty"`
-    Locations     [][]float64     `json:"locations,omitempty"`
-    Range         []int32         `json:"range,omitempty"`
-    TransportMode *string         `json:"transportMode,omitempty"`
-    Address       *string         `json:"address,omitempty"`
+	ID uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
+	GeoJSON json.RawMessage `json:"geojson"`
+	Locations pq.Float64Array `gorm:"type:float[]" json:"locations,omitempty"`
+	Range         pq.Int32Array `gorm:"type:int[]" json:"range,omitempty"`
+	TransportMode *string       `json:"transportMode,omitempty"`
+	Address       *string       `json:"address,omitempty"`
+	CreatedAt     string        `json:"createdAt,omitempty"`
+	UpdatedAt     string        `json:"updatedAt,omitempty"`
+	Status        string        `json:"status,omitempty"`
+	RiderID       string        `json:"rider_id,omitempty"`
+	VendorID      string        `json:"vendor_id"`
+	Error         string        `json:"error,omitempty"`
+	ErrorCode     string        `json:"errorCode,omitempty"`
 }

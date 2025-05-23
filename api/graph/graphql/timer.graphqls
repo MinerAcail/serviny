@@ -47,7 +47,8 @@ input CreateUnavailablePeriodInput {
 input BookerInput {
   userType: UserType!
   startTime: String!
-  endTime: String!
+  endTime: String
+  item: String
   notes: String
   tableSize: Int!
   userId: String!
@@ -62,9 +63,11 @@ type AppointmentBooking {
   startTime: String!
   endTime: String!
   day: String!
+  item: String
   notes: String
   tableSize: Int!
   serviceId: String!
+  riderId: String!
   userId: String!
   isConfirmed: Boolean
   userType: UserType!

@@ -30,6 +30,13 @@ export const LOGIN = gql`
         number
         type
       }
+
+      ... on Rider {
+        id
+        name
+        number
+        type
+      }
     }
   }
 `;
@@ -144,21 +151,18 @@ const Login = ({ children }: { children: ReactNode }) => {
               {loading ? "Logging in..." : "Login"}
             </Button>
             <Link to={"/reset"}>
-            <Button variant={"link"} type="button" className="w-full">
-              Forget Password
-            </Button>
-            
+              <Button variant={"link"} type="button" className="w-full">
+                Forget Password
+              </Button>
             </Link>
 
             {/* //create a account btn */}
 
             <Link to={"/provider/new"}>
-            <Button variant={"link"} type="button" className="w-full">
-              Create
-            </Button>
-            
+              <Button variant={"link"} type="button" className="w-full">
+                Create
+              </Button>
             </Link>
-
           </div>
         </form>
       </DialogContent>

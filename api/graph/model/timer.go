@@ -22,8 +22,10 @@ type AppointmentBooking struct {
 	EndTime   string    `json:"endTime"`
 	Day       string    `json:"day"`
 	Notes     *string   `json:"notes,omitempty"`
+	Item     *string   `json:"item,omitempty"`
 	TableSize int32     `json:"tableSize"`
-	ServiceID string    `json:"serviceId"`
+	ServiceID string    `json:"service_Id"`
+	RiderID string    `json:"riderId"`
 	UserID    string    `json:"userId"`
 	IsConfirmed *bool      `json:"isConfirmed,omitempty"`
 	UserType  UserType  `json:"userType"`
@@ -35,3 +37,5 @@ type AppointmentBooking struct {
 
 func (User) IsReturns()    {}
 func (Service) IsReturns() {}
+func (Rider) IsReturns() {}
+func (Admin) IsReturns() {}

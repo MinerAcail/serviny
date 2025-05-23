@@ -98,7 +98,7 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 	var itemsTypes []string
 	for _, itemPtr := range input.ItemsType {
 		if itemPtr != nil {
-			itemsTypes = append(categories, *itemPtr)
+			itemsTypes = append(itemsTypes, *itemPtr)
 		}
 	}
 	vendorId := service.ID.String()
@@ -815,6 +815,16 @@ func (r *orderResolver) ID(ctx context.Context, obj *model.Order) (string, error
 	return id, nil
 }
 
+// DeliveryAddress is the resolver for the deliveryAddress field.
+func (r *orderResolver) DeliveryAddress(ctx context.Context, obj *model.Order) ([]float64, error) {
+	panic(fmt.Errorf("not implemented: DeliveryAddress - deliveryAddress"))
+}
+
+// H3Indexes is the resolver for the h3Indexes field.
+func (r *orderResolver) H3Indexes(ctx context.Context, obj *model.Order) (*string, error) {
+	panic(fmt.Errorf("not implemented: H3Indexes - h3Indexes"))
+}
+
 // ID is the resolver for the id field.
 func (r *productResolver) ID(ctx context.Context, obj *model.Product) (*string, error) {
 	id := obj.ID.String()
@@ -872,10 +882,13 @@ func (r *queryResolver) GetProduct(ctx context.Context, id string) (*model.Produ
 
 // GetAllProducts is the resolver for the getAllProducts field.
 func (r *queryResolver) GetAllProducts(ctx context.Context, query *string, vendorID *string, limit *int32, offset *int32) ([]*model.Product, error) {
-	// Set defaults
+	if vendorID == nil || *vendorID == "" {
+		return nil, fmt.Errorf("vendorID is required")
+	}
+
+	// Defaults
 	limitVal := 10
 	offsetVal := 0
-
 	if limit != nil {
 		limitVal = int(*limit)
 	}
@@ -883,18 +896,13 @@ func (r *queryResolver) GetAllProducts(ctx context.Context, query *string, vendo
 		offsetVal = int(*offset)
 	}
 
-	// Case 1: No query, no vendor — fetch all
-	if query == nil && vendorID == nil {
-		return helper.FetchAllProducts(r.DB, limitVal, offsetVal, *vendorID)
-	}
-
-	// Case 3: Query is set and vendorID is set — priority vendor match
-	if query != nil && vendorID != nil {
+	// Case 1: Search query is provided
+	if query != nil && *query != "" {
 		return helper.ExecuteSearchQueryWithVendorPriority(r.DB, *query, *vendorID)
 	}
 
-	// Should never reach here
-	return nil, fmt.Errorf("invalid combination of parameters")
+	// Case 2: No query — fetch all by vendor
+	return helper.FetchAllProducts(r.DB, limitVal, offsetVal, *vendorID)
 }
 
 // GetAllCategories is the resolver for the getAllCategories field.

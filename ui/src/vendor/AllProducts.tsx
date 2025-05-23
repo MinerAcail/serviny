@@ -1,4 +1,4 @@
-import { Loader2, X } from "lucide-react";
+import { Loader2, MoveRight, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -85,41 +85,40 @@ export function ProductDetailDialog({
   refetch: () => void;
   vendorId: string;
 }) {
+  // State for shuffling badge animation
+  const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
-   // State for shuffling badge animation
-   const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
-   const [isAnimating, setIsAnimating] = useState(false);
- 
-   // Check if there are valid item types (non-empty array and not just "Uncategorized")
-   const hasValidItemTypes =
-     product?.itemsType &&
-     product?.itemsType.length > 0 &&
-     !(
-       product?.itemsType.length === 1 &&
-       (product?.itemsType[0] === "Uncategorized" ||
-         product?.itemsType[0] === null)
-     );
- 
-   const validItemTypes = hasValidItemTypes ? product?.itemsType : [];
- 
-   // Cycle through item types
-   useEffect(() => {
-     if (!hasValidItemTypes || validItemTypes.length <= 1) return;
- 
-     const interval = setInterval(() => {
-       setIsAnimating(true);
-       setTimeout(() => {
-         setCurrentTypeIndex((prevIndex) =>
-           prevIndex >= validItemTypes.length - 1 ? 0 : prevIndex + 1
-         );
-         setTimeout(() => {
-           setIsAnimating(false);
-         }, 150);
-       }, 150);
-     }, 3000);
- 
-     return () => clearInterval(interval);
-   }, [validItemTypes.length, hasValidItemTypes]);
+  // Check if there are valid item types (non-empty array and not just "Uncategorized")
+  const hasValidItemTypes =
+    product?.itemsType &&
+    product?.itemsType.length > 0 &&
+    !(
+      product?.itemsType.length === 1 &&
+      (product?.itemsType[0] === "Uncategorized" ||
+        product?.itemsType[0] === null)
+    );
+
+  const validItemTypes = hasValidItemTypes ? product?.itemsType : [];
+
+  // Cycle through item types
+  useEffect(() => {
+    if (!hasValidItemTypes || validItemTypes.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentTypeIndex((prevIndex) =>
+          prevIndex >= validItemTypes.length - 1 ? 0 : prevIndex + 1
+        );
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 150);
+      }, 150);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [validItemTypes.length, hasValidItemTypes]);
   const { isMatch } = useCheckAuthId(vendorId);
 
   const [deleteProduct] = useMutation(DELETE_PRODUCT, {
@@ -134,13 +133,6 @@ export function ProductDetailDialog({
     deleteProduct({
       variables: { id: productId },
     });
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
   };
 
   const handleAddToCart = () => {
@@ -304,6 +296,11 @@ export function ProductCard({
   product: Product;
   onClick: (product: Product) => void;
 }) {
+  const { addItem, items } = useCart();
+  // Check if product is already in cart
+  const isInCart = items.some((item) => item.id === product.id);
+  const productCount =
+    items.find((item) => item.id === product.id)?.quantity || 0;
   // State for shuffling badge animation
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -339,18 +336,20 @@ export function ProductCard({
     return () => clearInterval(interval);
   }, [validItemTypes.length, hasValidItemTypes]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
-
+  // formatPrice
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the parent onClick
     // Add to cart logic here
-    console.log("Adding to cart:", product.id);
+    addItem(product, 1);
+    toast.success(
+      <div className="flex items-center gap-2">
+        <span>{product.name} added to cart!</span>
+        {/* <MoveRight className="h-4 w-4 animate-pulse" /> */}
+      </div>,
+
+      { position: "top-center" }
+    );
   };
 
   return (
@@ -369,10 +368,13 @@ export function ProductCard({
           <Button
             size="sm"
             variant="secondary"
-            className="rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
+            className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
             onClick={handleAddToCart}
           >
-            <span className="text-[12px] text-primary-foreground">Buy</span>
+            <span className="text-[12px] text-primary-foreground">
+              {isInCart ? "Add More" : "Buy"}
+            </span>
+
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -383,7 +385,7 @@ export function ProductCard({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-primary-foreground"
+              className="text-primary-foreground ml-1"
             >
               <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
               <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
@@ -392,8 +394,15 @@ export function ProductCard({
               <path d="M12 7v4" />
               <path d="M10 9h4" />
             </svg>
+
+            {productCount > 0 && (
+              <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                {productCount}
+              </span>
+            )}
           </Button>
         </div>
+
         <div className="absolute  bottom-0 left-0 right-0 bg-gradient-to-tr from-background/100 to-transparent p-3">
           <div className="flex items-center justify-between my-1">
             <h3 className="font-semibold text-sm sm:text-base truncate">
@@ -437,6 +446,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCart } from "@/components/custom/cart/cart-context";
+import { formatPrice } from "@/components/global/formatPrice";
+import { toast } from "sonner";
 
 // Define the GraphQL query for fetching categories
 const GET_ALL_CATEGORIES = gql`
@@ -511,6 +523,15 @@ export function AllProducts() {
   const { serviceId: vendorId } = useParams<{
     serviceId: string;
   }>();
+
+  // Sync vendorId to localStorage on mount or when vendorId changes
+  useEffect(() => {
+    if (!vendorId) return;
+    const storedId = localStorage.getItem("currentVendorId");
+    if (storedId !== vendorId) {
+      localStorage.setItem("currentVendorId", vendorId);
+    }
+  }, [vendorId]);
   const [filter, setFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [offset, setOffset] = useState(0);

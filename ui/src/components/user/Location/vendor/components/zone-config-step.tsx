@@ -1,24 +1,30 @@
-"use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { ChevronLeft, MapPin, Clock, Loader2, Plus, X, AlertTriangle, Info } from "lucide-react"
-import { Tabs,  TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type TransportMode = "walking" | "bike" | "motorbike" | "car"
 type RangeType = "time" | "distance"
+
+interface ZoneRange {
+  distance: number
+  price: number
+  id: string
+}
 
 interface ZoneConfigStepProps {
   transportMode: TransportMode
   rangeType: RangeType
   onRangeTypeChange: (type: RangeType) => void
   ranges: number[] 
+  rangePrices: number[]
   onRangesChange: (ranges: number[]) => void
+  onRangePricesChange: (prices: number[]) => void
   onGenerate: () => void
   onBack: () => void
   isLoading: boolean
@@ -27,7 +33,7 @@ interface ZoneConfigStepProps {
   maxExtendedTimeMinutes?: number
 }
 
-// Conversion speeds in km/h
+// Conversion speeds in km/h (same as first example)
 const SPEED_MAPPING = {
   walking: 5,
   bike: 15,
@@ -35,24 +41,89 @@ const SPEED_MAPPING = {
   car: 60
 }
 
-export function ZoneConfigStep({ 
+export default function ZoneConfigStep({ 
   transportMode, 
   rangeType,
   onRangeTypeChange,
   ranges, 
+  rangePrices,
   onRangesChange, 
+  onRangePricesChange,
   onGenerate, 
   onBack, 
   isLoading,
   extendedMode = false,
   onExtendedModeChange,
-  maxExtendedTimeMinutes = 300 // Default 5 hours
+  maxExtendedTimeMinutes = 60
 }: ZoneConfigStepProps) {
   const [autoGenerate, setAutoGenerate] = useState(true)
-  const [customRanges, setCustomRanges] = useState<number[]>([...ranges])
+  const [zoneRanges, setZoneRanges] = useState<ZoneRange[]>([])
+  const [isInitialized, setIsInitialized] = useState(false)
   const [showInfoMessage, setShowInfoMessage] = useState(false)
   const [infoMessageType, setInfoMessageType] = useState<'info' | 'warning' | 'success'>('info')
   const [infoMessage, setInfoMessage] = useState("")
+
+  // Initialize zone ranges from props only once
+  useEffect(() => {
+    if (!isInitialized && ranges.length > 0) {
+      const initialZones = ranges.map((range, index) => ({
+        id: `zone_${index}`,
+        distance: range,
+        price: rangePrices[index] || (5.0 + (index * 2.5))
+      }))
+      setZoneRanges(initialZones)
+      setIsInitialized(true)
+    }
+  }, [ranges, rangePrices, isInitialized])
+
+  // Only sync back to parent when user makes changes (not during initialization)
+  const syncToParent = (newZoneRanges: ZoneRange[]) => {
+    if (!isInitialized) return
+    
+    const newRanges = newZoneRanges.map(zone => zone.distance)
+    const newPrices = newZoneRanges.map(zone => zone.price)
+    
+    onRangesChange(newRanges)
+    onRangePricesChange(newPrices)
+  }
+
+  const showTemporaryMessage = (message: string, type: 'info' | 'warning' | 'success' = 'info', duration: number = 5000) => {
+    setInfoMessage(message)
+    setInfoMessageType(type)
+    setShowInfoMessage(true)
+    
+    // Auto-hide the message after specified duration
+    setTimeout(() => {
+      setShowInfoMessage(false)
+    }, duration)
+  }
+
+  // Render appropriate message based on info type
+  const renderInfoMessage = () => {
+    if (!showInfoMessage) return null;
+    
+    let bgClass = "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
+    let Icon = Info;
+    
+    if (infoMessageType === 'warning') {
+      bgClass = "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
+      Icon = AlertTriangle;
+    } else if (infoMessageType === 'success') {
+      bgClass = "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300";
+      Icon = Info;
+    }
+    
+    return (
+      <div className={`${bgClass} p-3 rounded-lg text-sm animate-pulse`}>
+        <div className="flex items-start">
+          <Icon className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <div>
+            <p>{infoMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Get maximum value based on transport mode, range type, and extended mode
   const getMaxValue = (mode: TransportMode, type: RangeType): number => {
@@ -73,48 +144,6 @@ export function ZoneConfigStep({
   }
 
   const maxValue = getMaxValue(transportMode, rangeType)
-
-  const handleAutoGenerateToggle = (checked: boolean) => {
-    setAutoGenerate(checked)
-
-    if (checked) {
-      // Reset to default ranges based on transport mode and range type
-      const defaultRanges = getDefaultRanges(transportMode, rangeType)
-      setCustomRanges(defaultRanges)
-      onRangesChange(defaultRanges)
-    }
-  }
-
-  const showTemporaryMessage = (message: string, type: 'info' | 'warning' | 'success' = 'info', duration: number = 5000) => {
-    setInfoMessage(message)
-    setInfoMessageType(type)
-    setShowInfoMessage(true)
-    
-    // Auto-hide the message after specified duration
-    setTimeout(() => {
-      setShowInfoMessage(false)
-    }, duration)
-  }
-
-  const handleExtendedModeToggle = (checked: boolean) => {
-    // Toggle extended mode via parent component
-    if (onExtendedModeChange) {
-      onExtendedModeChange(checked)
-      
-      // Show appropriate message
-      if (checked) {
-        showTemporaryMessage(
-          "Extended mode enabled! After generating your zones, you'll be able to extend them by clicking on additional points.", 
-          'success'
-        )
-      } else {
-        showTemporaryMessage(
-          "Extended mode disabled. Zones will be limited to the standard 60-minute API constraint.",
-          'info'
-        )
-      }
-    }
-  }
 
   const getDefaultRanges = (mode: TransportMode, type: RangeType): number[] => {
     if (type === "distance") {
@@ -176,39 +205,70 @@ export function ZoneConfigStep({
     }
   }
 
-  const handleRangeChange = (index: number, value: number[]) => {
-    const newRanges = [...customRanges]
-    newRanges[index] = value[0]
+  const handleAutoGenerateToggle = (checked: boolean) => {
+    setAutoGenerate(checked)
 
-    // Sort ranges to ensure they're in ascending order
-    const sortedRanges = [...newRanges].sort((a, b) => a - b)
+    if (checked) {
+      // Reset to default ranges based on transport mode and range type
+      const defaultRanges = getDefaultRanges(transportMode, rangeType)
+      const defaultZones = defaultRanges.map((range, index) => ({
+        id: `zone_${index}`,
+        distance: range,
+        price: 5.0 + (index * 2.5)
+      }))
+      setZoneRanges(defaultZones)
+      syncToParent(defaultZones)
+    }
+  }
 
-    setCustomRanges(sortedRanges)
-    onRangesChange(sortedRanges)
+  const handleRangeChange = (id: string, newDistance: number) => {
+    const updatedZones = zoneRanges.map(zone => 
+      zone.id === id ? { ...zone, distance: newDistance } : zone
+    )
+    
+    // Sort by distance to maintain order
+    const sortedZones = updatedZones.sort((a, b) => a.distance - b.distance)
+    setZoneRanges(sortedZones)
+    syncToParent(sortedZones)
+  }
+
+  const handlePriceChange = (id: string, newPrice: number) => {
+    const updatedZones = zoneRanges.map(zone =>
+      zone.id === id ? { ...zone, price: Math.max(0, newPrice) } : zone
+    )
+    setZoneRanges(updatedZones)
+    syncToParent(updatedZones)
   }
 
   const handleAddRange = () => {
     // Add a new range that's 25% more than the last one, capped at max
-    const lastValue = customRanges[customRanges.length - 1]
-    const newValue = Math.min(Math.round(lastValue * 1.25), maxValue)
+    const lastZone = zoneRanges[zoneRanges.length - 1]
+    const newDistance = Math.min(Math.round(lastZone.distance * 1.25), maxValue)
+    const newPrice = lastZone.price + 2.5
     
-    const newRanges = [...customRanges, newValue]
-    setCustomRanges(newRanges)
-    onRangesChange(newRanges)
+    const newZone: ZoneRange = {
+      id: `zone_${zoneRanges.length}`,
+      distance: newDistance,
+      price: newPrice
+    }
+    
+    const newZoneRanges = [...zoneRanges, newZone]
+    setZoneRanges(newZoneRanges)
+    syncToParent(newZoneRanges)
   }
 
-  const handleRemoveRange = (index: number) => {
-    if (customRanges.length <= 1) return // Don't allow removing the last range
+  const handleRemoveRange = (id: string) => {
+    if (zoneRanges.length <= 1) return // Don't allow removing the last range
     
-    const newRanges = customRanges.filter((_, i) => i !== index)
-    setCustomRanges(newRanges)
-    onRangesChange(newRanges)
+    const updatedZones = zoneRanges.filter(zone => zone.id !== id)
+    setZoneRanges(updatedZones)
+    syncToParent(updatedZones)
   }
 
   // For distance-to-time conversion display
   const getEstimatedTime = (distance: number, mode: TransportMode): number => {
     const speed = SPEED_MAPPING[mode]
-    return Math.round((distance / speed) * 60) // Convert to minutes, don't cap
+    return Math.round((distance / speed) * 60) // Convert to minutes
   }
 
   // For time-to-distance conversion display
@@ -219,6 +279,26 @@ export function ZoneConfigStep({
 
   const handleRangeTypeSwitch = (value: string) => {
     onRangeTypeChange(value as RangeType)
+  }
+
+  const handleExtendedModeToggle = (checked: boolean) => {
+    // Toggle extended mode via parent component
+    if (onExtendedModeChange) {
+      onExtendedModeChange(checked)
+      
+      // Show appropriate message
+      if (checked) {
+        showTemporaryMessage(
+          "Extended mode enabled! After generating your zones, you'll be able to extend them by clicking on additional points.", 
+          'success'
+        )
+      } else {
+        showTemporaryMessage(
+          "Extended mode disabled. Zones will be limited to the standard 60-minute API constraint.",
+          'info'
+        )
+      }
+    }
   }
 
   // Helper to format the time or distance for display
@@ -233,31 +313,20 @@ export function ZoneConfigStep({
     return `${value} ${type === "distance" ? "km" : "min"}`
   }
 
-  // Render appropriate message based on info type
-  const renderInfoMessage = () => {
-    if (!showInfoMessage) return null;
-    
-    let bgClass = "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
-    let Icon = Info;
-    
-    if (infoMessageType === 'warning') {
-      bgClass = "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
-      Icon = AlertTriangle;
-    } else if (infoMessageType === 'success') {
-      bgClass = "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300";
-      Icon = Info;
-    }
-    
+  // Show loading state while initializing
+  if (!isInitialized) {
     return (
-      <div className={`${bgClass} p-3 rounded-lg text-sm animate-pulse`}>
-        <div className="flex items-start">
-          <Icon className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-          <div>
-            <p>{infoMessage}</p>
+      <div className="p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 relative">
+              <div className="absolute inset-0 rounded-full border-2 border-[#007aff] border-t-transparent animate-spin"></div>
+            </div>
+            <p className="text-[#86868b] font-medium">Setting up zones...</p>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -358,66 +427,140 @@ export function ZoneConfigStep({
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 {autoGenerate
-                  ? `Default ranges for ${transportMode}: ${ranges.join(", ")} ${rangeType === "distance" ? "km" : "minutes"}`
-                  : `Customize your delivery ${rangeType} ranges`}
+                  ? `Default ranges for ${transportMode}: ${zoneRanges.map(z => z.distance).join(", ")} ${rangeType === "distance" ? "km" : "minutes"}`
+                  : `Customize your delivery ${rangeType} ranges and pricing`}
               </p>
 
               {!autoGenerate && (
                 <div className="space-y-6 mt-4">
-                  {customRanges.map((value, index) => (
-                    <div key={index} className="space-y-2">
+                  {zoneRanges.map((zone, index) => (
+                    <div key={zone.id} className="space-y-4 p-4 bg-white dark:bg-[#3A3A3C] rounded-xl border border-gray-200 dark:border-gray-600">
                       <div className="flex justify-between items-center">
-                        <Label className="text-sm text-gray-600 dark:text-gray-300">Zone {index + 1}</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Zone {index + 1}
+                        </Label>
                         <div className="flex items-center gap-2">
                           <div className="text-right">
                             <span className="text-sm font-medium text-[#0071E3]">
-                              {formatRangeValue(value, rangeType)}
+                              {formatRangeValue(zone.distance, rangeType)}
                             </span>
                             {rangeType === "distance" && (
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                ~{getEstimatedTime(value, transportMode)} min travel time
+                                ~{getEstimatedTime(zone.distance, transportMode)} min travel time
                               </p>
                             )}
                             {rangeType === "time" && (
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                ~{getEstimatedDistance(value, transportMode)} km travel distance
+                                ~{getEstimatedDistance(zone.distance, transportMode)} km travel distance
                               </p>
                             )}
                           </div>
-                          {customRanges.length > 1 && (
+                          {zoneRanges.length > 1 && (
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="h-6 w-6 p-0 rounded-full"
-                              onClick={() => handleRemoveRange(index)}
+                              className="h-6 w-6 p-0 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRemoveRange(zone.id)}
                             >
-                              <X className="h-4 w-4 text-gray-500" />
+                              <X className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
                       </div>
-                      <Slider
-                        value={[value]}
-                        min={rangeType === "distance" ? 1 : 5}
-                        max={maxValue}
-                        step={rangeType === "distance" ? 1 : 5}
-                        onValueChange={(value) => handleRangeChange(index, value)}
-                        className="[&>span]:bg-[#0071E3]"
-                      />
+                      
+                      {/* Distance/Time Slider */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-600 dark:text-gray-400">
+                          {rangeType === "distance" ? "Distance Range" : "Time Range"}
+                        </Label>
+                        <Slider
+                          value={[zone.distance]}
+                          min={rangeType === "distance" ? 1 : 5}
+                          max={maxValue}
+                          step={rangeType === "distance" ? 1 : 5}
+                          onValueChange={(value) => handleRangeChange(zone.id, value[0])}
+                          className="[&>span]:bg-[#0071E3]"
+                        />
+                      </div>
+
+                      {/* Price Input */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-600 dark:text-gray-400">
+                          Delivery Price (GHS)
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">₵</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.50"
+                            value={zone.price}
+                            onChange={(e) => handlePriceChange(zone.id, Number(e.target.value))}
+                            className="w-full pl-8 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0071E3] focus:border-transparent bg-white dark:bg-[#2C2C2E] text-gray-900 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Zone Summary */}
+                      <div className="pt-3 border-t border-gray-100 dark:border-gray-600">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {index === 0 
+                              ? `0-${zone.distance} ${rangeType === "distance" ? "km" : "min"}`
+                              : `${zoneRanges[index - 1]?.distance || 0}-${zone.distance} ${rangeType === "distance" ? "km" : "min"}`
+                            }
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            ₵{zone.price.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   ))}
 
-                  {customRanges.length < 8 && (
+                  {zoneRanges.length < 6 && (
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="mt-4 w-full border-dashed" 
+                      className="mt-4 w-full border-dashed hover:bg-blue-50 hover:border-blue-300" 
                       onClick={handleAddRange}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Zone
                     </Button>
                   )}
+                </div>
+              )}
+
+              {/* Zone Summary */}
+              {!autoGenerate && zoneRanges.length > 0 && (
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3">Zone Summary</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300">Total Zones:</span>
+                      <span className="ml-2 font-medium text-blue-900 dark:text-blue-100">{zoneRanges.length}</span>
+                    </div>
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300">Max Coverage:</span>
+                      <span className="ml-2 font-medium text-blue-900 dark:text-blue-100">
+                        {Math.max(...zoneRanges.map(z => z.distance))} {rangeType === "distance" ? "km" : "min"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300">Min Price:</span>
+                      <span className="ml-2 font-medium text-blue-900 dark:text-blue-100">
+                        ₵{Math.min(...zoneRanges.map(z => z.price)).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-blue-700 dark:text-blue-300">Avg. Price:</span>
+                      <span className="ml-2 font-medium text-blue-900 dark:text-blue-100">
+                        ₵{(zoneRanges.reduce((sum, zone) => sum + zone.price, 0) / zoneRanges.length).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -442,7 +585,7 @@ export function ZoneConfigStep({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {extendedMode ? "Generating Extended Zones..." : "Generating..."}
+                Generating...
               </>
             ) : (
               "Generate Delivery Zones"

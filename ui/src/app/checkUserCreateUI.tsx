@@ -21,6 +21,7 @@ import {
   User,
   ArrowRight,
   UserRoundPlus,
+  Building2,
 } from "lucide-react";
 import React, { ReactNode } from "react";
 import { useNavigate } from "react-router";
@@ -28,7 +29,6 @@ import { useNavigate } from "react-router";
 // Import the UserAuthCard component
 // This is your existing authentication component from @/components/custom/users/create
 import UserAuthCard from "@/components/custom/users/create";
-
 
 interface RegisterOptionProps {
   value: string;
@@ -39,6 +39,7 @@ interface RegisterOptionProps {
   link?: string;
   benefits: string[];
   isUser?: boolean;
+  onCloseDialog?: (closed: boolean) => void;
 }
 
 const RegisterOption: React.FC<RegisterOptionProps> = ({
@@ -50,6 +51,7 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
   link,
   benefits,
   isUser = false,
+  onCloseDialog,
 }) => {
   const navigate = useNavigate();
 
@@ -57,6 +59,9 @@ const RegisterOption: React.FC<RegisterOptionProps> = ({
   const handleServiceClick = () => {
     if (link) {
       navigate(link);
+    }
+    if (onCloseDialog) {
+      onCloseDialog(true);
     }
   };
 
@@ -129,7 +134,7 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
               value="service"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <Truck className="h-4 w-4 mr-2" />
+              <Building2 className="h-4 w-4 mr-2" />
               Service Provider
             </TabsTrigger>
           </TabsList>
@@ -150,6 +155,7 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
           <RegisterOption
             value="service"
             icon={<Truck className="h-8 w-8" />}
+            
             title="Service Provider Account"
             description="Offer your services to customers"
             buttonText="Create Provider Account"
@@ -160,6 +166,7 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
               "Receive payments securely through our platform",
               "Build your reputation with verified reviews",
             ]}
+            // onCloseDialog={}
           />
         </Tabs>
       </DialogContent>
@@ -170,12 +177,10 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
 const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
   return (
     <Dialog>
-       <DialogTrigger asChild>
+      <DialogTrigger asChild>
         <Button variant="outline" className="font-medium">
           <UserRoundPlus />
-          {!isCollapsed && (
-            <span>Register</span>
-          )}
+          {!isCollapsed && <span>Register</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md md:max-w-lg">
@@ -185,7 +190,7 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
           </DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="user" className="mt-2">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger
               value="user"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -197,8 +202,15 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               value="service"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <Truck className="h-4 w-4 mr-2" />
+              <Building2 className="h-4 w-4 mr-2" />
               Service Provider
+            </TabsTrigger>
+            <TabsTrigger
+              value="rider"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Truck className="h-4 w-4 mr-2" />
+              Rider
             </TabsTrigger>
           </TabsList>
           <RegisterOption
@@ -214,10 +226,23 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               "Save favorites and preferences",
               "Access exclusive offers and discounts",
             ]}
+            onCloseDialog={() => {
+              // Find the dialog element and close it
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                // If using shadcn/ui dialog, trigger close via Escape key event
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
           />
+          
           <RegisterOption
             value="service"
-            icon={<Truck className="h-8 w-8" />}
+            icon={<Building2 className="h-8 w-8" />}
             title="Service Provider Account"
             description="Offer your services to customers"
             buttonText="Create Provider Account"
@@ -228,6 +253,42 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               "Receive payments securely through our platform",
               "Build your reputation with verified reviews",
             ]}
+            onCloseDialog={() => {
+              // Find the dialog element and close it
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                // If using shadcn/ui dialog, trigger close via Escape key event
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
+          />
+          <RegisterOption
+            value="rider"
+            icon={<Truck className="h-8 w-8" />}
+            title="Rider Account"
+            description="Deliver with ease and get access to powerful tools"
+            buttonText="Create Rider Account"
+            link="/rider/new"
+            benefits={[
+              "Access to real-time delivery and route optimization tools",
+              "Integrated map support for efficient navigation",
+              "Easily manage delivery tasks and schedules",
+              "Grow your reputation through customer ratings and feedback",
+            ]}
+            onCloseDialog={() => {
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
           />
         </Tabs>
       </DialogContent>

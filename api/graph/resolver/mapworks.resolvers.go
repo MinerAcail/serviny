@@ -9,10 +9,17 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
 )
+
+// ID is the resolver for the id field.
+func (r *isochroneResultResolver) ID(ctx context.Context, obj *model.IsochroneResult) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
 
 // Geojson is the resolver for the geojson field.
 func (r *isochroneResultResolver) Geojson(ctx context.Context, obj *model.IsochroneResult) (string, error) {
@@ -22,12 +29,12 @@ func (r *isochroneResultResolver) Geojson(ctx context.Context, obj *model.Isochr
 	}
 
 	// Reverse the "features" array if it exists
-	if features, ok := data["features"].([]interface{}); ok {
-		for i, j := 0, len(features)-1; i < j; i, j = i+1, j-1 {
-			features[i], features[j] = features[j], features[i]
-		}
-		data["features"] = features
-	}
+	// if features, ok := data["features"].([]interface{}); ok {
+	// 	for i, j := 0, len(features)-1; i < j; i, j = i+1, j-1 {
+	// 		features[i], features[j] = features[j], features[i]
+	// 	}
+	// 	data["features"] = features
+	// }
 
 	// Marshal back to string
 	reversedJSON, err := json.Marshal(data)
@@ -38,10 +45,111 @@ func (r *isochroneResultResolver) Geojson(ctx context.Context, obj *model.Isochr
 	return string(reversedJSON), nil
 }
 
+// MetaData is the resolver for the metaData field.
+func (r *isochroneResultResolver) MetaData(ctx context.Context, obj *model.IsochroneResult) ([]*model.IsochroneZoneMetaData, error) {
+	// Parse the GeoJSON to extract metadata from features
+	var geoData map[string]interface{}
+	if err := json.Unmarshal(obj.GeoJSON, &geoData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal GeoJSON for metadata extraction: %w", err)
+	}
+
+	features, ok := geoData["features"].([]interface{})
+	if !ok {
+		return []*model.IsochroneZoneMetaData{}, nil // Return empty slice if no features
+	}
+
+	var metaDataList []*model.IsochroneZoneMetaData
+
+	for i, feature := range features {
+		featureMap, ok := feature.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		properties, ok := featureMap["properties"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Extract metadata from properties
+		metaData := &model.IsochroneZoneMetaData{
+			Zone: int32(i), // Use feature index as zone number
+		}
+
+		// Extract ID
+		if id, ok := properties["id"].(string); ok {
+			metaData.ID = id
+		} else {
+			metaData.ID = uuid.New().String() // Generate if missing
+		}
+
+		// Extract price
+		if price, ok := properties["price"].(float64); ok {
+			metaData.Price = price
+		}
+
+		// Extract duration from range if available
+		if i < len(obj.Range) {
+			metaData.Duration = obj.Range[i]
+		}
+
+		// Extract distance if available in properties
+		if distance, ok := properties["distance"].(float64); ok {
+			metaData.Distance = distance
+		}
+
+		metaDataList = append(metaDataList, metaData)
+	}
+
+	return metaDataList, nil
+}
+
+// Locations is the resolver for the locations field.
+func (r *isochroneResultResolver) Locations(ctx context.Context, obj *model.IsochroneResult) ([][]float64, error) {
+	if len(obj.Locations)%2 != 0 {
+		return nil, fmt.Errorf("invalid locations data: expected even number of floats")
+	}
+
+	result := make([][]float64, 0, len(obj.Locations)/2)
+	for i := 0; i < len(obj.Locations); i += 2 {
+		coord := []float64{obj.Locations[i], obj.Locations[i+1]}
+		result = append(result, coord)
+	}
+	return result, nil
+}
+
+// Range is the resolver for the range field.
+func (r *isochroneResultResolver) Range(ctx context.Context, obj *model.IsochroneResult) ([]int32, error) {
+	return obj.Range, nil
+}
+
 // GenerateIsochrone is the resolver for the generateIsochrone field.
 func (r *mutationResolver) GenerateIsochrone(ctx context.Context, input model.IsochroneInput) (*model.IsochroneResult, error) {
+	// Retrieve the rider ID from the context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Set DB connection in cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB)
+
 	// Use the helper function that handles caching and generation
-	return helper.GetCachedOrGenerateIsochrone(ctx, input)
+	result, err := helper.GetCachedOrGenerateIsochrone(ctx, input, *riderIDStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Make sure the result is saved to DB (in case DB connection wasn't available during generation)
+	if result.ID != uuid.Nil && r.DB != nil {
+		if err := cache.SaveIsochroneToDB(result); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Error saving isochrone to database: %v\n", err)
+		}
+	}
+
+	return result, nil
 }
 
 // ManageCacheIsochrone is the resolver for the manageCacheIsochrone field.
@@ -74,6 +182,143 @@ func (r *queryResolver) GetAllIsochroneResults(ctx context.Context) ([]*model.Is
 
 	fmt.Printf("Resolver returning %d isochrone results\n", len(results))
 	return results, nil
+}
+
+// GetIsochroneByID is the resolver for the getIsochroneById field.
+func (r *queryResolver) GetIsochroneByID(ctx context.Context, id string) (*model.IsochroneResult, error) {
+	// Step 1: Parse UUID from string
+	isochroneID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid isochrone ID: %w", err)
+	}
+
+	// Step 2: Try to get the isochrone from the database first (fastest and most up-to-date)
+	var result model.IsochroneResult
+	if err := r.DB.First(&result, "id = ?", isochroneID).Error; err == nil {
+		return &result, nil
+	}
+
+	// Step 3: If not found in database, fall back to cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB) // Connect cache to database for potential lookups
+
+	// Step 4: Use the cache helper to look up by ID
+	resultPtr, err := cache.GetIsochroneResultByID(ctx, isochroneID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get isochrone: %w", err)
+	}
+
+	// Step 5: Handle case where isochrone is not found
+	if resultPtr == nil {
+		return nil, fmt.Errorf("no isochrone found with ID: %s", id)
+	}
+
+	// Step 6: Return the found isochrone
+	return resultPtr, nil
+}
+
+// GetIsochronesByRider is the resolver for the getIsochronesByRider field.
+func (r *queryResolver) GetIsochronesByRider(ctx context.Context, riderID string) (*model.IsochroneResult, error) {
+	panic(fmt.Errorf("not implemented: GetIsochronesByRider - getIsochronesByRider"))
+}
+
+// GetAllIsochronesByRider is the resolver for the getAllIsochronesByRider field.
+func (r *queryResolver) GetAllIsochronesByRider(ctx context.Context, riderID string) ([]*model.IsochroneResult, error) {
+	// Try DB first
+	var results []*model.IsochroneResult
+	if err := r.DB.Where("rider_id = ?", riderID).Find(&results).Error; err == nil && len(results) > 0 {
+		return results, nil
+	}
+
+	// Fall back to cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB)
+
+	results, err := cache.GetIsochroneResultsByRiderID(ctx, riderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get isochrones for rider %s: %w", riderID, err)
+	}
+
+	// If no results, return empty slice instead of nil
+	if results == nil {
+		return []*model.IsochroneResult{}, nil
+	}
+
+	fmt.Printf("Resolver returning %d isochrone results for rider %s\n", len(results), riderID)
+	return results, nil
+}
+
+// GetAllIsochronesByVendor is the resolver for the getAllIsochronesByVendor field.
+func (r *queryResolver) GetAllIsochronesByVendor(ctx context.Context, vendorID string) ([]*model.VendorMapData, error) {
+// Get all isochrones for the vendor
+	var isochroneResults []*model.IsochroneResult
+	if err := r.DB.Where("vendor_id = ?", vendorID).Find(&isochroneResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to get isochrones for vendor %s: %w", vendorID, err)
+	}
+
+	// Group by RiderID field (can be either rider ID or service ID)
+	grouped := make(map[string][]*model.IsochroneResult)
+	for _, result := range isochroneResults {
+		if result.RiderID != "" {
+			grouped[result.RiderID] = append(grouped[result.RiderID], result)
+		}
+	}
+
+	var vendorMapData []*model.VendorMapData
+
+	for id, mapData := range grouped {
+		var (
+			rider   *model.Rider
+			service *model.Service
+		)
+
+		// Try to load Rider
+		var tempRider model.Rider
+		if err := r.DB.First(&tempRider, "id = ?", id).Error; err == nil {
+			rider = &tempRider
+		}
+
+		// Try to load Service
+		var tempService model.Service
+		if err := r.DB.First(&tempService, "id = ?", id).Error; err == nil {
+			service = &tempService
+		}
+
+		// Skip if neither found
+		if rider == nil && service == nil {
+			continue
+		}
+
+		vendorMapData = append(vendorMapData, &model.VendorMapData{
+			Riders: &model.RiderWithMapData{
+				Rider:        rider,
+				RiderService: service,
+				MapData:      mapData,
+			},
+		})
+	}
+
+	return vendorMapData, nil
+}
+
+// GetClosestIsochroneForLocation is the resolver for the getClosestIsochroneForLocation field.
+func (r *queryResolver) GetClosestIsochroneForLocation(ctx context.Context, riderID string, location []float64) (*model.IsochroneResult, error) {
+	if len(location) < 2 {
+		return nil, fmt.Errorf("invalid location coordinates")
+	}
+
+	// Retrieve the closest isochrone
+	//it only works if you chnage the order of the coordinates
+	// to lat, lng
+	//meanwhile, the isochrone generation is done in lng, lat
+	// so we need to reverse the order here
+	// to match the isochrone generation
+	// isochrone, _, err := helper.GetClosestIsochrone(ctx, riderID, location[1], location[0])
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get closest isochrone: %w", err)
+	// }
+
+	return nil, nil
 }
 
 // IsochroneResult returns graph.IsochroneResultResolver implementation.

@@ -23,6 +23,7 @@ import {
   MessagesSquare,
   MessageSquare,
   MapPlus,
+  Merge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ import SpectaclesLogo from "../serviceProviders/logoicon";
 import RegisterOptions from "@/app/checkUserCreateUI";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import NotificationCenter from "../user/notification-center";
+import { CartButton } from "./cart/cart-button";
+import ProfileDialog, { ProfileProviderDialog } from "./profile-dialog";
 
 const bottomNavigation = [
   { name: "Settings", to: "/settings", icon: Settings },
@@ -246,17 +249,26 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   const install = location.pathname === "/install";
+  const providers = location.pathname === "/providers";
 
+  // const checkurl = location.pathname === "/install" || location.pathname === "/zonex";
+  //id from localStorage
+  const currentVendorId = localStorage.getItem("currentVendorId");
   const navigation = [
     {
       name: "Home",
-      to: !install ? `/providers/${serviceId}?lo` : `/`,
+      to: providers
+        ? `/`
+        : install
+        ? `/providers/${serviceId}?lo`
+        : `/providers/${currentVendorId}`,
       icon: Home,
     },
+    { name: "My Delivery", to: `/zonex/${currentVendorId}`, icon: MapPlus }, // stays on /dbp/:serviceId
 
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
     { name: "Message", to: "/sms", icon: MessageSquare },
-
+    { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
     // Conditionally include items
     ...(isMatch
       ? [
@@ -349,9 +361,9 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   }, []);
   return (
     <TooltipProvider>
-      <div ref={sidebarRef}>
+      <div ref={sidebarRef} className="h-screen flex">
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
-
+          {/* <CartButton /> */}
           <NotificationCenter />
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button
@@ -361,6 +373,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
           >
             <Menu className="h-6 w-6" />
           </button>
+          <ProfileProviderDialog userID={serviceId ?? ""} />
         </div>
         <div
           className={cn(
@@ -404,7 +417,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
               ))}
             </nav>
           </div>
-          <div className="border-t border-border p-2">
+          <div className="border-t  border-border p-2 grid grid-cols-2 gap-2 items-center">
             <nav className="space-y-1">
               {isAuthenticated ? (
                 <Logout>
@@ -432,6 +445,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 </>
               )}
             </nav>
+            <ProfileDialog />
           </div>
         </div>
       </div>

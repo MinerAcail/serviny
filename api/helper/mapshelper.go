@@ -485,3 +485,24 @@ func mergePolygons(polygons []*geojson.Feature) *geojson.Feature {
 
 
 
+// convertToFloat64Array converts []*float64 to []float64 (pq.Float64Array)
+func ConvertToFloat64Array(input []*float64) []float64 {
+	result := make([]float64, 0, len(input))
+	for _, v := range input {
+		if v != nil {
+			result = append(result, *v)
+		}
+	}
+	return result
+}
+
+// ConvertToStringArray Converts []*string to []string (pq.StringArray)
+func ConvertToStringArray(input []*string) []string {
+	result := make([]string, 0, len(input))
+	for _, v := range input {
+		if v != nil {
+			result = append(result, *v)
+		}
+	}
+	return result
+}

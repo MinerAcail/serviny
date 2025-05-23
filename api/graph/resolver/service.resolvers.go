@@ -90,16 +90,25 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 		}
 	}
 	authStatus := model.IsAuthPadding
-
+	var Categories []string
+	for _, catptr := range input.Categories {
+		if catptr != nil {
+			Categories = append(Categories, *catptr)
+		}
+	}
 	// Create a new service instance
 	service := model.Service{
-		Name:       input.Name,
-		Type:       "SERVICE",
-		Number:     input.Number,
-		Email:      input.Email,
-		Profession: Professions,
-		Location:   input.Location,
-		IsAuth:     &authStatus,
+		Name:         input.Name,
+		Type:         "SERVICE",
+		Number:       input.Number,
+		Email:        input.Email,
+		Profession:   Professions,
+		Location:     input.Location,
+		Categories:   Categories,
+		BusinessType: input.BusinessType,
+		IsAuth:       &authStatus,
+		Coordinates:  helper.ConvertToFloat64Array(input.Coordinates),
+		// H3Indexes:    helper.ConvertToStringArray(input.H3Indexes),
 	}
 
 	// Hash password if provided
@@ -155,26 +164,34 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	// 	}
 	// }
 
+	// Handle file upload after service is created (so we have the ID)
 	if dpfile != nil {
-		// Use the stable UUID as part of the bucket name
+		// Create bucket name using the service ID (similar to rider creation)
 		bucketName := fmt.Sprintf("service-%s-bucket", service.ID.String())
 
-		log.Printf("Stable bucket name: %s", bucketName)
+		log.Printf("Creating bucket: %s for service: %s", bucketName, service.ID.String())
 
 		// Ensure the bucket exists
 		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
-			return nil, err
+			log.Printf("Error creating bucket %s: %v", bucketName, err)
+			return nil, fmt.Errorf("failed to create storage bucket: %w", err)
 		}
 
 		// Upload the file
 		fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "dpfile", dpfile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to upload dpfile %s: %v", dpfile.Filename, err)
+			log.Printf("Error uploading file %s to bucket %s: %v", dpfile.Filename, bucketName, err)
+			return nil, fmt.Errorf("failed to upload profile picture %s: %w", dpfile.Filename, err)
 		}
 
-		// Save the uploaded file URL
+		log.Printf("Successfully uploaded file. URL: %s", fileURL)
+
+		// Update the service with the file URL
 		service.Dpfile = &fileURL
-		r.DB.Save(&service)
+		if err := r.DB.Save(&service).Error; err != nil {
+			log.Printf("Error saving service with file URL: %v", err)
+			return nil, fmt.Errorf("failed to update service with file URL: %w", err)
+		}
 	}
 	return &service, nil
 }
@@ -1588,6 +1605,16 @@ func (r *serviceResolver) Profession(ctx context.Context, obj *model.Service) ([
 	return eachArray, nil
 }
 
+// Categories is the resolver for the categories field.
+func (r *serviceResolver) Categories(ctx context.Context, obj *model.Service) ([]*string, error) {
+	var eachArray []*string
+	for _, url := range obj.Categories {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
+	}
+	return eachArray, nil
+}
+
 // BookTypes is the resolver for the bookTypes field.
 func (r *serviceResolver) BookTypes(ctx context.Context, obj *model.Service) ([]*string, error) {
 	// iterate over the pq.StringArray, convert each string to a pointer, and append it to the result slice.
@@ -1595,6 +1622,27 @@ func (r *serviceResolver) BookTypes(ctx context.Context, obj *model.Service) ([]
 	for _, catptr := range obj.BookTypes {
 		cate := catptr
 		eachArray = append(eachArray, &cate)
+	}
+	return eachArray, nil
+}
+
+// Coordinates is the resolver for the coordinates field.
+func (r *serviceResolver) Coordinates(ctx context.Context, obj *model.Service) ([]*float64, error) {
+	// Convert []float64 to []*float64
+	result := make([]*float64, 0, len(obj.Coordinates))
+	for _, v := range obj.Coordinates {
+		val := v
+		result = append(result, &val)
+	}
+	return result, nil
+}
+
+// H3Indexes is the resolver for the h3Indexes field.
+func (r *serviceResolver) H3Indexes(ctx context.Context, obj *model.Service) ([]*string, error) {
+	var eachArray []*string
+	for _, url := range obj.H3Indexes {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
 	}
 	return eachArray, nil
 }

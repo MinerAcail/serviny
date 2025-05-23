@@ -1,4 +1,5 @@
-// Complete implementation for URL sharing in the MapAndSearch component
+// Modified MapAndSearch component
+// Removes map click for location selection, uses only Google autocomplete and pin dropper
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,7 @@ import { RefObject, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { TransportMode } from "./dataUtils";
 import { toast } from "sonner";
-// import { toast } from "@/components/ui/use-toast"; // Assuming you have a toast component
+
 interface MapAndSearchProps {
   // Search related props
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -75,6 +76,8 @@ interface MapAndSearchProps {
 
   // Transport mode
   transportMode: TransportMode;
+  // Delivery zone visualizer menu
+  isOpenDeliveryZoneVisualizerMenu: boolean;
 }
 
 export function MapAndSearch({
@@ -108,16 +111,18 @@ export function MapAndSearch({
   transportMode,
   clickedPoint,
   setClickedPoint,
+  isOpenDeliveryZoneVisualizerMenu,
 }: MapAndSearchProps) {
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
 
-   // Effect to automatically show info panel when directions are available
+  // Effect to automatically show info panel when directions are available
   useEffect(() => {
     if (showDirections && directionsDistance !== null && directionsTime) {
       setShowInfoPanel(true);
     }
   }, [showDirections, directionsDistance, directionsTime]);
+
   // Function to copy the current URL to clipboard
   const copyUrlToClipboard = () => {
     navigator.clipboard
@@ -137,11 +142,11 @@ export function MapAndSearch({
       });
   };
 
-
   // Function to toggle info panel
   const toggleInfoPanel = () => {
     setShowInfoPanel(!showInfoPanel);
   };
+
   return (
     <div className="space-y-1">
       <div className="relative" ref={searchInputRef}>
@@ -155,7 +160,7 @@ export function MapAndSearch({
             className="pl-12 pr-10 py-6 rounded-xl border-[#E5E5EA] bg-white focus-visible:ring-[#0071E3] text-[#1D1D1F]"
             value={searchValue}
             onChange={handleSearchChange}
-            disabled={!isLoaded || loading || isPinDropperActive}
+            disabled={!isLoaded || loading || isPinDropperActive || isochroneLoading || isOpenDeliveryZoneVisualizerMenu}
           />
           {isSearchLoading && (
             <div className="absolute inset-y-0 right-10 flex items-center pr-3">
@@ -195,8 +200,8 @@ export function MapAndSearch({
         )}
       </div>
 
-      {/* Button row with Pin Dropper, Directions, and new Share button */}
-      <div className="hidden justify-between items-center mt-2">
+      {/* Button row with Pin Dropper, Directions, and Share button */}
+      <div className="flex justify-between items-center mt-2">
         <div className="flex space-x-2">
           {/* Share button - only show when a location is selected */}
           {clickedPoint && (
@@ -229,6 +234,7 @@ export function MapAndSearch({
           )}
         </div>
 
+        {/* Add directions button here, only show when directionsReady */}
         {!isPinDropperActive && directionsReady && !showDirections && (
           <Button
             size="sm"
@@ -239,10 +245,26 @@ export function MapAndSearch({
             Show Directions
           </Button>
         )}
+
+        {/* Clear directions button when showing directions */}
+        {showDirections && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-full text-xs px-4 border-[#0071E3] text-[#0071E3]"
+            onClick={() => {
+              clearDirections(mapInstance);
+              setShowDirections(false);
+            }}
+          >
+            <X className="h-3 w-3 mr-1.5" />
+            Clear Directions
+          </Button>
+        )}
       </div>
 
-      {/* Error messages */}
-      {/* {error && (
+      {/* Show error messages when they exist */}
+      {error && (
         <div className="bg-[#FEF2F2] p-4 rounded-xl text-[#EF4444] border border-[#FEE2E2]">
           <p className="font-medium">Error</p>
           <p className="text-sm">{error}</p>
@@ -255,10 +277,14 @@ export function MapAndSearch({
             Try Again
           </Button>
         </div>
-      )} */}
+      )}
 
       {/* Map with isochrones */}
-      <div className="h-[500px] rounded-2xl overflow-hidden border-0 shadow-sm bg-white relative">
+      <div
+        className={`h-[500px] rounded-2xl overflow-hidden border-0 shadow-sm bg-white relative ${
+          isOpenDeliveryZoneVisualizerMenu ? "pointer-events-none blur-sm" : ""
+        }`}
+      >
         <div ref={mapRef} className="w-full h-full relative rounded-lg" />
         <div id="map-service" ref={mapDivRef} style={{ display: "none" }}></div>
 
@@ -271,33 +297,27 @@ export function MapAndSearch({
           />
         )}
 
+        {/* Loading overlay */}
         {(loading || isochroneLoading) && (
-          <div className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center">
+          <div className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="flex flex-col items-center">
               <Loader2 className="h-8 w-8 animate-spin text-[#0071E3] mb-2" />
-              <p className="text-[#0071E3] font-medium">Loading zones...</p>
+              <p className="text-[#0071E3] font-medium">
+                {isochroneLoading ? "Loading delivery zones..." : "Loading map..."}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Map badge */}
+        {/* Map badge - shows vendor name */}
         <div className="absolute top-3 left-3 z-10">
-          {!isPinDropperActive && directionsReady && !showDirections ? (
-            <Button
-              size="sm"
-              className="bg-[#0071E3] hover:bg-[#0062C3] text-white text-xs rounded-full px-4 shadow-sm"
-              onClick={handleShowDirectionsClick}
-            >
-              <Navigation className="h-3 w-3 mr-1.5" />
-              Show Directions
-            </Button>
-          ) : (
-            <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs flex items-center shadow-sm">
-              <MapIcon className="h-3 w-3 mr-1.5 text-[#0071E3]" />
-              <span className="font-medium text-[#1D1D1F]">WinneMart</span>
-            </div>
-          )}
+          <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs flex items-center shadow-sm">
+            <MapIcon className="h-3 w-3 mr-1.5 text-[#0071E3]" />
+            <span className="font-medium text-[#1D1D1F]">Delivery Zones</span>
+          </div>
         </div>
+
+        {/* Pin dropper button */}
         <div className="absolute bottom-3 right-3 z-10">
           <Button
             size="sm"
@@ -314,59 +334,59 @@ export function MapAndSearch({
             {isPinDropperActive ? "Exit Pin Mode" : "Drop Pin on Map"}
           </Button>
         </div>
+        
         {/* Directions info card */}
-        {showInfoPanel ? (
-          <>
-            {showDirections &&
-              directionsDistance !== null &&
-              directionsTime && (
-                <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-4 max-w-xs border border-[#E5E5EA]">
-                  <div className="flex items-center mb-2">
-                    <div className="h-6 w-6 rounded-full bg-[#0071E3] flex items-center justify-center mr-2">
-                      <Navigation className="h-3 w-3 text-white" />
-                    </div>
-                    <h3 className="font-medium text-[#1D1D1F]">
-                      Route Details
-                    </h3>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[#86868B]">Distance</span>
-                      <span className="font-medium">
-                        {directionsDistance.toFixed(2)} km
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#86868B]">Est. Travel Time</span>
-                      <span className="font-medium">{directionsTime}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#86868B]">Transport Mode</span>
-                      <span className="font-medium">
-                        {transportMode.charAt(0).toUpperCase() +
-                          transportMode.slice(1)}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full text-xs px-4 border-[#0071E3] text-[#0071E3]"
-                    onClick={toggleInfoPanel}
-                  >
-                    <Info className="h-3 w-3 mr-1.5" />
-                    {showInfoPanel ? "Hide Info" : "Show Info"}
-                  </Button>
-                </div>
-              )}
-          </>
-        ) : (
-          <div
-            onClick={toggleInfoPanel}
-            className="absolute bottom-4 left-4 z-10   p-2"
+        {showDirections && directionsDistance !== null && directionsTime && (
+          <div 
+            className={`absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-4 max-w-xs border border-[#E5E5EA] transition-all duration-300 ${
+              showInfoPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
           >
-            <Info className="h-3 w-3 mr-1.5" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <div className="h-6 w-6 rounded-full bg-[#0071E3] flex items-center justify-center mr-2">
+                  <Navigation className="h-3 w-3 text-white" />
+                </div>
+                <h3 className="font-medium text-[#1D1D1F]">Route Details</h3>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 rounded-full"
+                onClick={toggleInfoPanel}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[#86868B]">Distance</span>
+                <span className="font-medium">
+                  {directionsDistance.toFixed(2)} km
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#86868B]">Est. Travel Time</span>
+                <span className="font-medium">{directionsTime}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#86868B]">Transport Mode</span>
+                <span className="font-medium capitalize">
+                  {transportMode}
+                </span>
+              </div>
+            </div>
           </div>
+        )}
+        
+        {/* Collapsed info toggle button */}
+        {showDirections && directionsDistance !== null && directionsTime && !showInfoPanel && (
+          <button
+            onClick={toggleInfoPanel}
+            className="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-sm cursor-pointer hover:bg-white transition-colors"
+          >
+            <Info className="h-4 w-4 text-[#0071E3]" />
+          </button>
         )}
       </div>
     </div>
