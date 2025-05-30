@@ -12,7 +12,6 @@ import {
   updateMapIsochrones,
 } from "../mapUtils";
 
-
 import {
   processIsochroneData,
   calculateZoneDetails,
@@ -23,7 +22,7 @@ import {
 } from "./Hook/dataUtils";
 
 import { MapAndSearch } from "../mapAndSearch";
-import { useParams, useSearchParams } from "react-router";
+import { useLocation, useParams, useSearchParams } from "react-router";
 import { DeliveryZoneVisualizerMenu } from "./deliveryZoneVisualizerMenu";
 import { toast } from "sonner";
 import { useVendorIsochrones } from "./Hook/Isochrones";
@@ -33,6 +32,8 @@ const libraries: Libraries = ["places"];
 
 export function DeliveryZoneVisualizerVendor() {
   const { vendorId } = useParams<{ vendorId: string }>(); // Changed from riderId to vendorId
+  const { orderId } = useParams<{ orderId: string }>(); // Changed from riderId to vendorId
+  console.log("Order from location state:", orderId);
 
   // ==========================================
   // Environment and API Keys
@@ -97,6 +98,9 @@ export function DeliveryZoneVisualizerVendor() {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [showPredictions, setShowPredictions] = useState(false);
 
+  // SOLUTION 1: Add a state to track when we should auto-show directions
+  const [shouldAutoShowDirections, setShouldAutoShowDirections] =
+    useState(false);
   // ==========================================
   // Refs for DOM elements and MapLibre instances
   // ==========================================
@@ -252,7 +256,14 @@ export function DeliveryZoneVisualizerVendor() {
         );
       }
     }
-  }, [mapLoaded, isochrones, vendorLocation, zoneDetails, clickedPoint, transportMode]);
+  }, [
+    mapLoaded,
+    isochrones,
+    vendorLocation,
+    zoneDetails,
+    clickedPoint,
+    transportMode,
+  ]);
 
   // ==========================================
   // Google Places Search Functions
@@ -311,6 +322,50 @@ export function DeliveryZoneVisualizerVendor() {
       setPredictions([]);
     }
   }, []);
+  const handleShowDirectionsClick = useCallback(() => {
+    if (clickedPoint && vendorLocation) {
+      clearDirections(mapInstance);
+      createDirectRoute(
+        clickedPoint,
+        vendorLocation,
+        setLoading,
+        setError,
+        setDirectionsDistance,
+        setDirectionsTime,
+        setShowDirections,
+        mapInstance,
+        transportMode
+      );
+    } else {
+      setError("Please select a location first to show directions");
+      setTimeout(() => setError(null), 3000);
+    }
+  }, [clickedPoint, vendorLocation, transportMode]);
+
+  useEffect(() => {
+    if (
+      shouldAutoShowDirections &&
+      clickedPoint &&
+      vendorLocation &&
+      mapLoaded &&
+      !showDirections && // Only if directions aren't already showing
+      !loading &&
+      !isochroneLoading
+    ) {
+      console.log("Auto-showing directions...");
+      handleShowDirectionsClick();
+      setShouldAutoShowDirections(false); // Reset the flag
+    }
+  }, [
+    shouldAutoShowDirections,
+    clickedPoint,
+    vendorLocation,
+    mapLoaded,
+    showDirections,
+    loading,
+    isochroneLoading,
+    handleShowDirectionsClick,
+  ]);
 
   const handlePredictionSelect = useCallback(
     (place: any) => {
@@ -353,6 +408,9 @@ export function DeliveryZoneVisualizerVendor() {
               );
 
               handleSetClickedPoint({ lng, lat });
+
+              // CHANGED: Set flag to auto-show directions instead of setTimeout
+              setShouldAutoShowDirections(true);
             } else {
               console.error("Error getting place details:", status);
             }
@@ -383,6 +441,9 @@ export function DeliveryZoneVisualizerVendor() {
               );
 
               handleSetClickedPoint({ lng, lat });
+
+              // CHANGED: Set flag to auto-show directions instead of setTimeout
+              setShouldAutoShowDirections(true);
             } else {
               console.error("Geocoding failed:", status);
             }
@@ -390,7 +451,7 @@ export function DeliveryZoneVisualizerVendor() {
         );
       }
     },
-    [clickMarker, infoPopup, handleSetClickedPoint]
+    [clickMarker, infoPopup, handleSetClickedPoint] // Removed handleShowDirectionsClick from dependencies
   );
 
   // ==========================================
@@ -401,26 +462,6 @@ export function DeliveryZoneVisualizerVendor() {
     setError(null);
     window.location.reload();
   }, []);
-
-  const handleShowDirectionsClick = useCallback(() => {
-    if (clickedPoint && vendorLocation) {
-      clearDirections(mapInstance);
-      createDirectRoute(
-        clickedPoint,
-        vendorLocation,
-        setLoading,
-        setError,
-        setDirectionsDistance,
-        setDirectionsTime,
-        setShowDirections,
-        mapInstance,
-        transportMode
-      );
-    } else {
-      setError("Please select a location first to show directions");
-      setTimeout(() => setError(null), 3000);
-    }
-  }, [clickedPoint, vendorLocation, transportMode]);
 
   const handleClearSearch = useCallback(() => {
     setSearchValue("");
@@ -462,7 +503,10 @@ export function DeliveryZoneVisualizerVendor() {
     (coordinates: { lng: number; lat: number }) => {
       handleSetClickedPoint({ lng: coordinates.lng, lat: coordinates.lat });
       setIsPinDropperActive(false);
+      // ADDED: Auto-show directions for pin dropper too
+      setShouldAutoShowDirections(true);
     },
+
     [handleSetClickedPoint]
   );
 
@@ -619,60 +663,72 @@ export function DeliveryZoneVisualizerVendor() {
   // Function to show all isochrones for selected rider
   const showAllRiderIsochrones = useCallback(() => {
     console.log("showAllRiderIsochrones called");
-    
+
     if (!mapLoaded || !mapInstance.current) {
       console.error("Map not loaded yet");
       toast.error("Map not loaded yet", { duration: 3000 });
       return;
     }
-    
+
     if (!selectedRiderMapData || selectedRiderMapData.length === 0) {
       console.error("No isochrones data available");
       toast.error("No isochrones data available", { duration: 3000 });
       return;
     }
-    
+
     try {
       setActiveZoneIndex(null);
-      
+
       if (isochrones.length > 0) {
         console.log("Using existing isochrones:", isochrones.length);
         updateMapIsochrones(isochrones, null, mapInstance);
         toast.success("Showing all delivery zones", { duration: 3000 });
         return;
       }
-      
+
       const selectedIsochrone = selectedRiderMapData[selectedIsochroneIndex];
       console.log("Selected isochrone:", selectedIsochrone?.id);
-      
+
       if (!selectedIsochrone || !selectedIsochrone.geojson) {
         console.error("No geojson data in selected isochrone");
         toast.error("No zone data available", { duration: 3000 });
         return;
       }
-      
+
       const parsedGeoJSON = safeParseGeoJSON(selectedIsochrone.geojson);
-      
-      if (!parsedGeoJSON || !parsedGeoJSON.features || !parsedGeoJSON.features.length) {
+
+      if (
+        !parsedGeoJSON ||
+        !parsedGeoJSON.features ||
+        !parsedGeoJSON.features.length
+      ) {
         console.error("Invalid GeoJSON data or no features");
         toast.error("Invalid zone data", { duration: 3000 });
         return;
       }
-      
+
       console.log(`Found ${parsedGeoJSON.features.length} features in GeoJSON`);
-      
+
       const processedFeatures = parsedGeoJSON.features.map((feature, index) => {
         const metaData = selectedIsochrone.metaData?.[index];
-        
+
         return {
           ...feature,
           properties: {
             ...feature.properties,
             group_index: index,
-            range: selectedIsochrone.range && selectedIsochrone.range[index] 
-              ? selectedIsochrone.range[index] 
-              : (index + 1) * 5,
-            color: ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"][index % 6],
+            range:
+              selectedIsochrone.range && selectedIsochrone.range[index]
+                ? selectedIsochrone.range[index]
+                : (index + 1) * 5,
+            color: [
+              "#4ade80",
+              "#facc15",
+              "#f87171",
+              "#60a5fa",
+              "#a78bfa",
+              "#f472b6",
+            ][index % 6],
             // Add metadata
             price: metaData?.price || 0,
             duration: metaData?.duration || 0,
@@ -681,9 +737,9 @@ export function DeliveryZoneVisualizerVendor() {
           },
         };
       });
-      
+
       setIsochrones(processedFeatures);
-      
+
       const tempRanges = selectedIsochrone.range || [5, 10, 15, 20, 25, 30];
       const details = calculateZoneDetails(
         processedFeatures,
@@ -693,9 +749,9 @@ export function DeliveryZoneVisualizerVendor() {
         selectedIsochrone.transportMode || "car"
       );
       setZoneDetails(details);
-      
+
       updateMapIsochrones(processedFeatures, null, mapInstance);
-      
+
       toast.success("Showing all delivery zones", { duration: 3000 });
     } catch (error) {
       console.error("Error in showAllRiderIsochrones:", error);
@@ -759,6 +815,16 @@ export function DeliveryZoneVisualizerVendor() {
           // Transport mode
           transportMode={transportMode}
           isOpenDeliveryZoneVisualizerMenu={isOpenDeliveryZoneVisualizerMenu}
+          orderId={orderId ?? ""} // Pass orderId to the MapAndSearch component
+          // selectedRiderId={orderId ?? ""} // Pass orderId to the MapAndSearch component
+          selectedRiderId={selectedRiderId}
+          isochrones={isochrones}
+          vendorLocation={vendorLocation}
+          zoneDetails={zoneDetails}
+          geocoderRef={geocoderRef}
+          calculatePointDeliveryInfo={calculatePointDeliveryInfo}
+
+          
         />
 
         {/* Enhanced Delivery Zone Visualizer Menu with Riders tab */}
@@ -781,7 +847,9 @@ export function DeliveryZoneVisualizerVendor() {
           isOpen={isOpenDeliveryZoneVisualizerMenu}
           setIsOpen={setIsOpenDeliveryZoneVisualizerMenu}
           showAllRiderIsochrones={showAllRiderIsochrones}
-          setOpenDeliveryZoneVisualizerMenu={setIsOpenDeliveryZoneVisualizerMenu}
+          setOpenDeliveryZoneVisualizerMenu={
+            setIsOpenDeliveryZoneVisualizerMenu
+          }
         />
       </div>
     </div>

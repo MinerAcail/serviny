@@ -12,6 +12,8 @@ interface UserType {
   type: string; // Changed to an array of strings for multiple types
   number: string;
 }
+// GraphQL query to clear the client cache
+
 
 // Create an authentication context
 const AuthContext = createContext<{
@@ -20,13 +22,38 @@ const AuthContext = createContext<{
   login: (user: UserType) => void;
   logout: () => void;
   isLoading: boolean;
+  clearCache: () => void;
 } | undefined>(undefined);
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true); // New loading state
+// Hook to execute the clear cache query
+//   const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
+//     onCompleted: (data) => {
+//       if (data.clearClientCache) {
+//         // Clear localStorage when server confirms
+//         clearLocalStorage();
+//       }
+//     },
+//     onError: (error) => {
+//       console.error("Error clearing client cache:", error);
+//       // Still clear localStorage even if server call fails
+//       clearLocalStorage();
+//     }
+//   });
+// console.log("clearClientCache initialized",data);	
 
+  // Function to clear localStorage
+  const clearLocalStorage = () => {
+    try {
+      localStorage.removeItem("userData");
+      // Or clear everything: localStorage.clear();
+    } catch (error) {
+      console.error("Error clearing localStorage:", error);
+    }
+  };
   useEffect(() => {
     // Check if there is user data in localStorage when the component mounts
     try {
@@ -57,13 +84,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Function to handle logout
   const logout = () => {
+       // Trigger the GraphQL query to clear cache
+    clearLocalStorage();
     setIsAuthenticated(false);
     setUser(null);
-    localStorage.removeItem("userData"); // Remove user data from storage
+    // localStorage.removeItem("userData"); // Remove user data from storage
   };
-
+// Function to manually clear cache (if needed elsewhere)
+  const clearCache = () => {
+    clearLocalStorage();
+  };
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout,isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout,isLoading,clearCache }}>
       {children}
     </AuthContext.Provider>
   );

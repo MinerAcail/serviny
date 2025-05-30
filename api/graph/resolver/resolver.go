@@ -2,6 +2,7 @@ package graph
 
 import (
 	// "github.com/lehxees/serviny/database/otp"
+
 	"github.com/redis/go-redis/v9"
 
 	"github.com/minio/minio-go/v7"
@@ -14,7 +15,6 @@ type Resolver struct {
 	DB          *gorm.DB
 	MinIOClient *minio.Client
 	RedisClient *redis.Client
-	
+	Subscribers map[string]chan []float64 // keyed by riderID
+
 }
-
-

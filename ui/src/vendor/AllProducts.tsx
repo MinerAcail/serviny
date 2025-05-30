@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Carousel,
@@ -288,6 +289,7 @@ export function ProductDetailDialog({
   );
 }
 
+
 // ProductCard Component
 export function ProductCard({
   product,
@@ -296,14 +298,23 @@ export function ProductCard({
   product: Product;
   onClick: (product: Product) => void;
 }) {
-  const { addItem, items } = useCart();
-  // Check if product is already in cart
-  const isInCart = items.some((item) => item.id === product.id);
-  const productCount =
-    items.find((item) => item.id === product.id)?.quantity || 0;
+ const { addItem, getProductCount, isProductInCart, items } = useCart();
+  
+  // Use the full product ID - don't split UUIDs
+  const baseProductId = product.id;
+  
+  // Check if product is already in cart (any variant)
+  const isInCart = isProductInCart(baseProductId);
+  // Get total count across all variants
+  const productCount = getProductCount(baseProductId);
+  
   // State for shuffling badge animation
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Dialog state
+  const [showItemTypeDialog, setShowItemTypeDialog] = useState(false);
+  const [selectedItemType, setSelectedItemType] = useState<string>("");
 
   // Check if there are valid item types (non-empty array and not just "Uncategorized")
   const hasValidItemTypes =
@@ -336,105 +347,171 @@ export function ProductCard({
     return () => clearInterval(interval);
   }, [validItemTypes.length, hasValidItemTypes]);
 
-  // formatPrice
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the parent onClick
-    // Add to cart logic here
-    addItem(product, 1);
+    
+    // If product has multiple item types, show dialog
+    if (hasValidItemTypes && validItemTypes.length > 1) {
+      setShowItemTypeDialog(true);
+      return;
+    }
+    
+    // If product has only one item type or no item types, add directly
+    const itemType = hasValidItemTypes ? validItemTypes[0] : null;
+    addToCartWithType(itemType);
+  };
+
+  const addToCartWithType = (itemType: string | null) => {
+    // Create a modified product with the selected item type
+    // Keep the original product ID, just add the selectedItemType property
+    const productWithType = {
+      ...product,
+      selectedItemType: itemType,
+      // Don't modify the product ID - let the cart context handle the unique cart item ID
+      name: itemType ? `${product.name} (${itemType})` : product.name,
+    };
+
+    addItem(productWithType, 1);
+    
     toast.success(
       <div className="flex items-center gap-2">
-        <span>{product.name} added to cart!</span>
-        {/* <MoveRight className="h-4 w-4 animate-pulse" /> */}
+        <span>
+          {product.name}
+          {itemType && ` (${itemType})`} added to cart!
+        </span>
       </div>,
-
       { position: "top-center" }
     );
   };
 
+  const handleItemTypeSelect = (itemType: string) => {
+    setSelectedItemType(itemType);
+    addToCartWithType(itemType);
+    setShowItemTypeDialog(false);
+    setSelectedItemType("");
+  };
   return (
-    <div
-      className="group relative overflow-hidden rounded-md shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer bg-primary-foreground"
-      onClick={() => onClick(product)}
-    >
-      <div className="relative aspect-square overflow-hidden">
-        <img
-          src={product.imageUrls[0] || "/placeholder.svg"}
-          alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-        {/* Add to Cart Button at top right */}
-        <div className="absolute top-2 right-2 z-10">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
-            onClick={handleAddToCart}
-          >
-            <span className="text-[12px] text-primary-foreground">
-              {isInCart ? "Add More" : "Buy"}
-            </span>
-
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-primary-foreground ml-1"
+    <>
+      <div
+        className="group relative overflow-hidden rounded-md shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer bg-primary-foreground"
+        onClick={() => onClick(product)}
+      >
+        <div className="relative aspect-square overflow-hidden">
+          <img
+            src={product.imageUrls[0] || "/placeholder.svg"}
+            alt={product.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          {/* Add to Cart Button at top right */}
+          <div className="absolute top-2 right-2 z-10">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
+              onClick={handleAddToCart}
             >
-              <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
-              <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="M12 7v4" />
-              <path d="M10 9h4" />
-            </svg>
-
-            {productCount > 0 && (
-              <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
-                {productCount}
+              <span className="text-[12px] text-primary-foreground">
+                {isInCart ? "Add More" : "Buy"}
               </span>
-            )}
-          </Button>
-        </div>
 
-        <div className="absolute  bottom-0 left-0 right-0 bg-gradient-to-tr from-background/100 to-transparent p-3">
-          <div className="flex items-center justify-between my-1">
-            <h3 className="font-semibold text-sm sm:text-base truncate">
-              {product.name}
-            </h3>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-primary-foreground ml-1"
+              >
+                <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="M12 7v4" />
+                <path d="M10 9h4" />
+              </svg>
 
-            {hasValidItemTypes && (
-              <div className="relative h-6 w-24 flex items-center justify-end overflow-hidden">
-                <Badge
-                  variant="outline"
-                  className={`text-xs absolute transition-all duration-300 ${
-                    isAnimating
-                      ? "transform translate-y-full opacity-0"
-                      : "transform translate-y-0 opacity-100"
-                  }`}
-                >
-                  {validItemTypes[currentTypeIndex]}
-                </Badge>
-              </div>
-            )}
+              {productCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                  {productCount}
+                </span>
+              )}
+            </Button>
           </div>
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-sm font-medium text-primary">
-              {formatPrice(product.price)}
-            </p>
-            <Badge variant="outline" className="text-xs">
-              {product.state}
-            </Badge>
+
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-tr from-background/100 to-transparent p-3">
+            <div className="flex items-center justify-between my-1">
+              <h3 className="font-semibold text-sm sm:text-base truncate">
+                {product.name}
+              </h3>
+
+              {hasValidItemTypes && (
+                <div className="relative h-6 w-24 flex items-center justify-end overflow-hidden">
+                  <Badge
+                    variant="outline"
+                    className={`text-xs absolute transition-all duration-300 ${
+                      isAnimating
+                        ? "transform translate-y-full opacity-0"
+                        : "transform translate-y-0 opacity-100"
+                    }`}
+                  >
+                    {validItemTypes[currentTypeIndex]}
+                  </Badge>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-sm font-medium text-primary">
+                {formatPrice(product.price)}
+              </p>
+              <Badge variant="outline" className="text-xs">
+                {product.state}
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Item Type Selection Dialog */}
+      <Dialog open={showItemTypeDialog} onOpenChange={setShowItemTypeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose Item Type</DialogTitle>
+            <DialogDescription>
+              Select the type of {product.name} you want to add to your cart.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {validItemTypes.map((itemType) => (
+              <Button
+                key={itemType}
+                variant="outline"
+                className="justify-start h-auto p-4 hover:bg-primary/10"
+                onClick={() => handleItemTypeSelect(itemType)}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-medium">{itemType}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {formatPrice(product.price)}
+                  </Badge>
+                </div>
+              </Button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowItemTypeDialog(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

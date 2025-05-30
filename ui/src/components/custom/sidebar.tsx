@@ -24,6 +24,12 @@ import {
   MessageSquare,
   MapPlus,
   Merge,
+  GitPullRequest,
+  Map,
+  ChartLine,
+  History,
+  Building2,
+  LayoutList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,6 +50,8 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 import NotificationCenter from "../user/notification-center";
 import { CartButton } from "./cart/cart-button";
 import ProfileDialog, { ProfileProviderDialog } from "./profile-dialog";
+import RiderRequest from "../serviceProviders/Riders/request";
+import { useProvider } from "@/middleware/context/businessType";
 
 const bottomNavigation = [
   { name: "Settings", to: "/settings", icon: Settings },
@@ -60,28 +68,62 @@ type NavItemProps = {
   };
 };
 export function Sidebar() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated,clearCache } = useAuth();
   // const { isMatch } = useCheckAuthId(user?.id);
-
+  const { isMatch } = useCheckAuthId();
+  const { isDeliveryStandardOrEnterprise,isEcommerceStandardOrEnterprise } = useProvider();
+  useQuery(CLEAR_CLIENT_CACHE, {
+    onCompleted: (data) => {
+      // Always clear localStorage, regardless of server response
+      if (data.clearClientCache === false) {
+        clearCache();
+      }
+    },
+    onError: (error) => {
+      console.error("Error clearing client cache:", error);
+      // Still clear localStorage even if server call fails
+      clearCache();
+    }
+  });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navigation = [
     { name: "Home", to: `/providers/${user?.id}?lo`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
-    { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
-    { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
-    { name: "Delivery Zone", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+    ...(isEcommerceStandardOrEnterprise ?[
+      { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
+      { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+      { name: "Delivery Zone", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+      { name: "Contacts", to: `contacts`, icon: BookUser },
+      { name: "Orders", to: `orders`, icon: LayoutList },
 
-    { name: "Upload", to: "upload", icon: HardDriveUpload },
-    { name: "Business Types", to: "booktypes", icon: Library },
+    ]:[]),
+
+    
+    // {
+    //   name: "Items",
+    //   to: `/providers/${user?.id}?lt`,
+    //   icon: AlignVerticalJustifyStart,
+    // },
+    ...(isDeliveryStandardOrEnterprise
+      ? [
+          {
+            name: "Live Map",
+            to: `livemap`,
+            icon: Map,
+          },
+          { name: "Analytics", to: `analytics`, icon: ChartLine },
+          { name: "History", to: `history`, icon: History },
+          { name: "Request", to: `request`, icon: GitPullRequest },
+          { name: "Vendors", to: `vendors`, icon: Building2 },
+        ]
+      : []),
+
+      { name: "Upload", to: "upload", icon: HardDriveUpload },
+    // { name: "Business Types", to: "booktypes", icon: Library },
     { name: "Edit", to: "update", icon: Edit }, // absolute path outside
     { name: "Schedule", to: `time`, icon: CalendarSync },
-    { name: "Contacts", to: `contacts`, icon: BookUser },
     { name: "Social Media", to: `social`, icon: Waypoints },
-    {
-      name: "Items",
-      to: `/providers/${user?.id}?lt`,
-      icon: AlignVerticalJustifyStart,
-    },
+    
     // { name: "Profile", to: `/providers/${serviceId}`, icon: Home }, // this one still needs it
   ];
 
@@ -240,17 +282,37 @@ export function Sidebar() {
   );
 }
 
+import { gql, useQuery } from "@apollo/client";
+export const CLEAR_CLIENT_CACHE = gql`
+  query ClearClientCache {
+    clearClientCache
+  }
+`;
+
 export function SidebarMain({ serviceId }: { serviceId?: string }) {
   console.log("serviceId", serviceId);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { isMatch } = useCheckAuthId(serviceId);
-
-  const { isAuthenticated, user } = useAuth();
+  const { userType } = useProvider();
+  const { isAuthenticated, user,clearCache } = useAuth();
   const location = useLocation();
   const install = location.pathname === "/install";
   const providers = location.pathname === "/providers";
-
+  const {data} = useQuery(CLEAR_CLIENT_CACHE, {
+    onCompleted: (data) => {
+      // Always clear localStorage, regardless of server response
+      if (data.clearClientCache === false) {
+        clearCache();
+      }
+    },
+    onError: (error) => {
+      console.error("Error clearing client cache:", error);
+      // Still clear localStorage even if server call fails
+      clearCache();
+    }
+  });
+  console.log("clearClientCache initialized",data);
   // const checkurl = location.pathname === "/install" || location.pathname === "/zonex";
   //id from localStorage
   const currentVendorId = localStorage.getItem("currentVendorId");
@@ -363,7 +425,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
-          {/* <CartButton /> */}
+          <CartButton />
           <NotificationCenter />
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button
@@ -416,6 +478,37 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 <NavItem key={index} item={item} />
               ))}
             </nav>
+            {user?.type === "DELIVERY" && (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <RiderRequest serviceId={serviceId ?? ""}>
+                    <div
+                      className={cn(
+                        "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                        "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
+                        isCollapsed && "justify-center px-2"
+                      )}
+                    >
+                      <GitPullRequest
+                        className={cn("h-4 w-4", !isCollapsed && "mr-3")}
+                      />
+
+                      {/* <GitPullRequest className="w-4 h-4" /> */}
+                      {!isCollapsed && <span>Rider Request</span>}
+                    </div>
+                  </RiderRequest>
+                </TooltipTrigger>
+
+                {isCollapsed && (
+                  <TooltipContent
+                    side="right"
+                    className="flex items-center gap-4"
+                  >
+                    Rider Request
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
           </div>
           <div className="border-t  border-border p-2 grid grid-cols-2 gap-2 items-center">
             <nav className="space-y-1">

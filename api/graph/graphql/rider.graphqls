@@ -12,6 +12,7 @@ type Rider {
   location: String
   IsochroneID: String
   coordinates: [Float]
+  isTracking: Boolean!
   h3Indexes: [String]
   experience: String!
   createdAt: Time!
@@ -32,7 +33,13 @@ input RiderInput {
   h3Indexes: [String]
   experience: String!
 }
-
+# Rider status enum
+enum RiderStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  INACTIVE
+}
 extend type Query {
   reviewApplicate: [Rider]
   reviewAllWorks: [Rider]
@@ -42,24 +49,43 @@ extend type Query {
   riders(status: String): [Rider!]!
   nearbyRiders(location: [Float!]!, radius: Int!): [Rider!]!
 
+  testNearbyRiders(
+    center: CoordinateInput!
+    riders: [CoordinateInput!]!
+  ): [NearbyRider!]!
 
- testNearbyRiders(center: CoordinateInput!, riders: [CoordinateInput!]!): [NearbyRider!]!
-
-  
+  getjobResponse(serviceId: String!): RidersRequest
+  getAllRidersResponseInfor: [riderRequestInfor!]!
+  getRidersLocations: Rider!
+  riderCurrentLocation(riderId: String!): [Float!]!
+  getAllRidersStatusState(status: RiderStatus!): [Rider!]!
 }
 
 extend type Mutation {
-  craeteRider(dpfile: Upload,idCardfiles: [Upload] input: RiderInput): Rider
+  craeteRider(dpfile: Upload, idCardfiles: [Upload], input: RiderInput): Rider
   updateRiderStatus(id: String!, status: String!): Rider
   updateRider(id: String!, input: RiderInput!): Rider
   deleteRider(id: String!): Boolean
 
   useGetRiderTracking: Rider
+  updateRiderOnlineStatus(status: RiderStatus!): Rider
+  updateRiderLocation(coordinates: [Float!]!): Rider
 
-  jobResponse(applicantId: String!, State: String!): Rider
+  riderGoOnline: Rider
+  riderGoOffline: Rider
+
+  starOrStoptLocationTracking(isTracking: Boolean!): Boolean
+
+  jobRequest(serviceId: String!, input: RidersRequestInput!): RidersRequest
+  updateStateByServiceProvider(
+    riderId: String!
+    state: String
+  ): riderRequestInfor
 }
-
-
+type riderRequestInfor {
+  rider: Rider!
+  request: RidersRequest!
+}
 input CoordinateInput {
   name: String!
   lat: Float!
@@ -72,4 +98,29 @@ type NearbyRider {
   lng: Float!
   h3Dist: Int!
   distance: Float!
+}
+
+# rider send request to admin
+type RidersRequest {
+  id: String!
+  riderId: String!
+  termsConditions: Boolean!
+  message: String
+  serviceId: String!
+  state: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+input RidersRequestInput {
+  termsConditions: Boolean!
+  message: String
+  state: String!
+}
+
+extend type Subscription {
+  # Real-time subscriptions
+  riderStatusChanged(riderId: String): Rider
+  riderLocationUpdated(riderId: String): [Float!]!
+  # nearbyRidersUpdated(location: LocationInput!, radius: Int!): [NearbyRider!]!
+  # onlineRidersCount: Int!
 }

@@ -72,7 +72,6 @@ export const showPointInfoPopup = (
 
   const map = mapInstance.current
 
-  // Create popup content with iOS-style design
   let content = ""
 
   if (info.inZone) {

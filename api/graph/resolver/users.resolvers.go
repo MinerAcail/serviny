@@ -57,6 +57,40 @@ func (r *mutationResolver) DeleteUserByID(ctx context.Context, id string) (*bool
 	return &success, nil
 }
 
+// UpdateUserByID is the resolver for the updateUserById field.
+func (r *mutationResolver) UpdateUserByID(ctx context.Context, id string, input *model.InputUpdateUser) (*model.User, error) {
+	var user model.User
+	if err := r.DB.First(&user, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	if input.Name != nil {
+		user.Name = *input.Name
+	}
+	if input.Number != nil {
+		user.Number = *input.Number
+	}
+	if input.Email != nil {
+		user.Email = input.Email
+	}
+	if input.NumberType != nil {
+		user.NumberType = *input.NumberType
+	}
+	if input.Password != nil && *input.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		user.Password = func(s string) *string { return &s }(string(hashedPassword))
+	}
+
+	if err := r.DB.Save(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // GetUserByID is the resolver for the getUserById field.
 func (r *queryResolver) GetUserByID(ctx context.Context, id string) (*model.User, error) {
 	var user model.User

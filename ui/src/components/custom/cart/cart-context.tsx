@@ -1,21 +1,59 @@
-"use client"
-
 import { Product } from "@/vendor/types"
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
+import { useSearchParams } from "react-router"
+import {
+  compressToEncodedURIComponent,
+  decompressFromEncodedURIComponent,
+} from "lz-string"
 
-// Define the CartItem interface
+export interface OrderItemInput {
+  productId: string;
+  quantity: number;
+  itemType?: string;
+}
+
 export interface CartItem {
   id: string
+  productId: string // Store the actual product ID separately
   name: string
   price: number
   imageUrl: string
   quantity: number
+  selectedItemType?: string
 }
 
-// Define the CartContextType
+export interface Order {
+  id: string;
+  userId: string;
+  status: string;
+  estimatedDeliveryDate?: string;
+  createdAt: string;
+  items: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  itemType: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    imageUrls: string[];
+  };
+}
+
 interface CartContextType {
   items: CartItem[]
-  addItem: (product: Product, quantity?: number) => void
+  addItem: (product: Product & { selectedItemType?: string }, quantity?: number) => void
   removeItem: (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
   clearCart: () => void
@@ -23,86 +61,134 @@ interface CartContextType {
   total: number
   isOpen: boolean
   setIsOpen: (isOpen: boolean) => void
+  getProductCount: (productId: string) => number
+  isProductInCart: (productId: string) => boolean
 }
 
-// Create the CartContext
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-// CartProvider component
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpenState] = useState(false) // Use local state instead of URL
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  // Load cart from localStorage on initial render
-  useEffect(() => {
-    const storedCart = localStorage.getItem("cart")
-    if (storedCart) {
-      try {
-        setItems(JSON.parse(storedCart))
-      } catch (error) {
-        console.error("Failed to parse cart from localStorage:", error)
-      }
-    }
-  }, [])
-
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items))
-  }, [items])
-
-  // Calculate total number of items in cart
-  const itemCount = items.reduce((count, item) => count + item.quantity, 0)
-
-  // Calculate total price
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-
-  // Add an item to the cart
-  const addItem = (product: Product, quantity = 1) => {
-    setItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id)
-
-      if (existingItem) {
-        // Update quantity if item already exists
-        return prevItems.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
-        )
-      } else {
-        // Add new item
-        return [
-          ...prevItems,
-          {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            imageUrl: product.imageUrls?.[0] || "/placeholder.svg",
-            quantity,
-          },
-        ]
-      }
-    })
-
-    // Open cart drawer when adding items
-    // setIsOpen(true)
+  // Remove cart=open URL logic - only handle cartData
+  const setIsOpen = (open: boolean) => {
+    setIsOpenState(open)
   }
 
-  // Remove an item from the cart
+  // Load cart from URL
+  useEffect(() => {
+    const encoded = searchParams.get("cartData")
+    if (encoded) {
+      try {
+        const json = decompressFromEncodedURIComponent(encoded)
+        if (json) {
+          const parsed = JSON.parse(json)
+          if (Array.isArray(parsed)) {
+            setItems(parsed)
+          }
+        }
+      } catch (e) {
+        console.error("Failed to decode cart from URL", e)
+      }
+    }
+  }, [searchParams])
+
+  // Save cart to URL - only cartData, no cart=open
+  useEffect(() => {
+    if (items.length === 0) {
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete("cartData")
+      setSearchParams(newParams, { replace: true })
+      return
+    }
+
+    const compressed = compressToEncodedURIComponent(JSON.stringify(items))
+    const newParams = new URLSearchParams(searchParams)
+    newParams.set("cartData", compressed)
+    setSearchParams(newParams, { replace: true })
+  }, [items, searchParams, setSearchParams])
+
+  const itemCount = useMemo(
+    () => items.reduce((count, item) => count + item.quantity, 0),
+    [items],
+  )
+
+  const total = useMemo(
+    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [items],
+  )
+
+  const addItem = (
+    product: Product & { selectedItemType?: string },
+    quantity = 1,
+  ) => {
+    setItems((prevItems) => {
+      // Create unique cart item ID based on product ID and item type
+      const itemId = product.selectedItemType
+        ? `${product.id}-${product.selectedItemType}`
+        : product.id
+
+      const existingItem = prevItems.find((item) => item.id === itemId)
+
+      if (existingItem) {
+        return prevItems.map((item) =>
+          item.id === itemId
+            ? { ...item, quantity: item.quantity + quantity }
+            : item,
+        )
+      }
+
+      return [
+        ...prevItems,
+        {
+          id: itemId, // Unique cart item identifier
+          productId: product.id, // Store the full product UUID
+          name: product.name,
+          price: product.price,
+          imageUrl: product.imageUrls?.[0] || "/placeholder.svg",
+          quantity,
+          selectedItemType: product.selectedItemType,
+        },
+      ]
+    })
+
+    setIsOpen(true)
+  }
+
   const removeItem = (id: string) => {
     setItems((prevItems) => prevItems.filter((item) => item.id !== id))
   }
 
-  // Update item quantity
   const updateQuantity = (id: string, quantity: number) => {
     if (quantity <= 0) {
       removeItem(id)
-      return
+    } else {
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === id ? { ...item, quantity } : item,
+        ),
+      )
     }
-
-    setItems((prevItems) => prevItems.map((item) => (item.id === id ? { ...item, quantity } : item)))
   }
 
-  // Clear the entire cart
   const clearCart = () => {
     setItems([])
+    // Clean up cartData from URL when clearing cart
+    // const newParams = new URLSearchParams(searchParams)
+    // newParams.delete("cartData")
+    // setSearchParams(newParams, { replace: true })
+  }
+
+  const getProductCount = (productId: string) => {
+    return items
+      .filter((item) => item.productId === productId)
+      .reduce((count, item) => count + item.quantity, 0)
+  }
+
+  const isProductInCart = (productId: string) => {
+    return items.some((item) => item.productId === productId)
   }
 
   return (
@@ -117,6 +203,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         total,
         isOpen,
         setIsOpen,
+        getProductCount,
+        isProductInCart,
       }}
     >
       {children}
@@ -124,10 +212,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// Custom hook to use the cart context
 export function useCart() {
   const context = useContext(CartContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useCart must be used within a CartProvider")
   }
   return context

@@ -247,20 +247,6 @@ func (r *queryResolver) GetUserBookings(ctx context.Context, bookTypeID string, 
 
 // GetUserInfor is the resolver for the getUserInfor field.
 func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model.UsersInfor, error) {
-	// Try to find a service by ID
-	service := &model.Service{}
-	if err := r.DB.First(service, "id = ?", userID).Error; err == nil {
-		return &model.UsersInfor{
-			ID:       service.ID.String(),
-			Name:     service.Name,
-			Type:     service.Type,
-			Number:   service.Number,
-			Email:    service.Email,
-			Location: service.Location,
-			Dpfile:   service.Dpfile,
-		}, nil
-	}
-
 	// Try to find a user by ID
 	user := &model.User{}
 	if err := r.DB.First(user, "id = ?", userID).Error; err == nil {
@@ -269,15 +255,31 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 			email = *user.Email
 		}
 		return &model.UsersInfor{
-			ID:       user.ID.String(),
-			Name:     user.Name,
-			Type:     user.Type,
-			Number:   user.Number,
-			Email:    email,
-			Location: nil,
-			Dpfile:   nil,
+			ID:          user.ID.String(),
+			Name:        user.Name,
+			Type:        user.Type,
+			Number:      user.Number,
+			Email:       email,
+			Coordinates: nil,
+			Location:    nil,
+			Dpfile:      nil,
 		}, nil
 	}
+	// Try to find a service by ID
+	service := &model.Service{}
+	if err := r.DB.First(service, "id = ?", userID).Error; err == nil {
+		return &model.UsersInfor{
+			ID:          service.ID.String(),
+			Name:        service.Name,
+			Type:        *service.BusinessType,
+			Number:      service.Number,
+			Email:       service.Email,
+			Location:    service.Location,
+			Dpfile:      service.Dpfile,
+			Coordinates: service.Coordinates,
+		}, nil
+	}
+
 	rider := &model.Rider{}
 	if err := r.DB.First(rider, "id = ?", userID).Error; err == nil {
 		email := ""
@@ -285,23 +287,43 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 			email = rider.Email
 		}
 		return &model.UsersInfor{
-			ID:       rider.ID.String(),
-			Name:     rider.Name,
-			Type:     rider.Type,
-			Number:   rider.Number,
-			Email:    email,
-			Location: rider.Location,
-			Dpfile:   rider.Dpfile,
+			ID:          rider.ID.String(),
+			Name:        rider.Name,
+			Type:        rider.Type,
+			Number:      rider.Number,
+			Email:       email,
+			Location:    rider.Location,
+			Dpfile:      rider.Dpfile,
+			Coordinates: rider.Coordinates,
 		}, nil
 	}
 
 	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 
+// ClearClientCache is the resolver for the clearClientCache field.
+func (r *queryResolver) ClearClientCache(ctx context.Context) (bool, error) {
+	userID, err := middleware.GetIDFromContext(ctx)
+	if err != nil || userID == "" {
+		return false, nil
+	}
+	return true, nil
+}
+
 // ID is the resolver for the id field.
 func (r *userBookingsResolver) ID(ctx context.Context, obj *model.UserBookings) (string, error) {
 	id := obj.ID.String()
 	return id, nil
+}
+
+// Coordinates is the resolver for the coordinates field.
+func (r *usersInforResolver) Coordinates(ctx context.Context, obj *model.UsersInfor) ([]*float64, error) {
+	result := make([]*float64, 0, len(obj.Coordinates))
+	for _, v := range obj.Coordinates {
+		val := v
+		result = append(result, &val)
+	}
+	return result, nil
 }
 
 // PurchaseHistory returns graph.PurchaseHistoryResolver implementation.
@@ -317,6 +339,10 @@ func (r *Resolver) PurchaseHistoryItem() graph.PurchaseHistoryItemResolver {
 // UserBookings returns graph.UserBookingsResolver implementation.
 func (r *Resolver) UserBookings() graph.UserBookingsResolver { return &userBookingsResolver{r} }
 
+// UsersInfor returns graph.UsersInforResolver implementation.
+func (r *Resolver) UsersInfor() graph.UsersInforResolver { return &usersInforResolver{r} }
+
 type purchaseHistoryResolver struct{ *Resolver }
 type purchaseHistoryItemResolver struct{ *Resolver }
 type userBookingsResolver struct{ *Resolver }
+type usersInforResolver struct{ *Resolver }

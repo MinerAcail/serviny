@@ -54,13 +54,13 @@ const EXTENDED_MAX_RANGES = {
 };
 
 export function VendorProcessFlow({ serviceId }: { serviceId: string }) {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [location, setLocation] = useState<Location | null>(null);
   const [transportMode, setTransportMode] = useState<TransportMode>("car");
   const [rangeType, setRangeType] = useState<RangeType>("distance");
-  const [ranges, setRanges] = useState<number[]>([10, 20, 30]);
-  const [rangePrices, setRangePrices] = useState<number[]>([0, 5.0, 7.5]); // Add pricing state
+  const [ranges, setRanges] = useState<number[]>([10, 20]);
+  const [rangePrices, setRangePrices] = useState<number[]>([0, 5.0]); // Add pricing state
   const [isochrones, setIsochrones] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ export function VendorProcessFlow({ serviceId }: { serviceId: string }) {
   const [retryCount, setRetryCount] = useState(0);
   const [retryTimer, setRetryTimer] = useState<NodeJS.Timeout | null>(null);
 
-  const riderId = user?.id;
+  // const riderId = user?.id;
 
   // Fetch provider data
   const {
@@ -580,7 +580,7 @@ export function VendorProcessFlow({ serviceId }: { serviceId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-12">
       <StepIndicator currentStep={currentStep} totalSteps={4} />
 
       <Card className="overflow-hidden border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm bg-white dark:bg-[#2C2C2E]">

@@ -13,6 +13,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.85
 	github.com/paulmach/orb v0.11.1
 	github.com/redis/go-redis/v9 v9.7.0
+	github.com/twpayne/go-polyline v1.1.1
 	github.com/vektah/gqlparser/v2 v2.5.22
 	golang.org/x/crypto v0.33.0
 	gorm.io/driver/postgres v1.5.11

@@ -11,7 +11,7 @@ type Product {
 
   createdAt: Time
   updatedAt: Time
-  # commission: Float! 
+  # commission: Float!
 }
 
 type ProductInfor {
@@ -28,7 +28,6 @@ input ProductInput {
   description: String
 
   # VendorId: String
-
 }
 input ProductInputUpdate {
   name: String
@@ -52,6 +51,7 @@ type CartItem {
   productId: String!
   product: Product
   quantity: Int!
+  itemType: String
   orderId: String
   createdAt: Time!
   updatedAt: Time!
@@ -59,10 +59,16 @@ type CartItem {
 type CartItemOrder {
   orderId: String!
   productInfor: [orderproductInfor]!
-  customerNumber: String!
+  customer: UsersInfor!
+  rider: UsersInfor
+  order: Order
+  vendor: Service
   deliveryAddress: String!
   status: String!
   estimatedDeliveryDate: String!
+  deliveryMetaData: ZoneMetaData
+  routeData:RouteInfo
+  serviceFee: String
   createdAt: Time!
 }
 type orderproductInfor {
@@ -71,24 +77,31 @@ type orderproductInfor {
 }
 type Order {
   id: String!
-  customerNumber: String!
-  deliveryAddress: [Float!]!
-  h3Indexes: String
+  deliveryAddress: String
+  coordinates: [Float]
+  vendorId: String
+  isochroneMetaId: String
+  duration: String
+  distance: String
+  riderId: String
+  userId: String!
   status: String!
   items: [CartItem!]!
   estimatedDeliveryDate: String!
+  deliveryFee: String
+
   createdAt: Time!
   updatedAt: Time!
 }
 input OrderInput {
-  
-  customerNumber: String!
-  deliveryAddress: String!
-  item: [OrderItemInput]
+  productId: String!
+  quantity: Int!
+  itemType: String
 }
 input OrderItemInput {
-  ProductID: String!
+  productId: String!
   quantity: Int!
+  itemType: String
 }
 type ChatMessage {
   id: String!
@@ -131,7 +144,12 @@ type UserInfor {
 }
 extend type Query {
   getProduct(id: String!): Product!
-  getAllProducts(query: String,vendorId:String,limit: Int, offset: Int): [Product!]!
+  getAllProducts(
+    query: String
+    vendorId: String
+    limit: Int
+    offset: Int
+  ): [Product!]!
   getAllCategories(vendorId: String!): [String]
   searchProducts(query: String!): [Product!]!
   getAllProductsByAdmin: [ProductInfor!]!
@@ -141,6 +159,7 @@ extend type Query {
   getAllOrderHistory: [Order]
   getAllOrderItemsByProductId(orderId: String!): CartItemOrder
   getAllOrderItemsByProductIdDelivery: [CartItemOrder]
+  getAllRidersOrderItemsByService: [CartItemOrder]
   useGetordertracking(orderId: [String]): [CartItemOrder]
   getAllUserStats: [UserInfor!]!
   getOrderChat(orderId: String): OrderChat
@@ -153,12 +172,24 @@ extend type Query {
   getCategoryBox(categoryId: String!): categoryBox
   getProductsByCategory(categoryId: String!): [Product!]!
 }
+input addCoordinateInput {
+  orderId: String!
+  deliveryAddress: String
+  coordinates: [Float]
+  isochroneMetaId: String
+
+  ridersId: String
+}
 
 extend type Mutation {
   clearCart: Boolean!
   VendorUpload(files: [Upload], input: ProductInput!): Product!
   deleteProduct(id: String!): Boolean
-  createOrderItems(input: OrderInput): Order
+
+  createOrderItems(input: [OrderInput!]!): Order!
+  deleteOrderItems(orderId: String!): Order!
+  deleteAllOrderItems(orderId: [String!]!): [Order!]!
+  updateWithLocation(input: addCoordinateInput!): Order
   updateOrderbyUser(orderID: String): Boolean
   updateOrderStatus(orderID: String, status: String!): Boolean
   sendChatMessage(input: ChatMessageInput!, orderId: String): ChatMessage!

@@ -45,6 +45,14 @@ func PerformMigrations(db *gorm.DB) error {
 
 		&model.Rider{},
 		&model.IsochroneResult{},
+		&model.RidersRequest{},
+		&model.Order{},
+		&model.CartItem{},
+		
+		
+		&model.RouteInfo{},
+
+
 
 
 		&model.AppointmentBooking{},
@@ -131,6 +139,7 @@ func main() {
 		DB:          db,
 		MinIOClient: minioClient,
 		RedisClient: redisClient,
+		Subscribers: make(map[string]chan []float64), // Initialize the subscribers map
 	}
 
 	// Initialize the GraphQL server

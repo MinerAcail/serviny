@@ -7,12 +7,16 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
+	directions "github.com/lehxees/serviny/helper/direction"
+	"gorm.io/gorm"
 )
 
 // ID is the resolver for the id field.
@@ -152,6 +156,87 @@ func (r *mutationResolver) GenerateIsochrone(ctx context.Context, input model.Is
 	return result, nil
 }
 
+// GenerateRoute is the resolver for the generateRoute field.
+func (r *mutationResolver) GenerateRoute(ctx context.Context, input model.GenerateRouteInput) (*model.RouteInfo, error) {
+	// Validate input coordinates
+	if len(input.Usercoordinates) < 2 {
+		return nil, fmt.Errorf("invalid user coordinates: must provide [lng, lat]")
+	}
+	if len(input.Vendorcoordinates) < 2 {
+		return nil, fmt.Errorf("invalid vendor coordinates: must provide [lng, lat]")
+	}
+
+	userLng, userLat := input.Usercoordinates[0], input.Usercoordinates[1]
+	vendorLng, vendorLat := input.Vendorcoordinates[0], input.Vendorcoordinates[1]
+
+	if userLng < -180 || userLng > 180 || userLat < -90 || userLat > 90 {
+		return nil, fmt.Errorf("invalid user coordinates: lng=%.6f, lat=%.6f", userLng, userLat)
+	}
+	if vendorLng < -180 || vendorLng > 180 || vendorLat < -90 || vendorLat > 90 {
+		return nil, fmt.Errorf("invalid vendor coordinates: lng=%.6f, lat=%.6f", vendorLng, vendorLat)
+	}
+
+	log.Printf("Generating route from vendor (%.6f, %.6f) to user (%.6f, %.6f)",
+		vendorLng, vendorLat, userLng, userLat)
+
+	// geoJSONStr, err := directions.GetRouteGeoJSON(vendorLat,vendorLng,userLat,userLng)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to generate for GeoJSON path route: %w", err)
+	// }
+
+	// Create RouteInfo model
+	routeInfo := &model.RouteInfo{
+		// VendorID: "", // Associate later if needed
+		// Geojson: &geoJSONStr,
+	}
+
+	// Save route to DB inside transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err := tx.Create(routeInfo).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to save route info: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	log.Printf("Route saved with ID: %s", routeInfo.ID.String())
+
+	return routeInfo, nil
+}
+
+// UpdateOrderRoute is the resolver for the updateOrderRoute field.
+func (r *mutationResolver) UpdateOrderRoute(ctx context.Context, orderID string, status string) (bool, error) {
+	panic(fmt.Errorf("not implemented: UpdateOrderRoute - updateOrderRoute"))
+}
+
+// DeleteAllRouteData is the resolver for the deleteAllRouteData field.
+func (r *mutationResolver) DeleteAllRouteData(ctx context.Context) (*bool, error) {
+	// Delete all route data from the database
+	result := r.DB.Where("1 = 1").Delete(&model.RouteInfo{})
+	if result.Error != nil {
+		success := false
+		return &success, fmt.Errorf("failed to delete all route data: %w", result.Error)
+	}
+
+	// Log the number of deleted records
+	log.Printf("Successfully deleted %d route records", result.RowsAffected)
+
+	success := true
+	return &success, nil
+}
+
 // ManageCacheIsochrone is the resolver for the manageCacheIsochrone field.
 func (r *mutationResolver) ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error) {
 	panic(fmt.Errorf("not implemented: ManageCacheIsochrone - manageCacheIsochrone"))
@@ -169,18 +254,10 @@ func (r *queryResolver) GetIsochroneResult(ctx context.Context, location []float
 
 // GetAllIsochroneResults is the resolver for the getAllIsochroneResults field.
 func (r *queryResolver) GetAllIsochroneResults(ctx context.Context) ([]*model.IsochroneResult, error) {
-	// Call the helper function to retrieve all isochrones
-	results, err := helper.NewIsochroneCache().GetAllIsochroneResults(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all isochrones: %w", err)
+	var results []*model.IsochroneResult
+	if err := r.DB.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to get all isochrone results: %w", err)
 	}
-
-	// If no results, return empty slice instead of nil
-	if results == nil {
-		return []*model.IsochroneResult{}, nil
-	}
-
-	fmt.Printf("Resolver returning %d isochrone results\n", len(results))
 	return results, nil
 }
 
@@ -217,6 +294,93 @@ func (r *queryResolver) GetIsochroneByID(ctx context.Context, id string) (*model
 	return resultPtr, nil
 }
 
+// GetASingleIsochroneZoneMetaDataByMetaID is the resolver for the getASingleIsochroneZoneMetaDataByMetaId field.
+func (r *queryResolver) GetASingleIsochroneZoneMetaDataByMetaID(ctx context.Context, isochroneMetaID string) (*model.ZoneMetaData, error) {
+	// Get all isochrone results from database
+	var isochroneResults []*model.IsochroneResult
+	if err := r.DB.Find(&isochroneResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to get isochrone results: %w", err)
+	}
+
+	// Search through all isochrones to find the one containing the metadata ID
+	for _, result := range isochroneResults {
+		// Parse the GeoJSON to extract metadata from features
+		var geoData map[string]interface{}
+		if err := json.Unmarshal(result.GeoJSON, &geoData); err != nil {
+			continue // Skip this isochrone if GeoJSON is invalid
+		}
+
+		features, ok := geoData["features"].([]interface{})
+		if !ok {
+			continue // Skip if no features
+		}
+
+		// Check each feature for the matching metadata ID
+		for i, feature := range features {
+			featureMap, ok := feature.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			properties, ok := featureMap["properties"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			// Check if this feature has the matching ID
+			var featureID string
+			if id, ok := properties["id"].(string); ok {
+				featureID = id
+			} else {
+				// Generate ID based on pattern used in MetaData resolver
+				featureID = uuid.New().String()
+			}
+
+			// Also check zone index as potential match
+			zoneMatch := fmt.Sprintf("%d", i) == isochroneMetaID
+
+			if featureID == isochroneMetaID || zoneMatch {
+				// Found the matching zone, create ZoneMetaData
+				zoneMetaData := &model.ZoneMetaData{
+					ID:          featureID,
+					Zone:        int32(i),
+					IsochroneID: result.ID.String(),
+				}
+
+				// Extract price from properties
+				if price, ok := properties["price"].(float64); ok {
+					zoneMetaData.Price = price
+				}
+
+				// Extract duration from range if available
+				if i < len(result.Range) {
+					zoneMetaData.Duration = result.Range[i]
+				}
+
+				// Extract distance if available in properties
+				if distance, ok := properties["distance"].(float64); ok {
+					zoneMetaData.Distance = distance
+				}
+
+				// Extract just this feature's GeoJSON
+				singleFeatureGeoJSON := map[string]interface{}{
+					"type":     "FeatureCollection",
+					"features": []interface{}{feature},
+				}
+
+				if geoJSONBytes, err := json.Marshal(singleFeatureGeoJSON); err == nil {
+					geoJSONString := string(geoJSONBytes)
+					zoneMetaData.Geojson = &geoJSONString
+				}
+
+				return zoneMetaData, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no zone metadata found with ID: %s", isochroneMetaID)
+}
+
 // GetIsochronesByRider is the resolver for the getIsochronesByRider field.
 func (r *queryResolver) GetIsochronesByRider(ctx context.Context, riderID string) (*model.IsochroneResult, error) {
 	panic(fmt.Errorf("not implemented: GetIsochronesByRider - getIsochronesByRider"))
@@ -250,7 +414,7 @@ func (r *queryResolver) GetAllIsochronesByRider(ctx context.Context, riderID str
 
 // GetAllIsochronesByVendor is the resolver for the getAllIsochronesByVendor field.
 func (r *queryResolver) GetAllIsochronesByVendor(ctx context.Context, vendorID string) ([]*model.VendorMapData, error) {
-// Get all isochrones for the vendor
+	// Get all isochrones for the vendor
 	var isochroneResults []*model.IsochroneResult
 	if err := r.DB.Where("vendor_id = ?", vendorID).Find(&isochroneResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to get isochrones for vendor %s: %w", vendorID, err)
@@ -301,6 +465,137 @@ func (r *queryResolver) GetAllIsochronesByVendor(ctx context.Context, vendorID s
 	return vendorMapData, nil
 }
 
+// GetOrderRoute is the resolver for the getOrderRoute field.
+func (r *queryResolver) GetOrderRoute(ctx context.Context, orderID string) (*model.RouteInfo, error) {
+	// Find all routes for the given order ID, ordered by creation time descending (latest first)
+	var routes []model.RouteInfo
+	if err := r.DB.Where("order_id = ?", orderID).Order("created_at DESC").Find(&routes).Error; err != nil {
+		return nil, fmt.Errorf("failed to get routes for order ID %s: %w", orderID, err)
+	}
+	if len(routes) == 0 {
+		return nil, fmt.Errorf("route not found with order ID %s", orderID)
+	}
+	// Return the most recently created route
+	return &routes[0], nil
+}
+
+// GetOrderWithRoute is the resolver for the getOrderWithRoute field.
+func (r *queryResolver) GetOrderWithRoute(ctx context.Context, orderID string) (*model.OrderWithRoute, error) {
+	panic(fmt.Errorf("not implemented: GetOrderWithRoute - getOrderWithRoute"))
+}
+
+// GetRouteData is the resolver for the getRouteData field.
+func (r *queryResolver) GetRouteData(ctx context.Context, routeID string) (*model.RouteData, error) {
+	var route model.RouteInfo
+	if err := r.DB.Where("order_id = ?", routeID).First(&route).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("route not found with ID %s", routeID)
+		}
+		return nil, fmt.Errorf("failed to get route data for ID %s: %w", routeID, err)
+	}
+
+	// Parse the GeoJSON to extract route metadata
+	if route.Geojson == nil || *route.Geojson == "" {
+		return nil, fmt.Errorf("no route data available for ID %s", routeID)
+	}
+
+	var geoJSON directions.GeoJSON
+	if err := json.Unmarshal([]byte(*route.Geojson), &geoJSON); err != nil {
+		return nil, fmt.Errorf("failed to parse route GeoJSON: %w", err)
+	}
+
+	// Return the route data
+	return &model.RouteData{
+		Distance: geoJSON.Metadata.Distance,
+		Duration: geoJSON.Metadata.Duration,
+	}, nil
+}
+
+// GetAllRouteData is the resolver for the getAllRouteData field.
+func (r *queryResolver) GetAllRouteData(ctx context.Context) ([]*model.RouteInfo, error) {
+	var routes []*model.RouteInfo
+	if err := r.DB.Find(&routes).Error; err != nil {
+		return nil, fmt.Errorf("failed to get all route data: %w", err)
+	}
+
+	// Filter out routes with no GeoJSON data if needed
+	var validRoutes []*model.RouteInfo
+	for _, route := range routes {
+		if route.Geojson != nil && *route.Geojson != "" {
+			validRoutes = append(validRoutes, route)
+		}
+	}
+
+	return validRoutes, nil
+}
+
+// GetIsochronesByService is the resolver for the getIsochronesByService field.
+func (r *queryResolver) GetIsochronesByService(ctx context.Context, vendorID string) (*model.IsochroneResult, error) {
+	panic(fmt.Errorf("not implemented: GetIsochronesByService - getIsochronesByService"))
+}
+
+// GetVendorsFromIsochroneResult is the resolver for the getVendorsFromIsochroneResult field.
+func (r *queryResolver) GetVendorsFromIsochroneResult(ctx context.Context) ([]*model.VendorsMapData, error) {
+	// Retrieve the rider ID from the context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Query to get all vendors with their isochrone data
+	var vendorsMapData []*model.VendorsMapData
+
+	// First, get all isochrone results for this rider
+	var isochroneResults []*model.IsochroneResult
+	if err := r.DB.Where("rider_id = ?", riderIDStr).Order("created_at DESC").Find(&isochroneResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch isochroneResults: %v", err)
+	}
+
+	// Group isochrones by vendor ID
+	vendorIsochroneMap := make(map[string][]*model.IsochroneResult)
+	vendorIDs := make(map[string]bool)
+
+	for _, result := range isochroneResults {
+		if result.VendorID != "" {
+			vendorIsochroneMap[result.VendorID] = append(vendorIsochroneMap[result.VendorID], result)
+			vendorIDs[result.VendorID] = true
+		}
+	}
+
+	// Get all unique vendor IDs
+	var uniqueVendorIDs []string
+	for vendorID := range vendorIDs {
+		uniqueVendorIDs = append(uniqueVendorIDs, vendorID)
+	}
+
+	// Fetch vendor details for all unique vendor IDs
+	if len(uniqueVendorIDs) > 0 {
+		var vendors []*model.Service
+		if err := r.DB.Where("id IN ?", uniqueVendorIDs).Find(&vendors).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch vendors: %v", err)
+		}
+
+		// Create VendorsMapData for each vendor
+		for _, vendor := range vendors {
+			vendorIDStr := vendor.ID.String()
+			if mapData, exists := vendorIsochroneMap[vendorIDStr]; exists && len(mapData) > 0 {
+				vendorMapData := &model.VendorsMapData{
+					Vendor:  vendor,
+					MapData: mapData,
+				}
+				vendorsMapData = append(vendorsMapData, vendorMapData)
+			}
+		}
+	}
+
+	return vendorsMapData, nil
+}
+
+// GetVendorFromIsochroneResultByServiceProdiver is the resolver for the getVendorFromIsochroneResultByServiceProdiver field.
+func (r *queryResolver) GetVendorFromIsochroneResultByServiceProdiver(ctx context.Context, vendorID string) (*model.VendorsMapData, error) {
+	panic(fmt.Errorf("not implemented: GetVendorFromIsochroneResultByServiceProdiver - getVendorFromIsochroneResultByServiceProdiver"))
+}
+
 // GetClosestIsochroneForLocation is the resolver for the getClosestIsochroneForLocation field.
 func (r *queryResolver) GetClosestIsochroneForLocation(ctx context.Context, riderID string, location []float64) (*model.IsochroneResult, error) {
 	if len(location) < 2 {
@@ -321,9 +616,19 @@ func (r *queryResolver) GetClosestIsochroneForLocation(ctx context.Context, ride
 	return nil, nil
 }
 
+// ID is the resolver for the id field.
+func (r *routeInfoResolver) ID(ctx context.Context, obj *model.RouteInfo) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
 // IsochroneResult returns graph.IsochroneResultResolver implementation.
 func (r *Resolver) IsochroneResult() graph.IsochroneResultResolver {
 	return &isochroneResultResolver{r}
 }
 
+// RouteInfo returns graph.RouteInfoResolver implementation.
+func (r *Resolver) RouteInfo() graph.RouteInfoResolver { return &routeInfoResolver{r} }
+
 type isochroneResultResolver struct{ *Resolver }
+type routeInfoResolver struct{ *Resolver }

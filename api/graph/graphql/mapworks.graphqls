@@ -33,7 +33,15 @@ type IsochroneZoneMetaData {
   distance: Float!
   zone: Int!
 }
-
+type ZoneMetaData {
+  id: String!
+  price: Float!
+  duration: Int!
+  distance: Float!
+  zone: Int!
+  geojson: String
+  isochroneId: String!
+}
 type CacheStats {
   totalEntries: Int!
   entries: [CacheEntry!]!
@@ -60,11 +68,26 @@ extend type Query {
   # Get isochrone result by ID
   getIsochroneById(id: String!): IsochroneResult
 
+  getASingleIsochroneZoneMetaDataByMetaId(
+    isochroneMetaId: String!
+  ): ZoneMetaData
   # Get isochrones by rider ID
   getIsochronesByRider(riderId: String!): IsochroneResult!
   getAllIsochronesByRider(riderId: String!): [IsochroneResult!]
   getAllIsochronesByVendor(vendorId: String!): [VendorMapData!]
 
+  # Get Direction from google api
+
+  getOrderRoute(orderId: String!): RouteInfo
+  getOrderWithRoute(orderId: String!): OrderWithRoute
+  getRouteData(routeId: String!): RouteData!
+  getAllRouteData: [RouteInfo!]!
+
+  getIsochronesByService(vendorId: String!): IsochroneResult!
+  getVendorsFromIsochroneResult: [VendorsMapData!]!
+  getVendorFromIsochroneResultByServiceProdiver(
+    vendorId: String!
+  ): VendorsMapData!
 
   #  Get isochrones by rider ID and location
   getClosestIsochroneForLocation(
@@ -72,17 +95,70 @@ extend type Query {
     location: [Float!]!
   ): IsochroneResult
 }
-type RiderWithMapData{
-  rider:Rider
+type RiderWithMapData {
+  rider: Rider
   riderService: Service
   mapData: [IsochroneResult]
 }
-type VendorMapData{
+type VendorsMapData {
+  vendor: Service!
+  mapData: [IsochroneResult!]!
+}
+type VendorMapData {
   riders: RiderWithMapData
 }
 
 extend type Mutation {
   generateIsochrone(input: IsochroneInput!): IsochroneResult!
+  # call Direction from google api
 
+  generateRoute(input: generateRouteInput!): RouteInfo!
+  updateOrderRoute(orderId: String!, status: String!): Boolean!
+
+  deleteAllRouteData:Boolean
   manageCacheIsochrone(input: CacheManagementInput!): CacheStats!
+}
+
+type RouteInfo {
+  id: ID!
+  orderId: String!
+  # vendorId:String!
+  userId:String
+  geojson: String # data from the api
+  createdAt: Time!
+  updatedAt: Time!
+}
+type RouteData{
+  distance: String!
+  duration: String!
+}
+type RouteDetails {
+  summary: String!
+  totalDistance: String!
+  totalDuration: String!
+  polyline: String!
+  steps: [RouteStep!]!
+}
+
+type RouteStep {
+  instruction: String!
+  distance: String!
+  duration: String!
+  startLocation: Coordinates!
+  endLocation: Coordinates!
+}
+
+type Coordinates {
+  lat: Float!
+  lng: Float!
+}
+
+input generateRouteInput {
+  Usercoordinates: [Float!]!
+  Vendorcoordinates: [Float!]!
+}
+
+type OrderWithRoute {
+  order: Order!
+  route: RouteInfo
 }

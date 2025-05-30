@@ -5,7 +5,7 @@ type User {
   numberType: String
   type: String!
   email: String
-  
+
   password: String
   createdAt: Time!
   updatedAt: Time!
@@ -17,9 +17,14 @@ input inputUser {
   password: String!
   numberType: String
   email: String
-
 }
-
+input inputUpdateUser {
+  name: String
+  number: String
+  password: String
+  numberType: String
+  email: String
+}
 extend type Query {
   getUserById(id: String!): User!
   getAllUsers: [User!]!
@@ -28,5 +33,5 @@ extend type Query {
 extend type Mutation {
   createUser(input: inputUser!): User!
   deleteUserById(id: String!): Boolean
+  updateUserById(id: String!, input: inputUpdateUser): User!
 }
-

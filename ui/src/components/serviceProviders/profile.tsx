@@ -295,7 +295,7 @@ enum BookType {
   CUSTOM_QUOTE = "CUSTOM_QUOTE",
 }
 
-enum BusinessTypeEnum {
+export enum BusinessTypeEnum {
   ECOMMERCE_STANDARD = "ecommerce-standard",
   ECOMMERCE_ENTERPRISE = "ecommerce-enterprise",
   PRE_ORDER = "pre-order",

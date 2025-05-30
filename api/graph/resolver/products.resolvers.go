@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -19,7 +18,8 @@ import (
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
-	"github.com/lehxees/serviny/middleware"
+	directions "github.com/lehxees/serviny/helper/direction"
+	"github.com/lehxees/serviny/helper/h3helper/tracking"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -174,35 +174,41 @@ func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (*bool,
 }
 
 // CreateOrderItems is the resolver for the createOrderItems field.
-func (r *mutationResolver) CreateOrderItems(ctx context.Context, input *model.OrderInput) (*model.Order, error) {
-	// Retrieve the service ID from the context
-	serviceIDStr, err := r.Query().GetID(ctx)
+func (r *mutationResolver) CreateOrderItems(ctx context.Context, input []*model.OrderInput) (*model.Order, error) {
+	// Validate input
+	if len(input) == 0 {
+		return nil, fmt.Errorf("no items provided")
+	}
+
+	// Retrieve the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get service ID: %v", err)
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
 	}
 
 	// Parse UUID from string
-	serviceID, err := uuid.Parse(*serviceIDStr)
+	userID, err := uuid.Parse(*userIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid service ID: %w", err)
+		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
-	log.Println("Cookies passed Successfully:", serviceID)
 
+	log.Println("User ID retrieved successfully:", userID)
+
+	// Start transaction
 	tx := r.DB.Begin()
 	if tx.Error != nil {
 		return nil, fmt.Errorf("failed to start transaction: %v", tx.Error)
 	}
-
-	// Calculate estimated delivery time range
-	currentTime := time.Now()
-	estimatedDelivery := helper.CalculateDeliveryRange(currentTime)
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// Create new order
 	order := &model.Order{
-		CustomerNumber:        input.CustomerNumber,
-		DeliveryAddress:       input.DeliveryAddress,
-		Status:                "PENDING",
-		EstimatedDeliveryDate: estimatedDelivery,
+		UserID: userID.String(),
+		Status: "PENDING",
 	}
 
 	// Save the order first to get the ID
@@ -210,12 +216,25 @@ func (r *mutationResolver) CreateOrderItems(ctx context.Context, input *model.Or
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to create order: %v", err)
 	}
-	// log.Println("1 Order Created with ID:", order.ID)
+
 	orderIDStr := order.ID.String()
+	log.Println("Order created with ID:", order.ID)
 
 	// Process each cart item
 	var orderItems []*model.CartItem
-	for _, itemInput := range input.Item {
+	var firstVendorID *string // Track vendor ID for validation
+
+	for i, itemInput := range input {
+		// Validate required fields
+		if itemInput.ProductID == "" {
+			tx.Rollback()
+			return nil, fmt.Errorf("productId is required for item %d", i)
+		}
+		if itemInput.Quantity <= 0 {
+			tx.Rollback()
+			return nil, fmt.Errorf("quantity must be greater than 0 for item %d", i)
+		}
+
 		// Verify product exists and get its details
 		var product model.Product
 		if err := tx.Where("id = ?", itemInput.ProductID).First(&product).Error; err != nil {
@@ -226,54 +245,393 @@ func (r *mutationResolver) CreateOrderItems(ctx context.Context, input *model.Or
 			return nil, fmt.Errorf("failed to fetch product: %v", err)
 		}
 
+		// Validate that all products are from the same vendor (if your business logic requires this)
+		if firstVendorID == nil {
+			firstVendorID = product.VendorID
+			order.VendorID = product.VendorID // Set the vendor ID for the order
+		} else {
+			// Optional: Enforce single vendor per order
+			if product.VendorID != nil && firstVendorID != nil && *product.VendorID != *firstVendorID {
+				tx.Rollback()
+				return nil, fmt.Errorf("all items in an order must be from the same vendor")
+			}
+		}
+
 		// Create cart item
-		cartItem := &model.CartItem{
+		cartItem := model.CartItem{
 			ProductID: product.ID.String(),
 			Quantity:  itemInput.Quantity,
 			OrderID:   &orderIDStr,
+			Product:   &product, // Include product details
 		}
 
-		if err := tx.Create(cartItem).Error; err != nil {
+		// Handle optional ItemType
+		if itemInput.ItemType != nil && *itemInput.ItemType != "" {
+			cartItem.ItemType = *itemInput.ItemType
+		} else {
+			if len(product.ItemsType) > 0 {
+				cartItem.ItemType = product.ItemsType[0] // Use first available type
+			}
+		}
+
+		// Create the cart item in database
+		if err := tx.Create(&cartItem).Error; err != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("failed to create cart item: %v", err)
+			return nil, fmt.Errorf("failed to create cart item for product %s: %v", itemInput.ProductID, err)
 		}
 
-		orderItems = append(orderItems, cartItem)
+		orderItems = append(orderItems, &cartItem)
 	}
 
-	// Associate items with the order
+	// Update order with items and vendor ID
 	order.Items = orderItems
+
+	// Save the updated order with vendor ID
 	if err := tx.Save(order).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to update order with items: %v", err)
+		return nil, fmt.Errorf("failed to update order: %v", err)
 	}
 
-	// existsOrderIDs, err := middleware.GetOrderTrackingCookie(req)
-	// if err != nil {
-	// 	log.Println("No existing tracking cookie found, initializing new one.")
-	// 	existsOrderIDs = []string{} // Ensure we start with an empty slice
-	// }
-
-	// log.Println("Cookies passed Successfully:", existsOrderIDs)
-
-	// Set HTTP-only cookie with the order tracking ID
-	// if err := middleware.SetOrderTrackingCookie(w, ctx, order.ID.String(), existsOrderIDs); err != nil {
-	// 	return nil, fmt.Errorf("failed to set tracking cookie: %v", err)
-	// }
-
-	// Assign driver to order
-	// if err := helper.AssignDriverToOrder(tx, order, orderIDStr); err != nil {
-	// 	tx.Rollback()
-	// 	return nil, err
-	// }
-
-	// Commit the transaction - MOVED TO END
+	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// log.Println("3 Order Transaction Committed Successfully:", order.ID)
+	log.Println("Order transaction committed successfully:", order.ID)
+
+	// Return the complete order with all items loaded
 	return order, nil
+}
+
+// DeleteOrderItems is the resolver for the deleteOrderItems field.
+func (r *mutationResolver) DeleteOrderItems(ctx context.Context, orderID string) (*model.Order, error) {
+	// Validate orderID input
+	if orderID == "" {
+		return nil, fmt.Errorf("orderID is required")
+	}
+
+	// Parse UUID
+	orderUUID, err := uuid.Parse(orderID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order ID: %w", err)
+	}
+
+	// // Get user ID from context
+	// userIDStr, err := r.Query().GetID(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get user ID from context: %v", err)
+	// }
+
+	// log.Println("Deleting order:", orderUUID, "for user:", *userIDStr)
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Find the order with all relationships preloaded
+	var order model.Order
+	if err := tx.Preload("Items.Product").Where("id = ? ", orderUUID).First(&order).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("order not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to fetch order: %v", err)
+	}
+
+	// Delete all related entities in proper order (child to parent)
+
+	// 1. Delete cart items
+	if err := tx.Where("order_id = ?", orderID).Delete(&model.CartItem{}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to delete cart items: %v", err)
+	}
+	log.Println("Deleted cart items for order:", orderID)
+
+	// 11. Finally, delete the order itself
+	if err := tx.Delete(&order).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to delete order: %v", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	log.Println("Order and all relationships deleted successfully:", orderID)
+
+	// Return the previously loaded order data
+	return &order, nil
+}
+
+// DeleteAllOrderItems is the resolver for the deleteAllOrderItems field.
+func (r *mutationResolver) DeleteAllOrderItems(ctx context.Context, orderID []string) ([]*model.Order, error) {
+	panic(fmt.Errorf("not implemented: DeleteAllOrderItems - deleteAllOrderItems"))
+}
+
+// UpdateWithLocation updates an order with location and rider information
+func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.AddCoordinateInput) (*model.Order, error) {
+	// Validate required input
+	if input.OrderID == "" {
+		return nil, fmt.Errorf("orderID is required")
+	}
+
+	// Parse and validate order ID
+	orderID, err := uuid.Parse(input.OrderID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order ID format: %w", err)
+	}
+
+	// Get user ID from context for authorization
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID from context: %w", err)
+	}
+
+	if userIDStr == nil || *userIDStr == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	log.Printf("Updating order %s with location for user %s", orderID, *userIDStr)
+
+	// Start database transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start database transaction: %w", tx.Error)
+	}
+
+	// Ensure rollback on panic or error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Find and verify order ownership
+	var order model.Order
+	if err := tx.Where("id = ? AND user_id = ?", orderID, *userIDStr).First(&order).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("order not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to fetch order: %w", err)
+	}
+
+	// Update delivery address if provided
+	if input.DeliveryAddress != nil && *input.DeliveryAddress != "" {
+		order.DeliveryAddress = *input.DeliveryAddress
+		log.Printf("Updated delivery address: %s", *input.DeliveryAddress)
+	}
+
+	// Update isochrone meta ID if provided
+	if input.IsochroneMetaID != nil && *input.IsochroneMetaID != "" {
+		order.IsochroneMetaID = input.IsochroneMetaID
+		log.Printf("Updated isochrone meta ID: %s", *input.IsochroneMetaID)
+	}
+
+	// Update coordinates if provided
+	if input.Coordinates != nil && len(input.Coordinates) >= 2 {
+		lng := *input.Coordinates[0]
+		lat := *input.Coordinates[1]
+
+		// Validate coordinate ranges
+		if lng < -180 || lng > 180 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid longitude: %.6f (must be between -180 and 180)", lng)
+		}
+		if lat < -90 || lat > 90 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid latitude: %.6f (must be between -90 and 90)", lat)
+		}
+
+		coordinates := pq.Float64Array{lng, lat}
+		order.Coordinates = coordinates
+		log.Printf("Updated coordinates: [%.6f, %.6f]", lng, lat)
+	}
+
+	// Update rider ID if provided
+	if input.RidersID != nil && *input.RidersID != "" {
+		// Validate rider ID format
+		riderUUID, err := uuid.Parse(*input.RidersID)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid rider ID format: %w", err)
+		}
+
+		// Ensure vendor ID is available
+		if order.VendorID == nil || *order.VendorID == "" {
+			tx.Rollback()
+			return nil, fmt.Errorf("order must have a vendor assigned before assigning a rider")
+		}
+
+		// Ensure coordinates are available for validation
+		if input.Coordinates == nil || len(input.Coordinates) < 2 {
+			tx.Rollback()
+			return nil, fmt.Errorf("coordinates are required when assigning a rider")
+		}
+
+		// Check if it's a service
+		var service model.Service
+		serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
+
+		if serviceErr == nil {
+			// It's a service - find the best rider for this service
+			validRiderID, err := tracking.ValidateRiderServiceVendorRelationship(tx, *order.VendorID, riderUUID.String(), input.Coordinates)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to assign rider from service: %w", err)
+			}
+
+			order.RiderID = &validRiderID
+
+			log.Printf("Assigned rider %s from service %s", validRiderID, riderUUID)
+		} else if serviceErr == gorm.ErrRecordNotFound {
+			// Check if it's a direct rider
+			var rider model.Rider
+			riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+
+			if riderErr == nil {
+				// It's a direct rider - validate the relationship
+				validRiderID, err := tracking.ValidateRiderVendorRelationship(tx, *order.VendorID, riderUUID.String(), input.Coordinates)
+				if err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to assign rider: %w", err)
+				}
+				order.RiderID = &validRiderID
+				log.Printf("Assigned direct rider %s", validRiderID)
+			} else if riderErr == gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return nil, fmt.Errorf("no rider or service found with ID: %s", riderUUID)
+			} else {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to check rider: %w", riderErr)
+			}
+		} else {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to check service: %w", serviceErr)
+		}
+	}
+
+	// Generate route data only if we have all required information
+	if input.Coordinates != nil && len(input.Coordinates) >= 2 && order.RiderID != nil && order.VendorID != nil {
+		lng := *input.Coordinates[0]
+		lat := *input.Coordinates[1]
+
+		// Fetch isochrone result for vendor-rider relationship
+		var result model.IsochroneResult
+		if err := tx.Where("vendor_id = ? AND rider_id = ?", *order.VendorID, *order.RiderID).First(&result).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Printf("Warning: no isochrone relationship found between rider %s and vendor %s", *order.RiderID, *order.VendorID)
+			} else {
+				log.Printf("Warning: failed to check isochrone relationship: %v", err)
+			}
+		} else {
+			// Generate route data only if isochrone relationship exists
+			geoJSONStr, err := directions.GetRouteGeoJSON(lat, lng, result)
+			if err == nil {
+				routeInfo := &model.RouteInfo{
+					OrderID: orderID.String(),
+					Geojson: &geoJSONStr,
+					UserID:  *userIDStr,
+				}
+				if err := tx.Create(routeInfo).Error; err != nil {
+					log.Printf("Warning: failed to save route info: %v", err)
+				} else {
+					log.Printf("Successfully saved route info for order %s", orderID.String())
+				}
+			} else {
+				log.Printf("Warning: failed to generate route GeoJSON: %v", err)
+			}
+		}
+	}
+
+	// Get zone metadata if isochrone meta ID is provided
+	if input.IsochroneMetaID != nil && *input.IsochroneMetaID != "" {
+		ZoneMetaData, err := r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *input.IsochroneMetaID)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to get zone metadata: %w", err)
+		}
+
+		DeliveryFee := ZoneMetaData.Price
+		feeStr := fmt.Sprintf("%.2f", DeliveryFee)
+		order.DeliveryFee = &feeStr
+		log.Printf("Updated delivery fee: %s", feeStr)
+	}
+
+	// Save the updated order
+	if err := tx.Save(&order).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update order: %w", err)
+	}
+
+	// Load the complete updated order with related data
+	var updatedOrder model.Order
+	if err := tx.Preload("Items.Product").Where("id = ?", orderID).First(&updatedOrder).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to load updated order: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Update order with route data in a goroutine (non-blocking)
+	go func(orderIDStr string, resolver *mutationResolver) {
+		// Add a small delay to ensure the route data is fully committed
+		time.Sleep(500 * time.Millisecond)
+
+		// Create a new context for the goroutine (with timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Get route data
+		routeData, err := resolver.Query().GetRouteData(ctx, orderIDStr)
+		if err != nil {
+			log.Printf("Goroutine warning: could not get route data for order %s: %v", orderIDStr, err)
+			return
+		}
+
+		if routeData != nil {
+			// Update order with route data
+			distanceStr := routeData.Distance
+			durationStr := routeData.Duration
+
+			// Use a new transaction for this update
+			updateTx := resolver.DB.Begin()
+			if updateTx.Error != nil {
+				log.Printf("Goroutine warning: failed to start transaction for order %s: %v", orderIDStr, updateTx.Error)
+				return
+			}
+
+			if err := updateTx.Model(&model.Order{}).Where("id = ?", orderIDStr).Updates(map[string]interface{}{
+				"distance": &distanceStr,
+				"duration": &durationStr,
+			}).Error; err != nil {
+				updateTx.Rollback()
+				log.Printf("Goroutine warning: failed to update order %s with route data: %v", orderIDStr, err)
+			} else {
+				if err := updateTx.Commit().Error; err != nil {
+					log.Printf("Goroutine warning: failed to commit route data update for order %s: %v", orderIDStr, err)
+				} else {
+					log.Printf("Goroutine success: updated order %s with route data (distance: %s, duration: %s)",
+						orderIDStr, distanceStr, durationStr)
+				}
+			}
+		}
+	}(input.OrderID, r)
+
+	log.Printf("Order %s updated successfully", updatedOrder.ID)
+	return &updatedOrder, nil
 }
 
 // UpdateOrderbyUser is the resolver for the updateOrderbyUser field.
@@ -815,14 +1173,15 @@ func (r *orderResolver) ID(ctx context.Context, obj *model.Order) (string, error
 	return id, nil
 }
 
-// DeliveryAddress is the resolver for the deliveryAddress field.
-func (r *orderResolver) DeliveryAddress(ctx context.Context, obj *model.Order) ([]float64, error) {
-	panic(fmt.Errorf("not implemented: DeliveryAddress - deliveryAddress"))
-}
-
-// H3Indexes is the resolver for the h3Indexes field.
-func (r *orderResolver) H3Indexes(ctx context.Context, obj *model.Order) (*string, error) {
-	panic(fmt.Errorf("not implemented: H3Indexes - h3Indexes"))
+// Coordinates is the resolver for the coordinates field.
+func (r *orderResolver) Coordinates(ctx context.Context, obj *model.Order) ([]*float64, error) {
+	// Convert []float64 to []*float64
+	result := make([]*float64, 0, len(obj.Coordinates))
+	for _, v := range obj.Coordinates {
+		val := v
+		result = append(result, &val)
+	}
+	return result, nil
 }
 
 // ID is the resolver for the id field.
@@ -1019,11 +1378,10 @@ func (r *queryResolver) GetAllOrderS(ctx context.Context) ([]*model.Order, error
 	var orders []*model.Order
 
 	// Calculate the date 2 days ago
-	twoDaysAgo := time.Now().AddDate(0, 0, -2)
+	// twoDaysAgo := time.Now().AddDate(0, 0, -2)
 
 	// Query PENDING orders created within the last 2 days with their related items
-	if err := r.DB.Preload("Items").
-		Where("status = ? AND created_at >= ?", "PENDING", twoDaysAgo).Order("created_at DESC").Find(&orders).Error; err != nil {
+	if err := r.DB.Preload("Items.Product").Order("created_at DESC").Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch recent pending orders: %w", err)
 	}
 
@@ -1089,9 +1447,9 @@ func (r *queryResolver) GetAllOrderItemsByProductID(ctx context.Context, orderID
 	}
 
 	result := &model.CartItemOrder{
-		OrderID:               orderID,
-		ProductInfor:          productInfos,
-		CustomerNumber:        order.CustomerNumber,
+		OrderID:      orderID,
+		ProductInfor: productInfos,
+		// CustomerNumber:        order.CustomerNumber,
 		DeliveryAddress:       order.DeliveryAddress,
 		Status:                order.Status,                // Added Status field
 		EstimatedDeliveryDate: order.EstimatedDeliveryDate, // Added EstimatedDeliveryDate field
@@ -1103,24 +1461,32 @@ func (r *queryResolver) GetAllOrderItemsByProductID(ctx context.Context, orderID
 
 // GetAllOrderItemsByProductIDDelivery is the resolver for the getAllOrderItemsByProductIdDelivery field.
 func (r *queryResolver) GetAllOrderItemsByProductIDDelivery(ctx context.Context) ([]*model.CartItemOrder, error) {
-	if err := middleware.RequireAuth(ctx); err != nil {
-		return nil, err
+	// Retrieve the vendor ID from the context
+	vendorId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
 	}
-
+	// Fetch the order details
+	var vendor model.Service
+	if err := r.DB.Where("id = ?", vendorId).First(&vendor).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("vendor not found with ID: %s", vendorId)
+		}
+		return nil, fmt.Errorf("failed to fetch vendor: %w", err)
+	}
 	var orders []*model.Order
-	aDayAgo := time.Now().AddDate(0, 0, -1)
+	// aDayAgo := time.Now().AddDate(0, 0, -1)
 
-	// Fetch all orders with their items and related products
+	// Fetch all orders by vendorId with their items, where status is PENDING and created recently
 	if err := r.DB.Preload("Items").
-		Where("status = ? AND created_at >= ?", "PENDING", aDayAgo).Order("created_at DESC").Find(&orders).Error; err != nil {
-
+		Where("vendor_id = ? ", vendorId).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch orders: %w", err)
 	}
 
-	// Create a map to store product data for each ProductID
+	// Map productID to product to avoid multiple queries
 	productMap := make(map[string]*model.Product)
-
-	// Collect all unique ProductIDs from orders
 	var productIDs []string
 	for _, order := range orders {
 		for _, item := range order.Items {
@@ -1130,75 +1496,179 @@ func (r *queryResolver) GetAllOrderItemsByProductIDDelivery(ctx context.Context)
 		}
 	}
 
-	// Fetch all products in one query
+	// Fetch all products in bulk
 	var products []*model.Product
 	if err := r.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
 	}
-
-	// Build product map
 	for _, product := range products {
 		productMap[product.ID.String()] = product
 	}
 
-	// Map to store orders by delivery address
-	addressOrderMap := make(map[string]*model.CartItemOrder)
-
-	// Process each order
+	// Build the result slice, each entry corresponds to an order
+	result := make([]*model.CartItemOrder, 0, len(orders))
 	for _, order := range orders {
-		// Group products and quantities for this order
-		productInfos := make([]*model.OrderproductInfor, 0)
+		user, err := r.Query().GetUserInfor(ctx, order.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get customer info: %v", err)
+		}
+		var rider *model.UsersInfor
+		if order.RiderID != nil {
+			rider, err = r.Query().GetUserInfor(ctx, *order.RiderID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get rider info: %v", err)
+			}
+		}
 
+		// Get delivery zone metadata if available
+		var deliveryData *model.ZoneMetaData
+		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+			deliveryData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+			if err != nil {
+				// Log the error but don't fail the entire request
+				fmt.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v\n",
+					order.ID, *order.IsochroneMetaID, err)
+			}
+		}
+
+		productInfos := make([]*model.OrderproductInfor, 0, len(order.Items))
 		for _, item := range order.Items {
 			if product, exists := productMap[item.ProductID]; exists {
-				productInfo := &model.OrderproductInfor{
+				productInfos = append(productInfos, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
-				}
-				productInfos = append(productInfos, productInfo)
+				})
 			}
 		}
 
-		// Create or update CartItemOrder for this delivery address
-		if cartOrder, exists := addressOrderMap[order.DeliveryAddress]; exists {
-			// Merge product information
-			for _, newInfo := range productInfos {
-				merged := false
-				for _, existingInfo := range cartOrder.ProductInfor {
-					if existingInfo.Product[0].ID == newInfo.Product[0].ID {
-						existingInfo.Quantity += newInfo.Quantity
-						merged = true
-						break
-					}
-				}
-				if !merged {
-					cartOrder.ProductInfor = append(cartOrder.ProductInfor, newInfo)
-				}
-			}
-		} else {
-			// Create new CartItemOrder for this address
-			addressOrderMap[order.DeliveryAddress] = &model.CartItemOrder{
-				OrderID:               order.ID.String(),
-				ProductInfor:          productInfos,
-				CustomerNumber:        order.CustomerNumber,
-				DeliveryAddress:       order.DeliveryAddress,
-				Status:                order.Status,
-				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-				CreatedAt:             order.CreatedAt,
+		cartItemOrder := &model.CartItemOrder{
+			OrderID:          order.ID.String(),
+			DeliveryAddress:  order.DeliveryAddress,
+			Status:           order.Status,
+			ProductInfor:     productInfos,
+			Customer:         user,
+			Rider:            rider,
+			Order:            order,
+			Vendor:           &vendor,
+			CreatedAt:        order.CreatedAt,
+			DeliveryMetaData: deliveryData,
+		}
+		result = append(result, cartItemOrder)
+	}
+
+	return result, nil
+}
+
+// GetAllRidersOrderItemsByService is the resolver for the getAllRidersOrderItemsByService field.
+func (r *queryResolver) GetAllRidersOrderItemsByService(ctx context.Context) ([]*model.CartItemOrder, error) {
+	// Retrieve the service ID from the context
+	serviceId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Get all approved riders for this service
+	var approvedRiders []model.RidersRequest
+	if err := r.DB.Where("service_id = ? AND state = ?", serviceId, "approved").Find(&approvedRiders).Error; err != nil {
+		return nil, fmt.Errorf("failed to get approved riders: %v", err)
+	}
+
+	if len(approvedRiders) == 0 {
+		return nil, fmt.Errorf("no approved riders found for this service")
+	}
+
+	// Collect all rider IDs and include serviceId as well
+	riderIDs := make([]string, 0, len(approvedRiders)+1)
+	riderIDs = append(riderIDs, *serviceId)
+	for _, req := range approvedRiders {
+		riderIDs = append(riderIDs, req.RiderID)
+	}
+
+	// Fetch all orders where rider_id is in riderIDs
+	var orders []*model.Order
+	if err := r.DB.Preload("Items").
+		Where("rider_id IN ?", riderIDs).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch orders: %w", err)
+	}
+
+	// Map productID to product to avoid multiple queries
+	productMap := make(map[string]*model.Product)
+	var productIDs []string
+	for _, order := range orders {
+		for _, item := range order.Items {
+			if _, exists := productMap[item.ProductID]; !exists {
+				productIDs = append(productIDs, item.ProductID)
 			}
 		}
 	}
 
-	// Convert map to slice
-	result := make([]*model.CartItemOrder, 0, len(addressOrderMap))
-	for _, order := range addressOrderMap {
-		result = append(result, order)
+	// Fetch all products in bulk
+	var products []*model.Product
+	if err := r.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
+	}
+	for _, product := range products {
+		productMap[product.ID.String()] = product
 	}
 
-	// // Sort by delivery address
-	// sort.Slice(result, func(i, j int) bool {
-	// 	return result[i].DeliveryAddress < result[j].DeliveryAddress
-	// })
+	// Fetch the vendor/service once (assuming service is a vendor too)
+	var vendor model.Service
+	if err := r.DB.Where("id = ?", serviceId).First(&vendor).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch vendor/service: %w", err)
+	}
+
+	// Build the result
+	result := make([]*model.CartItemOrder, 0, len(orders))
+	for _, order := range orders {
+		user, err := r.Query().GetUserInfor(ctx, order.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get customer info: %v", err)
+		}
+
+		var rider *model.UsersInfor
+		if order.RiderID != nil {
+			rider, err = r.Query().GetUserInfor(ctx, *order.RiderID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get rider info: %v", err)
+			}
+		}
+
+		var deliveryData *model.ZoneMetaData
+		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+			deliveryData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+			if err != nil {
+				fmt.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v\n",
+					order.ID, *order.IsochroneMetaID, err)
+			}
+		}
+
+		productInfos := make([]*model.OrderproductInfor, 0, len(order.Items))
+		for _, item := range order.Items {
+			if product, exists := productMap[item.ProductID]; exists {
+				productInfos = append(productInfos, &model.OrderproductInfor{
+					Product:  []*model.Product{product},
+					Quantity: item.Quantity,
+				})
+			}
+		}
+
+		cartItemOrder := &model.CartItemOrder{
+			OrderID:          order.ID.String(),
+			DeliveryAddress:  order.DeliveryAddress,
+			Status:           order.Status,
+			ProductInfor:     productInfos,
+			Customer:         user,
+			Rider:            rider,
+			Order:            order,
+			Vendor:           &vendor,
+			CreatedAt:        order.CreatedAt,
+			DeliveryMetaData: deliveryData,
+			
+		}
+		result = append(result, cartItemOrder)
+	}
 
 	return result, nil
 }
@@ -1210,77 +1680,7 @@ func (r *queryResolver) UseGetordertracking(ctx context.Context, orderID []*stri
 
 // GetAllUserStats is the resolver for the getAllUserStats field.
 func (r *queryResolver) GetAllUserStats(ctx context.Context) ([]*model.UserInfor, error) {
-	var orders []*model.Order
-
-	// Fetch all orders with their items, ordered by customer number and creation date
-	if err := r.DB.Preload("Items").Order("customer_number, created_at").Find(&orders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch orders: %v", err)
-	}
-
-	// Map to store user information
-	userInfoMap := make(map[string]*model.UserInfor)
-
-	// Process each order to build user information
-	for _, order := range orders {
-		info, exists := userInfoMap[order.CustomerNumber]
-
-		// Calculate total items in this order
-		var orderItemsCount int32
-		for _, item := range order.Items {
-			orderItemsCount += item.Quantity
-		}
-
-		if !exists {
-			// Create new info for this customer
-			info = &model.UserInfor{
-				CustomerNumber:    order.CustomerNumber,
-				DeliveryAddresses: []string{order.DeliveryAddress},
-				TotalOrders:       1,
-				TotalitemsOrdered: orderItemsCount,
-				FirstlastOrderDate: fmt.Sprintf("%s / %s",
-					order.CreatedAt.Format("2006-01-02"),
-					order.CreatedAt.Format("2006-01-02")),
-			}
-			userInfoMap[order.CustomerNumber] = info
-		} else {
-			// Update existing info
-			info.TotalOrders++
-			info.TotalitemsOrdered += orderItemsCount
-
-			// Update the last order date in the combined string
-			dates := strings.Split(info.FirstlastOrderDate, " / ")
-			if len(dates) > 0 {
-				info.FirstlastOrderDate = fmt.Sprintf("%s / %s",
-					dates[0],
-					order.CreatedAt.Format("2006-01-02"))
-			}
-
-			// Check if this address is already recorded
-			addressExists := false
-			for _, addr := range info.DeliveryAddresses {
-				if addr == order.DeliveryAddress {
-					addressExists = true
-					break
-				}
-			}
-			if !addressExists {
-				info.DeliveryAddresses = append(info.DeliveryAddresses, order.DeliveryAddress)
-			}
-		}
-	}
-
-	// Convert map to slice
-	result := make([]*model.UserInfor, 0, len(userInfoMap))
-	for _, info := range userInfoMap {
-		result = append(result, info)
-	}
-
-	// Sort by customer number
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].CustomerNumber < result[j].CustomerNumber
-	})
-
-	return result, nil
+	return nil, nil
 }
 
 // GetOrderChat is the resolver for the getOrderChat field.

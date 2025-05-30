@@ -72,10 +72,16 @@ type CacheStats struct {
 type CartItemOrder struct {
 	OrderID               string               `json:"orderId"`
 	ProductInfor          []*OrderproductInfor `json:"productInfor"`
-	CustomerNumber        string               `json:"customerNumber"`
+	Customer              *UsersInfor          `json:"customer"`
+	Rider                 *UsersInfor          `json:"rider,omitempty"`
+	Order                 *Order               `json:"order,omitempty"`
+	Vendor                *Service             `json:"vendor,omitempty"`
 	DeliveryAddress       string               `json:"deliveryAddress"`
 	Status                string               `json:"status"`
 	EstimatedDeliveryDate string               `json:"estimatedDeliveryDate"`
+	DeliveryMetaData      *ZoneMetaData        `json:"deliveryMetaData,omitempty"`
+	RouteData             *RouteInfo           `json:"routeData,omitempty"`
+	ServiceFee            *string              `json:"serviceFee,omitempty"`
 	CreatedAt             time.Time            `json:"createdAt"`
 }
 
@@ -105,6 +111,11 @@ type CoordinateInput struct {
 	Name string  `json:"name"`
 	Lat  float64 `json:"lat"`
 	Lng  float64 `json:"lng"`
+}
+
+type Coordinates struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
 }
 
 type CreateAdminInput struct {
@@ -246,14 +257,20 @@ type OrderChat struct {
 }
 
 type OrderInput struct {
-	CustomerNumber  string            `json:"customerNumber"`
-	DeliveryAddress string            `json:"deliveryAddress"`
-	Item            []*OrderItemInput `json:"item,omitempty"`
+	ProductID string  `json:"productId"`
+	Quantity  int32   `json:"quantity"`
+	ItemType  *string `json:"itemType,omitempty"`
 }
 
 type OrderItemInput struct {
-	ProductID string `json:"ProductID"`
-	Quantity  int32  `json:"quantity"`
+	ProductID string  `json:"productId"`
+	Quantity  int32   `json:"quantity"`
+	ItemType  *string `json:"itemType,omitempty"`
+}
+
+type OrderWithRoute struct {
+	Order *Order     `json:"order"`
+	Route *RouteInfo `json:"route,omitempty"`
 }
 
 type OtpResponse struct {
@@ -384,6 +401,33 @@ type RiderWithMapData struct {
 	MapData      []*IsochroneResult `json:"mapData,omitempty"`
 }
 
+type RidersRequestInput struct {
+	TermsConditions bool    `json:"termsConditions"`
+	Message         *string `json:"message,omitempty"`
+	State           string  `json:"state"`
+}
+
+type RouteData struct {
+	Distance string `json:"distance"`
+	Duration string `json:"duration"`
+}
+
+type RouteDetails struct {
+	Summary       string       `json:"summary"`
+	TotalDistance string       `json:"totalDistance"`
+	TotalDuration string       `json:"totalDuration"`
+	Polyline      string       `json:"polyline"`
+	Steps         []*RouteStep `json:"steps"`
+}
+
+type RouteStep struct {
+	Instruction   string       `json:"instruction"`
+	Distance      string       `json:"distance"`
+	Duration      string       `json:"duration"`
+	StartLocation *Coordinates `json:"startLocation"`
+	EndLocation   *Coordinates `json:"endLocation"`
+}
+
 type SearchResult struct {
 	ID             string    `json:"id"`
 	Title          string    `json:"title"`
@@ -406,6 +450,9 @@ type SocialMediaInput struct {
 	Name string `json:"name"`
 	Icon string `json:"icon"`
 	Link string `json:"link"`
+}
+
+type Subscription struct {
 }
 
 type SystemInfo struct {
@@ -491,18 +538,13 @@ type UserInfor struct {
 	FirstlastOrderDate string   `json:"firstlastOrderDate"`
 }
 
-type UsersInfor struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	Number   string  `json:"number"`
-	Email    string  `json:"email"`
-	Location *string `json:"location,omitempty"`
-	Dpfile   *string `json:"dpfile,omitempty"`
-}
-
 type VendorMapData struct {
 	Riders *RiderWithMapData `json:"riders,omitempty"`
+}
+
+type VendorsMapData struct {
+	Vendor  *Service           `json:"vendor"`
+	MapData []*IsochroneResult `json:"mapData"`
 }
 
 type VerifyOtpInput struct {
@@ -516,14 +558,45 @@ type ViewcategoryBox struct {
 	Products    []*Product   `json:"products,omitempty"`
 }
 
+type ZoneMetaData struct {
+	ID          string  `json:"id"`
+	Price       float64 `json:"price"`
+	Duration    int32   `json:"duration"`
+	Distance    float64 `json:"distance"`
+	Zone        int32   `json:"zone"`
+	Geojson     *string `json:"geojson,omitempty"`
+	IsochroneID string  `json:"isochroneId"`
+}
+
 type ZoneMetaDataInput struct {
 	Price float64 `json:"price"`
+}
+
+type AddCoordinateInput struct {
+	OrderID         string     `json:"orderId"`
+	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
+	Coordinates     []*float64 `json:"coordinates,omitempty"`
+	IsochroneMetaID *string    `json:"isochroneMetaId,omitempty"`
+	RidersID        *string    `json:"ridersId,omitempty"`
 }
 
 type FullCard struct {
 	Card      *PriceCard `json:"card"`
 	Prices    []*Price   `json:"prices"`
 	Amenities []*Amenity `json:"amenities"`
+}
+
+type GenerateRouteInput struct {
+	Usercoordinates   []float64 `json:"Usercoordinates"`
+	Vendorcoordinates []float64 `json:"Vendorcoordinates"`
+}
+
+type InputUpdateUser struct {
+	Name       *string `json:"name,omitempty"`
+	Number     *string `json:"number,omitempty"`
+	Password   *string `json:"password,omitempty"`
+	NumberType *string `json:"numberType,omitempty"`
+	Email      *string `json:"email,omitempty"`
 }
 
 type InputUser struct {
@@ -542,6 +615,11 @@ type OrderproductInfor struct {
 type RentalInput struct {
 	Category    *CategoryInput      `json:"category,omitempty"`
 	Inventories *InventoryItemInput `json:"inventories,omitempty"`
+}
+
+type RiderRequestInfor struct {
+	Rider   *Rider         `json:"rider"`
+	Request *RidersRequest `json:"request"`
 }
 
 type WorksInput struct {
@@ -737,6 +815,51 @@ func (e *RecurringType) UnmarshalGQL(v any) error {
 }
 
 func (e RecurringType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type RiderStatus string
+
+const (
+	RiderStatusOnline   RiderStatus = "ONLINE"
+	RiderStatusOffline  RiderStatus = "OFFLINE"
+	RiderStatusBusy     RiderStatus = "BUSY"
+	RiderStatusInactive RiderStatus = "INACTIVE"
+)
+
+var AllRiderStatus = []RiderStatus{
+	RiderStatusOnline,
+	RiderStatusOffline,
+	RiderStatusBusy,
+	RiderStatusInactive,
+}
+
+func (e RiderStatus) IsValid() bool {
+	switch e {
+	case RiderStatusOnline, RiderStatusOffline, RiderStatusBusy, RiderStatusInactive:
+		return true
+	}
+	return false
+}
+
+func (e RiderStatus) String() string {
+	return string(e)
+}
+
+func (e *RiderStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = RiderStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid RiderStatus", str)
+	}
+	return nil
+}
+
+func (e RiderStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

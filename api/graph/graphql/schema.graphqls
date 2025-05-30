@@ -47,6 +47,8 @@ extend type Query {
 
   getUserInfor(userId:String!): UsersInfor
 
+  clearClientCache: Boolean!
+
 }
 type UsersInfor {
   id: String!
@@ -55,7 +57,10 @@ type UsersInfor {
   number: String!
   email: String!
   location: String
+  coordinates: [Float]
+
   dpfile: String
+
 }
 extend type Mutation {
   deleteTable: Boolean!

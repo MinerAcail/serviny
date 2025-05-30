@@ -196,6 +196,7 @@ export function useVendorIsochrones(vendorId: string | undefined, selectedRiderI
     loading: closestIsochroneLoading,
     error: closestIsochroneError,
     refetch: refetchClosestIsochrone,
+    
   } = useQuery(GET_CLOSEST_ISOCHRONE, {
     variables: {
       riderId: selectedRiderId,

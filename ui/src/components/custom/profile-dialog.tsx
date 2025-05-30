@@ -20,6 +20,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import RegisterOptions from "@/app/checkUserCreateUI";
+import { useNavigate } from "react-router";
 
 const GET_USER_INFOR = gql`
   query GetUserInfor($userID: String!) {
@@ -36,6 +38,7 @@ const GET_USER_INFOR = gql`
 `;
 
 export default function ProfileDialog() {
+  const navigation = useNavigate();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(false);
@@ -75,152 +78,171 @@ export default function ProfileDialog() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{userInfo?.type}</DialogTitle>
-
-          </DialogHeader>
-
-          {loading ? (
-            <p className="text-center text-muted-foreground">Loading...</p>
-          ) : error ? (
-            <p className="text-center text-red-500">Error loading profile.</p>
+          {!userInfo ? (
+            <RegisterOptions />
           ) : (
-            <div className="flex flex-col items-center space-y-4 pt-4">
-              <Avatar className="h-24 w-24">
-                <AvatarImage
-                  src={
-                    userInfo?.dpfile || "/placeholder.svg?height=200&width=200"
-                  }
-                  alt="Profile"
-                />
-                <AvatarFallback>
-                  <User className="h-12 w-12" />
-                </AvatarFallback>
-              </Avatar>
+            <>
+              <DialogHeader>
+                <DialogTitle>{userInfo?.type}</DialogTitle>
+              </DialogHeader>
 
-              <h2 className="text-2xl font-bold">
-                {userInfo?.name || "Unknown User"}
-              </h2>
+              {loading ? (
+                <p className="text-center text-muted-foreground">Loading...</p>
+              ) : error ? (
+                <p className="text-center text-red-500">
+                  Error loading profile.
+                </p>
+              ) : (
+                <div className="flex flex-col items-center space-y-4 pt-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage
+                      src={
+                        userInfo?.dpfile ||
+                        "/placeholder.svg?height=200&width=200"
+                      }
+                      alt="Profile"
+                    />
+                    <AvatarFallback>
+                      <User className="h-12 w-12" />
+                    </AvatarFallback>
+                  </Avatar>
 
-              <div className="w-full space-y-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(userInfo?.name || "", "Name")
-                        }
-                        className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
-                      >
-                        <User className="h-4 w-4" />
-                        <span>{userInfo?.name || "N/A"}</span>
-                        <Copy className="h-3 w-3 ml-auto opacity-50" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Click to copy</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                  <h2 className="text-2xl font-bold">
+                    {userInfo?.name || "Unknown User"}
+                  </h2>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(userInfo?.location || "", "Location")
-                        }
-                        className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
-                      >
-                        <MapPin className="h-4 w-4" />
-                        <span>{userInfo?.location || "N/A"}</span>
-                        <Copy className="h-3 w-3 ml-auto opacity-50" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Click to copy</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                  <div className="w-full space-y-3">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() =>
+                              copyToClipboard(userInfo?.name || "", "Name")
+                            }
+                            className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
+                          >
+                            <User className="h-4 w-4" />
+                            <span>{userInfo?.name || "N/A"}</span>
+                            <Copy className="h-3 w-3 ml-auto opacity-50" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to copy</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(
-                            userInfo?.number || "",
-                            "Phone number"
-                          )
-                        }
-                        className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
-                      >
-                        <Phone className="h-4 w-4" />
-                        <span>{userInfo?.number || "N/A"}</span>
-                        <Copy className="h-3 w-3 ml-auto opacity-50" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Click to copy</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() =>
+                              copyToClipboard(
+                                userInfo?.location || "",
+                                "Location"
+                              )
+                            }
+                            className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            <span>{userInfo?.location || "N/A"}</span>
+                            <Copy className="h-3 w-3 ml-auto opacity-50" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to copy</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(userInfo?.email || "", "Email")
-                        }
-                        className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
-                      >
-                        <Mail className="h-4 w-4" />
-                        <span>{userInfo?.email || "N/A"}</span>
-                        <Copy className="h-3 w-3 ml-auto opacity-50" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Click to copy</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() =>
+                              copyToClipboard(
+                                userInfo?.number || "",
+                                "Phone number"
+                              )
+                            }
+                            className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
+                          >
+                            <Phone className="h-4 w-4" />
+                            <span>{userInfo?.number || "N/A"}</span>
+                            <Copy className="h-3 w-3 ml-auto opacity-50" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to copy</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
-              <div className="w-full flex gap-2 mt-4">
-                <Button
-                  className="flex-1"
-                  variant={active ? "default" : "outline"}
-                  onClick={() => setActive(!active)}
-                >
-                  {active ? (
-                    <>
-                      Active <Badge className="ml-2 bg-green-500">Online</Badge>
-                    </>
-                  ) : (
-                    "Set Active"
-                  )}
-                </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() =>
+                              copyToClipboard(userInfo?.email || "", "Email")
+                            }
+                            className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
+                          >
+                            <Mail className="h-4 w-4" />
+                            <span>{userInfo?.email || "N/A"}</span>
+                            <Copy className="h-3 w-3 ml-auto opacity-50" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to copy</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  className="px-3"
-                  onClick={() => {
-                    const profileInfo = `
+                  <div className="w-full flex gap-2 mt-4">
+                    <Button
+                      className="flex-1"
+                      variant={active ? "default" : "outline"}
+                      onClick={() => navigation(`/providers/${user?.id}`)}
+                    >
+                      Home
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      variant={active ? "default" : "outline"}
+                      onClick={() => setActive(!active)}
+                    >
+                      {active ? (
+                        <>
+                          Active{" "}
+                          <Badge className="ml-2 bg-green-500">Online</Badge>
+                        </>
+                      ) : (
+                        "Set Active"
+                      )}
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="px-3"
+                      onClick={() => {
+                        const profileInfo = `
 Name: ${userInfo?.name || "N/A"}
 Location: ${userInfo?.location || "N/A"}
 Phone: ${userInfo?.number || "N/A"}
 Email: ${userInfo?.email || "N/A"}
                     `.trim();
 
-                    copyToClipboard(profileInfo, "Profile information");
-                  }}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </Button>
-              </div>
-            </div>
+                        copyToClipboard(profileInfo, "Profile information");
+                      }}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>

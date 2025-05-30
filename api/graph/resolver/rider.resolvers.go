@@ -6,9 +6,12 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/lehxees/serviny/graph"
@@ -16,6 +19,7 @@ import (
 	"github.com/lehxees/serviny/helper"
 	"github.com/lehxees/serviny/helper/h3helper/tracking"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // CraeteRider is the resolver for the craeteRider field.
@@ -28,7 +32,7 @@ func (r *mutationResolver) CraeteRider(ctx context.Context, dpfile *graphql.Uplo
 	if err != nil {
 		return nil, err
 	}
-
+	OFFLINE := "OFFLINE"
 	// Create a new rider instance
 	rider := model.Rider{
 		Name:         input.Name,
@@ -36,11 +40,13 @@ func (r *mutationResolver) CraeteRider(ctx context.Context, dpfile *graphql.Uplo
 		Type:         input.Type,
 		Number:       cleanedNumber,
 		Location:     input.Location,
-		State:        input.State,
+		State:        &OFFLINE,
 		Availability: input.Availability,
 		Experience:   input.Experience,
 		Coordinates:  helper.ConvertToFloat64Array(input.Coordinates),
 		H3Indexes:    helper.ConvertToStringArray(input.H3Indexes),
+		// Status:       , // Default status
+		IsTracking: false, // Default tracking off
 	}
 
 	// Hash password if provided
@@ -57,6 +63,11 @@ func (r *mutationResolver) CraeteRider(ctx context.Context, dpfile *graphql.Uplo
 	if err := r.DB.Create(&rider).Error; err != nil {
 		return nil, fmt.Errorf("failed to create rider: %w", err)
 	}
+
+	// Initialize Redis cache for the new rider
+	riderIDStr := rider.ID.String()
+	r.RedisClient.Set(ctx, fmt.Sprintf(model.RiderStatusKey, riderIDStr), "OFFLINE", 0)
+	// r.RedisClient.Set(ctx, fmt.Sprintf(RiderLastSeenKey, riderIDStr), time.Now().Unix(), 0)
 	bucketName := fmt.Sprintf("rider-%s-bucket", rider.ID.String())
 
 	// Use the stable UUID as part of the bucket name
@@ -117,9 +128,286 @@ func (r *mutationResolver) UseGetRiderTracking(ctx context.Context) (*model.Ride
 	panic(fmt.Errorf("not implemented: UseGetRiderTracking - useGetRiderTracking"))
 }
 
-// Jobresponse is the resolver for the jobresponse field.
-func (r *mutationResolver) JobResponse(ctx context.Context, applicantID string, state string) (*model.Rider, error) {
-	return nil, nil
+// UpdateRiderOnlineStatus is the resolver for the updateRiderOnlineStatus field.
+func (r *mutationResolver) UpdateRiderOnlineStatus(ctx context.Context, status model.RiderStatus) (*model.Rider, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", *riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+	statusste := string(status)
+	// Update status in database
+	rider.State = &statusste
+	// rider.LastSeen = time.Now()
+
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider status: %w", err)
+	}
+
+	// Update Redis cache
+	riderIDStr := riderId
+	r.RedisClient.Set(ctx, fmt.Sprintf(model.RiderStatusKey, riderIDStr), string(status), 0)
+
+	// Manage online riders set
+	if status == "ONLINE" {
+		r.RedisClient.SAdd(ctx, model.OnlineRidersKey, riderIDStr)
+	} else {
+		r.RedisClient.SRem(ctx, model.OnlineRidersKey, riderIDStr)
+	}
+
+	// Trigger subscription (if using GraphQL subscriptions)
+	// r.broadcastRiderStatusChange(&rider)
+
+	return &rider, nil
+}
+
+// UpdateRiderLocation is the resolver for the updateRiderLocation field.
+func (r *mutationResolver) UpdateRiderLocation(ctx context.Context, coordinates []float64) (*model.Rider, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", *riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	// Only update location if rider is tracking
+	// if !rider.IsTracking {
+	// 	return nil, fmt.Errorf("location tracking is not enabled for this rider")
+	// }
+
+	rider.Coordinates = coordinates
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider location: %w", err)
+	}
+	locationRecord := rider.Coordinates
+	// Cache location in Redis
+	riderIDStr := riderId
+	locationJSON, _ := json.Marshal(locationRecord)
+	r.RedisClient.Set(ctx, fmt.Sprintf(model.RiderLocationKey, riderIDStr), locationJSON, time.Hour*24)
+
+	// Trigger subscription for location updates
+	// r.broadcastRiderLocationUpdate(riderId.String(), locationRecord)
+
+	return &rider, nil
+}
+
+// RiderGoOnline is the resolver for the riderGoOnline field.
+func (r *mutationResolver) RiderGoOnline(ctx context.Context) (*model.Rider, error) {
+	return r.UpdateRiderOnlineStatus(ctx, "ONLINE")
+}
+
+// RiderGoOffline is the resolver for the riderGoOffline field.
+func (r *mutationResolver) RiderGoOffline(ctx context.Context) (*model.Rider, error) {
+	return r.UpdateRiderOnlineStatus(ctx, "OFFLINE")
+}
+
+// StarOrStoptLocationTracking is the resolver for the starOrStoptLocationTracking field.
+func (r *mutationResolver) StarOrStoptLocationTracking(ctx context.Context, isTracking bool) (*bool, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", *riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	rider.IsTracking = isTracking
+
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update tracking: %w", err)
+	}
+
+	result := isTracking
+	return &result, nil
+}
+
+// JobRequest is the resolver for the JobRequest field.
+func (r *mutationResolver) JobRequest(ctx context.Context, serviceID string, input model.RidersRequestInput) (*model.RidersRequest, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", serviceID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	var businessType string
+	if service.BusinessType != nil {
+		businessType = *service.BusinessType
+	} else {
+		return nil, fmt.Errorf("service business type most be upgraded to use this feature")
+	}
+
+	switch businessType {
+	case "delivery-standard", "delivery-enterprise", "ecommerce-enterprise":
+		// Business type is one of the allowed types, continue
+	default:
+		return nil, fmt.Errorf("unsupported business type: %s", businessType)
+	}
+
+	// Check if request already exists
+	var existing model.RidersRequest
+	existsErr := r.DB.Where("rider_id = ? AND service_id = ?", *riderId, serviceID).First(&existing).Error
+
+	// Handle different states
+	switch input.State {
+	case "deleted":
+		// Delete operation
+		if existsErr != nil {
+			if errors.Is(existsErr, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("no existing request found to delete")
+			}
+			return nil, fmt.Errorf("failed to check existing request: %v", existsErr)
+		}
+
+		// Soft delete by updating state to "deleted"
+		existing.State = "deleted"
+
+		if err := r.DB.Delete(&existing).Error; err != nil {
+			return nil, fmt.Errorf("failed to delete job request: %w", err)
+		}
+
+		return &existing, nil
+
+	default:
+		// Create or Update operation
+		if existsErr == nil {
+			// Record exists - update it
+			existing.TermsConditions = input.TermsConditions
+			existing.State = input.State
+
+			// Update message if provided, otherwise keep existing
+			if input.Message != nil {
+				existing.Message = input.Message
+			}
+
+			if err := r.DB.Save(&existing).Error; err != nil {
+				return nil, fmt.Errorf("failed to update job request: %w", err)
+			}
+
+			return &existing, nil
+		} else if errors.Is(existsErr, gorm.ErrRecordNotFound) {
+			// Record doesn't exist - create new one
+			req := &model.RidersRequest{
+				RiderID:         *riderId,
+				TermsConditions: input.TermsConditions,
+				Message:         input.Message,
+				ServiceID:       serviceID,
+				State:           input.State,
+			}
+
+			if err := r.DB.Create(req).Error; err != nil {
+				return nil, fmt.Errorf("failed to create job request: %w", err)
+			}
+
+			return req, nil
+		} else {
+			// Some other database error
+			return nil, fmt.Errorf("failed to check existing request: %v", existsErr)
+		}
+	}
+}
+
+// UpdateStateByServiceProvider is the resolver for the updateStateByServiceProvider field.
+func (r *mutationResolver) UpdateStateByServiceProvider(ctx context.Context, riderID string, state *string) (*model.RiderRequestInfor, error) {
+	serviceId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Verify service exists and has proper business type
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", serviceId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Validate state parameter
+	if state == nil {
+		return nil, fmt.Errorf("state parameter is required")
+	}
+
+	validStates := map[string]bool{
+		"pending":  true,
+		"approved": true,
+		"rejected": true,
+		"deleted":  true,
+	}
+
+	if !validStates[*state] {
+		return nil, fmt.Errorf("invalid state: %s. Must be one of: pending, approved, rejected, deleted", *state)
+	}
+
+	// Find the rider request
+	var request model.RidersRequest
+	if err := r.DB.Where("rider_id = ? AND service_id = ?", riderID, *serviceId).First(&request).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("rider request not found for rider ID: %s", riderID)
+		}
+		return nil, fmt.Errorf("failed to find rider request: %w", err)
+	}
+
+	// Verify rider exists
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", riderID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	request.State = *state
+
+	// Handle state-specific logic
+	switch *state {
+	case "approved":
+		// When approving a rider, you might want to update rider status
+		// This is optional based on your business logic
+		if rider.State == nil {
+			activeState := "active"
+			rider.State = &activeState
+		}
+
+		// You might also want to create additional records here
+		// like rider-service relationships, notifications, etc.
+
+	case "deleted":
+		// Soft delete the request
+		if err := r.DB.Delete(&request).Error; err != nil {
+			return nil, fmt.Errorf("failed to delete rider request: %w", err)
+		}
+
+		// Return the deleted request info
+		return &model.RiderRequestInfor{
+			Rider:   &rider,
+			Request: &request,
+		}, nil
+	}
+
+	// Save the updated request
+	if err := r.DB.Save(&request).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider request state: %w", err)
+	}
+
+	// Save rider updates if any
+	if *state == "approved" {
+		if err := r.DB.Save(&rider).Error; err != nil {
+			log.Printf("Failed to update rider state: %v", err)
+			// Don't fail the request update, just log the error
+		}
+	}
+
+	// Return the updated information
+	return &model.RiderRequestInfor{
+		Rider:   &rider,
+		Request: &request,
+	}, nil
 }
 
 // ReviewApplicate is the resolver for the reviewApplicate field.
@@ -199,6 +487,111 @@ func (r *queryResolver) TestNearbyRiders(ctx context.Context, center model.Coord
 	return []*model.NearbyRider{}, nil
 }
 
+// GetjobResponse is the resolver for the getjobResponse field.
+func (r *queryResolver) GetjobResponse(ctx context.Context, serviceID string) (*model.RidersRequest, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	var req model.RidersRequest
+	if err := r.DB.Where("rider_id = ? AND service_id = ?", *riderId, serviceID).First(&req).Error; err != nil {
+		return nil, fmt.Errorf("failed to get job response: %w", err)
+	}
+	return &req, nil
+}
+
+// GetAllRidersResponseInfor is the resolver for the getAllRidersResponseInfor field.
+func (r *queryResolver) GetAllRidersResponseInfor(ctx context.Context) ([]*model.RiderRequestInfor, error) {
+	serviceId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Verify service exists and has proper business type
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", serviceId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Get all rider requests for this service with rider information
+	var requests []model.RidersRequest
+	if err := r.DB.Where("service_id = ? AND state != 'deleted'", *serviceId).
+		Order("created_at DESC").
+		Find(&requests).Error; err != nil {
+		return nil, fmt.Errorf("failed to get rider requests: %w", err)
+	}
+
+	// Build response with rider information
+	var result []*model.RiderRequestInfor
+	for _, request := range requests {
+		// Get rider information
+		var rider model.Rider
+		if err := r.DB.First(&rider, "id = ?", request.RiderID).Error; err != nil {
+			// Log error but continue with other requests
+			log.Printf("Failed to get rider info for request %s: %v", request.ID, err)
+			continue
+		}
+
+		riderInfo := &model.RiderRequestInfor{
+			Rider:   &rider,
+			Request: &request,
+		}
+		result = append(result, riderInfo)
+	}
+
+	return result, nil
+}
+
+// GetRidersLocations is the resolver for the getRidersLocations field.
+func (r *queryResolver) GetRidersLocations(ctx context.Context) (*model.Rider, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	// Try Redis cache first
+	locationJSON, err := r.RedisClient.Get(ctx, fmt.Sprintf(model.RiderLocationKey, riderId)).Result()
+	if err == nil {
+		var location model.Rider
+		if json.Unmarshal([]byte(locationJSON), &location.Coordinates) == nil {
+			return &location, nil
+		}
+	}
+
+	// Fallback to database
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+	return &rider, nil
+}
+
+// RiderCurrentLocation is the resolver for the riderCurrentLocation field.
+func (r *queryResolver) RiderCurrentLocation(ctx context.Context, riderID string) ([]float64, error) {
+	// Try Redis cache first
+	locationJSON, err := r.RedisClient.Get(ctx, fmt.Sprintf(model.RiderLocationKey, riderID)).Result()
+	if err == nil {
+		var location model.Rider
+		if json.Unmarshal([]byte(locationJSON), &location.Coordinates) == nil {
+			return location.Coordinates, nil
+		}
+	}
+
+	// Fallback to database
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", riderID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	return rider.Coordinates, nil
+}
+
+// GetAllRidersStatusState is the resolver for the getAllRidersStatusState field.
+func (r *queryResolver) GetAllRidersStatusState(ctx context.Context, status model.RiderStatus) ([]*model.Rider, error) {
+	panic(fmt.Errorf("not implemented: GetAllRidersStatusState - getAllRidersStatusState"))
+}
+
 // ID is the resolver for the id field.
 func (r *riderResolver) ID(ctx context.Context, obj *model.Rider) (string, error) {
 	id := obj.ID.String()
@@ -236,7 +629,52 @@ func (r *riderResolver) H3Indexes(ctx context.Context, obj *model.Rider) ([]*str
 	return eachArray, nil
 }
 
+// ID is the resolver for the id field.
+func (r *ridersRequestResolver) ID(ctx context.Context, obj *model.RidersRequest) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// RiderStatusChanged is the resolver for the riderStatusChanged field.
+func (r *subscriptionResolver) RiderStatusChanged(ctx context.Context, riderID *string) (<-chan *model.Rider, error) {
+	panic(fmt.Errorf("not implemented: RiderStatusChanged - riderStatusChanged"))
+}
+
+// RiderLocationUpdated is the resolver for the riderLocationUpdated field.
+func (r *subscriptionResolver) RiderLocationUpdated(ctx context.Context, riderID *string) (<-chan []float64, error) {
+	if riderID == nil {
+		return nil, fmt.Errorf("riderID is required for subscription")
+	}
+
+	id := *riderID
+	updates := make(chan []float64, 1) // Buffered to avoid blocking
+
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", id).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	r.Subscribers[id] = updates
+
+	// Cleanup when context is done (client disconnects)
+	go func() {
+		<-ctx.Done()
+		delete(r.Subscribers, id)
+		close(updates)
+	}()
+
+	return updates, nil
+}
+
 // Rider returns graph.RiderResolver implementation.
 func (r *Resolver) Rider() graph.RiderResolver { return &riderResolver{r} }
 
+// RidersRequest returns graph.RidersRequestResolver implementation.
+func (r *Resolver) RidersRequest() graph.RidersRequestResolver { return &ridersRequestResolver{r} }
+
+// Subscription returns graph.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() graph.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type riderResolver struct{ *Resolver }
+type ridersRequestResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

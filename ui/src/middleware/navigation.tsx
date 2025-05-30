@@ -1,9 +1,9 @@
-import { ApolloProvider } from "@apollo/client";
+import { ApolloProvider, useLazyQuery } from "@apollo/client";
 import { createBrowserRouter, RouterProvider, useParams } from "react-router";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorPage from "./routError";
-import { AuthProvider } from "./context/authContext";
+import { AuthProvider, useAuth } from "./context/authContext";
 import ErrorLogin from "./routErrorLogin";
 // import { SidebarProvider } from "@/components/ui/sidebar";
 // import { AppSidebar } from "./bar";
@@ -44,7 +44,8 @@ const router = createBrowserRouter([
         element: <ServiceProviderProfile />,
       },
       { path: "/sms", element: <ChatSystem /> },
-      { path: "/zonex/:vendorId", element: <DeliveryZoneVisualizerVendor /> },
+      { path: "/mamp", element: <DeliveryTrackingMap /> },
+      { path: "/zonex/:vendorId/:orderId", element: <DeliveryZoneVisualizerVendor /> },
       { path: "/merge/:serviceId", element: <CheckType /> },
 
       { path: "/icons", element: <LucideIconSelector /> },
@@ -53,12 +54,11 @@ const router = createBrowserRouter([
 
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/favorites", element: <FavoritesPage /> },
-      // { path: "/contacts", element: <SearchData /> },
+      { path: "/check", element: <Checkout /> },
       // { path: "/c/:userId", element: <ContactDetailPage /> },
       { path: "/reset", element: <PasswordReset /> },
       { path: "/red", element: <SpectaclesLoading /> },
       { path: "/type", element: <BusinessType /> },
-
 
       { path: "/event/:eventId", element: <UpdatEvent /> },
 
@@ -81,7 +81,7 @@ const router = createBrowserRouter([
       { path: "contacts", element: <SearchData /> },
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
-      { path: "zone", element: <VendorProcessFlow /> },
+      // { path: "zone", element: <VendorProcessFlow /> },
       { path: "zonex", element: <ResultStepData /> },
 
       {
@@ -96,9 +96,20 @@ const router = createBrowserRouter([
       },
 
       { path: "new", element: <ProductForm /> },
+      { path: "orders", element: <VendorOrder /> },
+
+      ///for service Riders providers
+      { path: "livemap", element: <LiveMap /> },
+      { path: "live", element: <AllRoutesDisplay /> },
+
+      { path: "analytics", element: <Analytics /> },
+      { path: "history", element: <History /> },
+      { path: "request", element: <RiderRequests /> },
+      { path: "vendors", element: <VendorsByDeliveryService /> },
     ],
   },
 ]);
+
 
 export function Navigation() {
   return (
@@ -107,12 +118,12 @@ export function Navigation() {
         <SidebarProvider>
           <OrderTrackingProvider>
             {/* <AppSidebar /> */}
-            <CartProvider>
-              <AuthProvider>
-                <RouterProvider router={router} />
-                <Toaster />
-              </AuthProvider>
-            </CartProvider>
+            <AuthProvider>
+              {/* <CartProvider> */}
+              <RouterProvider router={router} />
+              <Toaster />
+              {/* </CartProvider> */}
+            </AuthProvider>
           </OrderTrackingProvider>
         </SidebarProvider>
       </ThemeProvider>
@@ -134,34 +145,78 @@ import { CartDrawer } from "@/components/custom/cart/cart-drawer";
 import BusinessType from "@/components/serviceProviders/createProvider/business-type-selector-app";
 import { ImprovedServiceProvider } from "@/components/serviceProviders/createProvider";
 import { RiderRegistration } from "@/components/rider/create";
-import {  MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
+import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 import { DeliveryZoneVisualizerVendor } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/deliveryZoneVisualizer";
 import CheckType from "@/components/user/Location/vendor/mapsWork/checkType";
+import { ProviderContextProvider } from "./context/businessType";
+import LiveMap from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap";
+import Analytics from "@/components/serviceProviders/DELIVERY_ENTERPRISE/analytics";
+import History from "@/components/serviceProviders/DELIVERY_ENTERPRISE/history";
+import RiderRequests from "@/components/serviceProviders/DELIVERY_ENTERPRISE/riderRequests";
+import VendorsByDeliveryService from "@/components/serviceProviders/DELIVERY_ENTERPRISE/vendors/vendors";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import Checkout from "@/components/custom/orders/check";
+import SingleRiderTrackingMap from "@/components/rider/getLocation";
+import DeliveryTrackingMap from "@/components/rider/getLocation";
+import VendorOrder from "@/components/custom/orders";
+import AllRoutesDisplay from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/hooks/getAllRouteData";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 
 export function SidebarLayoutProvider() {
-  // const { serviceId } = useParams();
+ const {user}= useAuth()
+  const { serviceId } = useParams();
+  // const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
+  //   onCompleted: (data) => {
+  //     if (data.clearClientCache) {
+  //       // Clear localStorage when server confirms
+  //       clearCache();
+  //     }
+  //   },
+  //   onError: (error) => {
+  //     console.error("Error clearing client cache:", error);
+  //     // Still clear localStorage even if server call fails
+  //     clearCache();
+  //   }
+  // });
+// console.log("clearClientCache initialized",data);
   return (
-    <div className="flex w-full ">
-      <Sidebar />
-      <div className="flex-1 p-4">
-        <Outlet />
-      </div>
+    <div className="flex w-full h-screen overflow-hidden">
+      <ProviderContextProvider serviceId={serviceId ?? ""}>
+        {/* Sidebar Scrollable */}
+        <ScrollArea className="h-full  border-r">
+          <Sidebar />
+        </ScrollArea>
+
+        {/* Outlet Scrollable */}
+        <ScrollArea className="flex-1 p-4">
+          <Outlet />
+        </ScrollArea>
+      </ProviderContextProvider>
     </div>
   );
 }
 
 export function Layout() {
   const { serviceId } = useParams();
-  // const [isMobileOpen, setIsMobileOpen] = useState(false);
+
   return (
-    <div className="flex w-full bg-cyan-100/20">
-      <SidebarMain serviceId={serviceId} />
-      <div className="flex-1 p-4">
-         <CartDrawer />
-        <Outlet />
-      </div>
+    <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
+      <ProviderContextProvider serviceId={serviceId ?? ""}>
+        <CartProvider >
+
+        {/* Sidebar with scroll */}
+        <ScrollArea className="h-full border-r">
+          <SidebarMain serviceId={serviceId} />
+        </ScrollArea>
+
+        {/* Main content with scroll */}
+          <ScrollArea className="flex-1 p-4">
+            <CartDrawer />
+            <Outlet />
+          </ScrollArea>
+        </CartProvider>
+      </ProviderContextProvider>
     </div>
   );
 }
