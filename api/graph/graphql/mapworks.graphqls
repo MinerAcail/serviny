@@ -68,6 +68,8 @@ extend type Query {
   # Get isochrone result by ID
   getIsochroneById(id: String!): IsochroneResult
 
+  getRiderProfile(riderId: String!): RiderProfile
+
   getASingleIsochroneZoneMetaDataByMetaId(
     isochroneMetaId: String!
   ): ZoneMetaData
@@ -75,13 +77,18 @@ extend type Query {
   getIsochronesByRider(riderId: String!): IsochroneResult!
   getAllIsochronesByRider(riderId: String!): [IsochroneResult!]
   getAllIsochronesByVendor(vendorId: String!): [VendorMapData!]
-
+  getAllIsochronesByService(serviceId: String!): [IsochroneResult!]!
   # Get Direction from google api
 
   getOrderRoute(orderId: String!): RouteInfo
   getOrderWithRoute(orderId: String!): OrderWithRoute
   getRouteData(routeId: String!): RouteData!
   getAllRouteData: [RouteInfo!]!
+
+
+  getRiderRanges: [RiderRange!]!
+  getARiderRanges(routeId: String!): [RiderRange!]!
+  getARiderRange(rangeId: String!): RiderRange!
 
   getIsochronesByService(vendorId: String!): IsochroneResult!
   getVendorsFromIsochroneResult: [VendorsMapData!]!
@@ -115,7 +122,15 @@ extend type Mutation {
   generateRoute(input: generateRouteInput!): RouteInfo!
   updateOrderRoute(orderId: String!, status: String!): Boolean!
 
-  deleteAllRouteData:Boolean
+
+  generateBookRoute(input: generateBookRouteInput!): RouteInfo!
+  updateBookRoute(orderId: String!, status: String!): Boolean!
+
+  createRiderRange(input: NewRiderRangeInput!): RiderRange!
+  updateRiderRange(input: UpdateRiderRangeInput!): RiderRange!
+  deleteRiderRange(id: String!): Boolean!
+
+  deleteAllRouteData: Boolean
   manageCacheIsochrone(input: CacheManagementInput!): CacheStats!
 }
 
@@ -123,15 +138,61 @@ type RouteInfo {
   id: ID!
   orderId: String!
   # vendorId:String!
-  userId:String
+  userId: String
   geojson: String # data from the api
   createdAt: Time!
   updatedAt: Time!
 }
-type RouteData{
+type RouteData {
   distance: String!
   duration: String!
 }
+
+type RiderRange {
+  id: String!
+  riderId: String!
+  startKm: Float!
+  endKm: Float!
+  price: Float!
+  createdAt: Time!
+  updatedAt: Time!
+  # rider: Rider!
+}
+
+input NewRiderRangeInput {
+  startKm: Float!
+  endKm: Float!
+  price: Float!
+}
+
+input UpdateRiderRangeInput {
+  id: ID!
+  startKm: Float
+  endKm: Float
+  price: Float
+}
+type RiderProfile {
+  id: String!
+  name: String!
+  email: String!
+  dpfile: String
+  availability: Boolean!
+  coordinates: [Float!]
+  experience: String!
+  phone: String
+  vehicleType: String
+  rating: Float
+  isOnline: Boolean!
+ 
+}
+
+# type DeliveryLocation {
+#   address: String!
+#   coordinates: [Float!]!
+# }
+#   pickupLocation: DeliveryLocation!
+#   dropoffLocation: DeliveryLocation!
+
 type RouteDetails {
   summary: String!
   totalDistance: String!
@@ -157,7 +218,10 @@ input generateRouteInput {
   Usercoordinates: [Float!]!
   Vendorcoordinates: [Float!]!
 }
-
+input generateBookRouteInput {
+  dropoffLocation: [Float]
+  pickupLocation: [Float]
+}
 type OrderWithRoute {
   order: Order!
   route: RouteInfo

@@ -114,6 +114,11 @@ export default function VendorsByDeliveryService() {
   const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
   const [isMapLoading, setIsMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+
+const [mapReadyToInit, setMapReadyToInit] = useState(false);
+const [initMapManually, setInitMapManually] = useState(false);
+const [autoInitTimer, setAutoInitTimer] = useState<NodeJS.Timeout | null>(null);
+
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
   const mapInitialized = useRef(false);
@@ -356,15 +361,25 @@ export default function VendorsByDeliveryService() {
   };
 
   // Clean up map function
-  const cleanupMapInstance = useCallback(() => {
-    if (mapInstance.current) {
-      cleanupMap(mapInstance.current);
-      mapInstance.current = null;
-      mapInitialized.current = false;
-    }
-    setIsMapLoading(false);
-    setMapError(null);
-  }, []);
+// Enhanced cleanup function
+const cleanupMapInstance = useCallback(() => {
+  // Clear any pending auto-init timer
+  if (autoInitTimer) {
+    clearTimeout(autoInitTimer);
+    setAutoInitTimer(null);
+  }
+
+  if (mapInstance.current) {
+    cleanupMap(mapInstance.current);
+    mapInstance.current = null;
+    mapInitialized.current = false;
+  }
+  setIsMapLoading(false);
+  setMapError(null);
+  setMapReadyToInit(false);
+  setInitMapManually(false);
+}, [autoInitTimer]);
+
 
   // Reload map function
   const reloadMap = useCallback(() => {
@@ -381,78 +396,85 @@ export default function VendorsByDeliveryService() {
   }, [selectedVendor]);
 
   // Initialize map function with better error handling and timing
-  const initializeMap = useCallback(() => {
-    if (!mapRef.current || !selectedVendor || mapInitialized.current) {
-      return;
-    }
+// Extract map initialization into a separate function
+const initializeMap = useCallback(() => {
+  if (!mapRef.current || !selectedVendor || mapInitialized.current) {
+    console.log('Map not ready for initialization:', {
+      hasContainer: !!mapRef.current,
+      hasVendor: !!selectedVendor,
+      alreadyInitialized: mapInitialized.current
+    });
+    return;
+  }
 
-    console.log("Initializing map for vendor:", selectedVendor.vendor.name);
-    setIsMapLoading(true);
-    setMapError(null);
-    mapInitialized.current = true;
+  console.log("Initializing map for vendor:", selectedVendor.vendor.name);
+  setIsMapLoading(true);
+  setMapError(null);
+  mapInitialized.current = true;
 
-    const mapStyle = getMapStyle();
-    const vendorCoords = getVendorCoordinates(selectedVendor.vendor);
+  const mapStyle = getMapStyle();
+  const vendorCoords = getVendorCoordinates(selectedVendor.vendor);
 
-    console.log("Map coordinates:", vendorCoords);
-    console.log("Map style URL:", mapStyle);
+  console.log("Map coordinates:", vendorCoords);
+  console.log("Map style URL:", mapStyle);
 
-    try {
-      const map = new maplibregl.Map({
-        container: mapRef.current,
-        style: mapStyle,
-        center: vendorCoords,
-        zoom: 12,
-        attributionControl: false,
-      });
+  try {
+    const map = new maplibregl.Map({
+      container: mapRef.current,
+      style: mapStyle,
+      center: vendorCoords,
+      zoom: 12,
+      attributionControl: false,
+    });
 
-      mapInstance.current = map;
+    mapInstance.current = map;
 
-      // Add vendor marker
-      createVendorMarker(map, selectedVendor.vendor, vendorCoords);
+    // Add vendor marker
+    createVendorMarker(map, selectedVendor.vendor, vendorCoords);
 
-      map.on("load", () => {
-        console.log("Map loaded successfully");
-        setIsMapLoading(false);
-
-        // Process isochrone data
-        processIsochroneData(map, selectedVendor, () => {
-          // Fit bounds after processing
-          fitMapBounds(map, selectedVendor, vendorCoords);
-        });
-      });
-
-      // Enhanced error handling
-      map.on("error", (e) => {
-        console.error("Map error:", e);
-        setIsMapLoading(false);
-        setMapError("Map failed to load. Please try reloading.");
-        toast.error("Map loading error", {
-          description:
-            "There was an issue loading the map. Please try reloading.",
-        });
-      });
-
-      // Style loading events
-      map.on("styledata", () => {
-        console.log("Map style loaded");
-      });
-
-      map.on("sourcedata", (e) => {
-        if (e.isSourceLoaded) {
-          console.log("Source data loaded:", e.sourceId);
-        }
-      });
-    } catch (mapError) {
-      console.error("Error initializing map:", mapError);
+    map.on("load", () => {
+      console.log("Map loaded successfully");
       setIsMapLoading(false);
-      setMapError("Failed to initialize map. Please try reloading.");
-      mapInitialized.current = false;
-      toast.error("Failed to initialize map", {
-        description: "Please check your internet connection and try again.",
+
+      // Process isochrone data
+      processIsochroneData(map, selectedVendor, () => {
+        // Fit bounds after processing
+        fitMapBounds(map, selectedVendor, vendorCoords);
       });
-    }
-  }, [selectedVendor]);
+    });
+
+    // Enhanced error handling
+    map.on("error", (e) => {
+      console.error("Map error:", e);
+      setIsMapLoading(false);
+      setMapError("Map failed to load. Please try reloading.");
+      toast.error("Map loading error", {
+        description:
+          "There was an issue loading the map. Please try reloading.",
+      });
+    });
+
+    // Style loading events
+    map.on("styledata", () => {
+      console.log("Map style loaded");
+    });
+
+    map.on("sourcedata", (e) => {
+      if (e.isSourceLoaded) {
+        console.log("Source data loaded:", e.sourceId);
+      }
+    });
+  } catch (mapError) {
+    console.error("Error initializing map:", mapError);
+    setIsMapLoading(false);
+    setMapError("Failed to initialize map. Please try reloading.");
+    mapInitialized.current = false;
+    toast.error("Failed to initialize map", {
+      description: "Please check your internet connection and try again.",
+    });
+  }
+}, [selectedVendor]);
+
 
   // Map initialization effect - FIXED with proper timing
   useEffect(() => {

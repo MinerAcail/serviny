@@ -179,7 +179,7 @@ export function ServiceProviderProfile() {
                   }`}
                 >
                   <div
-                    className={`${isTabsFixed ? "container mx-auto px-4" : ""}`}
+                    className={`${isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""}`}
                   >
                     <Tabs
                       value={activeTab}
@@ -187,26 +187,41 @@ export function ServiceProviderProfile() {
                       className="w-full"
                       ref={tabsRef}
                     >
-                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
-                      
-                        {data?.getProvider?.businessType === BusinessTypeEnum.PRE_ORDER
-                      || data?.getProvider?.businessType === BusinessTypeEnum.DROP_SHIPPING
-                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_STANDARD
-                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                        <TabsTrigger value="portfolio" className="rounded-full">
-                          Items
-                        </TabsTrigger>
-                      ) : (
-                        <TabsTrigger value="portfolio" className="rounded-full">
-                          Portfolio
-                        </TabsTrigger>
-                      )}
-                        <TabsTrigger value="price" className="rounded-full">
-                          Price
-                        </TabsTrigger>
-                        <TabsTrigger value="policies" className="rounded-full">
-                          Policies
-                        </TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20   p-1">
+                        {data?.getProvider?.businessType ===
+                          BusinessTypeEnum.PRE_ORDER ||
+                        data?.getProvider?.businessType ===
+                          BusinessTypeEnum.DROP_SHIPPING ||
+                        data?.getProvider?.businessType ===
+                          BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                        data?.getProvider?.businessType ===
+                          BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                          <TabsTrigger
+                            value="portfolio"
+                            className="rounded-full"
+                          >
+                            Items
+                          </TabsTrigger>
+                        ) : (
+                          <>
+                            <TabsTrigger
+                              value="portfolio"
+                              className="rounded-full"
+                            >
+                              Portfolio
+                            </TabsTrigger>
+<TabsTrigger
+                              value="policies"
+                              className="rounded-full"
+                            >
+                              Policies
+                            </TabsTrigger>
+                            <TabsTrigger value="price" className="rounded-full">
+                              Price
+                            </TabsTrigger>
+                            
+                          </>
+                        )}
                       </TabsList>
                       {/* <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
                         <TabsTrigger value="portfolio" className="rounded-full">
@@ -231,16 +246,18 @@ export function ServiceProviderProfile() {
                     className="w-full "
                   >
                     <TabsContent value="portfolio">
-                         {data?.getProvider?.businessType === BusinessTypeEnum.PRE_ORDER
-                      || data?.getProvider?.businessType === BusinessTypeEnum.DROP_SHIPPING
-                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_STANDARD
-                      || data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                          <AllProducts />
+                      {data?.getProvider?.businessType ===
+                        BusinessTypeEnum.PRE_ORDER ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.DROP_SHIPPING ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                        <AllProducts />
                       ) : (
-                       <WorkGallery />
+                        <WorkGallery />
                       )}
-                    
-                      
                     </TabsContent>
                     <TabsContent value="price">
                       <Price />

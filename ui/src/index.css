@@ -109,7 +109,20 @@ h1 {
   font-size: 14px;
 }
 
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
 
+.custom-popup {
+  max-width: 300px;
+}
+
+.rider-marker-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

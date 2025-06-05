@@ -30,6 +30,7 @@ import {
   History,
   Building2,
   LayoutList,
+  BookCopy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,10 +69,11 @@ type NavItemProps = {
   };
 };
 export function Sidebar() {
-  const { user, isAuthenticated,clearCache } = useAuth();
+  const { user, isAuthenticated, clearCache } = useAuth();
   // const { isMatch } = useCheckAuthId(user?.id);
   const { isMatch } = useCheckAuthId();
-  const { isDeliveryStandardOrEnterprise,isEcommerceStandardOrEnterprise } = useProvider();
+  const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
+    useProvider();
   useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
@@ -83,22 +85,21 @@ export function Sidebar() {
       console.error("Error clearing client cache:", error);
       // Still clear localStorage even if server call fails
       clearCache();
-    }
+    },
   });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navigation = [
     { name: "Home", to: `/providers/${user?.id}?lo`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
-    ...(isEcommerceStandardOrEnterprise ?[
-      { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
-      { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
-      { name: "Delivery Zone", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
-      { name: "Contacts", to: `contacts`, icon: BookUser },
-      { name: "Orders", to: `orders`, icon: LayoutList },
+    ...(isEcommerceStandardOrEnterprise
+      ? [
+          { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
+          { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          { name: "Contacts", to: `contacts`, icon: BookUser },
+          { name: "Orders", to: `orders`, icon: LayoutList },
+        ]
+      : []),
 
-    ]:[]),
-
-    
     // {
     //   name: "Items",
     //   to: `/providers/${user?.id}?lt`,
@@ -117,13 +118,15 @@ export function Sidebar() {
           { name: "Vendors", to: `vendors`, icon: Building2 },
         ]
       : []),
+    { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
 
-      { name: "Upload", to: "upload", icon: HardDriveUpload },
-    // { name: "Business Types", to: "booktypes", icon: Library },
+    { name: "Upload", to: "upload", icon: HardDriveUpload },
+    { name: "Forms", to: "builder", icon: BookCopy  },
+    // { name: "Zone And Pricing", to: "setup", icon: Library },
     { name: "Edit", to: "update", icon: Edit }, // absolute path outside
     { name: "Schedule", to: `time`, icon: CalendarSync },
     { name: "Social Media", to: `social`, icon: Waypoints },
-    
+
     // { name: "Profile", to: `/providers/${serviceId}`, icon: Home }, // this one still needs it
   ];
 
@@ -295,11 +298,14 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { isMatch } = useCheckAuthId(serviceId);
   const { userType } = useProvider();
-  const { isAuthenticated, user,clearCache } = useAuth();
+  const { isAuthenticated, user, clearCache } = useAuth();
+  const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
+    useProvider();
+
   const location = useLocation();
   const install = location.pathname === "/install";
   const providers = location.pathname === "/providers";
-  const {data} = useQuery(CLEAR_CLIENT_CACHE, {
+  const { data } = useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
       if (data.clearClientCache === false) {
@@ -310,9 +316,9 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       console.error("Error clearing client cache:", error);
       // Still clear localStorage even if server call fails
       clearCache();
-    }
+    },
   });
-  console.log("clearClientCache initialized",data);
+  console.log("clearClientCache initialized", data);
   // const checkurl = location.pathname === "/install" || location.pathname === "/zonex";
   //id from localStorage
   const currentVendorId = localStorage.getItem("currentVendorId");
@@ -326,11 +332,13 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
         : `/providers/${currentVendorId}`,
       icon: Home,
     },
-    { name: "My Delivery", to: `/zonex/${currentVendorId}`, icon: MapPlus }, // stays on /dbp/:serviceId
+    // { name: "My Delivery", to: `/zonex/${currentVendorId}`, icon: MapPlus }, // stays on /dbp/:serviceId
 
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
     { name: "Message", to: "/sms", icon: MessageSquare },
-    { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
+    ...(isEcommerceStandardOrEnterprise
+      ? [{ name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge }]
+      : []),
     // Conditionally include items
     ...(isMatch
       ? [
@@ -339,11 +347,11 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             to: install ? `/dbp/${user?.id}` : `/dbp`,
             icon: LayoutDashboard,
           },
-          {
-            name: "Schedule",
-            to: `/dbp/booktypes`,
-            icon: CalendarSync,
-          },
+          // {
+          //   name: "Schedule",
+          //   to: `/dbp/booktypes`,
+          //   icon: CalendarSync,
+          // },
           { name: "Edit", to: `/dbp/update`, icon: Edit },
         ]
       : []),

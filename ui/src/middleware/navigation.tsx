@@ -43,10 +43,16 @@ const router = createBrowserRouter([
         path: "/providers/:serviceId",
         element: <ServiceProviderProfile />,
       },
-      { path: "/sms", element: <ChatSystem /> },
+      { path: "/sms", element: <VendorChatSystem /> },
       { path: "/mamp", element: <DeliveryTrackingMap /> },
       { path: "/zonex/:vendorId/:orderId", element: <DeliveryZoneVisualizerVendor /> },
+      // { path: "/delivery/:riderId/:bookId", element: <RiderZoneSetup /> },
+      // { path: "/delivery/:riderId/:bookId", element: <AutocompleteSearchMap /> },
+      { path: "/delivery/:riderId/:bookId", element: <RiderBookingDeliveryRequest /> },
+
+
       { path: "/merge/:serviceId", element: <CheckType /> },
+      { path: "view/:id", element: <FormPage /> },
 
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <ImprovedServiceProvider /> },
@@ -81,8 +87,11 @@ const router = createBrowserRouter([
       { path: "contacts", element: <SearchData /> },
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
-      // { path: "zone", element: <VendorProcessFlow /> },
+      { path: "zone", element: <RiderZoneSetup /> },
       { path: "zonex", element: <ResultStepData /> },
+      { path: "builder", element: <FormBuilder /> },
+
+
 
       {
         path: "update",
@@ -96,7 +105,7 @@ const router = createBrowserRouter([
       },
 
       { path: "new", element: <ProductForm /> },
-      { path: "orders", element: <VendorOrder /> },
+      { path: "orders", element: <OrderManagementSystem /> },
 
       ///for service Riders providers
       { path: "livemap", element: <LiveMap /> },
@@ -160,6 +169,15 @@ import SingleRiderTrackingMap from "@/components/rider/getLocation";
 import DeliveryTrackingMap from "@/components/rider/getLocation";
 import VendorOrder from "@/components/custom/orders";
 import AllRoutesDisplay from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/hooks/getAllRouteData";
+import { DeliveryZoneVisualizerDeliveryService, RiderBookingDeliveryRequest } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService";
+import RiderBookingComponent from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/booking";
+import { RiderZoneSetup } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/books/riderflow";
+import AutocompleteSearchMap from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/try";
+import FormBuilder from "@/components/user/formBuilder/FormBuilder";
+import FormsPage from "@/components/user/formBuilder/FormsPage";
+import FormPage from "@/components/user/formBuilder/FormPage";
+import VendorChatSystem from "@/components/chatsSys/vendor/VendorChatSystem";
+import OrderManagementSystem from "@/components/custom/orders/order-management-system";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

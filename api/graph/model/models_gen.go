@@ -24,6 +24,27 @@ type AppointmentBookedData struct {
 	UsersData []*UserData         `json:"usersData"`
 }
 
+type AppointmentBookingData struct {
+	BookingID             string      `json:"bookingId"`
+	StartTime             string      `json:"startTime"`
+	EndTime               string      `json:"endTime"`
+	Day                   string      `json:"day"`
+	Notes                 *string     `json:"notes,omitempty"`
+	Item                  *string     `json:"item,omitempty"`
+	TableSize             int32       `json:"tableSize"`
+	UserType              string      `json:"userType"`
+	IsConfirmed           *bool       `json:"isConfirmed,omitempty"`
+	PickupLocation        []float64   `json:"pickupLocation,omitempty"`
+	DropoffLocation       []float64   `json:"dropoffLocation,omitempty"`
+	DeliveryAddress       string      `json:"deliveryAddress"`
+	DeliveryFee           *string     `json:"deliveryFee,omitempty"`
+	Distance              *string     `json:"distance,omitempty"`
+	Duration              *string     `json:"duration,omitempty"`
+	EstimatedDeliveryDate *string     `json:"estimatedDeliveryDate,omitempty"`
+	RouteData             *RouteInfo  `json:"routeData,omitempty"`
+	RangeMetaData         *RiderRange `json:"rangeMetaData,omitempty"`
+}
+
 type BookedData struct {
 	Event     *Event      `json:"event"`
 	UsersData []*UserData `json:"usersData"`
@@ -133,6 +154,14 @@ type CreateFavoriteInput struct {
 	UserID      string    `json:"userId"`
 }
 
+type CreateFormInput struct {
+	Title       string            `json:"title"`
+	Description *string           `json:"description,omitempty"`
+	Type        FormType          `json:"type"`
+	Fields      []*FormFieldInput `json:"fields"`
+	IsActive    *bool             `json:"isActive,omitempty"`
+}
+
 type CreatePolicyInput struct {
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
@@ -197,6 +226,50 @@ type EventInput struct {
 	Recurring    *RecurringType `json:"recurring,omitempty"`
 }
 
+type FieldAnalytics struct {
+	FieldID        string   `json:"fieldId"`
+	FieldLabel     string   `json:"fieldLabel"`
+	CompletionRate float64  `json:"completionRate"`
+	AverageLength  *float64 `json:"averageLength,omitempty"`
+	CommonValues   []string `json:"commonValues"`
+}
+
+type FormAnalytics struct {
+	TotalSubmissions      int32             `json:"totalSubmissions"`
+	SubmissionsToday      int32             `json:"submissionsToday"`
+	SubmissionsThisWeek   int32             `json:"submissionsThisWeek"`
+	SubmissionsThisMonth  int32             `json:"submissionsThisMonth"`
+	AverageCompletionTime *float64          `json:"averageCompletionTime,omitempty"`
+	ConversionRate        *float64          `json:"conversionRate,omitempty"`
+	FieldAnalytics        []*FieldAnalytics `json:"fieldAnalytics"`
+}
+
+type FormFieldInput struct {
+	Type        FieldType `json:"type"`
+	Label       string    `json:"label"`
+	Placeholder *string   `json:"placeholder,omitempty"`
+	Required    *bool     `json:"required,omitempty"`
+	Options     []string  `json:"options,omitempty"`
+	Validation  *string   `json:"validation,omitempty"`
+	Order       *int32    `json:"order,omitempty"`
+}
+
+type FormSubmissionInput struct {
+	FormID      string    `json:"formId"`
+	FormTitle   string    `json:"formTitle"`
+	Data        string    `json:"data"`
+	SubmittedAt time.Time `json:"submittedAt"`
+	IPAddress   *string   `json:"ipAddress,omitempty"`
+	UserAgent   *string   `json:"userAgent,omitempty"`
+}
+
+type FormsFilter struct {
+	Type      *FormType `json:"type,omitempty"`
+	IsActive  *bool     `json:"isActive,omitempty"`
+	CreatedBy *string   `json:"createdBy,omitempty"`
+	Search    *string   `json:"search,omitempty"`
+}
+
 type GalleryProfessionInput struct {
 	Title       *string   `json:"title,omitempty"`
 	Description *string   `json:"description,omitempty"`
@@ -249,6 +322,12 @@ type NearbyRider struct {
 	Lng      float64 `json:"lng"`
 	H3Dist   int32   `json:"h3Dist"`
 	Distance float64 `json:"distance"`
+}
+
+type NewRiderRangeInput struct {
+	StartKm float64 `json:"startKm"`
+	EndKm   float64 `json:"endKm"`
+	Price   float64 `json:"price"`
 }
 
 type OrderChat struct {
@@ -395,6 +474,20 @@ type RiderInput struct {
 	Experience   string     `json:"experience"`
 }
 
+type RiderProfile struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email"`
+	Dpfile       *string   `json:"dpfile,omitempty"`
+	Availability bool      `json:"availability"`
+	Coordinates  []float64 `json:"coordinates,omitempty"`
+	Experience   string    `json:"experience"`
+	Phone        *string   `json:"phone,omitempty"`
+	VehicleType  *string   `json:"vehicleType,omitempty"`
+	Rating       *float64  `json:"rating,omitempty"`
+	IsOnline     bool      `json:"isOnline"`
+}
+
 type RiderWithMapData struct {
 	Rider        *Rider             `json:"rider,omitempty"`
 	RiderService *Service           `json:"riderService,omitempty"`
@@ -446,6 +539,18 @@ type SearchResults struct {
 	Results []*SearchResult `json:"results"`
 }
 
+type ServiceData struct {
+	ID          string                  `json:"id"`
+	ServiceID   string                  `json:"serviceId"`
+	Type        ServiceType             `json:"type"`
+	Rider       *UsersInfor             `json:"rider,omitempty"`
+	Customer    *UsersInfor             `json:"customer"`
+	Vendor      *Service                `json:"vendor"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	OrderData   *CartItemOrder          `json:"orderData,omitempty"`
+	BookingData *AppointmentBookingData `json:"bookingData,omitempty"`
+}
+
 type SocialMediaInput struct {
 	Name string `json:"name"`
 	Icon string `json:"icon"`
@@ -487,6 +592,15 @@ type UpdateEventInput struct {
 	Recurring    *RecurringType `json:"recurring,omitempty"`
 }
 
+type UpdateFormInput struct {
+	ID          string            `json:"id"`
+	Title       *string           `json:"title,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Type        *FormType         `json:"type,omitempty"`
+	Fields      []*FormFieldInput `json:"fields,omitempty"`
+	IsActive    *bool             `json:"isActive,omitempty"`
+}
+
 type UpdatePolicyDetailInput struct {
 	Title     *string  `json:"title,omitempty"`
 	Content   *string  `json:"content,omitempty"`
@@ -504,6 +618,13 @@ type UpdatePriceCardInput struct {
 	Description *string         `json:"description,omitempty"`
 	Prices      []*PriceInput   `json:"prices,omitempty"`
 	Amenities   []*AmenityInput `json:"amenities,omitempty"`
+}
+
+type UpdateRiderRangeInput struct {
+	ID      string   `json:"id"`
+	StartKm *float64 `json:"startKm,omitempty"`
+	EndKm   *float64 `json:"endKm,omitempty"`
+	Price   *float64 `json:"price,omitempty"`
 }
 
 type UpdateServiceInput struct {
@@ -572,6 +693,15 @@ type ZoneMetaDataInput struct {
 	Price float64 `json:"price"`
 }
 
+type AddBookCoordinateInput struct {
+	BookID          string     `json:"bookId"`
+	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
+	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
+	PickupLocation  []*float64 `json:"pickupLocation,omitempty"`
+	RangeMetaID     *string    `json:"rangeMetaId,omitempty"`
+	RidersID        *string    `json:"ridersId,omitempty"`
+}
+
 type AddCoordinateInput struct {
 	OrderID         string     `json:"orderId"`
 	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
@@ -584,6 +714,11 @@ type FullCard struct {
 	Card      *PriceCard `json:"card"`
 	Prices    []*Price   `json:"prices"`
 	Amenities []*Amenity `json:"amenities"`
+}
+
+type GenerateBookRouteInput struct {
+	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
+	PickupLocation  []*float64 `json:"pickupLocation,omitempty"`
 }
 
 type GenerateRouteInput struct {
@@ -678,6 +813,102 @@ func (e *BookingType) UnmarshalGQL(v any) error {
 }
 
 func (e BookingType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type FieldType string
+
+const (
+	FieldTypeText      FieldType = "TEXT"
+	FieldTypeTextarea  FieldType = "TEXTAREA"
+	FieldTypeSelect    FieldType = "SELECT"
+	FieldTypeCheckbox  FieldType = "CHECKBOX"
+	FieldTypeRadio     FieldType = "RADIO"
+	FieldTypeSignature FieldType = "SIGNATURE"
+)
+
+var AllFieldType = []FieldType{
+	FieldTypeText,
+	FieldTypeTextarea,
+	FieldTypeSelect,
+	FieldTypeCheckbox,
+	FieldTypeRadio,
+	FieldTypeSignature,
+}
+
+func (e FieldType) IsValid() bool {
+	switch e {
+	case FieldTypeText, FieldTypeTextarea, FieldTypeSelect, FieldTypeCheckbox, FieldTypeRadio, FieldTypeSignature:
+		return true
+	}
+	return false
+}
+
+func (e FieldType) String() string {
+	return string(e)
+}
+
+func (e *FieldType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FieldType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FieldType", str)
+	}
+	return nil
+}
+
+func (e FieldType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type FormType string
+
+const (
+	FormTypeAgreement   FormType = "AGREEMENT"
+	FormTypeSurvey      FormType = "SURVEY"
+	FormTypeApplication FormType = "APPLICATION"
+	FormTypeFeedback    FormType = "FEEDBACK"
+	FormTypeOther       FormType = "OTHER"
+)
+
+var AllFormType = []FormType{
+	FormTypeAgreement,
+	FormTypeSurvey,
+	FormTypeApplication,
+	FormTypeFeedback,
+	FormTypeOther,
+}
+
+func (e FormType) IsValid() bool {
+	switch e {
+	case FormTypeAgreement, FormTypeSurvey, FormTypeApplication, FormTypeFeedback, FormTypeOther:
+		return true
+	}
+	return false
+}
+
+func (e FormType) String() string {
+	return string(e)
+}
+
+func (e *FormType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FormType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FormType", str)
+	}
+	return nil
+}
+
+func (e FormType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
@@ -905,6 +1136,92 @@ func (e *SenderType) UnmarshalGQL(v any) error {
 }
 
 func (e SenderType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ServiceType string
+
+const (
+	ServiceTypeOrder   ServiceType = "ORDER"
+	ServiceTypeBooking ServiceType = "BOOKING"
+)
+
+var AllServiceType = []ServiceType{
+	ServiceTypeOrder,
+	ServiceTypeBooking,
+}
+
+func (e ServiceType) IsValid() bool {
+	switch e {
+	case ServiceTypeOrder, ServiceTypeBooking:
+		return true
+	}
+	return false
+}
+
+func (e ServiceType) String() string {
+	return string(e)
+}
+
+func (e *ServiceType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceType", str)
+	}
+	return nil
+}
+
+func (e ServiceType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SubmissionStatus string
+
+const (
+	SubmissionStatusPending   SubmissionStatus = "PENDING"
+	SubmissionStatusSubmitted SubmissionStatus = "SUBMITTED"
+	SubmissionStatusProcessed SubmissionStatus = "PROCESSED"
+	SubmissionStatusFailed    SubmissionStatus = "FAILED"
+)
+
+var AllSubmissionStatus = []SubmissionStatus{
+	SubmissionStatusPending,
+	SubmissionStatusSubmitted,
+	SubmissionStatusProcessed,
+	SubmissionStatusFailed,
+}
+
+func (e SubmissionStatus) IsValid() bool {
+	switch e {
+	case SubmissionStatusPending, SubmissionStatusSubmitted, SubmissionStatusProcessed, SubmissionStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e SubmissionStatus) String() string {
+	return string(e)
+}
+
+func (e *SubmissionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SubmissionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SubmissionStatus", str)
+	}
+	return nil
+}
+
+func (e SubmissionStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

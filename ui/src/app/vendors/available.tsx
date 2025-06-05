@@ -431,6 +431,7 @@ export default function AvailabilityPage() {
                 <TabsTrigger value="booked">Booked Schedule</TabsTrigger>
                </>
               )}
+              
               {bookingType.includes(BookType.EVENT) && (
                 <TabsTrigger value="event">Event Schedule</TabsTrigger>
               )}
@@ -440,6 +441,7 @@ export default function AvailabilityPage() {
               {bookingType.includes(BookType.APPOINTMENT) && (
                 <AppointmentBookedMembers />
               )}
+              
             </TabsContent>
             <TabsContent value="unavailable">
               <Card>
@@ -705,7 +707,7 @@ export default function AvailabilityPage() {
               availability and let clients book with ease.
             </p>
 
-            <Link to={`/booktypes`}>
+            <Link to={`/dbp/booktypes`}>
               <Button className="flex items-center gap-2 px-4 py-2 rounded-md">
                 <Library className="w-4 h-4" />
                 <span>Set Book Type</span>

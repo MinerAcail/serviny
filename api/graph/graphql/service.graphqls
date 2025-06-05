@@ -87,6 +87,11 @@ extend type Query {
   ): [UserData!]!
 
   getSocialMedia(serviceId: String!): SocialMedia
+
+  getAllRidersServiceData:[ServiceData!]!
+  getBookingServiceData:[ServiceData!]!
+  getOrderServiceData:[ServiceData!]!
+
 }
 
 extend type Mutation {
@@ -179,4 +184,48 @@ input SocialMediaInput {
   name: String!
   icon: String!
   link: String!
+}
+
+
+type ServiceData {
+  id: String!
+  serviceId: String!
+  type: ServiceType! # "ORDER" or "BOOKING"
+  rider: UsersInfor
+  customer: UsersInfor!
+  vendor: Service!
+  createdAt: Time!
+  
+  # Union-like approach - only one will be populated based on type
+  orderData: CartItemOrder
+  bookingData: AppointmentBookingData
+}
+type AppointmentBookingData {
+  bookingId: String!
+  startTime: String!
+  endTime: String!
+  day: String!
+  notes: String
+  item: String
+  tableSize: Int!
+  userType: String!
+  isConfirmed: Boolean
+  
+  # Booking-specific location data
+  pickupLocation: [Float!]
+  dropoffLocation: [Float!]
+  deliveryAddress: String!
+  
+  # Booking-specific pricing/route metadata
+  deliveryFee: String
+  distance: String
+  duration: String
+  estimatedDeliveryDate: String
+  routeData: RouteInfo
+  rangeMetaData: RiderRange # Booking uses RangeMetaData instead of ZoneMetaData
+}
+
+enum ServiceType {
+  ORDER
+  BOOKING
 }

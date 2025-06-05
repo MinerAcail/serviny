@@ -51,6 +51,11 @@ func PerformMigrations(db *gorm.DB) error {
 		
 		
 		&model.RouteInfo{},
+		&model.RiderRange{},
+		&model.Form{},
+		&model.FormField{},
+		&model.FormField{},
+		&model.FormSubmission{},
 
 
 

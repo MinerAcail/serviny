@@ -1,4 +1,4 @@
-// types.ts - Updated type definitions with route data
+// Types for the live map application
 export interface Product {
   id: string
   name: string
@@ -40,7 +40,14 @@ export interface OrderItem {
   product: Product | null
 }
 
-// Updated Order interface with route data
+export interface RouteInfo {
+  id: string
+  orderId: string
+  geojson: string
+  userId: string
+  createdAt?: string
+}
+
 export interface Order {
   id: string
   coordinates: [number, number]
@@ -49,15 +56,6 @@ export interface Order {
   distance?: string
   duration?: string
   routeData?: RouteInfo | null
-}
-
-// New RouteInfo interface for database route data
-export interface RouteInfo {
-  id: string
-  orderId: string
-  geojson: string
-  userId: string
-  createdAt?: string
 }
 
 export interface ZoneMetaData {
@@ -70,7 +68,6 @@ export interface ZoneMetaData {
   isochroneId?: string
 }
 
-// Updated OrderData interface
 export interface OrderData {
   orderId: string
   createdAt: string
@@ -107,9 +104,10 @@ export interface RouteData {
   color: string
   summary: string
   legs: number
+  geojson?: string
+
 }
 
-// New interface for parsed route GeoJSON from database
 export interface ParsedRouteData {
   coordinates: [number, number][]
   distance: string

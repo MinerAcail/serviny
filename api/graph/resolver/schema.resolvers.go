@@ -310,6 +310,19 @@ func (r *queryResolver) ClearClientCache(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+// CheakType is the resolver for the cheakType field.
+func (r *queryResolver) CheakType(ctx context.Context, serviceID string) (string, error) {
+	service := &model.Service{}
+	if err := r.DB.First(service, "id = ?", serviceID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", fmt.Errorf("Business Type not found")
+		}
+		return "", fmt.Errorf("failed to fetch Business Type: %w", err)
+	}
+
+	return *service.BusinessType, nil
+}
+
 // ID is the resolver for the id field.
 func (r *userBookingsResolver) ID(ctx context.Context, obj *model.UserBookings) (string, error) {
 	id := obj.ID.String()

@@ -49,6 +49,8 @@ extend type Query {
 
   clearClientCache: Boolean!
 
+  cheakType(serviceId:String!):String!
+
 }
 type UsersInfor {
   id: String!

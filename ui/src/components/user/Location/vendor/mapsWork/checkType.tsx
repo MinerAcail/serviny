@@ -2,6 +2,7 @@ import { useAuth } from "@/middleware/context/authContext"
 import { useParams } from "react-router"
 import { VendorProcessFlow } from ".."
 import { MainDeliveryZoneCreator } from "./RiderDeliverySys/create"
+import {RiderZoneSetup} from "./RiderDeliverySys/ForDeliveryService/books/riderflow"
 // import VendorProcessFlow from "../VendorProcessFlow"
 // import MainDeliveryZoneCreator from "../MainDeliveryZoneCreator"
 
@@ -18,7 +19,7 @@ function CheckType() {
   return (
     <>
       {type === "SERVICE" ? (
-        <VendorProcessFlow  serviceId={serviceId ??""}/>
+        <RiderZoneSetup  serviceId={serviceId ??""}/>
       ) : (
         <MainDeliveryZoneCreator serviceId={serviceId ??""} />
       )}

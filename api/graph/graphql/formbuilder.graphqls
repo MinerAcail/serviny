@@ -1,0 +1,177 @@
+enum FieldType {
+  TEXT
+  TEXTAREA
+  SELECT
+  CHECKBOX
+  RADIO
+  SIGNATURE
+}
+
+enum FormType {
+  AGREEMENT
+  SURVEY
+  APPLICATION
+  FEEDBACK
+  OTHER
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  PROCESSED
+  FAILED
+}
+
+type FormField {
+  id: String!
+  type: FieldType!
+  label: String!
+  placeholder: String
+  FormId: String
+  required: Boolean!
+  options: [String!]
+  validation: String
+  order: Int
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Form {
+  id: String!
+  title: String!
+  description: String
+  type: FormType!
+  fields: [FormField!]!
+ 
+  isActive: Boolean!
+  submissionCount: Int!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type FormSubmission {
+  id: String!
+  formId: String!
+  submissionId: String!
+  formTitle: String!
+  data: String!
+  # submittedAt: Time!
+  status: SubmissionStatus!
+  message: String
+  ipAddress: String
+  userAgent: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input FormFieldInput {
+  type: FieldType!
+  label: String!
+  placeholder: String
+  required: Boolean
+  options: [String!]
+  validation: String
+  order: Int
+}
+
+input CreateFormInput {
+  title: String!
+  description: String
+  type: FormType!
+  fields: [FormFieldInput!]!
+  isActive: Boolean
+}
+
+input UpdateFormInput {
+  id: String!
+  title: String
+  description: String
+  type: FormType
+  fields: [FormFieldInput!]
+  isActive: Boolean
+}
+
+input FormSubmissionInput {
+  formId: String!
+  formTitle: String!
+  data: String!
+  submittedAt: Time!
+  ipAddress: String
+  userAgent: String
+}
+
+input FormsFilter {
+  type: FormType
+  isActive: Boolean
+  createdBy: String
+  search: String
+}
+
+extend type Query {
+  # Get all forms with filtering and pagination
+  forms(
+    filter: FormsFilter
+    limit: Int
+    offset: Int
+    orderBy: String
+    orderDirection: String
+  ): [Form!]!
+
+  # Get single form by ID
+  form(id: String!): Form
+
+  # Get form submissions with filtering
+  submissions(
+    formId: String
+    status: SubmissionStatus
+    limit: Int
+    offset: Int
+    orderBy: String
+    orderDirection: String
+  ): [FormSubmission!]!
+
+  # Get single submission
+  submission(id: String!): FormSubmission
+
+  # Get form analytics
+  formAnalytics(formId: String!): FormAnalytics
+}
+
+type FormAnalytics {
+  totalSubmissions: Int!
+  submissionsToday: Int!
+  submissionsThisWeek: Int!
+  submissionsThisMonth: Int!
+  averageCompletionTime: Float
+  conversionRate: Float
+  fieldAnalytics: [FieldAnalytics!]!
+}
+
+type FieldAnalytics {
+  fieldId: String!
+  fieldLabel: String!
+  completionRate: Float!
+  averageLength: Float
+  commonValues: [String!]!
+}
+
+extend type Mutation {
+  # Form management
+  createForm(input: CreateFormInput!): Form!
+  updateForm(input: UpdateFormInput!): Form!
+  deleteForm(id: String!): Boolean!
+  duplicateForm(id: String!, title: String): Form!
+
+  # Form submission
+  submitForm(input: FormSubmissionInput!): FormSubmission!
+  updateSubmissionStatus(
+    id: String!
+    status: SubmissionStatus!
+  ): FormSubmission!
+  deleteSubmission(id: String!): Boolean!
+
+  # Bulk operations
+  bulkDeleteForms(ids: [String!]!): Int!
+  bulkDeleteSubmissions(ids: [String!]!): Int!
+  exportFormSubmissions(formId: String!, format: String): String!
+}

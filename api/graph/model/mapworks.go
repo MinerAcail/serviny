@@ -26,9 +26,20 @@ type IsochroneResult struct {
 
 type RouteInfo struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	OrderID   string    `json:"orderId"`
+	OrderID   string    `json:"orderId"` //its the same as the bookingId
 	UserID    string    `json:"user_id"`
 	Geojson   *string   `json:"geojson,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type RiderRange struct {
+	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+
+	RiderID   string    `json:"riderId"`
+	StartKm   float64   `json:"startKm"`
+	EndKm     float64   `json:"endKm"`
+	Price     float64   `json:"price"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

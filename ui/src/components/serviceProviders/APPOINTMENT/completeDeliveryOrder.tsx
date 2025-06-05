@@ -288,7 +288,11 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
       
       // Navigate with the new booking ID if available
       if (firstBookingId) {
-        navigate(`/zonex/${serviceId}?cid=${firstBookingId}`);
+        // navigate(`/zonex/${serviceId}?cid=${firstBookingId}`);
+           navigate(`/delivery/${serviceId}/${firstBookingId}`, {
+  // state: { order: result?.data?.createOrderItems },
+  replace: true
+})
       } else {
         navigate(`/zonex/${serviceId}`);
       }

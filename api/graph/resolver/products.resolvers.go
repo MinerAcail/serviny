@@ -1613,10 +1613,23 @@ func (r *queryResolver) GetAllRidersOrderItemsByService(ctx context.Context) ([]
 		productMap[product.ID.String()] = product
 	}
 
-	// Fetch the vendor/service once (assuming service is a vendor too)
-	var vendor model.Service
-	if err := r.DB.Where("id = ?", serviceId).First(&vendor).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch vendor/service: %w", err)
+	// Prepare a map to cache vendors by their ID
+	vendorMap := make(map[string]*model.Service)
+
+	// Helper function to get vendor by product's VendorID
+	getVendor := func(vendorID *string) (*model.Service, error) {
+		if vendorID == nil || *vendorID == "" {
+			return nil, fmt.Errorf("product has no vendor ID")
+		}
+		if v, ok := vendorMap[*vendorID]; ok {
+			return v, nil
+		}
+		var vendor model.Service
+		if err := r.DB.Where("id = ?", *vendorID).First(&vendor).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch vendor/service: %w", err)
+		}
+		vendorMap[*vendorID] = &vendor
+		return &vendor, nil
 	}
 
 	// Build the result
@@ -1654,6 +1667,18 @@ func (r *queryResolver) GetAllRidersOrderItemsByService(ctx context.Context) ([]
 			}
 		}
 
+		var vendor *model.Service
+		var vendorErr error
+		// Use the first item's product's VendorID if available
+		if len(order.Items) > 0 {
+			if product, exists := productMap[order.Items[0].ProductID]; exists {
+				vendor, vendorErr = getVendor(product.VendorID)
+				if vendorErr != nil {
+					fmt.Printf("Warning: failed to get vendor for order %s: %v\n", order.ID, vendorErr)
+				}
+			}
+		}
+
 		cartItemOrder := &model.CartItemOrder{
 			OrderID:          order.ID.String(),
 			DeliveryAddress:  order.DeliveryAddress,
@@ -1662,10 +1687,9 @@ func (r *queryResolver) GetAllRidersOrderItemsByService(ctx context.Context) ([]
 			Customer:         user,
 			Rider:            rider,
 			Order:            order,
-			Vendor:           &vendor,
+			Vendor:           vendor,
 			CreatedAt:        order.CreatedAt,
 			DeliveryMetaData: deliveryData,
-			
 		}
 		result = append(result, cartItemOrder)
 	}

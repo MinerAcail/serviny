@@ -22,8 +22,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useQuery, useMutation, gql } from "@apollo/client";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import FormsPage, { FormsPageAtMain } from "@/components/user/formBuilder/FormsPage";
 
 // GraphQL queries and mutations
 const GET_POLICY_INFORMATION = gql`
@@ -393,7 +394,7 @@ const NewPolicyForm: React.FC<{
 const Policies: React.FC = () => {
   // Get serviceId from URL params
   const { serviceId } = useParams<{ serviceId: string }>();
-
+const navigate = useNavigate()
   // Apollo query to fetch policies
   const { loading, error, data, refetch } = useQuery(GET_POLICY_INFORMATION, {
     variables: { ServiceID: serviceId },
@@ -603,12 +604,23 @@ const Policies: React.FC = () => {
           open={newPolicyDialogOpen}
           onOpenChange={setNewPolicyDialogOpen}
         >
-          <DialogTrigger className="" asChild>
+          <div className="flex gap-3">
+            <DialogTrigger className="" asChild>
             <Button className="flex items-center justify-end gap-1">
               <Plus className="h-4 w-4" />
               New Policy
             </Button>
           </DialogTrigger>
+
+          <Button
+          onClick={() => {
+        navigate("/dbp/builder");
+      }}
+          className="flex items-center justify-end gap-1">
+              <Plus className="h-4 w-4" />
+              Add Forms
+            </Button>
+          </div>
           <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Policy</DialogTitle>
@@ -747,7 +759,7 @@ const Policies: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+<FormsPageAtMain/>
       {/* No policies message */}
       {!hasPolicies && (
         <div className="text-center py-12 border rounded-lg bg-muted/20">

@@ -16,6 +16,7 @@ import (
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
 	directions "github.com/lehxees/serviny/helper/direction"
+	riderrange "github.com/lehxees/serviny/helper/riderRange"
 	"gorm.io/gorm"
 )
 
@@ -221,6 +222,137 @@ func (r *mutationResolver) UpdateOrderRoute(ctx context.Context, orderID string,
 	panic(fmt.Errorf("not implemented: UpdateOrderRoute - updateOrderRoute"))
 }
 
+// GenerateBookRoute is the resolver for the generateBookRoute field.
+func (r *mutationResolver) GenerateBookRoute(ctx context.Context, input model.GenerateBookRouteInput) (*model.RouteInfo, error) {
+	panic(fmt.Errorf("not implemented: GenerateBookRoute - generateBookRoute"))
+}
+
+// UpdateBookRoute is the resolver for the updateBookRoute field.
+func (r *mutationResolver) UpdateBookRoute(ctx context.Context, orderID string, status string) (bool, error) {
+	panic(fmt.Errorf("not implemented: UpdateBookRoute - updateBookRoute"))
+}
+
+// CreateRiderRange is the resolver for the createRiderRange field.
+func (r *mutationResolver) CreateRiderRange(ctx context.Context, input model.NewRiderRangeInput) (*model.RiderRange, error) {
+	// Retrieve the rider ID from the context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Create range validator instance
+	validator := riderrange.NewRangeValidator(r.DB)
+
+	// Validate and sanitize the range
+	validationResult, err := validator.ValidateAndSanitizeRange(*riderIDStr, riderrange.RangeInput{
+		StartKm: input.StartKm,
+		EndKm:   input.EndKm,
+		Price:   input.Price,
+	}, nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate range: %w", err)
+	}
+
+	if !validationResult.IsValid {
+		return nil, fmt.Errorf("invalid range: %s", validationResult.Message)
+	}
+
+	// Create a new RiderRange instance with sanitized values
+	newRange := &model.RiderRange{
+		RiderID: *riderIDStr,
+		StartKm: validationResult.SanitizedStart,
+		EndKm:   validationResult.SanitizedEnd,
+		Price:   input.Price,
+	}
+
+	// Save to DB
+	if err := r.DB.Create(newRange).Error; err != nil {
+		return nil, fmt.Errorf("failed to create rider range: %w", err)
+	}
+
+	// Log the validation result for debugging/auditing
+	if validationResult.WasStartAdjusted {
+		fmt.Printf("Range adjusted for rider %s: %s\n", *riderIDStr, validationResult.Message)
+	}
+	if validationResult.HasGap {
+		fmt.Printf("Gap created for rider %s: %s\n", *riderIDStr, validationResult.Message)
+	}
+
+	return newRange, nil
+}
+
+// UpdateRiderRange is the resolver for the updateRiderRange field.
+func (r *mutationResolver) UpdateRiderRange(ctx context.Context, input model.UpdateRiderRangeInput) (*model.RiderRange, error) {
+	// Retrieve the rider ID from the context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	var riderRange model.RiderRange
+	if err := r.DB.First(&riderRange, "id = ? AND rider_id = ?", input.ID, *riderIDStr).Error; err != nil {
+		return nil, fmt.Errorf("rider range not found: %w", err)
+	}
+
+	// Prepare the updated values
+	updatedStartKm := riderRange.StartKm
+	updatedEndKm := riderRange.EndKm
+	updatedPrice := riderRange.Price
+
+	if input.StartKm != nil {
+		updatedStartKm = *input.StartKm
+	}
+	if input.EndKm != nil {
+		updatedEndKm = *input.EndKm
+	}
+	if input.Price != nil {
+		updatedPrice = *input.Price
+	}
+
+	// Create range validator instance
+	validator := riderrange.NewRangeValidator(r.DB)
+
+	// Validate the updated range (excluding the current range from overlap checks)
+	validationResult, err := validator.ValidateAndSanitizeRange(*riderIDStr, riderrange.RangeInput{
+		StartKm: updatedStartKm,
+		EndKm:   updatedEndKm,
+		Price:   updatedPrice,
+	}, &input.ID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate updated range: %w", err)
+	}
+
+	if !validationResult.IsValid {
+		return nil, fmt.Errorf("invalid updated range: %s", validationResult.Message)
+	}
+
+	// Update fields with sanitized values
+	riderRange.StartKm = validationResult.SanitizedStart
+	riderRange.EndKm = validationResult.SanitizedEnd
+	riderRange.Price = updatedPrice
+
+	if err := r.DB.Save(&riderRange).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider range: %w", err)
+	}
+
+	// Log the validation result for debugging/auditing
+	if validationResult.WasStartAdjusted {
+		fmt.Printf("Range update adjusted for rider %s: %s\n", *riderIDStr, validationResult.Message)
+	}
+
+	return &riderRange, nil
+}
+
+// DeleteRiderRange is the resolver for the deleteRiderRange field.
+func (r *mutationResolver) DeleteRiderRange(ctx context.Context, id string) (bool, error) {
+	if err := r.DB.Delete(&model.RiderRange{}, "id = ?", id).Error; err != nil {
+		return false, fmt.Errorf("failed to delete rider range: %w", err)
+	}
+	return true, nil
+}
+
 // DeleteAllRouteData is the resolver for the deleteAllRouteData field.
 func (r *mutationResolver) DeleteAllRouteData(ctx context.Context) (*bool, error) {
 	// Delete all route data from the database
@@ -292,6 +424,11 @@ func (r *queryResolver) GetIsochroneByID(ctx context.Context, id string) (*model
 
 	// Step 6: Return the found isochrone
 	return resultPtr, nil
+}
+
+// GetRiderProfile is the resolver for the getRiderProfile field.
+func (r *queryResolver) GetRiderProfile(ctx context.Context, riderID string) (*model.RiderProfile, error) {
+	panic(fmt.Errorf("not implemented: GetRiderProfile - getRiderProfile"))
 }
 
 // GetASingleIsochroneZoneMetaDataByMetaID is the resolver for the getASingleIsochroneZoneMetaDataByMetaId field.
@@ -465,6 +602,24 @@ func (r *queryResolver) GetAllIsochronesByVendor(ctx context.Context, vendorID s
 	return vendorMapData, nil
 }
 
+// GetAllIsochronesByService is the resolver for the getAllIsochronesByService field.
+func (r *queryResolver) GetAllIsochronesByService(ctx context.Context, serviceID string) ([]*model.IsochroneResult, error) {
+	// Get all isochrones for the specific service
+	var isochroneResults []*model.IsochroneResult
+	if err := r.DB.Where("rider_id = ?", serviceID).Find(&isochroneResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to get isochrones for service %s: %w", serviceID, err)
+	}
+
+	// Verify that the serviceID exists as a service
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", serviceID).Error; err != nil {
+		return nil, fmt.Errorf("service not found with ID %s: %w", serviceID, err)
+	}
+
+	// Return the isochrone results directly since we're dealing with a single service
+	return isochroneResults, nil
+}
+
 // GetOrderRoute is the resolver for the getOrderRoute field.
 func (r *queryResolver) GetOrderRoute(ctx context.Context, orderID string) (*model.RouteInfo, error) {
 	// Find all routes for the given order ID, ordered by creation time descending (latest first)
@@ -527,6 +682,34 @@ func (r *queryResolver) GetAllRouteData(ctx context.Context) ([]*model.RouteInfo
 	}
 
 	return validRoutes, nil
+}
+
+// GetRiderRanges is the resolver for the getRiderRanges field.
+func (r *queryResolver) GetRiderRanges(ctx context.Context) ([]*model.RiderRange, error) {
+	// Retrieve the rider ID from the context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	var ranges []*model.RiderRange
+	if err := r.DB.Where("rider_id = ?", riderIDStr).Order("created_at DESC").Find(&ranges).Error; err != nil {
+		return nil, fmt.Errorf("failed to get rider ranges for rider ID %s: %w", riderIDStr, err)
+	}
+	return ranges, nil
+}
+
+// GetARiderRanges is the resolver for the getARiderRanges field.
+func (r *queryResolver) GetARiderRanges(ctx context.Context, routeID string) ([]*model.RiderRange, error) {
+	var ranges []*model.RiderRange
+	if err := r.DB.Where("rider_id = ?", routeID).Find(&ranges).Error; err != nil {
+		return nil, fmt.Errorf("failed to get rider ranges for rider ID %s: %w", routeID, err)
+	}
+	return ranges, nil
+}
+
+// GetARiderRange is the resolver for the getARiderRange field.
+func (r *queryResolver) GetARiderRange(ctx context.Context, rangeID string) (*model.RiderRange, error) {
+	panic(fmt.Errorf("not implemented: GetARiderRange - getARiderRange"))
 }
 
 // GetIsochronesByService is the resolver for the getIsochronesByService field.
@@ -617,6 +800,12 @@ func (r *queryResolver) GetClosestIsochroneForLocation(ctx context.Context, ride
 }
 
 // ID is the resolver for the id field.
+func (r *riderRangeResolver) ID(ctx context.Context, obj *model.RiderRange) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
 func (r *routeInfoResolver) ID(ctx context.Context, obj *model.RouteInfo) (string, error) {
 	id := obj.ID.String()
 	return id, nil
@@ -627,8 +816,12 @@ func (r *Resolver) IsochroneResult() graph.IsochroneResultResolver {
 	return &isochroneResultResolver{r}
 }
 
+// RiderRange returns graph.RiderRangeResolver implementation.
+func (r *Resolver) RiderRange() graph.RiderRangeResolver { return &riderRangeResolver{r} }
+
 // RouteInfo returns graph.RouteInfoResolver implementation.
 func (r *Resolver) RouteInfo() graph.RouteInfoResolver { return &routeInfoResolver{r} }
 
 type isochroneResultResolver struct{ *Resolver }
+type riderRangeResolver struct{ *Resolver }
 type routeInfoResolver struct{ *Resolver }

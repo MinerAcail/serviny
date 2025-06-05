@@ -14,14 +14,24 @@ extend type Query {
   getAllUnavailablePeriods: [UnavailablePeriod!]!
 
   getAllAppointmentBookings: [AppointmentBookedData!]!
-  getAllAppointmentBookingsByUserId(userId: String!): [UserAppointmentBookedData!]!
+  getAllAppointmentBookingsByUserId(
+    userId: String!
+  ): [UserAppointmentBookedData!]!
   getAppointmentBookingsByUserId(userId: String!): [AppointmentBooking!]!
   getAppointmentBookingsByServiceId(serviceId: String!): [AppointmentBooking!]!
   getAppointmentBookingsByDate(date: String!): [AppointmentBooking!]!
   getConfirmedBookings(id: String!): Boolean!
 
+  getAppointmentBooking(bookId:String):AppointmentBooking!
 }
-
+input addBookCoordinateInput {
+  bookId: String!
+  deliveryAddress: String
+  dropoffLocation: [Float]
+  pickupLocation: [Float]
+  rangeMetaId: String
+  ridersId: String
+}
 extend type Mutation {
   createUnavailablePeriod(
     input: CreateUnavailablePeriodInput!
@@ -32,7 +42,9 @@ extend type Mutation {
     input: [BookerInput!]!
     serviceId: String!
   ): [AppointmentBooking!]!
-
+  updateMultipleBookingsWithLocation(
+    input: addBookCoordinateInput!
+  ): AppointmentBooking!
   confirmBooking(id: String!): AppointmentBooking!
 
   deleteBooking(id: String!): Boolean
@@ -68,13 +80,19 @@ type AppointmentBooking {
   tableSize: Int!
   serviceId: String!
   riderId: String!
+  duration: String
+  distance: String
+  deliveryFee: String
+  dropoffLocation: [Float]
+  pickupLocation: [Float]
+  estimatedDeliveryDate: String
+  deliveryAddress: String
   userId: String!
   isConfirmed: Boolean
   userType: UserType!
   createdAt: Time!
   updatedAt: Time!
 }
-
 
 type UserAppointmentBookedData {
   book: [AppointmentBooking!]!

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lib/pq"
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/planar"
@@ -465,5 +466,204 @@ func ValidateRiderVendorRelationship(tx *gorm.DB, vendorID string, riderID strin
 	}
 
 	log.Printf("Rider %s can reach vendor at distance %.2f km and serve user (within %.2f km limit)", riderID, distanceKm, maxDistanceKm)
+	return riderID, nil
+}
+
+
+
+
+
+// CheckPointCoverageRange checks if a point is within the coverage range based on rider ranges
+func CheckPointCoverageRange(userLat, userLng float64, serviceRanges []model.RiderRange, serviceCoordinates pq.Float64Array) (bool, error) {
+	if len(serviceCoordinates) < 2 {
+		return false, fmt.Errorf("invalid service coordinates")
+	}
+	
+	serviceLng, serviceLat := serviceCoordinates[0], serviceCoordinates[1]
+	
+	// Calculate distance from user to service location
+	distance := Haversine(userLat, userLng, serviceLat, serviceLng)
+	
+	// Check if distance falls within any of the service ranges
+	for _, riderRange := range serviceRanges {
+		if distance >= riderRange.StartKm && distance <= riderRange.EndKm {
+			return true, nil
+		}
+	}
+	
+	return false, nil
+}
+
+// ValidateRiderService validates if a service can provide riders for the user location
+func ValidateRiderService(tx *gorm.DB, serviceID string, userCoordinates []*float64) (string, error) {
+	// Validate service ID format
+	if _, err := uuid.Parse(serviceID); err != nil {
+		return "", fmt.Errorf("invalid service ID format: %w", err)
+	}
+
+	// Validate user coordinates
+	if len(userCoordinates) < 2 || userCoordinates[0] == nil || userCoordinates[1] == nil {
+		return "", fmt.Errorf("invalid user coordinates: must provide [lng, lat]")
+	}
+	userLng, userLat := *userCoordinates[0], *userCoordinates[1]
+
+	// Validate coordinate ranges
+	if userLng < -180 || userLng > 180 {
+		return "", fmt.Errorf("invalid longitude: must be between -180 and 180")
+	}
+	if userLat < -90 || userLat > 90 {
+		return "", fmt.Errorf("invalid latitude: must be between -90 and 90")
+	}
+
+	// Get rider provider information and coordinates
+	var riderProvider model.Service
+	if err := tx.Where("id = ?", serviceID).First(&riderProvider).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", fmt.Errorf("rider provider %s not found", serviceID)
+		}
+		return "", fmt.Errorf("failed to fetch rider provider: %w", err)
+	}
+
+
+
+	// Get all service's ranges
+	var serviceRanges []model.RiderRange
+	if err := tx.Where("rider_id = ?", serviceID).Find(&serviceRanges).Error; err != nil {
+		return "", fmt.Errorf("failed to check service ranges: %w", err)
+	}
+
+	if len(serviceRanges) == 0 {
+		return "", fmt.Errorf("no service ranges found for service %s", serviceID)
+	}
+
+	
+
+	// Get approved riders for this service
+	var approvedRiders []model.RidersRequest
+	if err := tx.Where("service_id = ? AND state = ?", serviceID, "approved").Find(&approvedRiders).Error; err != nil {
+		return "", fmt.Errorf("failed to get approved riders: %w", err)
+	}
+
+	if len(approvedRiders) == 0 {
+		log.Printf("No approved riders found for service %s, will use service as rider", serviceID)
+		// When no riders available, the service will reassign a different rider
+		return serviceID, nil
+	}
+
+	// Extract rider IDs
+	var riderIDs []string
+	for _, req := range approvedRiders {
+		riderIDs = append(riderIDs, req.RiderID)
+	}
+
+	// Get all candidate riders
+	var candidateRiders []model.Rider
+	if err := tx.Where("id IN ?", riderIDs).Find(&candidateRiders).Error; err != nil {
+		return "", fmt.Errorf("failed to fetch candidate riders: %w", err)
+	}
+
+	if len(candidateRiders) == 0 {
+		return "", fmt.Errorf("no candidate riders found for service %s", serviceID)
+	}
+
+	// Find the closest rider to the user location
+	var closestRiderID string
+	minDistance := math.MaxFloat64
+	// serviceLng, serviceLat := riderProvider.Coordinates[0], riderProvider.Coordinates[1]
+
+	for _, rider := range candidateRiders {
+		if len(rider.Coordinates) < 2 {
+			continue
+		}
+		riderLng, riderLat := rider.Coordinates[0], rider.Coordinates[1]
+
+		// Calculate distance from rider to user
+		distance := Haversine(riderLat, riderLng, userLat, userLng)
+
+		// Check if this rider can reach the user within service coverage
+		riderWithinService, err := CheckPointCoverageRange(riderLat, riderLng, serviceRanges, riderProvider.Coordinates)
+		if err != nil {
+			log.Printf("Failed to check if rider %s is within service coverage: %v", rider.ID.String(), err)
+			continue
+		}
+
+		if !riderWithinService {
+			log.Printf("Rider %s is outside service coverage area", rider.ID.String())
+			continue
+		}
+
+		if distance < minDistance {
+			minDistance = distance
+			closestRiderID = rider.ID.String()
+		}
+	}
+
+	// If no suitable rider found, use service as fallback
+	if closestRiderID == "" {
+		log.Printf("No suitable individual rider found, using service %s as fallback", serviceID)
+		return serviceID, nil
+	}
+
+	log.Printf("Found closest rider %s at distance %.2f km for service %s to reach user",
+		closestRiderID, minDistance, serviceID)
+	return closestRiderID, nil
+}
+
+// ValidateDirectRider validates if a direct rider can serve the user location
+func ValidateDirectRider(tx *gorm.DB, riderID string, userCoordinates []*float64) (string, error) {
+	// Validate rider ID format
+	if _, err := uuid.Parse(riderID); err != nil {
+		return "", fmt.Errorf("invalid rider ID format: %w", err)
+	}
+
+	// Validate user coordinates
+	if len(userCoordinates) < 2 || userCoordinates[0] == nil || userCoordinates[1] == nil {
+		return "", fmt.Errorf("invalid user coordinates: must provide [lng, lat]")
+	}
+	userLng, userLat := *userCoordinates[0], *userCoordinates[1]
+
+	// Validate coordinate ranges
+	if userLng < -180 || userLng > 180 {
+		return "", fmt.Errorf("invalid longitude: must be between -180 and 180")
+	}
+	if userLat < -90 || userLat > 90 {
+		return "", fmt.Errorf("invalid latitude: must be between -90 and 90")
+	}
+
+	// Get rider information
+	var rider model.Rider
+	if err := tx.Where("id = ?", riderID).First(&rider).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", fmt.Errorf("rider %s not found", riderID)
+		}
+		return "", fmt.Errorf("failed to fetch rider: %w", err)
+	}
+
+	// Validate rider coordinates
+	if len(rider.Coordinates) < 2 {
+		return "", fmt.Errorf("rider %s has invalid coordinates", riderID)
+	}
+
+	// Get rider's service ranges
+	var riderRanges []model.RiderRange
+	if err := tx.Where("rider_id = ?", riderID).Find(&riderRanges).Error; err != nil {
+		return "", fmt.Errorf("failed to get rider ranges: %w", err)
+	}
+
+	if len(riderRanges) == 0 {
+		return "", fmt.Errorf("no service ranges found for rider %s", riderID)
+	}
+
+	// Check if user is within the rider's coverage area
+	withinRiderCoverage, err := CheckPointCoverageRange(userLat, userLng, riderRanges, rider.Coordinates)
+	if err != nil {
+		return "", fmt.Errorf("failed to check if user is within rider's service area: %w", err)
+	}
+
+	if !withinRiderCoverage {
+		return "", fmt.Errorf("user location is outside rider's service area. Please use a Rider Service Provider or a different Rider")
+	}
+
+	log.Printf("Rider %s can serve user location", riderID)
 	return riderID, nil
 }

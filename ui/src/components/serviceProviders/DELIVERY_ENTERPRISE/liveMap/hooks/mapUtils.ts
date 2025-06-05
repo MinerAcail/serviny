@@ -1,6 +1,7 @@
 // Fixed mapUtils.ts with correct coordinate handling
-import maplibregl from "maplibre-gl"
-import { OrderData, ProcessedRider, RouteData, ParsedRouteData } from "./types"
+import type maplibregl from "maplibre-gl"
+import type { OrderData, ProcessedRider, RouteData, ParsedRouteData } from "./types"
+// import { google } from "googlemaps" // Declare the google variable
 
 export const getStatusColor = (status: string): string => {
   switch (status) {
@@ -30,43 +31,45 @@ export const getStatusFromOrders = (orders: OrderData[]): "Available" | "On Deli
 export const parseRouteGeoJSON = (geojsonString: string): ParsedRouteData | null => {
   try {
     const geoJSON = JSON.parse(geojsonString)
-    
+
     if (geoJSON.type === "Feature" && geoJSON.geometry?.type === "LineString") {
       const coordinates = geoJSON.geometry.coordinates
-      
+
       // Validate coordinates array
       if (!Array.isArray(coordinates) || coordinates.length === 0) {
         console.warn("Invalid coordinates array in GeoJSON")
         return null
       }
-      
+
       // Validate each coordinate pair
       const validCoordinates = coordinates.filter((coord: any) => {
-        return Array.isArray(coord) && 
-               coord.length >= 2 && 
-               typeof coord[0] === 'number' && 
-               typeof coord[1] === 'number' &&
-               !isNaN(coord[0]) && 
-               !isNaN(coord[1])
+        return (
+          Array.isArray(coord) &&
+          coord.length >= 2 &&
+          typeof coord[0] === "number" &&
+          typeof coord[1] === "number" &&
+          !isNaN(coord[0]) &&
+          !isNaN(coord[1])
+        )
       })
-      
+
       if (validCoordinates.length === 0) {
         console.warn("No valid coordinates found in GeoJSON")
         return null
       }
-      
+
       console.log(`Parsed route with ${validCoordinates.length} valid coordinates`)
       console.log("First coordinate:", validCoordinates[0])
       console.log("Last coordinate:", validCoordinates[validCoordinates.length - 1])
-      
+
       return {
         coordinates: validCoordinates,
         distance: geoJSON.metadata?.distance || "0 km",
         duration: geoJSON.metadata?.duration || "0 min",
-        summary: geoJSON.metadata?.summary || "Route"
+        summary: geoJSON.metadata?.summary || "Route",
       }
     }
-    
+
     console.warn("Invalid GeoJSON structure - not a LineString Feature")
     return null
   } catch (error) {
@@ -78,22 +81,22 @@ export const parseRouteGeoJSON = (geojsonString: string): ParsedRouteData | null
 // Fixed: Create RouteData from parsed GeoJSON with better error handling
 export const createRouteDataFromParsed = (parsedRoute: ParsedRouteData, rider: ProcessedRider): RouteData => {
   // Convert distance string to number (assuming format like "5.2 km")
-  const distanceMatch = parsedRoute.distance.match(/(\d+\.?\d*)/);
-  const distanceNum = distanceMatch ? parseFloat(distanceMatch[1]) : 0;
-  
+  const distanceMatch = parsedRoute.distance.match(/(\d+\.?\d*)/)
+  const distanceNum = distanceMatch ? Number.parseFloat(distanceMatch[1]) : 0
+
   // Convert duration string to seconds (assuming format like "15 min" or "1h 30min")
   let durationSeconds = 0
   const durationStr = parsedRoute.duration.toLowerCase()
-  
-  if (durationStr.includes('h')) {
+
+  if (durationStr.includes("h")) {
     const hoursMatch = durationStr.match(/(\d+)h/)
     const minutesMatch = durationStr.match(/(\d+)min/)
-    const hours = hoursMatch ? parseFloat(hoursMatch[1]) : 0
-    const minutes = minutesMatch ? parseFloat(minutesMatch[1]) : 0
+    const hours = hoursMatch ? Number.parseFloat(hoursMatch[1]) : 0
+    const minutes = minutesMatch ? Number.parseFloat(minutesMatch[1]) : 0
     durationSeconds = (hours * 60 + minutes) * 60
   } else {
     const minutesMatch = durationStr.match(/(\d+\.?\d*)/)
-    const minutes = minutesMatch ? parseFloat(minutesMatch[1]) : 0
+    const minutes = minutesMatch ? Number.parseFloat(minutesMatch[1]) : 0
     durationSeconds = minutes * 60
   }
 
@@ -105,7 +108,7 @@ export const createRouteDataFromParsed = (parsedRoute: ParsedRouteData, rider: P
     duration: durationSeconds,
     color: getStatusColor(rider.status),
     summary: parsedRoute.summary,
-    legs: 1 // Default to 1 leg for database routes
+    legs: 1, // Default to 1 leg for database routes
   }
 }
 
@@ -191,17 +194,17 @@ export const extractRiderRoutesFromOrders = (orders: OrderData[], riders: Proces
 
   riders.forEach((rider) => {
     // Find orders for this rider that have route data
-    const riderOrders = orders.filter(order => order.rider?.id === rider.id && order.order.routeData?.geojson)
-    
+    const riderOrders = orders.filter((order) => order.rider?.id === rider.id && order.order.routeData?.geojson)
+
     console.log(`Rider ${rider.name}: found ${riderOrders.length} orders with route data`)
-    
+
     if (riderOrders.length > 0) {
       // Use the first order's route data (or combine multiple routes if needed)
       const firstOrderWithRoute = riderOrders[0]
       console.log(`Processing route for order ${firstOrderWithRoute.orderId}`)
-      
+
       const parsedRoute = parseRouteGeoJSON(firstOrderWithRoute.order.routeData!.geojson)
-      
+
       if (parsedRoute) {
         const routeData = createRouteDataFromParsed(parsedRoute, rider)
         riderRoutes.set(rider.id, routeData)
@@ -220,11 +223,9 @@ export const addIsochronesToMap = (
   mapInstance: maplibregl.Map | null,
   mapLoaded: boolean,
   showIsochrones: boolean,
-  orders: OrderData[]
+  orders: OrderData[],
 ) => {
-  if (!mapInstance || !mapLoaded) return
-  
-  // Remove existing isochrone layers
+  if (!mapInstance || !mapLoaded) return // Remove existing isochrone layers
   ;["isochrone-fill", "isochrone-outline"].forEach((layerId) => {
     if (mapInstance.getLayer(layerId)) {
       mapInstance.removeLayer(layerId)
@@ -305,17 +306,17 @@ export const addRiderRoutesToMap = (
   riderRoutes: Map<string, RouteData>,
   riders: ProcessedRider[],
   selectedRider: ProcessedRider | null,
-  orders: OrderData[]
+  orders: OrderData[],
 ) => {
   if (!mapInstance || !mapLoaded) return
 
-  console.log(`Adding routes to map: ${riderRoutes.size} Google routes, ${showRoutes ? 'showing' : 'hidden'}`)
+  console.log(`Adding routes to map: ${riderRoutes.size} Google routes, ${showRoutes ? "showing" : "hidden"}`)
 
   // Remove existing route layers
   riderRoutes.forEach((_, riderId) => {
     const layerId = `route-${riderId}`
     const arrowLayerId = `route-arrows-${riderId}`
-    
+
     if (mapInstance.getLayer(layerId)) {
       mapInstance.removeLayer(layerId)
     }
@@ -334,7 +335,7 @@ export const addRiderRoutesToMap = (
   riders.forEach((rider) => {
     const dbLayerId = `db-route-${rider.id}`
     const dbArrowLayerId = `db-route-arrows-${rider.id}`
-    
+
     if (mapInstance.getLayer(dbLayerId)) {
       mapInstance.removeLayer(dbLayerId)
     }
@@ -366,7 +367,7 @@ export const addRiderRoutesToMap = (
         status: rider.status,
         distance: routeData.distance,
         duration: routeData.duration,
-        source: "google"
+        source: "google",
       },
       geometry: {
         type: "LineString",
@@ -395,23 +396,23 @@ export const addRiderRoutesToMap = (
 
   // Add routes from database with enhanced debugging
   riders.forEach((rider) => {
-    const riderOrders = orders.filter(order => order.rider?.id === rider.id && order.order.routeData?.geojson)
-    
+    const riderOrders = orders.filter((order) => order.rider?.id === rider.id && order.order.routeData?.geojson)
+
     if (riderOrders.length > 0) {
       const firstOrderWithRoute = riderOrders[0]
       console.log(`Processing database route for rider ${rider.name}, order ${firstOrderWithRoute.orderId}`)
-      
+
       const parsedRoute = parseRouteGeoJSON(firstOrderWithRoute.order.routeData!.geojson)
-      
+
       if (parsedRoute) {
         console.log(`Adding database route for rider ${rider.name}: ${parsedRoute.coordinates.length} points`)
         console.log("Route bounds:", {
           start: parsedRoute.coordinates[0],
-          end: parsedRoute.coordinates[parsedRoute.coordinates.length - 1]
+          end: parsedRoute.coordinates[parsedRoute.coordinates.length - 1],
         })
-        
+
         const dbLayerId = `db-route-${rider.id}`
-        
+
         const routeGeoJSON = {
           type: "Feature",
           properties: {
@@ -420,7 +421,7 @@ export const addRiderRoutesToMap = (
             status: rider.status,
             distance: parsedRoute.distance,
             duration: parsedRoute.duration,
-            source: "database"
+            source: "database",
           },
           geometry: {
             type: "LineString",
@@ -515,7 +516,7 @@ export const createRiderMarkerElement = (
   rider: ProcessedRider,
   riderRoutes: Map<string, RouteData>,
   onRiderClick: (rider: ProcessedRider) => void,
-  orders?: OrderData[] // Optional orders parameter
+  orders?: OrderData[], // Optional orders parameter
 ): HTMLDivElement => {
   const markerContainer = document.createElement("div")
   markerContainer.className = "rider-marker-container"
@@ -606,13 +607,13 @@ export const createRiderMarkerElement = (
 
   const routeInfo = riderRoutes.get(rider.id)
   let routeText = ""
-  
+
   // Check for Google route data first
   if (routeInfo) {
     routeText = `📍 ${routeInfo.distance.toFixed(1)}km • ${Math.round(routeInfo.duration / 60)}min`
   } else if (orders) {
     // Check for database route data
-    const riderOrders = orders.filter(order => order.rider?.id === rider.id && order.order.routeData?.geojson)
+    const riderOrders = orders.filter((order) => order.rider?.id === rider.id && order.order.routeData?.geojson)
     if (riderOrders.length > 0) {
       const firstOrderWithRoute = riderOrders[0]
       const parsedRoute = parseRouteGeoJSON(firstOrderWithRoute.order.routeData!.geojson)
@@ -671,7 +672,7 @@ export const createRiderMarkerElement = (
 // Keep the existing setupDirectionsRequest function for Google Directions
 export const setupDirectionsRequest = (
   rider: ProcessedRider,
-  directionsService: google.maps.DirectionsService | null
+  directionsService: google.maps.DirectionsService | null,
 ): Promise<RouteData | null> => {
   return new Promise((resolve) => {
     if (!directionsService || !rider.currentOrders.length) {
