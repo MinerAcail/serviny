@@ -10,17 +10,10 @@ import {
   useSimpleLocationManager,
   useSimpleMapManager,
 } from "./rider-booking-hooks"
+import { ZONE_COLORS } from "@/components/config/map"
 // import { google } from "google-maps"
 
-// Zone colors for map visualization
-const ZONE_COLORS = [
-  "#4ade80", // green
-  "#facc15", // yellow
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#a78bfa", // purple
-  "#f472b6", // pink
-]
+
 
 export function RiderBookingDeliveryRequestEnhanced() {
   const riderId = "rider-123" // In a real app, this would come from props or URL

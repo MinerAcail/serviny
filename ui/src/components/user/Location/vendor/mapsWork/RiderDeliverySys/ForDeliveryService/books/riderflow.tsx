@@ -62,7 +62,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { gql } from "@apollo/client";
-import { useParams } from "react-router";
+import { ZONE_COLORS } from "@/components/config/map";
+// import { GOOGLE_MAPS_CONFIG } from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap";
 
 // GraphQL Operations (keeping your original schema)
 export const GET_RIDER_RANGES = gql`
@@ -135,19 +136,8 @@ interface RiderRange {
 }
 
 // Libraries to load with the Google Maps API
-const libraries: Libraries = ["places"];
+const libraries: Libraries = ["places", "geocoding"];
 
-// Zone colors
-const ZONE_COLORS = [
-  "#4ade80", // green
-  "#facc15", // yellow
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#a78bfa", // purple
-  "#f472b6", // pink
-  "#fb7185", // rose
-  "#34d399", // emerald
-];
 
 // Speed mappings for time-based zones (km/h)
 const SPEED_MAPPING = {
@@ -252,12 +242,13 @@ export function RiderZoneSetup() {
       },
     }
   );
-
+ const GOOGLE_MAPS_CONFIG = {
+  id: "google-map-script", // Keep this consistent
+  googleMapsApiKey: googleMapsApiKey,
+  libraries: libraries,
+}
   // Google Maps API Loading
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: googleMapsApiKey || "",
-    libraries,
-  });
+  const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_CONFIG);
 
   // Basic State Management
   const [searchQuery, setSearchQuery] = useState("");
@@ -317,43 +308,279 @@ export function RiderZoneSetup() {
   // ============== FUNCTIONS - DEFINED ONCE ==============
 
   // Search implementation
-  const searchWithNominatim = useCallback(async (query: string) => {
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=jsonv2&limit=5`
-      );
-      const data = await response.json();
+const searchWithGooglePlaces = useCallback(async (query: string) => {
+  if (!isLoaded || !autocompleteServiceRef.current) {
+    setIsSearching(false);
+    toast.error("Search service not ready. Please wait a moment and try again.");
+    return;
+  }
 
-      if (data) {
-        const formattedPredictions = data.map((item: any) => ({
-          placeId: item.place_id,
-          description: item.display_name,
-          structured_formatting: {
-            main_text: item.name,
-            secondary_text: item.display_name,
-          },
-          coordinates: [
-            Number.parseFloat(item.lon),
-            Number.parseFloat(item.lat),
-          ],
-          address: item.display_name,
-        }));
-        setPredictions(formattedPredictions);
-        setShowPredictions(true);
-      } else {
-        setPredictions([]);
-        setShowPredictions(false);
+  setIsSearching(true);
+  
+  try {
+    const request = {
+      input: query,
+      types: ['geocode'], 
+    };
+
+    autocompleteServiceRef.current.getPlacePredictions(
+      request,
+      (predictions, status) => {
+        setIsSearching(false);
+        
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          const formattedPredictions = predictions.map((prediction) => ({
+            placeId: prediction.place_id,
+            description: prediction.description,
+            structured_formatting: {
+              main_text: prediction.structured_formatting?.main_text || prediction.description,
+              secondary_text: prediction.structured_formatting?.secondary_text || '',
+            },
+            coordinates: null, // Will be geocoded when selected
+            address: prediction.description,
+          }));
+          
+          setPredictions(formattedPredictions);
+          setShowPredictions(true);
+        } else {
+          setPredictions([]);
+          setShowPredictions(false);
+          
+          // Handle different status codes
+          switch (status) {
+            case google.maps.places.PlacesServiceStatus.ZERO_RESULTS:
+              toast.error("No results found for your search.");
+              break;
+            case google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT:
+              toast.error("Search quota exceeded. Please try again later.");
+              break;
+            case google.maps.places.PlacesServiceStatus.REQUEST_DENIED:
+              toast.error("Search request denied. Please check your API key.");
+              break;
+            case google.maps.places.PlacesServiceStatus.INVALID_REQUEST:
+              toast.error("Invalid search request.");
+              break;
+            default:
+              toast.error("Search service temporarily unavailable.");
+          }
+        }
       }
-    } catch (error) {
-      console.error("Fallback search error:", error);
-      setPredictions([]);
-      setShowPredictions(false);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
+    );
+  } catch (error) {
+    console.error("Google Places search error:", error);
+    setIsSearching(false);
+    toast.error("Search service error. Please try again.");
+    setPredictions([]);
+    setShowPredictions(false);
+  }
+}, [isLoaded]);
 
+// Enhanced location selection handler for Google Places
+const handleLocationSelection = useCallback(async (prediction: any) => {
+  if (!placesServiceRef.current || !geocoderRef.current) {
+    toast.error("Location service not ready. Please try again.");
+    return;
+  }
+
+  setIsLoading(true);
+  setShowPredictions(false);
+
+  try {
+    // Use Places Service to get detailed information
+    const placeDetails = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
+      const request = {
+        placeId: prediction.placeId,
+        fields: ['geometry', 'formatted_address', 'name', 'types'],
+      };
+
+      placesServiceRef.current!.getDetails(request, (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          resolve(place);
+        } else {
+          reject(new Error(`Failed to get place details: ${status}`));
+        }
+      });
+    });
+
+    if (!placeDetails.geometry?.location) {
+      throw new Error('No location data available for this place');
+    }
+
+    const lat = placeDetails.geometry.location.lat();
+    const lng = placeDetails.geometry.location.lng();
+    const coordinates: [number, number] = [lng, lat]; // MapLibre uses [lng, lat] format
+
+    const location: Location = {
+      coordinates: coordinates,
+      address: placeDetails.formatted_address || prediction.address,
+      placeId: prediction.placeId,
+    };
+
+    setCenterLocation(location);
+    setSearchQuery(location.address);
+
+    // Update map view and marker
+    if (mapInstance.current) {
+      // Remove existing marker
+      if (centerMarker.current) {
+        centerMarker.current.remove();
+      }
+
+      // Add new marker with popup
+      const popup = new maplibregl.Popup({ offset: 25 })
+        .setHTML(`
+          <div class="p-2">
+            <strong class="block text-gray-900">Service Location</strong>
+            <span class="text-sm text-gray-600">${location.address}</span>
+          </div>
+        `);
+
+      centerMarker.current = new maplibregl.Marker({
+        color: "#0071E3",
+        scale: 1.2,
+      })
+        .setLngLat(location.coordinates)
+        .setPopup(popup)
+        .addTo(mapInstance.current);
+
+      // Fly to location with smooth animation
+      mapInstance.current.flyTo({
+        center: location.coordinates,
+        zoom: 14,
+        duration: 1500,
+        essential: true,
+      });
+    }
+
+    toast.success("Location selected successfully!");
+    
+    // Clear any previous validation errors
+    setValidationErrors([]);
+    
+  } catch (error) {
+    console.error("Error selecting location:", error);
+    toast.error("Failed to select location. Please try another search.");
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
+const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  setSearchQuery(value);
+  
+  if (value.length > 2) {
+    setShowPredictions(true);
+    // Debounce the search to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      searchWithGooglePlaces(value);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  } else {
+    setPredictions([]);
+    setShowPredictions(false);
+    setIsSearching(false);
+  }
+}, [searchWithGooglePlaces]);
+
+// Add a current location handler
+const handleCurrentLocation = useCallback(() => {
+  if (!navigator.geolocation) {
+    toast.error("Geolocation is not supported by this browser.");
+    return;
+  }
+
+  setIsLoading(true);
+  
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+      const coordinates: [number, number] = [longitude, latitude];
+
+      try {
+        // Reverse geocode to get address
+        if (geocoderRef.current) {
+          const geocodeResult = await new Promise<google.maps.GeocoderResult>((resolve, reject) => {
+            geocoderRef.current!.geocode(
+              { location: { lat: latitude, lng: longitude } },
+              (results, status) => {
+                if (status === google.maps.GeocoderStatus.OK && results?.[0]) {
+                  resolve(results[0]);
+                } else {
+                  reject(new Error(`Geocoding failed: ${status}`));
+                }
+              }
+            );
+          });
+
+          const location: Location = {
+            coordinates,
+            address: geocodeResult.formatted_address,
+            placeId: geocodeResult.place_id,
+          };
+
+          setCenterLocation(location);
+          setSearchQuery(location.address);
+
+          // Update map
+          if (mapInstance.current) {
+            if (centerMarker.current) {
+              centerMarker.current.remove();
+            }
+
+            centerMarker.current = new maplibregl.Marker({
+              color: "#0071E3",
+              scale: 1.2,
+            })
+              .setLngLat(coordinates)
+              .setPopup(
+                new maplibregl.Popup({ offset: 25 }).setHTML(
+                  `<strong>Current Location</strong><br/>${location.address}`
+                )
+              )
+              .addTo(mapInstance.current);
+
+            mapInstance.current.flyTo({
+              center: coordinates,
+              zoom: 14,
+              duration: 1500,
+            });
+          }
+
+          toast.success("Current location detected!");
+        }
+      } catch (error) {
+        console.error("Reverse geocoding error:", error);
+        toast.error("Could not get address for current location.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    (error) => {
+      setIsLoading(false);
+      console.error("Geolocation error:", error);
+      
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          toast.error("Location access denied. Please enable location permissions.");
+          break;
+        case error.POSITION_UNAVAILABLE:
+          toast.error("Location information unavailable.");
+          break;
+        case error.TIMEOUT:
+          toast.error("Location request timed out.");
+          break;
+        default:
+          toast.error("An unknown error occurred while getting location.");
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 300000, // 5 minutes
+    }
+  );
+}, []);
   // Zone validation
   const validateZones = useCallback(() => {
     const errors: string[] = [];
@@ -797,7 +1024,7 @@ export function RiderZoneSetup() {
           console.log("API key error, falling back to demo tiles...");
           map.setStyle("https://demotiles.maplibre.org/style.json");
         } else {
-          toast.error("Map failed to load");
+          console.error("Map failed to load");
         }
       });
 
@@ -1082,95 +1309,92 @@ export function RiderZoneSetup() {
           )}
 
           {/* Search Bar on Map */}
-          <div className="absolute top-4 left-4 right-4 z-20">
-            <div className="max-w-md mx-auto" ref={searchInputRef}>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSearchQuery(value);
-                    if (value.length > 2) {
-                      setShowPredictions(true);
-                      searchWithNominatim(value);
-                    } else {
-                      setPredictions([]);
-                      setShowPredictions(false);
-                    }
-                  }}
-                  placeholder="Search for your service location..."
-                  className="w-full pl-12 pr-4 py-4 bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-lg focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-base"
-                  disabled={isLoading}
-                />
-                {(isSearching || isLoading) && (
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                  </div>
-                )}
-              </div>
+         {/* Search Bar on Map */}
+<div className="absolute top-4 left-4 right-4 z-20">
+  <div className="max-w-md mx-auto" ref={searchInputRef}>
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <Input
+        type="text"
+        value={searchQuery}
+        onChange={handleSearchInput}
+        placeholder="Search for your service location..."
+        className="w-full pl-12 pr-16 py-4 bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-lg focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-base"
+        disabled={isLoading || !isLoaded}
+      />
+      
+      {/* Loading indicator */}
+      {(isSearching || isLoading) && (
+        <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+        </div>
+      )}
+      
+      {/* Current location button */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCurrentLocation}
+            disabled={isLoading || !isLoaded}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full hover:bg-gray-100"
+          >
+            <MapPin className="w-4 h-4 text-gray-500" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Use current location</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
 
-              {/* Predictions dropdown */}
-              {showPredictions && predictions.length > 0 && (
-                <div className="absolute z-50 mt-2 w-full bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-xl max-h-80 overflow-y-auto">
-                  {predictions.map((prediction) => (
-                    <button
-                      key={prediction.placeId}
-                      onClick={() => {
-                        setIsLoading(true);
-                        setShowPredictions(false);
-
-                        const location: Location = {
-                          coordinates: prediction.coordinates,
-                          address: prediction.address,
-                          placeId: prediction.placeId.toString(),
-                        };
-
-                        setCenterLocation(location);
-                        setSearchQuery(prediction.address);
-
-                        if (mapInstance.current) {
-                          if (centerMarker.current) {
-                            centerMarker.current.remove();
-                          }
-
-                          centerMarker.current = new maplibregl.Marker({
-                            color: "#0071E3",
-                            scale: 1.2,
-                          })
-                            .setLngLat(location.coordinates)
-                            .setPopup(
-                              new maplibregl.Popup({ offset: 25 }).setHTML(
-                                `<strong>Service Location</strong><br/>${location.address}`
-                              )
-                            )
-                            .addTo(mapInstance.current);
-
-                          mapInstance.current.flyTo({
-                            center: location.coordinates,
-                            zoom: 13,
-                            duration: 1500,
-                          });
-                        }
-
-                        setIsLoading(false);
-                        toast.success("Location selected successfully");
-                      }}
-                      className="w-full text-left px-6 py-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl"
-                    >
-                      <div className="font-medium text-gray-900">
-                        {prediction.structured_formatting.main_text}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {prediction.structured_formatting.secondary_text}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+    {/* Google Places API status indicator */}
+    {!isLoaded && (
+      <div className="absolute top-full mt-2 w-full">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+          <div className="flex items-center">
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Loading Google Places API...
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Predictions dropdown */}
+    {showPredictions && predictions.length > 0 && (
+      <div className="absolute z-50 mt-2 w-full bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-xl max-h-80 overflow-y-auto">
+        {predictions.map((prediction, index) => (
+          <button
+            key={prediction.placeId || index}
+            onClick={() => handleLocationSelection(prediction)}
+            disabled={isLoading}
+            className="w-full text-left px-6 py-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="font-medium text-gray-900">
+              {prediction.structured_formatting.main_text}
+            </div>
+            <div className="text-sm text-gray-500">
+              {prediction.structured_formatting.secondary_text}
+            </div>
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* No results message */}
+    {showPredictions && predictions.length === 0 && !isSearching && searchQuery.length > 2 && (
+      <div className="absolute z-50 mt-2 w-full bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-xl p-4">
+        <div className="text-center text-gray-500">
+          <Search className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">No results found</p>
+          <p className="text-xs text-gray-400">Try a different search term</p>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
 
           {/* Map Controls - Right Side */}
           <div className="absolute top-20 right-4 z-10 flex flex-col space-y-3">

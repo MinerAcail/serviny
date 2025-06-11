@@ -1,16 +1,15 @@
-import { Button } from "@/components/ui/button";
+// Dashboard.tsx
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useQuery, gql } from "@apollo/client"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Link } from "react-router";
-// import NavBar from "../navBar";
-import { useQuery, gql } from "@apollo/client";
-import SearchDataDasBoard from "./searchDasBoard";
-// import MainNaveBar from "../menuBar";
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react"
+import SearchDataDasBoard from "./searchDasBoard"
 
 const GET_DASHBOARD_DATA = gql`
   query GetDashboardData {
@@ -21,80 +20,71 @@ const GET_DASHBOARD_DATA = gql`
       categoriesServiceTypes
     }
   }
-`;
-//
-export default function Dashboard() {
-  const { loading, error, data } = useQuery(GET_DASHBOARD_DATA);
+`
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  const {
-    totalUsers,
-    totalBookingsIds,
-    recentActivityIds,
-    categoriesServiceTypes,
-  } = data.getDashboardData;
+export default function Dashboard() {
+  const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const { loading, error, data, refetch } = useQuery(GET_DASHBOARD_DATA, {
+    errorPolicy: "all",
+  })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <CardTitle>Failed to Load Dashboard</CardTitle>
+            <CardDescription>{error.message}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => refetch()} className="w-full">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const dashboardData = data?.getDashboardData || {
+    totalUsers: [],
+    totalBookingsIds: [],
+    recentActivityIds: [],
+    categoriesServiceTypes: []
+  }
 
   return (
-    <div className=" py-8 w-full">
-    {/* <div className="pb-14">
-      <MainNaveBar />
-    </div> */}
+    <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-6 max-w-7xl">
+      {/* Compact Header */}
+      <div className="mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Dashboard</h1>
+        <p className="text-sm text-gray-600">Overview of your contact management</p>
+      </div>
 
-    <div className=" px-4 py-8 mx-auto ">
-      {/* <div className="max-w-3xl mx-auto"> */}
-      <Card className="  ">
-        <CardHeader>
-          <CardTitle>Quick Stats</CardTitle>
-          <CardDescription>
-            Overview of your contact management
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-              <span className="text-3xl font-bold">
-                {totalUsers.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Total User
-              </span>
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-              <span className="text-3xl font-bold">
-                {totalBookingsIds.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Favorites
-              </span>
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-              <span className="text-3xl font-bold">
-                {recentActivityIds.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Recent Activity
-              </span>
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-lg border p-4">
-              <span className="text-3xl font-bold">
-                {categoriesServiceTypes.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Categories
-              </span>
-            </div>
-            <Button className="justify-start" variant="outline" asChild>
-              <Link to="/contacts">All Contacts</Link>
-            </Button>
-            <Button className="justify-start" variant="outline" asChild>
-              <Link to="/favorites">View Favorites</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      <SearchDataDasBoard />
+      {/* Search Component with dashboard data passed down */}
+      <SearchDataDasBoard 
+        isMenuOpen={isMenuOpen}
+        isStatsOpen={isStatsOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        setIsStatsOpen={setIsStatsOpen}
+        dashboardData={dashboardData}
+        refetchDashboard={refetch}
+      />
     </div>
-  </div>
-  );
+  )
 }

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Trash2,
   RefreshCw,
+  Share2,
 } from "lucide-react";
 import { gql, useQuery, useMutation } from "@apollo/client";
 
@@ -357,7 +358,8 @@ export default function FormsPage() {
   );
 }
 
-export  function FormsPageAtMain() {
+// Enhanced FormsPageAtMain with Share functionality
+export function FormsPageAtMain() {
   // GraphQL hooks
   const { data, loading, error, refetch } = useQuery(GET_FORMS, {
     variables: {
@@ -368,7 +370,7 @@ export  function FormsPageAtMain() {
       orderDirection: "DESC",
     },
     errorPolicy: "all",
-  })
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -377,8 +379,8 @@ export  function FormsPageAtMain() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   const getFormTypeColor = (type: string) => {
     const colors = {
@@ -393,14 +395,51 @@ export  function FormsPageAtMain() {
       application: "bg-purple-50 text-purple-600",
       feedback: "bg-orange-50 text-orange-600",
       other: "bg-gray-50 text-gray-600",
+    };
+    return colors[type] || colors.OTHER;
+  };
+
+  // Generate shareable link for form
+  const generateFormShareableLink = (form: any) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/view/${form.id}`;
+  };
+
+  // Share form handler - uses native system share
+  const shareForm = async (form: any) => {
+    const shareUrl = generateFormShareableLink(form);
+    const shareData = {
+      title: form.title,
+      text: form.description || 'Service Form',
+      url: shareUrl,
+    };
+
+    try {
+      // Check if native sharing is supported
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback to copying link to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        // User didn't cancel, show fallback
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success("Link copied to clipboard!");
+        } catch (clipboardErr) {
+          toast.error("Failed to share or copy link");
+        }
+      }
     }
-    return colors[type] || colors.OTHER
-  }
+  };
 
   // Get forms data
-  const forms = data?.forms || []
-  const isLoading = loading
-  const hasError = error && !data?.forms
+  const forms = data?.forms || [];
+  const isLoading = loading;
+  const hasError = error && !data?.forms;
 
   if (isLoading) {
     return (
@@ -416,13 +455,12 @@ export  function FormsPageAtMain() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="">
       <div className="container mx-auto px-6 py-1">
-
         {hasError && (
           <div className="bg-white backdrop-blur-md bg-opacity-70 border border-red-100 rounded-2xl p-5 mb-8 shadow-sm">
             <div className="flex items-center">
@@ -460,7 +498,6 @@ export  function FormsPageAtMain() {
                 <FileText className="h-10 w-10 text-gray-400" />
               </div>
               <h3 className="text-2xl font-medium text-gray-900">No forms added yet</h3>
-            
             </div>
           </div>
         ) : (
@@ -499,15 +536,22 @@ export  function FormsPageAtMain() {
                     </span>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between pt-0 border-t border-gray-50">
+                <CardFooter className="flex gap-2 pt-0 border-t border-gray-50">
                   <Button
                     variant="outline"
                     asChild
-                    className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl"
+                    className="flex-1 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl"
                   >
                     <Link to={`/view/${form.id}`}>
-                      <ExternalLink className="mr-2 h-4 w-4" /> View Form
+                      <ExternalLink className="mr-2 h-4 w-4" /> View
                     </Link>
+                  </Button>
+                  <Button
+                    onClick={() => shareForm(form)}
+                    className="flex-1 flex items-center justify-center gap-1 rounded-xl"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
                   </Button>
                 </CardFooter>
               </Card>
@@ -516,5 +560,6 @@ export  function FormsPageAtMain() {
         )}
       </div>
     </div>
-  )
+  );
 }
+

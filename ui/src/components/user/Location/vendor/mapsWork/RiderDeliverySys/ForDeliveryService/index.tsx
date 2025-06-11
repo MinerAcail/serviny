@@ -18,9 +18,9 @@ import {
   useSimpleLocationManager,
   useSimpleMapManagerWithCenteredPinDrop,
   useRouteTracking,
-  useMapRouteDisplay,
+  // useMapRouteDisplay,
   RouteInfoPanel,
-  CompleteStepWithTracking,
+  // CompleteStepWithTracking,
   type Location,
   useBookingManagement,
 } from "./riderBookingHooks";
@@ -29,7 +29,7 @@ import {
   useEnhancedPinDrop,
   PinDropDialog,
   EnhancedPinDropControlPanel,
-  EnhancedPinDropButton,
+  // EnhancedPinDropButton,
 } from "./books/pinDropHook";
 
 // Import new tracking components
@@ -49,9 +49,6 @@ interface AddBookCoordinateInput {
 
 export function RiderBookingDeliveryRequest() {
   const { riderId, bookId } = useParams<{ riderId: string; bookId: string }>();
-
-  // console.log("🚀 Rider ID:", riderId);
-  // console.log("🚀 Book ID:", bookId);
 
   // ==========================================
   // Environment and API Keys
@@ -74,9 +71,10 @@ export function RiderBookingDeliveryRequest() {
   const lastCalculationRef = useRef<string | null>(null);
 
   // ==========================================
-  // Dialog State
+  // Dialog State - Start with dialog open
   // ==========================================
-  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(true);
+  const [dialogHasBeenCompleted, setDialogHasBeenCompleted] = useState(false);
 
   // ==========================================
   // Hooks
@@ -155,10 +153,6 @@ export function RiderBookingDeliveryRequest() {
     stopTracking,
   } = useRouteTracking(bookId);
 
-  // // NEW: Map route display hook
-  // const { routeDisplayed, drawDeliveryRoute, clearDeliveryRoute } =
-  //   useMapRouteDisplay(mapInstance, routeData, isTrackingActive);
-
   // Google Places API
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: googleMapsApiKey || "",
@@ -180,42 +174,42 @@ export function RiderBookingDeliveryRequest() {
   const [showRoutePanel, setShowRoutePanel] = useState(false);
   const [showRouteDialog, setShowRouteDialog] = useState(false);
 
-  // const [forceUpdate, setForceUpdate] = useState(0);
-
- const handleCloseRoutePanel = useCallback(() => {
-  console.log("🔴 Closing route panel");
-  setShowRoutePanel(false);
-}, []);
-
-// 3. Fix the useEffect that manages panel visibility
-useEffect(() => {
-  console.log("🔍 Route tracking state changed:", { 
-    isTrackingActive, 
-    hasRouteData: !!routeData, 
-    showRoutePanel 
-  });
-
-  if (isTrackingActive && routeData) {
-    // Only show panel if not already shown
-    if (!showRoutePanel) {
-      console.log("✅ Showing route panel");
-      setShowRoutePanel(true);
-    }
-  } else if (!isTrackingActive) {
-    // Always hide panel when tracking stops
-    if (showRoutePanel) {
-      console.log("❌ Hiding route panel - tracking stopped");
-      setShowRoutePanel(false);
-    }
-  }
-}, [isTrackingActive, routeData, showRoutePanel]);
-// 4. Add a separate effect to handle cleanup when component unmounts
-useEffect(() => {
-  return () => {
-    console.log("🔧 Component cleanup - closing route panel");
+  const handleCloseRoutePanel = useCallback(() => {
+    console.log("🔴 Closing route panel");
     setShowRoutePanel(false);
-  };
-}, []);
+  }, []);
+
+  // Fix the useEffect that manages panel visibility
+  useEffect(() => {
+    console.log("🔍 Route tracking state changed:", { 
+      isTrackingActive, 
+      hasRouteData: !!routeData, 
+      showRoutePanel 
+    });
+
+    if (isTrackingActive && routeData) {
+      // Only show panel if not already shown
+      if (!showRoutePanel) {
+        console.log("✅ Showing route panel");
+        setShowRoutePanel(true);
+      }
+    } else if (!isTrackingActive) {
+      // Always hide panel when tracking stops
+      if (showRoutePanel) {
+        console.log("❌ Hiding route panel - tracking stopped");
+        setShowRoutePanel(false);
+      }
+    }
+  }, [isTrackingActive, routeData, showRoutePanel]);
+
+  // Add a separate effect to handle cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log("🔧 Component cleanup - closing route panel");
+      setShowRoutePanel(false);
+    };
+  }, []);
+
   // ==========================================
   // Load existing booking data into location state
   // ==========================================
@@ -243,17 +237,8 @@ useEffect(() => {
         updateDropoffLocation(dropoff);
       }
 
-      // If we have both locations, show review step
-      if (booking.pickupLocation && booking.dropoffLocation) {
-        setCurrentStep("review");
-        setShowLocationDialog(false);
-      } else {
-        // If no locations, show dialog to set them
-        setShowLocationDialog(true);
-      }
-    } else if (!booking && !pickupLocation && !dropoffLocation) {
-      // New booking - show location dialog
-      setShowLocationDialog(true);
+      // Even if we have existing locations, keep the dialog open on initial mount
+      // User can close it if they don't want to change locations
     }
   }, [
     booking,
@@ -262,17 +247,6 @@ useEffect(() => {
     updatePickupLocation,
     updateDropoffLocation,
   ]);
-
-  // ==========================================
-  // Show route panel when tracking starts
-  // ==========================================
-  useEffect(() => {
-    if (isTrackingActive && routeData && !showRoutePanel) {
-      setShowRoutePanel(true);
-    } else if (!isTrackingActive && showRoutePanel) {
-      setShowRoutePanel(false);
-    }
-  }, [isTrackingActive, routeData, showRoutePanel]);
 
   // ==========================================
   // Initialize Google Places services
@@ -292,9 +266,9 @@ useEffect(() => {
     console.log("✅ Google Places services initialized");
   }, [isLoaded]);
 
-  // Initialize map when pickup is set
+  // Initialize map when pickup is set and dialog has been completed
   useEffect(() => {
-    if (!mapRef.current || !pickupLocation || mapInitialized) {
+    if (!mapRef.current || !pickupLocation || mapInitialized || !dialogHasBeenCompleted) {
       return;
     }
 
@@ -308,11 +282,11 @@ useEffect(() => {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [pickupLocation, mapInitialized, initializeMapWithPickup, maptilerApiKey]);
+  }, [pickupLocation, mapInitialized, initializeMapWithPickup, maptilerApiKey, dialogHasBeenCompleted]);
 
-  // Update map when locations change (only if not tracking)
+  // Update map when locations change (only if not tracking and dialog completed)
   useEffect(() => {
-    if (!mapLoaded || !pickupLocation || isTrackingActive) {
+    if (!mapLoaded || !pickupLocation || isTrackingActive || !dialogHasBeenCompleted) {
       return;
     }
 
@@ -365,20 +339,22 @@ useEffect(() => {
     dropoffLocation?.lat,
     dropoffLocation?.lng,
     riderZones.length,
-    isTrackingActive, // NEW: Don't update markers when tracking
+    isTrackingActive,
+    dialogHasBeenCompleted, // NEW: Only update when dialog is completed
     updateMarkers,
     drawCoverageZones,
     drawRoute,
     fitMapToMarkers,
   ]);
 
-  // Auto-calculate when both locations are set
+  // Auto-calculate when both locations are set and dialog completed
   useEffect(() => {
     if (
       !pickupLocation ||
       !dropoffLocation ||
       riderZones.length === 0 ||
-      isCalculating
+      isCalculating ||
+      !dialogHasBeenCompleted
     ) {
       return;
     }
@@ -406,6 +382,7 @@ useEffect(() => {
     dropoffLocation?.lng,
     riderZones.length,
     isCalculating,
+    dialogHasBeenCompleted, // NEW: Only calculate when dialog is completed
     calculateDelivery,
   ]);
 
@@ -496,37 +473,36 @@ useEffect(() => {
     }
   }, [bookId, isPinDropActive, cancelPinDrop, isTrackingActive, startTracking]);
 
- const handleStopTracking = useCallback(() => {
-  console.log("⏹️ Stopping delivery tracking mode");
-  
-  // First stop tracking
-  stopTracking();
-  
-  // Immediately close the panel
-  setShowRoutePanel(false);
+  const handleStopTracking = useCallback(() => {
+    console.log("⏹️ Stopping delivery tracking mode");
+    
+    // First stop tracking
+    stopTracking();
+    
+    // Immediately close the panel
+    setShowRoutePanel(false);
 
-  // Restore normal map view if we have locations
-  if (pickupLocation && dropoffLocation) {
-    setTimeout(() => {
-      updateMarkers(pickupLocation, dropoffLocation);
-      if (riderZones.length > 0) {
-        drawCoverageZones(pickupLocation, riderZones);
-      }
-      drawRoute(pickupLocation, dropoffLocation);
-      fitMapToMarkers();
-    }, 500);
-  }
-}, [
-  stopTracking,
-  pickupLocation,
-  dropoffLocation,
-  riderZones,
-  updateMarkers,
-  drawCoverageZones,
-  drawRoute,
-  fitMapToMarkers,
-]);
-
+    // Restore normal map view if we have locations
+    if (pickupLocation && dropoffLocation) {
+      setTimeout(() => {
+        updateMarkers(pickupLocation, dropoffLocation);
+        if (riderZones.length > 0) {
+          drawCoverageZones(pickupLocation, riderZones);
+        }
+        drawRoute(pickupLocation, dropoffLocation);
+        fitMapToMarkers();
+      }, 500);
+    }
+  }, [
+    stopTracking,
+    pickupLocation,
+    dropoffLocation,
+    riderZones,
+    updateMarkers,
+    drawCoverageZones,
+    drawRoute,
+    fitMapToMarkers,
+  ]);
 
   // ==========================================
   // Event Handlers
@@ -537,6 +513,7 @@ useEffect(() => {
     updateDropoffLocation(dropoff);
     setCurrentStep("locations");
     clearCalculation(); // Reset calculation for new locations
+    setDialogHasBeenCompleted(true); // Mark dialog as completed
 
     // Reset tracking state
     if (isTrackingActive) {
@@ -551,6 +528,11 @@ useEffect(() => {
     toast.success("Locations set successfully!", {
       description: "Map will show your delivery route and pricing",
     });
+  };
+
+  const handleDialogClose = () => {
+    setShowLocationDialog(false);
+    setDialogHasBeenCompleted(true);
   };
 
   const handleEditLocations = () => {
@@ -607,7 +589,6 @@ useEffect(() => {
         duration: 5000,
       });
     } catch (error: unknown) {
-      //erorr fixing todo
       console.error("❌ Booking failed:", error);
 
       let errorMessage = "Failed to update booking. Please try again.";
@@ -648,6 +629,7 @@ useEffect(() => {
     setBookingComplete(false);
     setBookingReference(null);
     setShowLocationDialog(true);
+    setDialogHasBeenCompleted(false); // Reset dialog completion state
 
     // Stop tracking
     if (isTrackingActive) {
@@ -718,12 +700,10 @@ useEffect(() => {
   return (
     <div className="py-6 font-sans w-full min-h-screen">
       <div className="max-w-4xl h-full mx-auto space-y-6">
-       
-
-        {/* Location Input Dialog */}
+        {/* Location Input Dialog - Always render, visibility controlled by showLocationDialog */}
         <LocationInputDialog
           isOpen={showLocationDialog}
-          onClose={() => setShowLocationDialog(false)}
+          onClose={handleDialogClose}
           onComplete={handleLocationsComplete}
           initialPickup={pickupLocation}
           initialDropoff={dropoffLocation}
@@ -732,152 +712,150 @@ useEffect(() => {
           isLoaded={isLoaded}
         />
 
-        {/* Enhanced Pin Drop Dialog */}
-        <PinDropDialog
-          isOpen={showPinDropDialog}
-          onSelectMode={handlePinDropChoice}
-          onCancel={cancelDialog}
-          hasPickup={!!pickupLocation}
-          hasDropoff={!!dropoffLocation}
-        />
-
-        {/* Enhanced Pin Drop Control Panel */}
-        <EnhancedPinDropControlPanel
-          isActive={isPinDropActive}
-          mode={pinDropMode}
-          currentAddress={pinDropAddress}
-          isLoadingAddress={isPinDropLoading}
-          onCancel={handlePinDropCancel}
-          onConfirm={handlePinDropConfirm}
-        />
-
-        {/* Welcome Message - Show when no locations are set and dialog is closed */}
-        {!pickupLocation && !dropoffLocation && !showLocationDialog && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="h-8 w-8 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              {booking
-                ? "Update Delivery Locations"
-                : "Welcome to Delivery Booking"}
-            </h2>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {booking
-                ? "Set or update your pickup and delivery locations for this booking."
-                : "Set your pickup and delivery locations by searching addresses or dropping pins directly on the map."}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-              <button
-                onClick={() => setShowLocationDialog(true)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-              >
-                {booking ? "Update Locations" : "Search Locations"}
-              </button>
-             
-            </div>
-          </div>
-        )}
-
-        {/* Map and Booking Interface */}
-        {pickupLocation && (
-          <div className="relative">
-            <MapAndBooking
-              // Map refs
-              mapRef={mapRef}
-              mapInstance={mapInstance}
-              mapLoaded={mapLoaded}
-              // Location state
-              pickupLocation={pickupLocation}
-              dropoffLocation={dropoffLocation}
-              // Calculation state
-              calculation={calculation}
-              isCalculating={isCalculating}
-              // UI state
-              isOpenBookingMenu={isOpenBookingMenu}
-              showZones={showZones && !isTrackingActive} // Hide zones when tracking
-              onToggleZones={() => setShowZones(!showZones)}
-              // Pin drop state
-              isPinDropActive={isPinDropActive}
-              pinDropMode={pinDropMode}
-              onStartPinDrop={handleStartPinDrop}
+        {/* Only render the rest of the UI when dialog has been completed */}
+        {dialogHasBeenCompleted && (
+          <>
+            {/* Enhanced Pin Drop Dialog */}
+            <PinDropDialog
+              isOpen={showPinDropDialog}
+              onSelectMode={handlePinDropChoice}
+              onCancel={cancelDialog}
               hasPickup={!!pickupLocation}
               hasDropoff={!!dropoffLocation}
-              // Loading and errors
-              loading={zonesLoading}
-              error={zonesError || calculationError}
-              riderZones={riderZones}
-
-               showRouteDialog={showRouteDialog}
-  
-   setShowRouteDialog={setShowRouteDialog}
             />
 
-            {/* NEW: Route Information Panel */}
-            <RouteInfoPanel
-  routeData={routeData}
-  isVisible={showRoutePanel && isTrackingActive && !!routeData}
-  onClose={handleCloseRoutePanel}
+            {/* Enhanced Pin Drop Control Panel */}
+            <EnhancedPinDropControlPanel
+              isActive={isPinDropActive}
+              mode={pinDropMode}
+              currentAddress={pinDropAddress}
+              isLoadingAddress={isPinDropLoading}
+              onCancel={handlePinDropCancel}
+              onConfirm={handlePinDropConfirm}
+            />
 
-  showRouteDialog={showRouteDialog}
-  
-   setShowRouteDialog={setShowRouteDialog}
-    isLoadingRoute={isLoadingRoute}
-              handleStartTracking={handleStartTracking}
-              isTrackingActive={isTrackingActive}
-              booking={booking}
-/>
+            {/* Welcome Message - Show when no locations are set and dialog is closed */}
+            {!pickupLocation && !dropoffLocation && !showLocationDialog && (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="h-8 w-8 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                  {booking
+                    ? "Update Delivery Locations"
+                    : "Welcome to Delivery Booking"}
+                </h2>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  {booking
+                    ? "Set or update your pickup and delivery locations for this booking."
+                    : "Set your pickup and delivery locations by searching addresses or dropping pins directly on the map."}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                  <button
+                    onClick={() => setShowLocationDialog(true)}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    {booking ? "Update Locations" : "Search Locations"}
+                  </button>
+                </div>
+              </div>
+            )}
 
-         
-          </div>
-        )}
+            {/* Map and Booking Interface */}
+            {pickupLocation && (
+              <div className="relative">
+                <MapAndBooking
+                  // Map refs
+                  mapRef={mapRef}
+                  mapInstance={mapInstance}
+                  mapLoaded={mapLoaded}
+                  // Location state
+                  pickupLocation={pickupLocation}
+                  dropoffLocation={dropoffLocation}
+                  // Calculation state
+                  calculation={calculation}
+                  isCalculating={isCalculating}
+                  // UI state
+                  isOpenBookingMenu={isOpenBookingMenu}
+                  showZones={showZones && !isTrackingActive} // Hide zones when tracking
+                  onToggleZones={() => setShowZones(!showZones)}
+                  // Pin drop state
+                  isPinDropActive={isPinDropActive}
+                  pinDropMode={pinDropMode}
+                  onStartPinDrop={handleStartPinDrop}
+                  hasPickup={!!pickupLocation}
+                  hasDropoff={!!dropoffLocation}
+                  // Loading and errors
+                  loading={zonesLoading}
+                  error={zonesError || calculationError}
+                  riderZones={riderZones}
+                  showRouteDialog={showRouteDialog}
+                  setShowRouteDialog={setShowRouteDialog}
+                />
 
-        {/* Booking Menu with Updated Complete Step */}
-        {pickupLocation && (
-          <RiderBookingMenu
-            // Rider data
-            riderProfile={riderProfile}
-            riderZones={riderZones}
-            // Booking flow
-            currentStep={currentStep}
-            calculation={calculation}
-            isBooking={isBooking || isUpdatingBooking}
-            bookingComplete={bookingComplete}
-            bookingReference={bookingReference}
-            // Handlers
-            onBooking={handleBooking}
-            onReset={resetBooking}
-            setCurrentStep={setCurrentStep}
-            // UI state
-            isOpen={isOpenBookingMenu}
-            setIsOpen={setIsOpenBookingMenu}
-            handleStartPinDrop={handleStartPinDrop}
-            handleEditLocations={handleEditLocations}
-            // NEW: Pass tracking handlers and state
-            isTrackingActive={isTrackingActive}
-            onStartTracking={handleStartTracking}
-            onStopTracking={handleStopTracking}
-            isLoadingRoute={isLoadingRoute}
-            bookId={bookId}
-          />
+                {/* NEW: Route Information Panel */}
+                <RouteInfoPanel
+                  routeData={routeData}
+                  isVisible={showRoutePanel && isTrackingActive && !!routeData}
+                  onClose={handleCloseRoutePanel}
+                  showRouteDialog={showRouteDialog}
+                  setShowRouteDialog={setShowRouteDialog}
+                  isLoadingRoute={isLoadingRoute}
+                  handleStartTracking={handleStartTracking}
+                  isTrackingActive={isTrackingActive}
+                  booking={booking}
+                />
+              </div>
+            )}
+
+            {/* Booking Menu with Updated Complete Step */}
+            {pickupLocation && (
+              <RiderBookingMenu
+                // Rider data
+                riderProfile={riderProfile}
+                riderZones={riderZones}
+                // Booking flow
+                currentStep={currentStep}
+                calculation={calculation}
+                isBooking={isBooking || isUpdatingBooking}
+                bookingComplete={bookingComplete}
+                bookingReference={bookingReference}
+                // Handlers
+                onBooking={handleBooking}
+                onReset={resetBooking}
+                setCurrentStep={setCurrentStep}
+                // UI state
+                isOpen={isOpenBookingMenu}
+                setIsOpen={setIsOpenBookingMenu}
+                handleStartPinDrop={handleStartPinDrop}
+                handleEditLocations={handleEditLocations}
+                // NEW: Pass tracking handlers and state
+                isTrackingActive={isTrackingActive}
+                onStartTracking={handleStartTracking}
+                onStopTracking={handleStopTracking}
+                isLoadingRoute={isLoadingRoute}
+                bookId={bookId}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

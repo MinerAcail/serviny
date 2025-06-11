@@ -24,7 +24,9 @@ import {
 import { useQuery, useMutation, gql } from "@apollo/client";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import FormsPage, { FormsPageAtMain } from "@/components/user/formBuilder/FormsPage";
+import FormsPage, {
+  FormsPageAtMain,
+} from "@/components/user/formBuilder/FormsPage";
 
 // GraphQL queries and mutations
 const GET_POLICY_INFORMATION = gql`
@@ -109,8 +111,6 @@ interface PolicyInput {
   ServiceId?: string;
 }
 
-
-
 // Component for individual form fields
 const FormField: React.FC<{
   label: string;
@@ -154,35 +154,31 @@ const PolicyDetailInput: React.FC<{
   onRemove: () => void;
   canRemove: boolean;
   index: number;
-}> = ({ 
-  title, 
-  content, 
-  listItems, 
-  onTitleChange, 
-  onContentChange, 
-  onListItemsChange, 
-  onRemove, 
+}> = ({
+  title,
+  content,
+  listItems,
+  onTitleChange,
+  onContentChange,
+  onListItemsChange,
+  onRemove,
   canRemove,
-  index
+  index,
 }) => {
   // Join list items for display in textarea
   const listItemsText = listItems.join(", ");
-  
+
   return (
     <div className="border p-4 rounded-md space-y-3 bg-muted/20">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-medium">Detail #{index + 1}</h3>
         {canRemove && (
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={onRemove}
-          >
+          <Button variant="destructive" size="sm" onClick={onRemove}>
             <Trash className="h-4 w-4 mr-1" /> Remove
           </Button>
         )}
       </div>
-      
+
       <FormField
         label="Title"
         id={`detail-title-${index}`}
@@ -190,7 +186,7 @@ const PolicyDetailInput: React.FC<{
         onChange={onTitleChange}
         placeholder="Enter title"
       />
-      
+
       <FormField
         label="Content"
         id={`detail-content-${index}`}
@@ -199,17 +195,19 @@ const PolicyDetailInput: React.FC<{
         placeholder="Enter content"
         multiline={true}
       />
-      
+
       <div>
-        <Label htmlFor={`detail-list-${index}`}>List Items (comma-separated)</Label>
+        <Label htmlFor={`detail-list-${index}`}>
+          List Items (comma-separated)
+        </Label>
         <Textarea
           id={`detail-list-${index}`}
           value={listItemsText}
           onChange={(e) => {
             const items = e.target.value
               .split(",")
-              .map(item => item.trim())
-              .filter(item => item.length > 0);
+              .map((item) => item.trim())
+              .filter((item) => item.length > 0);
             onListItemsChange(items);
           }}
           placeholder="Item 1, Item 2, Item 3"
@@ -225,10 +223,13 @@ const PolicyDetailInput: React.FC<{
 };
 
 // Individual Policy Card Component
+
+// Individual Policy Card Component with Share functionality
 const PolicyCardItem: React.FC<{
   fullPolicy: FullPolicy;
   onEdit: (policy: FullPolicy) => void;
-}> = ({ fullPolicy, onEdit }) => {
+  onShare: (policy: FullPolicy) => void;
+}> = ({ fullPolicy, onEdit, onShare }) => {
   // Format date
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -242,7 +243,7 @@ const PolicyCardItem: React.FC<{
   // Parse list items for each policy detail
   const getPolicyListItems = (detail: PolicyDetail): string[] => {
     if (!detail.listItems) return [];
-    
+
     try {
       return Array.isArray(detail.listItems)
         ? detail.listItems
@@ -270,7 +271,7 @@ const PolicyCardItem: React.FC<{
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-1">
         {fullPolicy.policyDetails.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -280,11 +281,13 @@ const PolicyCardItem: React.FC<{
           <div className="space-y-6">
             {fullPolicy.policyDetails.map((detail) => {
               const policyItems = getPolicyListItems(detail);
-              
+
               return (
                 <div key={detail.id} className="space-y-2">
                   <h3 className="text-md font-semibold">{detail.title}</h3>
-                  <p className="text-sm text-muted-foreground">{detail.content}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {detail.content}
+                  </p>
 
                   {/* List items if available */}
                   {policyItems.length > 0 && (
@@ -309,13 +312,20 @@ const PolicyCardItem: React.FC<{
           </div>
         )}
       </CardContent>
-      
-      <CardFooter className="mt-auto">
-        <Button 
-          onClick={() => onEdit(fullPolicy)} 
-          className="w-full flex items-center justify-center gap-1"
+
+      <CardFooter className="mt-auto gap-2">
+        <Button
+          onClick={() => onEdit(fullPolicy)}
+          className="flex-1 flex items-center justify-center gap-1"
+          variant="outline"
         >
-          <Edit className="h-4 w-4" /> Edit Policy
+          <Edit className="h-4 w-4" /> Edit
+        </Button>
+        <Button
+          onClick={() => onShare(fullPolicy)}
+          className="flex-1 flex items-center justify-center gap-1"
+        >
+          <Share2 className="h-4 w-4" /> Share
         </Button>
       </CardFooter>
     </Card>
@@ -325,17 +335,18 @@ const PolicyCardItem: React.FC<{
 // New Policy Form Component
 const NewPolicyForm: React.FC<{
   formData: PolicyInput;
-  updateField: (field: keyof PolicyInput, value: string | PolicyDetailInput[]) => void;
+  updateField: (
+    field: keyof PolicyInput,
+    value: string | PolicyDetailInput[]
+  ) => void;
   addDetail: () => void;
-  updateDetail: (index: number, field: keyof PolicyDetailInput, value: string | string[]) => void;
+  updateDetail: (
+    index: number,
+    field: keyof PolicyDetailInput,
+    value: string | string[]
+  ) => void;
   removeDetail: (index: number) => void;
-}> = ({ 
-  formData, 
-  updateField, 
-  addDetail, 
-  updateDetail, 
-  removeDetail 
-}) => (
+}> = ({ formData, updateField, addDetail, updateDetail, removeDetail }) => (
   <div className="space-y-4 py-4">
     {/* Policy Details */}
     <div className="space-y-3">
@@ -346,7 +357,7 @@ const NewPolicyForm: React.FC<{
         onChange={(value) => updateField("name", value)}
         placeholder="Policy Name"
       />
-      
+
       <FormField
         label="Description"
         id="new-desc"
@@ -356,21 +367,21 @@ const NewPolicyForm: React.FC<{
         multiline={true}
       />
     </div>
-    
+
     {/* Policy Details */}
     <div>
       <div className="flex justify-between items-center mb-3">
         <Label className="block text-sm font-medium">Policy Details</Label>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={addDetail}
           className="text-xs"
         >
           <Plus className="h-3 w-3 mr-1" /> Add Detail
         </Button>
       </div>
-      
+
       <div className="space-y-4">
         {formData.details.map((detail, index) => (
           <PolicyDetailInput
@@ -381,7 +392,9 @@ const NewPolicyForm: React.FC<{
             listItems={detail.listItems}
             onTitleChange={(value) => updateDetail(index, "title", value)}
             onContentChange={(value) => updateDetail(index, "content", value)}
-            onListItemsChange={(value) => updateDetail(index, "listItems", value)}
+            onListItemsChange={(value) =>
+              updateDetail(index, "listItems", value)
+            }
             onRemove={() => removeDetail(index)}
             canRemove={formData.details.length > 1}
           />
@@ -394,7 +407,8 @@ const NewPolicyForm: React.FC<{
 const Policies: React.FC = () => {
   // Get serviceId from URL params
   const { serviceId } = useParams<{ serviceId: string }>();
-const navigate = useNavigate()
+  const navigate = useNavigate();
+
   // Apollo query to fetch policies
   const { loading, error, data, refetch } = useQuery(GET_POLICY_INFORMATION, {
     variables: { ServiceID: serviceId },
@@ -411,7 +425,7 @@ const navigate = useNavigate()
       toast.error(`Failed to create policy: ${error.message}`);
     },
   });
-  
+
   const [updatePolicy] = useMutation(UPDATE_POLICY, {
     onCompleted: () => {
       toast.success("Policy updated successfully!");
@@ -421,7 +435,7 @@ const navigate = useNavigate()
       toast.error(`Failed to update policy: ${error.message}`);
     },
   });
-  
+
   const [deletePolicy] = useMutation(DELETE_POLICY, {
     onCompleted: () => {
       toast.success("Policy deleted successfully!");
@@ -436,16 +450,59 @@ const navigate = useNavigate()
   const [newPolicyDialogOpen, setNewPolicyDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<FullPolicy | null>(null);
-  
+
   // State for new policy form
   const [newPolicyData, setNewPolicyData] = useState<PolicyInput>({
     name: "",
     description: "",
-    details: [{ title: "General", content: "Policy details here", listItems: [] }]
+    details: [
+      { title: "General", content: "Policy details here", listItems: [] },
+    ],
   });
 
   // Get policies from query data
   const policies: FullPolicy[] = data?.getPolicyInformation || [];
+
+  // Generate shareable link for policy
+  const generatePolicyShareableLink = (policy: FullPolicy) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/service/${serviceId}/policy/${policy.policy.id}`;
+  };
+
+  // Share policy handler - uses native system share
+  const sharePolicy = async (policy: FullPolicy) => {
+    const shareUrl = generatePolicyShareableLink(policy);
+    const shareData = {
+      title: policy.policy.name,
+      text: policy.policy.description || "Service Policy",
+      url: shareUrl,
+    };
+
+    try {
+      // Check if native sharing is supported
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare(shareData)
+      ) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback to copying link to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        // User didn't cancel, show fallback
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success("Link copied to clipboard!");
+        } catch (clipboardErr) {
+          toast.error("Failed to share or copy link");
+        }
+      }
+    }
+  };
 
   // Edit policy - open dialog with policy data
   const editPolicy = (policy: FullPolicy) => {
@@ -459,18 +516,20 @@ const navigate = useNavigate()
       ...newPolicyData,
       // ServiceId: serviceId
     };
-      
+
     createPolicy({
       variables: {
-        input
-      }
+        input,
+      },
     });
-  
+
     // Reset form
     setNewPolicyData({
       name: "",
       description: "",
-      details: [{ title: "General", content: "Policy details here", listItems: [] }]
+      details: [
+        { title: "General", content: "Policy details here", listItems: [] },
+      ],
     });
     setNewPolicyDialogOpen(false);
   };
@@ -478,9 +537,9 @@ const navigate = useNavigate()
   // Save edited policy
   const savePolicy = () => {
     if (!editingPolicy) return;
-  
+
     const { policy, policyDetails } = editingPolicy;
-  
+
     updatePolicy({
       variables: {
         policyId: policy.id,
@@ -491,14 +550,16 @@ const navigate = useNavigate()
             id: detail.id,
             title: detail.title,
             content: detail.content,
-            listItems: Array.isArray(detail.listItems) 
-              ? detail.listItems 
-              : detail.listItems ? JSON.parse(detail.listItems) : []
-          }))
-        }
-      }
+            listItems: Array.isArray(detail.listItems)
+              ? detail.listItems
+              : detail.listItems
+              ? JSON.parse(detail.listItems)
+              : [],
+          })),
+        },
+      },
     });
-  
+
     setEditDialogOpen(false);
     setEditingPolicy(null);
   };
@@ -507,10 +568,10 @@ const navigate = useNavigate()
   const removePolicy = (policyId: string) => {
     deletePolicy({
       variables: {
-        policyId
-      }
+        policyId,
+      },
     });
-  
+
     if (editingPolicy && editingPolicy.policy.id === policyId) {
       setEditDialogOpen(false);
       setEditingPolicy(null);
@@ -518,18 +579,25 @@ const navigate = useNavigate()
   };
 
   // Form handlers for new policy
-  const updateNewPolicyField = (field: keyof PolicyInput, value: string | PolicyDetailInput[]) => {
+  const updateNewPolicyField = (
+    field: keyof PolicyInput,
+    value: string | PolicyDetailInput[]
+  ) => {
     setNewPolicyData({ ...newPolicyData, [field]: value });
   };
 
   const addNewPolicyDetail = () => {
     updateNewPolicyField("details", [
       ...newPolicyData.details,
-      { title: "New Section", content: "Policy details here", listItems: [] }
+      { title: "New Section", content: "Policy details here", listItems: [] },
     ]);
   };
 
-  const updateNewPolicyDetail = (index: number, field: keyof PolicyDetailInput, value: string | string[]) => {
+  const updateNewPolicyDetail = (
+    index: number,
+    field: keyof PolicyDetailInput,
+    value: string | string[]
+  ) => {
     const updatedDetails = [...newPolicyData.details];
     updatedDetails[index] = { ...updatedDetails[index], [field]: value };
     updateNewPolicyField("details", updatedDetails);
@@ -541,7 +609,10 @@ const navigate = useNavigate()
   };
 
   // Form handlers for editing policy
-  const updateEditingPolicyField = (field: keyof FullPolicy, value: FullPolicy[keyof FullPolicy]) => {
+  const updateEditingPolicyField = (
+    field: keyof FullPolicy,
+    value: FullPolicy[keyof FullPolicy]
+  ) => {
     if (!editingPolicy) return;
     setEditingPolicy({ ...editingPolicy, [field]: value });
   };
@@ -554,27 +625,31 @@ const navigate = useNavigate()
 
   const addEditingPolicyDetail = () => {
     if (!editingPolicy) return;
-    
+
     // Generate temporary ID for UI purposes
     const tempId = `temp-${Date.now()}`;
-    
+
     updateEditingPolicyField("policyDetails", [
       ...editingPolicy.policyDetails,
-      { 
-        id: tempId, 
-        title: "New Section", 
-        content: "Policy details here", 
+      {
+        id: tempId,
+        title: "New Section",
+        content: "Policy details here",
         listItems: [],
         createdAt: null,
-        updatedAt: null
-      }
+        updatedAt: null,
+      },
     ]);
   };
 
-  const updateEditingPolicyDetail = (detailId: string, field: keyof PolicyDetail, value: string | string[]) => {
+  const updateEditingPolicyDetail = (
+    detailId: string,
+    field: keyof PolicyDetail,
+    value: string | string[]
+  ) => {
     if (!editingPolicy) return;
 
-    const updatedDetails = editingPolicy.policyDetails.map(detail => 
+    const updatedDetails = editingPolicy.policyDetails.map((detail) =>
       detail.id === detailId ? { ...detail, [field]: value } : detail
     );
     updateEditingPolicyField("policyDetails", updatedDetails);
@@ -583,7 +658,9 @@ const navigate = useNavigate()
   const removeEditingPolicyDetail = (detailId: string) => {
     if (!editingPolicy) return;
 
-    const updatedDetails = editingPolicy.policyDetails.filter(detail => detail.id !== detailId);
+    const updatedDetails = editingPolicy.policyDetails.filter(
+      (detail) => detail.id !== detailId
+    );
     updateEditingPolicyField("policyDetails", updatedDetails);
   };
 
@@ -606,17 +683,18 @@ const navigate = useNavigate()
         >
           <div className="flex gap-3">
             <DialogTrigger className="" asChild>
-            <Button className="flex items-center justify-end gap-1">
-              <Plus className="h-4 w-4" />
-              New Policy
-            </Button>
-          </DialogTrigger>
+              <Button className="flex items-center justify-end gap-1">
+                <Plus className="h-4 w-4" />
+                New Policy
+              </Button>
+            </DialogTrigger>
 
-          <Button
-          onClick={() => {
-        navigate("/dbp/builder");
-      }}
-          className="flex items-center justify-end gap-1">
+            <Button
+              onClick={() => {
+                navigate("/dbp/builder");
+              }}
+              className="flex items-center justify-end gap-1"
+            >
               <Plus className="h-4 w-4" />
               Add Forms
             </Button>
@@ -652,7 +730,6 @@ const navigate = useNavigate()
 
       {/* Edit Policy Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        {/* <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto"> */}
         <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Policy</DialogTitle>
@@ -759,7 +836,9 @@ const navigate = useNavigate()
           </DialogFooter>
         </DialogContent>
       </Dialog>
-<FormsPageAtMain/>
+
+      <FormsPageAtMain />
+
       {/* No policies message */}
       {!hasPolicies && (
         <div className="text-center py-12 border rounded-lg bg-muted/20">
@@ -782,7 +861,11 @@ const navigate = useNavigate()
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
           {policies.map((fullPolicy) => (
             <div key={fullPolicy.policy.id} className="h-full">
-              <PolicyCardItem fullPolicy={fullPolicy} onEdit={editPolicy} />
+              <PolicyCardItem
+                fullPolicy={fullPolicy}
+                onEdit={editPolicy}
+                onShare={sharePolicy}
+              />
             </div>
           ))}
         </div>

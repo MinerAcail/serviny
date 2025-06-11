@@ -36,7 +36,7 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
     <nav className="fixed top-0 left-0 w-full z-50 bg-primary shadow-md py-2 px-4 flex justify-between items-center">
       {/* Logo */}
       <Link to={"/"} className="flex w-[30%] items-center">
-        <SpectaclesLogo size={"sm"} variant="secondary" />
+        <img src="/winnefull.png" alt="Logo" className="h-4 w-auto" style={{ filter: "invert(1)" }} />
       </Link>
 
       <div className="flex   items-center gap-2">

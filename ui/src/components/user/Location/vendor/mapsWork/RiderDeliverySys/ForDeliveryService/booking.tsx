@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import * as turf from "@turf/turf";
+import { ZONE_COLORS } from "@/components/config/map";
 
 // Mock data for rider zones (normally fetched from GraphQL)
 const mockRiderZones = [
@@ -29,7 +30,8 @@ const mockRider = {
 };
 
 // Zone colors for map visualization
-const ZONE_COLORS = ["#4ade80", "#facc15", "#f87171", "#60a5fa"];
+// const ZONE_COLORS = ["#4ade80", "#facc15", "#f87171", "#60a5fa"];
+
 
 interface Location {
   address: string;

@@ -58,6 +58,7 @@ import {
   cleanupMap,
   MapState,
 } from "./mapUtils";
+import { ZONE_COLORS } from "@/components/config/map";
 
 // GraphQL Query
 const GET_VENDORS_FROM_ISOCHRONE_RESULT = gql`
@@ -596,11 +597,9 @@ const initializeMap = useCallback(() => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-            My Partner Vendors
+           Vendors Partnership
           </h1>
-          <p className="text-gray-600 text-sm md:text-base">
-            Vendors you can deliver for ({filteredVendors.length} available)
-          </p>
+       
         </div>
         <div className="flex gap-2">
           <Button
@@ -1042,14 +1041,14 @@ const initializeMap = useCallback(() => {
                     Map
                   </Button>
 
-                  <Button
+                  {/* <Button
                     size="sm"
                     onClick={() => handleViewDeliveryZones(vendor.id)}
                     className="bg-green-500 hover:bg-green-600 text-white rounded-lg"
                   >
                     <Navigation className="h-4 w-4 mr-2" />
                     Zones
-                  </Button>
+                  </Button> */}
                 </div>
               </CardContent>
             </Card>
@@ -1166,20 +1165,13 @@ const initializeMap = useCallback(() => {
                     Delivery Zones
                   </div>
                   <div className="space-y-1">
-                    {[
-                      "#34c759",
-                      "#ffcc00",
-                      "#ff3b30",
-                      "#007aff",
-                      "#af52de",
-                      "#ff2d55",
-                    ]
+                    {ZONE_COLORS
                       .slice(
-                        0,
-                        Math.max(
-                          3,
-                          selectedVendor.mapData[0]?.metaData?.length || 0
-                        )
+                      0,
+                      Math.max(
+                        3,
+                        selectedVendor.mapData[0]?.metaData?.length || 0
+                      )
                       )
                       .map((color, index) => (
                         <div

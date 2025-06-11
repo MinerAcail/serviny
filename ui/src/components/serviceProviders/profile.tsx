@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import Policies from "./pandp/policies";
+// import Policies from "./pandp/policies";
 // import { ThemeSelector } from "@/hooks/theme-selector";
 import { EventCalendarDialog } from "./eventBase";
 import { GET_BOOK_TYPES } from "@/app/vendors/available";
@@ -264,6 +264,7 @@ export function ServiceProviderProfile() {
                     </TabsContent>
                     <TabsContent value="policies">
                       <Policies />
+                      
                     </TabsContent>
                   </Tabs>
                 </div>
@@ -273,12 +274,12 @@ export function ServiceProviderProfile() {
         </>
       )}
 
-      <ItemChatWidget
+      {/* <ItemChatWidget
         itemId="product-123"
         itemName="Wireless Headphones"
         itemImage="/placeholder.svg?height=40&width=40"
         sellerName="John Smith"
-      />
+      /> */}
     </div>
   );
 }
@@ -573,6 +574,7 @@ import ServiceLandingPage from "../landing/providerLandingPage";
 // import { AllProducts } from "@/vendor/AllProducts";
 import ItemChatWidget from "../user/item-chat-widget";
 import { AllProducts } from "@/vendor/AllProducts";
+import Policies from "./pandp/policies";
 interface ContactInfoProps {
   provider?: {
     number?: string;

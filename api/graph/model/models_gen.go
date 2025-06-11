@@ -255,12 +255,8 @@ type FormFieldInput struct {
 }
 
 type FormSubmissionInput struct {
-	FormID      string    `json:"formId"`
-	FormTitle   string    `json:"formTitle"`
-	Data        string    `json:"data"`
-	SubmittedAt time.Time `json:"submittedAt"`
-	IPAddress   *string   `json:"ipAddress,omitempty"`
-	UserAgent   *string   `json:"userAgent,omitempty"`
+	FormID string `json:"formId"`
+	Data   string `json:"data"`
 }
 
 type FormsFilter struct {

@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import type { RiderProfile, PricingZone, DeliveryCalculation } from "../../riderBookingHooks"
+import { ZONE_COLORS } from "@/components/config/map"
 
 interface RiderBookingMenuProps {
   // Rider data
@@ -241,8 +242,7 @@ function RiderProfileCard({ riderProfile }: { riderProfile: RiderProfile }) {
 }
 
 function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
-  const zoneColors = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
-
+  // const ZONE_COLORS = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
   return (
     <Card className="border-0">
       <CardHeader className="pb-3">
@@ -258,7 +258,7 @@ function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
               <div className="flex items-center space-x-2">
                 <div
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: zoneColors[index % zoneColors.length] }}
+                  style={{ backgroundColor: ZONE_COLORS[index % ZONE_COLORS.length] }}
                 />
                 <span className="text-xs font-medium text-gray-700">
                   {zone.startKm}km - {zone.endKm}km

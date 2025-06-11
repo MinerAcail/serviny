@@ -112,20 +112,21 @@ export function Sidebar() {
             to: `livemap`,
             icon: Map,
           },
-          { name: "Analytics", to: `analytics`, icon: ChartLine },
+          // { name: "Analytics", to: `analytics`, icon: ChartLine },
           { name: "History", to: `history`, icon: History },
-          { name: "Request", to: `request`, icon: GitPullRequest },
+    { name: "Forms", to: "builder", icon: BookCopy  },
+
+          // { name: "Request", to: `request`, icon: GitPullRequest },
           { name: "Vendors", to: `vendors`, icon: Building2 },
         ]
       : []),
     { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
 
     { name: "Upload", to: "upload", icon: HardDriveUpload },
-    { name: "Forms", to: "builder", icon: BookCopy  },
     // { name: "Zone And Pricing", to: "setup", icon: Library },
-    { name: "Edit", to: "update", icon: Edit }, // absolute path outside
-    { name: "Schedule", to: `time`, icon: CalendarSync },
-    { name: "Social Media", to: `social`, icon: Waypoints },
+    { name: "Profile", to: "update", icon: Edit }, // absolute path outside
+    // { name: "Schedule", to: `time`, icon: CalendarSync },
+    // { name: "Social Media", to: `social`, icon: Waypoints },
 
     // { name: "Profile", to: `/providers/${serviceId}`, icon: Home }, // this one still needs it
   ];
@@ -182,7 +183,7 @@ export function Sidebar() {
       <div ref={sidebarRef} className="">
         <div className="lg:hidden  fixed flex w-full justify-between sm:top-4  p-2 ">
           <Link to={"/"} className="flex  items-center">
-            <SpectaclesLogo size={"sm"} variant="primary" />
+            {/* <SpectaclesLogo size={"sm"} variant="primary" /> */}
           </Link>
 
           <button
@@ -212,9 +213,13 @@ export function Sidebar() {
               )}
             >
               {!isCollapsed && (
-                <Link to={"/"} className="flex  items-center">
-                  <SpectaclesLogo size={"sm"} variant="primary" />
-                </Link>
+                // <Link to={"/"} className="flex  items-center">
+                //   <SpectaclesLogo size={"sm"} variant="primary" />
+                // </Link>
+
+                 <Link to={"/"} className="flex w-[50%] items-center">
+                        <img src="/winnefull.png" alt="Logo" className="h-4 w-full"  />
+                      </Link>
               )}
               <Button
                 variant="ghost"
@@ -327,15 +332,13 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       name: "Home",
       to: providers
         ? `/`
-        : install
-        ? `/providers/${serviceId}?lo`
-        : `/providers/${currentVendorId}`,
+        : `/providers/${serviceId}?lo`,
       icon: Home,
     },
     // { name: "My Delivery", to: `/zonex/${currentVendorId}`, icon: MapPlus }, // stays on /dbp/:serviceId
 
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
-    { name: "Message", to: "/sms", icon: MessageSquare },
+    // { name: "Message", to: "/sms", icon: MessageSquare },
     ...(isEcommerceStandardOrEnterprise
       ? [{ name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge }]
       : []),
@@ -434,7 +437,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       <div ref={sidebarRef} className="h-screen flex">
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
           <CartButton />
-          <NotificationCenter />
+          {/* <NotificationCenter /> */}
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button
             className="lg:hidden bg-background p-2 rounded-md shadow-md"
@@ -461,6 +464,15 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 isCollapsed && "justify-center px-2"
               )}
             >
+                {!isCollapsed && (
+                // <Link to={"/"} className="flex  items-center">
+                //   <SpectaclesLogo size={"sm"} variant="primary" />
+                // </Link>
+
+                 <Link to={"/"} className="flex w-[50%] items-center">
+                        <img src="/winnefull.png" alt="Logo" className="h-4 w-full"  />
+                      </Link>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

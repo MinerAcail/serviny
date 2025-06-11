@@ -5,6 +5,7 @@ import { useQuery, useMutation, gql } from "@apollo/client";
 import { toast } from "sonner";
 import * as turf from "@turf/turf";
 import maplibregl from "maplibre-gl";
+import { ZONE_COLORS } from "@/components/config/map";
 
 // ==========================================
 // GraphQL Queries
@@ -795,15 +796,7 @@ export function useSimpleMapManagerWithCenteredPinDrop() {
         // Remove center marker source
         if (map.getSource("pickup-center")) map.removeSource("pickup-center");
 
-        // Zone colors
-        const ZONE_COLORS = [
-          "#4ade80",
-          "#facc15",
-          "#f87171",
-          "#60a5fa",
-          "#a78bfa",
-          "#f472b6",
-        ];
+    
 
         // Draw zones from largest to smallest
         const sortedZones = [...riderZones].sort((a, b) => b.endKm - a.endKm);

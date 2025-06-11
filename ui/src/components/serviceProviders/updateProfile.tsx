@@ -68,6 +68,8 @@ import {
 } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { ModeToggle } from "@/hooks/theme-selector";
+import BusinessTypeSelector from "./createProvider/business-type-selector";
+import { Link } from "react-router";
 // import MainNaveBar from "./menuBar";
 
 // GraphQL Queries and Mutations
@@ -655,9 +657,12 @@ export default function ProfileService() {
         </div>
 
         <div className="w-full flex flex-wrap gap-2 justify-center">
-          <Badge variant="outline" className="bg-primary/5">
-            Active
-          </Badge>
+          <Link to={"/dbp/social"}>
+            <Button variant="outline" className="bg-primary/5">
+              Social Media
+            </Button>
+          </Link>
+          <BusinessTypeSelector />
           <Badge
             variant="outline"
             className="gap-1 bg-primary/5 cursor-pointer"
@@ -1012,13 +1017,12 @@ export default function ProfileService() {
       <div className=" px-4 py-8 mx-auto ">
         {/* Breadcrumb - visible on tablet and larger */}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid  grid-cols-1 md:grid-cols-2 gap-6">
           {/* Sidebar with user info */}
           <div className="md:col-span-1">{renderUserInfo()}</div>
 
           {/* Main content */}
-          <div className="md:col-span-2 lg:col-span-3">
-            <Tabs
+           <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
               className="w-full"
@@ -1057,7 +1061,6 @@ export default function ProfileService() {
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
         </div>
       </div>
       {/* Remove this Dialog component since we're using OtpCard */}
@@ -1128,7 +1131,7 @@ export default function ProfileService() {
           </DialogFooter>
         </DialogContent>
       </Dialog>{" "}
-      *
+      
     </div>
   );
 }

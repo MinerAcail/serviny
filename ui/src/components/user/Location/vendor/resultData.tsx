@@ -17,6 +17,7 @@ import { IsochroneMap } from "./isochrone-map";
 import { useQuery, gql } from "@apollo/client";
 import * as extendedUtils from "./extendedIsochroneUtils";
 import { useAuth } from "@/middleware/context/authContext";
+import { ZONE_COLORS } from "@/components/config/map";
 
 // Define the GET_ISOCHRONES_BY_RIDER query
 export const GET_ISOCHRONES_BY_RIDER = gql`
@@ -49,16 +50,6 @@ interface SavedIsochrone {
   locations: string;
   address: string;
 }
-
-// Define zone colors that match the map colors - from green (closest) to red (farthest)
-const zoneColors = [
-  "#4ade80",
-  "#facc15",
-  "#f87171",
-  "#60a5fa",
-  "#a78bfa",
-  "#f472b6",
-];
 
 export function ResultStepData() {
   const { user } = useAuth();
@@ -131,7 +122,7 @@ export function ResultStepData() {
                       range: isochrone.range,
                       group_index: idx, // For proper coloring
                       saved: true, // Flag as saved isochrone
-                      color: zoneColors[idx % zoneColors.length],
+                      color: ZONE_COLORS[idx % ZONE_COLORS.length],
                     },
                   };
 

@@ -837,8 +837,5 @@ export default function SocialMediaManager({
     />
   );
 
-  //   return <SocialForm />;
 }
 
-// Export individual components for use elsewhere
-// export { SocialDialog, SocialForm };

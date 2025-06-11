@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import * as extendedUtils from "./extendedIsochroneUtils"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Loader2, Map as MapIcon, Info } from "lucide-react"
+import { ZONE_COLORS } from "@/components/config/map"
 
 type Location = {
   address: string
@@ -62,8 +63,7 @@ export function IsochroneMap({
   const [infoPopup, setInfoPopup] = useState<maplibregl.Popup | null>(null)
 
   // Define a color palette for zones (from green to yellow to red)
-  const zoneColors = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
-
+  // const ZONE_COLORS = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
   // Get appropriate zoom level based on transportation mode
   const getInitialZoom = (mode: TransportMode, rangeValues: number[]): number => {
     // For time-based ranges, we need to estimate distance
@@ -523,16 +523,16 @@ export function IsochroneMap({
                 "case",
                 // For active zone index view, always use the specific color
                 ["==", ["literal", activeZoneIndex !== null], true],
-                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
                 // Otherwise, determine by the isochrone order
                 ["match",
                   ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
                   // Map each group index to a color from our palette
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
+                  0, ZONE_COLORS[0],
+                  1, ZONE_COLORS[1],
+                  2, ZONE_COLORS[2],
                   // Default color if no match
-                  zoneColors[0]]
+                  ZONE_COLORS[0]]
               ],
               "fill-opacity": [
                 "case",
@@ -556,16 +556,16 @@ export function IsochroneMap({
                 "case",
                 // For active zone index view, always use the specific color
                 ["==", ["literal", activeZoneIndex !== null], true],
-                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
                 // Otherwise, determine by the isochrone order
                 ["match",
                   ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
                   // Map each group index to a color from our palette
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
+                  0, ZONE_COLORS[0],
+                  1, ZONE_COLORS[1],
+                  2, ZONE_COLORS[2],
                   // Default color if no match
-                  zoneColors[0]]
+                  ZONE_COLORS[0]]
               ],
               "line-width": [
                 "case",

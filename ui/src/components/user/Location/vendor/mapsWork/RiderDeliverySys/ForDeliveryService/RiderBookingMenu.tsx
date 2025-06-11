@@ -30,6 +30,7 @@ import type {
   PricingZone,
   DeliveryCalculation,
 } from "./riderBookingHooks";
+import { ZONE_COLORS } from "@/components/config/map";
 
 interface RiderBookingMenuProps {
   // Rider data
@@ -120,7 +121,7 @@ export function RiderBookingMenu({
   const getButtonText = () => {
     if (!riderProfile) return "Select Area";
     if (currentStep === "locations") return "Select Locations";
-    if (currentStep === "review") return "Review ";
+    if (currentStep === "review") return "Continue";
     if (currentStep === "complete") return "Booking Complete";
     return "Book Delivery";
   };
@@ -402,14 +403,7 @@ function PricingZonesCard({
   zones: PricingZone[];
   calculation: DeliveryCalculation | null;
 }) {
-  const ZONE_COLORS = [
-    "#4ade80", // green
-    "#facc15", // yellow
-    "#f87171", // red
-    "#60a5fa", // blue
-    "#a78bfa", // purple
-    "#f472b6", // pink
-  ];
+  
 
   return (
     <Card className="border-0">

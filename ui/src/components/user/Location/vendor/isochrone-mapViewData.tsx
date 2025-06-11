@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import * as extendedUtils from "./extendedIsochroneUtils"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Loader2, Map as MapIcon, Info, History } from "lucide-react"
+import { ZONE_COLORS } from "@/components/config/map"
 
 type Location = {
   address: string
@@ -62,9 +63,7 @@ export function IsochroneMap({
   const [infoPopup, setInfoPopup] = useState<maplibregl.Popup | null>(null)
   const [savedFeaturePopups, setSavedFeaturePopups] = useState<{[key: string]: maplibregl.Popup}>({})
 
-  // Define a color palette for zones (from green to yellow to red)
-  const zoneColors = ["#4ade80", "#facc15", "#f87171", "#60a5fa", "#a78bfa", "#f472b6"]
-
+ 
   // Get appropriate zoom level based on transportation mode
   const getInitialZoom = (mode: TransportMode, rangeValues: number[]): number => {
     // For time-based ranges, we need to estimate distance
@@ -328,14 +327,14 @@ export function IsochroneMap({
           "match",
           ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
           // Map each group index to a color from our palette
-          0, zoneColors[0],
-          1, zoneColors[1],
-          2, zoneColors[2],
-          3, zoneColors[3],
-          4, zoneColors[4],
-          5, zoneColors[5],
+          // 0, ZONE_COLORS[0],
+          // 1, ZONE_COLORS[1],
+          // 2, ZONE_COLORS[2],
+          // 3, ZONE_COLORS[3],
+          // 4, ZONE_COLORS[4],
+          // 5, ZONE_COLORS[5],
           // Default color if no match
-          zoneColors[0]
+          // ZONE_COLORS[0]
         ],
         "fill-opacity": 0.4,
         "fill-outline-color": "#ffffff"
@@ -353,14 +352,14 @@ export function IsochroneMap({
           "match",
           ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
           // Map each group index to a color from our palette
-          0, zoneColors[0],
-          1, zoneColors[1],
-          2, zoneColors[2],
-          3, zoneColors[3],
-          4, zoneColors[4],
-          5, zoneColors[5],
+          // 0, ZONE_COLORS[0],
+          // 1, ZONE_COLORS[1],
+          // 2, ZONE_COLORS[2],
+          // 3, ZONE_COLORS[3],
+          // 4, ZONE_COLORS[4],
+          // 5, ZONE_COLORS[5],
           // Default color if no match
-          zoneColors[0]
+          // ZONE_COLORS[0]
         ],
         "line-width": 2,
         "line-opacity": 0.8
@@ -731,19 +730,19 @@ export function IsochroneMap({
                 "case",
                 // For active zone index view, always use the specific color
                 ["==", ["literal", activeZoneIndex !== null], true],
-                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                // // ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
                 // Otherwise, determine by the isochrone order
                 ["match",
                   ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
                   // Map each group index to a color from our palette
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
-                  3, zoneColors[3],
-                  4, zoneColors[4],
-                  5, zoneColors[5],
+                  // 0, ZONE_COLORS[0],
+                  // 1, ZONE_COLORS[1],
+                  // 2, ZONE_COLORS[2],
+                  // 3, ZONE_COLORS[3],
+                  // 4, ZONE_COLORS[4],
+                  // 5, ZONE_COLORS[5],
                   // Default color if no match
-                  zoneColors[0]]
+                  // ZONE_COLORS[0]]
               ],
               "fill-opacity": [
                 "case",
@@ -767,19 +766,19 @@ export function IsochroneMap({
                 "case",
                 // For active zone index view, always use the specific color
                 ["==", ["literal", activeZoneIndex !== null], true],
-                zoneColors[activeZoneIndex !== null ? activeZoneIndex % zoneColors.length : 0],
+                // // ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
                 // Otherwise, determine by the isochrone order
                 ["match",
                   ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
                   // Map each group index to a color from our palette
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
-                  3, zoneColors[3],
-                  4, zoneColors[4],
-                  5, zoneColors[5],
+                  // 0, ZONE_COLORS[0],
+                  // 1, ZONE_COLORS[1],
+                  // 2, ZONE_COLORS[2],
+                  // 3, ZONE_COLORS[3],
+                  // 4, ZONE_COLORS[4],
+                  // 5, ZONE_COLORS[5],
                   // Default color if no match
-                  zoneColors[0]]
+                  // ZONE_COLORS[0]]
               ],
               "line-width": [
                 "case",
@@ -1010,13 +1009,13 @@ export function IsochroneMap({
                 "fill-color": [
                   "match",
                   ["to-number", ["get", "group_index"]], 
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
-                  3, zoneColors[3],
-                  4, zoneColors[4],
-                  5, zoneColors[5],
-                  zoneColors[0]
+                  // 0, ZONE_COLORS[0],
+                  // 1, ZONE_COLORS[1],
+                  // 2, ZONE_COLORS[2],
+                  // 3, ZONE_COLORS[3],
+                  // 4, ZONE_COLORS[4],
+                  // 5, ZONE_COLORS[5],
+                  // ZONE_COLORS[0]
                 ],
                 "fill-opacity": 0.4
               },
@@ -1032,13 +1031,13 @@ export function IsochroneMap({
                 "line-color": [
                   "match",
                   ["to-number", ["get", "group_index"]], 
-                  0, zoneColors[0],
-                  1, zoneColors[1],
-                  2, zoneColors[2],
-                  3, zoneColors[3],
-                  4, zoneColors[4],
-                  5, zoneColors[5],
-                  zoneColors[0]
+                  // 0, ZONE_COLORS[0],
+                  // 1, ZONE_COLORS[1],
+                  // 2, ZONE_COLORS[2],
+                  // 3, ZONE_COLORS[3],
+                  // 4, ZONE_COLORS[4],
+                  // 5, ZONE_COLORS[5],
+                  // ZONE_COLORS[0]
                 ],
                 "line-width": 2,
                 "line-opacity": 0.8

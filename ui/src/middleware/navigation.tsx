@@ -53,18 +53,18 @@ const router = createBrowserRouter([
 
       { path: "/merge/:serviceId", element: <CheckType /> },
       { path: "view/:id", element: <FormPage /> },
+      { path: "views", element: <SubmissionsViewer /> },
 
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <ImprovedServiceProvider /> },
       { path: "/rider/new", element: <RiderRegistration /> },
 
       { path: "/dashboard", element: <Dashboard /> },
-      { path: "/favorites", element: <FavoritesPage /> },
       { path: "/check", element: <Checkout /> },
       // { path: "/c/:userId", element: <ContactDetailPage /> },
       { path: "/reset", element: <PasswordReset /> },
       { path: "/red", element: <SpectaclesLoading /> },
-      { path: "/type", element: <BusinessType /> },
+      { path: "/type", element: <BusinessTypeSelector /> },
 
       { path: "/event/:eventId", element: <UpdatEvent /> },
 
@@ -85,11 +85,14 @@ const router = createBrowserRouter([
       { path: "booktypes", element: <BookingTypes /> },
       { path: "time", element: <AvailabilityPage /> },
       { path: "contacts", element: <SearchData /> },
+      { path: "favorites", element: <FavoritesPage /> },
+
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
       { path: "zone", element: <RiderZoneSetup /> },
       { path: "zonex", element: <ResultStepData /> },
-      { path: "builder", element: <FormBuilder /> },
+      { path: "builder", element: <FormAndRequestTabs /> },
+
 
 
 
@@ -113,7 +116,7 @@ const router = createBrowserRouter([
 
       { path: "analytics", element: <Analytics /> },
       { path: "history", element: <History /> },
-      { path: "request", element: <RiderRequests /> },
+      // { path: "request", element: <RiderRequests /> },
       { path: "vendors", element: <VendorsByDeliveryService /> },
     ],
   },
@@ -178,6 +181,9 @@ import FormsPage from "@/components/user/formBuilder/FormsPage";
 import FormPage from "@/components/user/formBuilder/FormPage";
 import VendorChatSystem from "@/components/chatsSys/vendor/VendorChatSystem";
 import OrderManagementSystem from "@/components/custom/orders/order-management-system";
+import SubmissionsViewer from "@/components/user/formBuilder/submissionsViewer";
+import FormAndRequestTabs from "@/components/user/formBuilder/tabbed-forms";
+import BusinessTypeSelector from "@/components/serviceProviders/createProvider/business-type-selector";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

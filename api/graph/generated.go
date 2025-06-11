@@ -301,6 +301,7 @@ type ComplexityRoot struct {
 		Fields          func(childComplexity int) int
 		ID              func(childComplexity int) int
 		IsActive        func(childComplexity int) int
+		ServiceID       func(childComplexity int) int
 		SubmissionCount func(childComplexity int) int
 		Title           func(childComplexity int) int
 		Type            func(childComplexity int) int
@@ -332,17 +333,14 @@ type ComplexityRoot struct {
 	}
 
 	FormSubmission struct {
-		CreatedAt    func(childComplexity int) int
-		Data         func(childComplexity int) int
-		FormID       func(childComplexity int) int
-		FormTitle    func(childComplexity int) int
-		ID           func(childComplexity int) int
-		IPAddress    func(childComplexity int) int
-		Message      func(childComplexity int) int
-		Status       func(childComplexity int) int
-		SubmissionID func(childComplexity int) int
-		UpdatedAt    func(childComplexity int) int
-		UserAgent    func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Data      func(childComplexity int) int
+		FormID    func(childComplexity int) int
+		ID        func(childComplexity int) int
+		ServiceID func(childComplexity int) int
+		Status    func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+		UserID    func(childComplexity int) int
 	}
 
 	GalleryProfession struct {
@@ -439,6 +437,7 @@ type ComplexityRoot struct {
 		CreateUnavailablePeriod            func(childComplexity int, input model.CreateUnavailablePeriodInput) int
 		CreateUser                         func(childComplexity int, input model.InputUser) int
 		DeleteAdmin                        func(childComplexity int, id string) int
+		DeleteAll                          func(childComplexity int) int
 		DeleteAllChatMessageByNumber       func(childComplexity int, customerNumber string) int
 		DeleteAllOrderItems                func(childComplexity int, orderID []string) int
 		DeleteAllRequestItems              func(childComplexity int) int
@@ -491,7 +490,7 @@ type ComplexityRoot struct {
 		SendChatMessageByNumber            func(childComplexity int, input model.ChatMessageAdminInput) int
 		ServiceLogin                       func(childComplexity int, input model.LoginInput) int
 		StarOrStoptLocationTracking        func(childComplexity int, isTracking bool) int
-		SubmitForm                         func(childComplexity int, input model.FormSubmissionInput) int
+		SubmitForm                         func(childComplexity int, input model.FormSubmissionInput, signImage []*graphql.Upload) int
 		UpdateAdmin                        func(childComplexity int, id string, input model.UpdateAdminInput) int
 		UpdateAdminStatus                  func(childComplexity int, id string, status string) int
 		UpdateAmenity                      func(childComplexity int, priceCardID string, amenityID string, text string) int
@@ -1213,9 +1212,10 @@ type MutationResolver interface {
 	UpdateForm(ctx context.Context, input model.UpdateFormInput) (*model.Form, error)
 	DeleteForm(ctx context.Context, id string) (bool, error)
 	DuplicateForm(ctx context.Context, id string, title *string) (*model.Form, error)
-	SubmitForm(ctx context.Context, input model.FormSubmissionInput) (*model.FormSubmission, error)
+	SubmitForm(ctx context.Context, input model.FormSubmissionInput, signImage []*graphql.Upload) (*model.FormSubmission, error)
 	UpdateSubmissionStatus(ctx context.Context, id string, status model.SubmissionStatus) (*model.FormSubmission, error)
 	DeleteSubmission(ctx context.Context, id string) (bool, error)
+	DeleteAll(ctx context.Context) (bool, error)
 	BulkDeleteForms(ctx context.Context, ids []string) (int32, error)
 	BulkDeleteSubmissions(ctx context.Context, ids []string) (int32, error)
 	ExportFormSubmissions(ctx context.Context, formID string, format *string) (string, error)
@@ -2624,6 +2624,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Form.IsActive(childComplexity), true
 
+	case "Form.serviceId":
+		if e.complexity.Form.ServiceID == nil {
+			break
+		}
+
+		return e.complexity.Form.ServiceID(childComplexity), true
+
 	case "Form.submissionCount":
 		if e.complexity.Form.SubmissionCount == nil {
 			break
@@ -2799,13 +2806,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.FormSubmission.FormID(childComplexity), true
 
-	case "FormSubmission.formTitle":
-		if e.complexity.FormSubmission.FormTitle == nil {
-			break
-		}
-
-		return e.complexity.FormSubmission.FormTitle(childComplexity), true
-
 	case "FormSubmission.id":
 		if e.complexity.FormSubmission.ID == nil {
 			break
@@ -2813,19 +2813,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.FormSubmission.ID(childComplexity), true
 
-	case "FormSubmission.ipAddress":
-		if e.complexity.FormSubmission.IPAddress == nil {
+	case "FormSubmission.serviceId":
+		if e.complexity.FormSubmission.ServiceID == nil {
 			break
 		}
 
-		return e.complexity.FormSubmission.IPAddress(childComplexity), true
-
-	case "FormSubmission.message":
-		if e.complexity.FormSubmission.Message == nil {
-			break
-		}
-
-		return e.complexity.FormSubmission.Message(childComplexity), true
+		return e.complexity.FormSubmission.ServiceID(childComplexity), true
 
 	case "FormSubmission.status":
 		if e.complexity.FormSubmission.Status == nil {
@@ -2834,13 +2827,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.FormSubmission.Status(childComplexity), true
 
-	case "FormSubmission.submissionId":
-		if e.complexity.FormSubmission.SubmissionID == nil {
-			break
-		}
-
-		return e.complexity.FormSubmission.SubmissionID(childComplexity), true
-
 	case "FormSubmission.updatedAt":
 		if e.complexity.FormSubmission.UpdatedAt == nil {
 			break
@@ -2848,12 +2834,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.FormSubmission.UpdatedAt(childComplexity), true
 
-	case "FormSubmission.userAgent":
-		if e.complexity.FormSubmission.UserAgent == nil {
+	case "FormSubmission.userId":
+		if e.complexity.FormSubmission.UserID == nil {
 			break
 		}
 
-		return e.complexity.FormSubmission.UserAgent(childComplexity), true
+		return e.complexity.FormSubmission.UserID(childComplexity), true
 
 	case "GalleryProfession.categories":
 		if e.complexity.GalleryProfession.Categories == nil {
@@ -3576,6 +3562,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeleteAdmin(childComplexity, args["id"].(string)), true
 
+	case "Mutation.deleteAll":
+		if e.complexity.Mutation.DeleteAll == nil {
+			break
+		}
+
+		return e.complexity.Mutation.DeleteAll(childComplexity), true
+
 	case "Mutation.deleteAllChatMessageByNumber":
 		if e.complexity.Mutation.DeleteAllChatMessageByNumber == nil {
 			break
@@ -4180,7 +4173,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SubmitForm(childComplexity, args["input"].(model.FormSubmissionInput)), true
+		return e.complexity.Mutation.SubmitForm(childComplexity, args["input"].(model.FormSubmissionInput), args["signImage"].([]*graphql.Upload)), true
 
 	case "Mutation.updateAdmin":
 		if e.complexity.Mutation.UpdateAdmin == nil {
@@ -10649,6 +10642,11 @@ func (ec *executionContext) field_Mutation_submitForm_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg0
+	arg1, err := ec.field_Mutation_submitForm_argsSignImage(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["signImage"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_submitForm_argsInput(
@@ -10661,6 +10659,19 @@ func (ec *executionContext) field_Mutation_submitForm_argsInput(
 	}
 
 	var zeroVal model.FormSubmissionInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_submitForm_argsSignImage(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("signImage"))
+	if tmp, ok := rawArgs["signImage"]; ok {
+		return ec.unmarshalOUpload2ᚕᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal []*graphql.Upload
 	return zeroVal, nil
 }
 
@@ -21612,6 +21623,47 @@ func (ec *executionContext) fieldContext_Form_description(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Form_serviceId(ctx context.Context, field graphql.CollectedField, obj *model.Form) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Form_serviceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ServiceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Form_serviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Form",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Form_type(ctx context.Context, field graphql.CollectedField, obj *model.Form) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Form_type(ctx, field)
 	if err != nil {
@@ -22771,94 +22823,6 @@ func (ec *executionContext) fieldContext_FormSubmission_formId(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _FormSubmission_submissionId(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_FormSubmission_submissionId(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.SubmissionID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_FormSubmission_submissionId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "FormSubmission",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _FormSubmission_formTitle(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_FormSubmission_formTitle(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.FormTitle, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_FormSubmission_formTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "FormSubmission",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _FormSubmission_data(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FormSubmission_data(ctx, field)
 	if err != nil {
@@ -22947,8 +22911,8 @@ func (ec *executionContext) fieldContext_FormSubmission_status(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _FormSubmission_message(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_FormSubmission_message(ctx, field)
+func (ec *executionContext) _FormSubmission_userId(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FormSubmission_userId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -22961,7 +22925,7 @@ func (ec *executionContext) _FormSubmission_message(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Message, nil
+		return obj.UserID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -22975,7 +22939,7 @@ func (ec *executionContext) _FormSubmission_message(ctx context.Context, field g
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_FormSubmission_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FormSubmission_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "FormSubmission",
 		Field:      field,
@@ -22988,8 +22952,8 @@ func (ec *executionContext) fieldContext_FormSubmission_message(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _FormSubmission_ipAddress(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_FormSubmission_ipAddress(ctx, field)
+func (ec *executionContext) _FormSubmission_serviceId(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FormSubmission_serviceId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -23002,7 +22966,7 @@ func (ec *executionContext) _FormSubmission_ipAddress(ctx context.Context, field
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.IPAddress, nil
+		return obj.ServiceID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -23016,48 +22980,7 @@ func (ec *executionContext) _FormSubmission_ipAddress(ctx context.Context, field
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_FormSubmission_ipAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "FormSubmission",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _FormSubmission_userAgent(ctx context.Context, field graphql.CollectedField, obj *model.FormSubmission) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_FormSubmission_userAgent(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.UserAgent, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_FormSubmission_userAgent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FormSubmission_serviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "FormSubmission",
 		Field:      field,
@@ -26826,6 +26749,8 @@ func (ec *executionContext) fieldContext_Mutation_createForm(ctx context.Context
 				return ec.fieldContext_Form_title(ctx, field)
 			case "description":
 				return ec.fieldContext_Form_description(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Form_serviceId(ctx, field)
 			case "type":
 				return ec.fieldContext_Form_type(ctx, field)
 			case "fields":
@@ -26901,6 +26826,8 @@ func (ec *executionContext) fieldContext_Mutation_updateForm(ctx context.Context
 				return ec.fieldContext_Form_title(ctx, field)
 			case "description":
 				return ec.fieldContext_Form_description(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Form_serviceId(ctx, field)
 			case "type":
 				return ec.fieldContext_Form_type(ctx, field)
 			case "fields":
@@ -27031,6 +26958,8 @@ func (ec *executionContext) fieldContext_Mutation_duplicateForm(ctx context.Cont
 				return ec.fieldContext_Form_title(ctx, field)
 			case "description":
 				return ec.fieldContext_Form_description(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Form_serviceId(ctx, field)
 			case "type":
 				return ec.fieldContext_Form_type(ctx, field)
 			case "fields":
@@ -27075,7 +27004,7 @@ func (ec *executionContext) _Mutation_submitForm(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SubmitForm(rctx, fc.Args["input"].(model.FormSubmissionInput))
+		return ec.resolvers.Mutation().SubmitForm(rctx, fc.Args["input"].(model.FormSubmissionInput), fc.Args["signImage"].([]*graphql.Upload))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -27104,20 +27033,14 @@ func (ec *executionContext) fieldContext_Mutation_submitForm(ctx context.Context
 				return ec.fieldContext_FormSubmission_id(ctx, field)
 			case "formId":
 				return ec.fieldContext_FormSubmission_formId(ctx, field)
-			case "submissionId":
-				return ec.fieldContext_FormSubmission_submissionId(ctx, field)
-			case "formTitle":
-				return ec.fieldContext_FormSubmission_formTitle(ctx, field)
 			case "data":
 				return ec.fieldContext_FormSubmission_data(ctx, field)
 			case "status":
 				return ec.fieldContext_FormSubmission_status(ctx, field)
-			case "message":
-				return ec.fieldContext_FormSubmission_message(ctx, field)
-			case "ipAddress":
-				return ec.fieldContext_FormSubmission_ipAddress(ctx, field)
-			case "userAgent":
-				return ec.fieldContext_FormSubmission_userAgent(ctx, field)
+			case "userId":
+				return ec.fieldContext_FormSubmission_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_FormSubmission_serviceId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_FormSubmission_createdAt(ctx, field)
 			case "updatedAt":
@@ -27183,20 +27106,14 @@ func (ec *executionContext) fieldContext_Mutation_updateSubmissionStatus(ctx con
 				return ec.fieldContext_FormSubmission_id(ctx, field)
 			case "formId":
 				return ec.fieldContext_FormSubmission_formId(ctx, field)
-			case "submissionId":
-				return ec.fieldContext_FormSubmission_submissionId(ctx, field)
-			case "formTitle":
-				return ec.fieldContext_FormSubmission_formTitle(ctx, field)
 			case "data":
 				return ec.fieldContext_FormSubmission_data(ctx, field)
 			case "status":
 				return ec.fieldContext_FormSubmission_status(ctx, field)
-			case "message":
-				return ec.fieldContext_FormSubmission_message(ctx, field)
-			case "ipAddress":
-				return ec.fieldContext_FormSubmission_ipAddress(ctx, field)
-			case "userAgent":
-				return ec.fieldContext_FormSubmission_userAgent(ctx, field)
+			case "userId":
+				return ec.fieldContext_FormSubmission_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_FormSubmission_serviceId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_FormSubmission_createdAt(ctx, field)
 			case "updatedAt":
@@ -27270,6 +27187,50 @@ func (ec *executionContext) fieldContext_Mutation_deleteSubmission(ctx context.C
 	if fc.Args, err = ec.field_Mutation_deleteSubmission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAll(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteAll(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteAll(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAll(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -38647,6 +38608,8 @@ func (ec *executionContext) fieldContext_Query_forms(ctx context.Context, field 
 				return ec.fieldContext_Form_title(ctx, field)
 			case "description":
 				return ec.fieldContext_Form_description(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Form_serviceId(ctx, field)
 			case "type":
 				return ec.fieldContext_Form_type(ctx, field)
 			case "fields":
@@ -38719,6 +38682,8 @@ func (ec *executionContext) fieldContext_Query_form(ctx context.Context, field g
 				return ec.fieldContext_Form_title(ctx, field)
 			case "description":
 				return ec.fieldContext_Form_description(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Form_serviceId(ctx, field)
 			case "type":
 				return ec.fieldContext_Form_type(ctx, field)
 			case "fields":
@@ -38792,20 +38757,14 @@ func (ec *executionContext) fieldContext_Query_submissions(ctx context.Context, 
 				return ec.fieldContext_FormSubmission_id(ctx, field)
 			case "formId":
 				return ec.fieldContext_FormSubmission_formId(ctx, field)
-			case "submissionId":
-				return ec.fieldContext_FormSubmission_submissionId(ctx, field)
-			case "formTitle":
-				return ec.fieldContext_FormSubmission_formTitle(ctx, field)
 			case "data":
 				return ec.fieldContext_FormSubmission_data(ctx, field)
 			case "status":
 				return ec.fieldContext_FormSubmission_status(ctx, field)
-			case "message":
-				return ec.fieldContext_FormSubmission_message(ctx, field)
-			case "ipAddress":
-				return ec.fieldContext_FormSubmission_ipAddress(ctx, field)
-			case "userAgent":
-				return ec.fieldContext_FormSubmission_userAgent(ctx, field)
+			case "userId":
+				return ec.fieldContext_FormSubmission_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_FormSubmission_serviceId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_FormSubmission_createdAt(ctx, field)
 			case "updatedAt":
@@ -38868,20 +38827,14 @@ func (ec *executionContext) fieldContext_Query_submission(ctx context.Context, f
 				return ec.fieldContext_FormSubmission_id(ctx, field)
 			case "formId":
 				return ec.fieldContext_FormSubmission_formId(ctx, field)
-			case "submissionId":
-				return ec.fieldContext_FormSubmission_submissionId(ctx, field)
-			case "formTitle":
-				return ec.fieldContext_FormSubmission_formTitle(ctx, field)
 			case "data":
 				return ec.fieldContext_FormSubmission_data(ctx, field)
 			case "status":
 				return ec.fieldContext_FormSubmission_status(ctx, field)
-			case "message":
-				return ec.fieldContext_FormSubmission_message(ctx, field)
-			case "ipAddress":
-				return ec.fieldContext_FormSubmission_ipAddress(ctx, field)
-			case "userAgent":
-				return ec.fieldContext_FormSubmission_userAgent(ctx, field)
+			case "userId":
+				return ec.fieldContext_FormSubmission_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_FormSubmission_serviceId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_FormSubmission_createdAt(ctx, field)
 			case "updatedAt":
@@ -59238,7 +59191,7 @@ func (ec *executionContext) unmarshalInputFormSubmissionInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"formId", "formTitle", "data", "submittedAt", "ipAddress", "userAgent"}
+	fieldsInOrder := [...]string{"formId", "data"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -59252,13 +59205,6 @@ func (ec *executionContext) unmarshalInputFormSubmissionInput(ctx context.Contex
 				return it, err
 			}
 			it.FormID = data
-		case "formTitle":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("formTitle"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FormTitle = data
 		case "data":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("data"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -59266,27 +59212,6 @@ func (ec *executionContext) unmarshalInputFormSubmissionInput(ctx context.Contex
 				return it, err
 			}
 			it.Data = data
-		case "submittedAt":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("submittedAt"))
-			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SubmittedAt = data
-		case "ipAddress":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ipAddress"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.IPAddress = data
-		case "userAgent":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userAgent"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UserAgent = data
 		}
 	}
 
@@ -63053,6 +62978,8 @@ func (ec *executionContext) _Form(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "description":
 			out.Values[i] = ec._Form_description(ctx, field, obj)
+		case "serviceId":
+			out.Values[i] = ec._Form_serviceId(ctx, field, obj)
 		case "type":
 			out.Values[i] = ec._Form_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -63357,16 +63284,6 @@ func (ec *executionContext) _FormSubmission(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "submissionId":
-			out.Values[i] = ec._FormSubmission_submissionId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "formTitle":
-			out.Values[i] = ec._FormSubmission_formTitle(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		case "data":
 			out.Values[i] = ec._FormSubmission_data(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -63377,12 +63294,10 @@ func (ec *executionContext) _FormSubmission(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "message":
-			out.Values[i] = ec._FormSubmission_message(ctx, field, obj)
-		case "ipAddress":
-			out.Values[i] = ec._FormSubmission_ipAddress(ctx, field, obj)
-		case "userAgent":
-			out.Values[i] = ec._FormSubmission_userAgent(ctx, field, obj)
+		case "userId":
+			out.Values[i] = ec._FormSubmission_userId(ctx, field, obj)
+		case "serviceId":
+			out.Values[i] = ec._FormSubmission_serviceId(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._FormSubmission_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -64256,6 +64171,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteSubmission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteSubmission(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAll":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAll(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

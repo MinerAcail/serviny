@@ -6,11 +6,16 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lehxees/serviny/helper"
 	"gorm.io/gorm"
 )
 
@@ -81,6 +86,7 @@ func (r *mutationResolver) CreateForm(ctx context.Context, input model.CreateFor
 		Type:            input.Type,
 		IsActive:        input.IsActive != nil && *input.IsActive,
 		SubmissionCount: 0,
+		ServiceID:       serviceIDStr,
 	}
 
 	// Save the form to DB
@@ -271,10 +277,165 @@ func (r *mutationResolver) DuplicateForm(ctx context.Context, id string, title *
 }
 
 // SubmitForm is the resolver for the submitForm field.
-func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmissionInput) (*model.FormSubmission, error) {
-	panic(fmt.Errorf("not implemented: SubmitForm - submitForm"))
-}
+func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmissionInput, signImage []*graphql.Upload) (*model.FormSubmission, error) {
+// Start a transaction
+	tx := r.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
+	// Retrieve the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse form ID from string (using camelCase formId from schema)
+	formID, err := uuid.Parse(input.FormID) // Changed from FormID to FormId
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("invalid form ID: %w", err)
+	}
+
+	// Find and validate the form exists and is active
+	var form model.Form
+	if err := tx.Preload("Fields").First(&form, "id = ? AND is_active = ?", formID, true).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("form not found or inactive")
+		}
+		return nil, fmt.Errorf("failed to find form: %w", err)
+	}
+
+	// Parse and validate form data
+	var formData map[string]interface{}
+	if err := json.Unmarshal([]byte(input.Data), &formData); err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("invalid form data JSON: %w", err)
+	}
+
+	// Debug logging
+	log.Printf("📝 Form submission debug:")
+	log.Printf("   - Form ID: %s", formID)
+	log.Printf("   - Number of signature files: %d", len(signImage))
+	log.Printf("   - Form data keys: %v", getKeys(formData))
+
+	// Handle signature image uploads if provided
+	var signatureURLs []string
+	if len(signImage) > 0 {
+		// Create bucket name based on form ID
+		bucketName := fmt.Sprintf("form-%s-signatures", formID)
+
+		// Ensure the bucket exists
+		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create signature bucket: %w", err)
+		}
+
+		// Upload signature files to MinIO
+		for i, file := range signImage {
+			log.Printf("📤 Uploading signature file %d: %s (size: %d bytes)", i+1, file.Filename, file.Size)
+			
+			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "signatures", file)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to upload signature file %s: %v", file.Filename, err)
+			}
+			signatureURLs = append(signatureURLs, fileURL)
+			log.Printf("✅ Signature file uploaded successfully: %s", fileURL)
+		}
+	}
+
+	// Validate required fields - FIXED: Use field.Label instead of field.ID.String()
+	for _, field := range form.Fields {
+		if field.Required {
+			// Use field label as key (matching frontend logic)
+			fieldValue, exists := formData[field.Label]
+			
+			// For signature fields, also check if we have signature files
+			if field.Type == "SIGNATURE" || field.Type == "signature" {
+				if len(signImage) > 0 {
+					// If we have signature files, consider the requirement satisfied
+					log.Printf("✅ Signature field '%s' satisfied by uploaded file", field.Label)
+					continue
+				}
+			}
+			
+			if !exists || fieldValue == nil || fieldValue == "" {
+				// Special handling for signature fields marked as "signature_provided"
+				if field.Type == "SIGNATURE" || field.Type == "signature" {
+					if fieldValueStr, ok := fieldValue.(string); ok && fieldValueStr == "signature_provided" {
+						log.Printf("✅ Signature field '%s' marked as provided", field.Label)
+						continue
+					}
+				}
+				
+				tx.Rollback()
+				return nil, fmt.Errorf("required field '%s' is missing or empty", field.Label)
+			}
+		}
+	}
+
+	// Add signature URLs to form data if they exist
+	if len(signatureURLs) > 0 {
+		formData["signature_urls"] = signatureURLs
+		log.Printf("📎 Added %d signature URLs to form data", len(signatureURLs))
+	}
+
+	// Convert form data back to JSON string
+	updatedDataBytes, err := json.Marshal(formData)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to marshal updated form data: %w", err)
+	}
+
+	// Create form submission (using camelCase field names to match schema)
+	submission := model.FormSubmission{
+		FormID:    input.FormID, // Changed from FormID to FormId to match schema
+		Data:      string(updatedDataBytes),
+		Status:    model.SubmissionStatusPending, // Default to pending
+		UserID:    userIDStr,                     // Changed from UserID to UserId to match schema
+		ServiceID: form.ServiceID,                // This should also be ServiceId if following camelCase
+	}
+
+	// Save the submission to database
+	if err := tx.Create(&submission).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create form submission: %w", err)
+	}
+
+	// Update form submission count
+	if err := tx.Model(&form).UpdateColumn("submission_count", gorm.Expr("submission_count + ?", 1)).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update submission count: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Auto-submit the form (change status to submitted)
+	submission.Status = model.SubmissionStatusSubmitted
+	if err := r.DB.Save(&submission).Error; err != nil {
+		// Log warning but don't fail the submission
+		log.Printf("Warning: failed to update submission status to submitted: %v", err)
+	}
+
+	log.Printf("✅ Form submission completed successfully: %s", submission.ID)
+	return &submission, nil
+}
+// Helper function to get map keys for debugging
+func getKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
 // UpdateSubmissionStatus is the resolver for the updateSubmissionStatus field.
 func (r *mutationResolver) UpdateSubmissionStatus(ctx context.Context, id string, status model.SubmissionStatus) (*model.FormSubmission, error) {
 	panic(fmt.Errorf("not implemented: UpdateSubmissionStatus - updateSubmissionStatus"))
@@ -283,6 +444,40 @@ func (r *mutationResolver) UpdateSubmissionStatus(ctx context.Context, id string
 // DeleteSubmission is the resolver for the deleteSubmission field.
 func (r *mutationResolver) DeleteSubmission(ctx context.Context, id string) (bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteSubmission - deleteSubmission"))
+}
+
+// DeleteAll is the resolver for the deleteAll field.
+func (r *mutationResolver) DeleteAll(ctx context.Context) (bool, error) {
+	tx := r.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Delete all form submissions
+	if err := tx.Exec("DELETE FROM form_submissions").Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete form submissions: %w", err)
+	}
+
+	// Delete all form fields
+	if err := tx.Exec("DELETE FROM form_fields").Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete form fields: %w", err)
+	}
+
+	// Delete all forms
+	if err := tx.Exec("DELETE FROM forms").Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete forms: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return false, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return true, nil
 }
 
 // BulkDeleteForms is the resolver for the bulkDeleteForms field.
@@ -302,6 +497,12 @@ func (r *mutationResolver) ExportFormSubmissions(ctx context.Context, formID str
 
 // Forms is the resolver for the forms field.
 func (r *queryResolver) Forms(ctx context.Context, filter *model.FormsFilter, limit *int32, offset *int32, orderBy *string, orderDirection *string) ([]*model.Form, error) {
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
 	query := r.DB.Model(&model.Form{}).Preload("Fields", func(db *gorm.DB) *gorm.DB {
 		return db.Order("\"order\" ASC NULLS LAST, created_at ASC")
 	})
@@ -345,7 +546,7 @@ func (r *queryResolver) Forms(ctx context.Context, filter *model.FormsFilter, li
 	}
 
 	var forms []*model.Form
-	if err := query.Find(&forms).Error; err != nil {
+	if err := query.Where("service_id = ?", serviceIDStr).Find(&forms).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch forms: %w", err)
 	}
 
@@ -375,7 +576,47 @@ func (r *queryResolver) Form(ctx context.Context, id string) (*model.Form, error
 
 // Submissions is the resolver for the submissions field.
 func (r *queryResolver) Submissions(ctx context.Context, formID *string, status *model.SubmissionStatus, limit *int32, offset *int32, orderBy *string, orderDirection *string) ([]*model.FormSubmission, error) {
-	panic(fmt.Errorf("not implemented: Submissions - submissions"))
+	query := r.DB.Model(&model.FormSubmission{})
+
+	// Filter by formID if provided
+	if formID != nil && *formID != "" {
+		query = query.Where("form_id = ?", *formID)
+	}
+
+	// Filter by status if provided
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	// Apply ordering
+	orderByStr := "created_at"
+	if orderBy != nil && *orderBy != "" {
+		orderByStr = *orderBy
+	}
+	orderDirStr := "DESC"
+	if orderDirection != nil && (*orderDirection == "ASC" || *orderDirection == "DESC") {
+		orderDirStr = *orderDirection
+	}
+	query = query.Order(fmt.Sprintf("%s %s", orderByStr, orderDirStr))
+
+	// Apply pagination
+	if offset != nil && *offset >= 0 {
+		query = query.Offset(int(*offset))
+	}
+	if limit != nil && *limit > 0 {
+		maxLimit := int32(100)
+		if *limit > maxLimit {
+			*limit = maxLimit
+		}
+		query = query.Limit(int(*limit))
+	}
+
+	var submissions []*model.FormSubmission
+	if err := query.Find(&submissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch submissions: %w", err)
+	}
+
+	return submissions, nil
 }
 
 // Submission is the resolver for the submission field.

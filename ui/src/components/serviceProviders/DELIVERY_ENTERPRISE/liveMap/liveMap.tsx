@@ -72,7 +72,12 @@ const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
 const googleMapsApiKey = import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY
 
 const libraries: Libraries = ["places"]
-
+// Make sure this configuration is consistent across your app
+export const GOOGLE_MAPS_CONFIG = {
+  id: "google-map-script", // Keep this consistent
+  googleMapsApiKey: googleMapsApiKey,
+  libraries: libraries,
+}
 const LiveMap: React.FC = () => {
   // Add a new state for the orders and bookings sheet
   const [showOrdersBookings, setShowOrdersBookings] = useState(false)
@@ -123,11 +128,7 @@ const LiveMap: React.FC = () => {
   const markerUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Google Maps loader
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: googleMapsApiKey,
-    libraries: libraries,
-  })
+  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_CONFIG)
 
   // Check if mobile
   useEffect(() => {

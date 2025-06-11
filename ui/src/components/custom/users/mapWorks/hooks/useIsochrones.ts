@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react"
 import { useQuery, gql } from "@apollo/client"
 import { ZoneDetail, RangeType, TransportMode, Location } from "../types"
-import { ZONE_COLORS, GET_ISOCHRONE_RESULT, SPEED_MAPPING } from "../constants"
+import {  GET_ISOCHRONE_RESULT, SPEED_MAPPING } from "../constants"
 import { calculateArea } from "../utils/geoCalculations"
 import { addIsochrones } from "../utils/mapHelpers"
-
+import { ZONE_COLORS } from "@/components/config/map"
 interface UseIsochronesProps {
   mapInstance: React.MutableRefObject<maplibregl.Map | null>
   mapLoaded: boolean

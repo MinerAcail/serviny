@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ChevronLeft, AlertCircle, MapPin, Clock } from "lucide-react"
 import { IsochroneMap } from "./isochrone-map"
+import { ZONE_COLORS } from "@/components/config/map"
 
 type Location = {
   address: string
@@ -40,26 +41,16 @@ export function ResultStep({
 
   // Generate a color palette for any number of zones
   const generateZoneColors = (count: number) => {
-    // Base colors for first 3 zones
-    const baseColors = ["#4ade80", "#facc15", "#f87171"]
-    
-    if (count <= 3) return baseColors.slice(0, count)
+  
+    if (count <= 3) return ZONE_COLORS.slice(0, count)
     
     // For more than 3 zones, generate additional colors
-    const colors = [...baseColors]
+    const colors = [...ZONE_COLORS]
     
-    // Add more colors if needed
-    const additionalColors = [
-      "#60a5fa", // blue
-      "#c084fc", // purple
-      "#2dd4bf", // teal
-      "#fb923c", // orange
-      "#f472b6"  // pink
-    ]
     
     for (let i = 3; i < count; i++) {
-      if (i - 3 < additionalColors.length) {
-        colors.push(additionalColors[i - 3])
+      if (i - 3 < ZONE_COLORS.length) {
+        colors.push(ZONE_COLORS[i - 3])
       } else {
         // If we run out of predefined colors, generate random ones
         // But make them somewhat visually distinct from each other

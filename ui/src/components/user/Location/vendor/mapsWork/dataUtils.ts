@@ -1,5 +1,6 @@
 import * as turf from "@turf/turf"
 import { gql } from "@apollo/client"
+import { ZONE_COLORS } from "@/components/config/map";
 
 // ==========================================
 // Constants and Types
@@ -73,15 +74,6 @@ export const SPEED_MAPPING: Record<string, number> = {
   car: 60,
 }
 
-// Zone colors from green (closest) to red (farthest)
-export const ZONE_COLORS = [
-  "#4ade80", // green
-  "#facc15", // yellow
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#a78bfa", // purple
-  "#f472b6", // pink
-]
 
 // ==========================================
 // Data Processing Functions

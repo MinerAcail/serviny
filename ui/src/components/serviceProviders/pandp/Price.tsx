@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, Plus, Trash, Save, Edit } from "lucide-react";
+import { Check, Plus, Trash, Save, Edit, Share2, Copy } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -228,60 +228,7 @@ const AmenityInput: React.FC<{
   </li>
 );
 
-// Individual Price Card Component
-const PriceCardItem: React.FC<{
-  fullCard: FullCard;
-  onEdit: (card: FullCard) => void;
-}> = ({ fullCard, onEdit }) => (
-  <Card className="h-full flex flex-col">
-    <CardHeader className="pb-2">
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <CardTitle>{fullCard.card.title}</CardTitle>
-          <CardDescription>{fullCard.card.description}</CardDescription>
-        </div>
-      </div>
-    </CardHeader>
-    
-    <CardContent className="space-y-4 flex-grow">
-      {/* Prices */}
-      <div className="space-y-2">
-        {fullCard.prices.map((price) => (
-          <div key={price.id} className="flex justify-between items-center">
-            <span className="text-sm">{price.label}</span>
-            <span className="font-medium">{ghSim}{price.value}</span>
-          </div>
-        ))}
-      </div>
-      
-      {/* Amenities */}
-      <div className="pt-2 border-t">
-  <Label className="mb-2 block">Amenities</Label>
-  <ul className="text-sm space-y-2">
-    {fullCard.amenities.map((amenity) => (
-      <li key={amenity.id} className="flex items-start space-x-2">
-        <div className="pt-[2px]">
-          <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-        </div>
-        <span className="break-words">{amenity.text}</span>
-      </li>
-    ))}
-  </ul>
-</div>
 
-
-    </CardContent>
-    
-    <CardFooter className="mt-auto">
-      <Button 
-        onClick={() => onEdit(fullCard)} 
-        className="w-full flex items-center justify-center gap-1"
-      >
-        <Edit className="h-4 w-4" /> Edit Card
-      </Button>
-    </CardFooter>
-  </Card>
-);
 
 // New Card Form Component
 const NewCardForm: React.FC<{
@@ -374,17 +321,14 @@ const NewCardForm: React.FC<{
     </div>
   </div>
 );
-
 const Price: React.FC = () => {
-  // Get serviceId from props or context if needed
   const { serviceId } = useParams<{ serviceId: string }>();
 
-  // Apollo query to fetch price cards
+  // Apollo query and mutations
   const { loading, error, data, refetch } = useQuery(GET_PRICE_CARDS, {
     variables: { serviceId },
   });
 
-  // Apollo mutations
   const [createPriceCard] = useMutation(CREATE_PRICE_CARD, {
     onCompleted: () => refetch(),
   });
@@ -401,7 +345,7 @@ const Price: React.FC = () => {
   const [newCardDialogOpen, setNewCardDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<FullCard | null>(null);
-  
+
   // State for new card form
   const [newCardData, setNewCardData] = useState<PriceCardInput>({
     title: "",
@@ -410,15 +354,52 @@ const Price: React.FC = () => {
     amenities: [{ text: "Amenity" }]
   });
 
-  // Get cards from query data
   const cards: FullCard[] = data?.getpriceCardsinformation || [];
 
-  // Edit card - open dialog with card data
+  // Generate shareable link
+  const generateShareableLink = (card: FullCard) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/service/${serviceId}/price-card/${card.card.id}`;
+  };
+
+  // Share card handler - uses native system share
+  const shareCard = async (card: FullCard) => {
+    const shareUrl = generateShareableLink(card);
+    const shareData = {
+      title: card.card.title,
+      text: card.card.description,
+      url: shareUrl,
+    };
+
+    try {
+      // Check if native sharing is supported
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback to copying link to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        // User didn't cancel, show fallback
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success("Link copied to clipboard!");
+        } catch (clipboardErr) {
+          toast.error("Failed to share or copy link");
+        }
+      }
+    }
+  };
+
+  // Edit card handler
   const editCard = (card: FullCard) => {
     setEditingCard({ ...card });
     setEditDialogOpen(true);
   };
 
+  // Create new card
   const addCard = () => {
     createPriceCard({
       variables: {
@@ -432,7 +413,7 @@ const Price: React.FC = () => {
         toast.error(`Failed to create price card: ${error.message}`);
       },
     });
-  
+
     // Reset form
     setNewCardData({
       title: "",
@@ -446,9 +427,9 @@ const Price: React.FC = () => {
   // Save edited card
   const saveCard = () => {
     if (!editingCard) return;
-  
+
     const { card, prices, amenities } = editingCard;
-  
+
     updatePriceCard({
       variables: {
         priceCardId: card.id,
@@ -467,7 +448,7 @@ const Price: React.FC = () => {
         toast.error(`Failed to update price card: ${error.message}`);
       },
     });
-  
+
     setEditDialogOpen(false);
     setEditingCard(null);
   };
@@ -486,14 +467,14 @@ const Price: React.FC = () => {
         toast.error(`Failed to delete price card: ${error.message}`);
       },
     });
-  
+
     if (editingCard && editingCard.card.id === cardId) {
       setEditDialogOpen(false);
       setEditingCard(null);
     }
   };
 
-  // Form handlers for new card
+  // Form handlers for new card (keeping existing implementation)
   const updateNewCardField = (field: keyof PriceCardInput, value: string | PriceInput[] | AmenityInput[] | undefined) => {
     setNewCardData({ ...newCardData, [field]: value });
   };
@@ -534,7 +515,7 @@ const Price: React.FC = () => {
     updateNewCardField("amenities", updatedAmenities);
   };
 
-  // Form handlers for editing card
+  // Form handlers for editing card (keeping existing implementation)
   const updateEditingCardField = (field: keyof FullCard, value: FullCard[keyof FullCard]) => {
     if (!editingCard) return;
     setEditingCard({ ...editingCard, [field]: value });
@@ -548,10 +529,7 @@ const Price: React.FC = () => {
 
   const addEditingCardPrice = () => {
     if (!editingCard) return;
-    
-    // Generate temporary ID for UI purposes
     const tempId = `temp-${Date.now()}`;
-    
     updateEditingCardField("prices", [
       ...editingCard.prices,
       { id: tempId, label: "New Price:", value: "0" }
@@ -560,7 +538,6 @@ const Price: React.FC = () => {
 
   const updateEditingCardPrice = (priceId: string, field: keyof Price, value: string) => {
     if (!editingCard) return;
-
     const updatedPrices = editingCard.prices.map(price => 
       price.id === priceId ? { ...price, [field]: value } : price
     );
@@ -569,17 +546,13 @@ const Price: React.FC = () => {
 
   const removeEditingCardPrice = (priceId: string) => {
     if (!editingCard) return;
-
     const updatedPrices = editingCard.prices.filter(price => price.id !== priceId);
     updateEditingCardField("prices", updatedPrices);
   };
 
   const addEditingCardAmenity = () => {
     if (!editingCard) return;
-
-    // Generate temporary ID for UI purposes
     const tempId = `temp-${Date.now()}`;
-    
     updateEditingCardField("amenities", [
       ...editingCard.amenities,
       { id: tempId, text: "New Amenity" }
@@ -588,7 +561,6 @@ const Price: React.FC = () => {
 
   const updateEditingCardAmenity = (amenityId: string, value: string) => {
     if (!editingCard) return;
-
     const updatedAmenities = editingCard.amenities.map(amenity => 
       amenity.id === amenityId ? { ...amenity, text: value } : amenity
     );
@@ -597,27 +569,24 @@ const Price: React.FC = () => {
 
   const removeEditingCardAmenity = (amenityId: string) => {
     if (!editingCard) return;
-
     const updatedAmenities = editingCard.amenities.filter(amenity => amenity.id !== amenityId);
     updateEditingCardField("amenities", updatedAmenities);
   };
 
-  // Handle loading and error states
   if (loading) return <div>Loading price cards...</div>;
   if (error) return <div>Error loading price cards: {error.message}</div>;
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center mb-4">
-        {/* Add New Card Dialog Trigger */}
+        {/* Add New Card Dialog */}
         <Dialog open={newCardDialogOpen} onOpenChange={setNewCardDialogOpen}>
-          <DialogTrigger className="" asChild>
+          <DialogTrigger asChild>
             <Button className="flex items-center justify-end gap-1">
               <Plus className="h-4 w-4" />New Price
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
-
             <DialogHeader>
               <DialogTitle>Create New Card</DialogTitle>
               <DialogDescription>Fill in the details for your new rate card</DialogDescription>
@@ -644,8 +613,7 @@ const Price: React.FC = () => {
       
       {/* Edit Card Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-      <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
-
+        <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Card</DialogTitle>
             <DialogDescription>Update details for this type</DialogDescription>
@@ -653,7 +621,6 @@ const Price: React.FC = () => {
           
           {editingCard && (
             <div className="space-y-4 py-4">
-              {/* Card Details */}
               <div className="space-y-3">
                 <FormField
                   label="Title"
@@ -670,7 +637,6 @@ const Price: React.FC = () => {
                 />
               </div>
               
-              {/* Prices */}
               <div>
                 <Label className="mb-2 block">Prices</Label>
                 <div className="space-y-2">
@@ -696,7 +662,6 @@ const Price: React.FC = () => {
                 </div>
               </div>
               
-              {/* Amenities */}
               <div>
                 <Label className="mb-2 block">Amenities</Label>
                 <ul className="space-y-2">
@@ -739,12 +704,16 @@ const Price: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Masonry-style grid for cards with varying heights */}
+
+      {/* Price Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
         {cards.map((fullCard) => (
           <div key={fullCard.card.id} className="h-full">
-            <PriceCardItem fullCard={fullCard} onEdit={editCard} />
+            <PriceCardItem 
+              fullCard={fullCard} 
+              onEdit={editCard}
+              onShare={shareCard}
+            />
           </div>
         ))}
       </div>
@@ -752,4 +721,65 @@ const Price: React.FC = () => {
   );
 };
 
+// Updated PriceCardItem Component
+const PriceCardItem: React.FC<{
+  fullCard: FullCard;
+  onEdit: (card: FullCard) => void;
+  onShare: (card: FullCard) => void;
+}> = ({ fullCard, onEdit, onShare }) => (
+  <Card className="h-full flex flex-col">
+    <CardHeader className="pb-2">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <CardTitle>{fullCard.card.title}</CardTitle>
+          <CardDescription>{fullCard.card.description}</CardDescription>
+        </div>
+      </div>
+    </CardHeader>
+
+    <CardContent className="space-y-4 flex-grow">
+      <div className="space-y-2">
+        {fullCard.prices.map((price) => (
+          <div key={price.id} className="flex justify-between items-center">
+            <span className="text-sm">{price.label}</span>
+            <span className="font-medium">
+              {/* Replace ghSim with your currency symbol */}
+              GH₵{price.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="pt-2 border-t">
+        <Label className="mb-2 block">Amenities</Label>
+        <ul className="text-sm space-y-2">
+          {fullCard.amenities.map((amenity) => (
+            <li key={amenity.id} className="flex items-start space-x-2">
+              <div className="pt-[2px]">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+              </div>
+              <span className="break-words">{amenity.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </CardContent>
+
+    <CardFooter className="mt-auto gap-2">
+      <Button
+        onClick={() => onEdit(fullCard)}
+        className="flex-1 flex items-center justify-center gap-1"
+        variant="outline"
+      >
+        <Edit className="h-4 w-4" /> Edit
+      </Button>
+      <Button
+        onClick={() => onShare(fullCard)}
+        className="flex-1 flex items-center justify-center gap-1"
+      >
+        <Share2 className="h-4 w-4" /> Share
+      </Button>
+    </CardFooter>
+  </Card>
+);
 export default Price;

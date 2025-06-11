@@ -1,6 +1,7 @@
 import maplibregl from "maplibre-gl"
 import { Coordinates } from "../types"
-import { ZONE_COLORS } from "../constants"
+import { ZONE_COLORS } from "@/components/config/map"
+// import { ZONE_COLORS } from "../constants"
 
 /**
  * Create a map style URL from API key

@@ -1,4 +1,5 @@
 // import { Libraries } from "./types"
+import { ZONE_COLORS } from "@/components/config/map"
 import { gql } from "@apollo/client"
 import {  type Libraries } from "@react-google-maps/api"
 
@@ -27,15 +28,6 @@ export const SPEED_MAPPING = {
   car: 60,
 }
 
-// Zone colors from green (closest) to red (farthest)
-export const ZONE_COLORS = [
-  "#4ade80", // green
-  "#facc15", // yellow
-  "#f87171", // red
-  "#60a5fa", // blue
-  "#a78bfa", // purple
-  "#f472b6", // pink
-]
 
 // Default center coordinates (example: Accra, Ghana)
 export const DEFAULT_CENTER = [-0.2649412, 5.5582733]
