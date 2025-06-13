@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Phone, User, Lock, Mail, Loader2, CheckCircle } from "lucide-react";
+import {
+  Phone,
+  User,
+  Lock,
+  Mail,
+  Loader2,
+  CheckCircle,
+  Truck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { gql, useMutation } from "@apollo/client";
 
@@ -21,6 +29,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/middleware/context/authContext";
 import OtpCard from "@/components/serviceProviders/createOTP";
+import { RegisterOption } from "@/app/checkUserCreateUI";
 // import OtpCard from "./createOTP"; // Reusing the OTP component
 // Define GraphQL mutations
 const SERVICE_LOGIN = gql`
@@ -97,6 +106,132 @@ enum PhoneType {
   BOTH = "BOTH",
 }
 
+export function UserAuthCardForWorker({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const switchToLoginTab = () => {
+    if (tabsRef.current) {
+      const loginTrigger = tabsRef.current.querySelector(
+        '[value="login"]'
+      ) as HTMLButtonElement;
+      if (loginTrigger) {
+        loginTrigger.click();
+      }
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Welcome</CardTitle>
+            <CardDescription className="text-center">
+              Login or create a new account to continue
+            </CardDescription>
+          </CardHeader>
+          <Tabs defaultValue="login" className="w-full" ref={tabsRef}>
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="create">Create Account</TabsTrigger>
+              <TabsTrigger value="login">Login</TabsTrigger>
+            </TabsList>
+
+            {/* Login Form */}
+            <TabsContent value="login">
+              <LogInUser setOpen={setOpen} />
+            </TabsContent>
+
+            {/* Create Account Form */}
+            <TabsContent value="create">
+              <CreateUser switchToLoginTab={switchToLoginTab} />
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </DialogContent>
+    </Dialog>
+  );
+}
+export function UserAuthCardForRider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const switchToLoginTab = () => {
+    if (tabsRef.current) {
+      const loginTrigger = tabsRef.current.querySelector(
+        '[value="login"]'
+      ) as HTMLButtonElement;
+      if (loginTrigger) {
+        loginTrigger.click();
+      }
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Welcome</CardTitle>
+            <CardDescription className="text-center">
+              Login or create a new account to continue
+            </CardDescription>
+          </CardHeader>
+          <Tabs defaultValue="login" className="w-full" ref={tabsRef}>
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="rider">Create Rider Account</TabsTrigger>
+              <TabsTrigger value="login">Login</TabsTrigger>
+            </TabsList>
+
+            {/* Login Form */}
+            <TabsContent value="login">
+              <LogInUser setOpen={setOpen} />
+            </TabsContent>
+
+            {/* Create Account Form */}
+            <TabsContent value="rider">
+              <RegisterOption
+                value="rider"
+                icon={<Truck className="h-8 w-8" />}
+                
+                title="Rider Account"
+                description="Deliver with ease and get access to powerful tools"
+                buttonText="Create Rider Account"
+                link="/rider/new"
+                benefits={[
+                  "Access to real-time delivery and route optimization tools",
+                  "Integrated map support for efficient navigation",
+                  "Easily manage delivery tasks and schedules",
+                  "Grow your reputation through customer ratings and feedback",
+                ]}
+                onCloseDialog={() => {
+                  const dialog = document.querySelector(
+                    '[role="dialog"]'
+                  ) as HTMLElement | null;
+                  if (dialog) {
+                    dialog.dispatchEvent(
+                      new KeyboardEvent("keydown", { key: "Escape" })
+                    );
+                  }
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </DialogContent>
+    </Dialog>
+  );
+}
 export default function UserAuthCard({
   children,
 }: {
@@ -252,7 +387,6 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   // const [otpSent, setOtpSent] = useState(false);
 
-
   const [formData, setFormData] = useState<FormData | null>(null);
 
   // Set up mutations
@@ -327,12 +461,17 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         });
       } else {
         toast.error("Error", {
-          description: result.data?.requestOtp?.message || "Failed to send verification code",
+          description:
+            result.data?.requestOtp?.message ||
+            "Failed to send verification code",
         });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Failed to send verification code",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to send verification code",
       });
     } finally {
       setIsLoading(false);
@@ -365,12 +504,14 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         }
       } else {
         toast.error("Verification Failed", {
-          description: result.data?.verifyOtp?.message || "Invalid verification code",
+          description:
+            result.data?.verifyOtp?.message || "Invalid verification code",
         });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Verification failed",
+        description:
+          error instanceof Error ? error.message : "Verification failed",
       });
     } finally {
       setVerifyingOtp(false);
@@ -397,12 +538,17 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         });
       } else {
         toast.error("Error", {
-          description: result.data?.resendOTP?.message || "Failed to resend verification code",
+          description:
+            result.data?.resendOTP?.message ||
+            "Failed to resend verification code",
         });
       }
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "Failed to resend verification code",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to resend verification code",
       });
     }
   };
@@ -425,7 +571,10 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       });
     } catch (error) {
       toast.error("Error", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       });
     } finally {
       setIsLoading(false);
@@ -452,7 +601,6 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   // Cancel OTP verification and go back to form
   const handleCancelOtp = () => {
     setShowOtpVerification(false);
-  
   };
 
   if (showOtpVerification) {
@@ -466,7 +614,11 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
           loading={verifyingOtp}
         />
         <div className="flex justify-center px-6 pb-6">
-          <Button variant="outline" onClick={handleCancelOtp} disabled={verifyingOtp}>
+          <Button
+            variant="outline"
+            onClick={handleCancelOtp}
+            disabled={verifyingOtp}
+          >
             Back to Form
           </Button>
         </div>
@@ -475,7 +627,10 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   }
 
   return (
-    <form onSubmit={handleCreateAccount} className="sm:max-w-lg max-h-80 overflow-y-auto">
+    <form
+      onSubmit={handleCreateAccount}
+      className="sm:max-w-lg max-h-80 overflow-y-auto"
+    >
       <CardContent className="space-y-4 pt-4">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>

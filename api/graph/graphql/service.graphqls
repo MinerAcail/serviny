@@ -92,6 +92,11 @@ extend type Query {
   getBookingServiceData:[ServiceData!]!
   getOrderServiceData:[ServiceData!]!
 
+  
+  getAllUserServiceData:[ServiceData!]!
+  getBookingServiceDataByUserId:[ServiceData!]!
+  getOrderServiceDataByUserId:[ServiceData!]!
+
 }
 
 extend type Mutation {

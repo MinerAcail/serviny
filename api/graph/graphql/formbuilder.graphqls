@@ -12,6 +12,8 @@ enum FormType {
   SURVEY
   APPLICATION
   FEEDBACK
+  RIDERS
+  WORKERS
   OTHER
 }
 
@@ -109,7 +111,7 @@ extend type Query {
     orderBy: String
     orderDirection: String
   ): [Form!]!
-
+  getForms(serviceId: String!): [Form!]!
   # Get single form by ID
   form(id: String!): Form
 

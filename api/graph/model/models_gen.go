@@ -868,6 +868,8 @@ const (
 	FormTypeSurvey      FormType = "SURVEY"
 	FormTypeApplication FormType = "APPLICATION"
 	FormTypeFeedback    FormType = "FEEDBACK"
+	FormTypeRiders      FormType = "RIDERS"
+	FormTypeWorkers     FormType = "WORKERS"
 	FormTypeOther       FormType = "OTHER"
 )
 
@@ -876,12 +878,14 @@ var AllFormType = []FormType{
 	FormTypeSurvey,
 	FormTypeApplication,
 	FormTypeFeedback,
+	FormTypeRiders,
+	FormTypeWorkers,
 	FormTypeOther,
 }
 
 func (e FormType) IsValid() bool {
 	switch e {
-	case FormTypeAgreement, FormTypeSurvey, FormTypeApplication, FormTypeFeedback, FormTypeOther:
+	case FormTypeAgreement, FormTypeSurvey, FormTypeApplication, FormTypeFeedback, FormTypeRiders, FormTypeWorkers, FormTypeOther:
 		return true
 	}
 	return false

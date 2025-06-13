@@ -31,6 +31,8 @@ import {
   Building2,
   LayoutList,
   BookCopy,
+  PackageOpen,
+  PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -335,7 +337,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
         : `/providers/${serviceId}?lo`,
       icon: Home,
     },
-    // { name: "My Delivery", to: `/zonex/${currentVendorId}`, icon: MapPlus }, // stays on /dbp/:serviceId
+    { name: "Delivery", to: `/vob`, icon: PackageCheck }, // stays on /dbp/:serviceId
 
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
     // { name: "Message", to: "/sms", icon: MessageSquare },

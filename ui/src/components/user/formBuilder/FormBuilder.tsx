@@ -6,10 +6,11 @@ import { gql, useMutation } from "@apollo/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormFieldEditor } from "./FormFieldEditor";
-import { FormPreview } from "./FormPreview";
+// import { FormPreview } from "./FormPreview";
 import { FormSettingsDialog } from "./FormSettingsDialog";
 import { toast } from "sonner";
 import FormsPage from "./FormsPage";
+import { FormPreviewForEdit } from "./formPreviewForEdit";
 
 // Updated GraphQL mutation to match backend schema
 const CREATE_FORM = gql`
@@ -351,12 +352,13 @@ export default function FormBuilder() {
 
               <TabsContent value="preview" className="mt-0">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                  <FormPreview
+                  <FormPreviewForEdit
                     title={formTitle}
                     description={formDescription}
                     fields={fields.sort(
                       (a, b) => (a.order || 0) - (b.order || 0)
                     )}
+                    
                   />
 
                   {fields.length === 0 && (

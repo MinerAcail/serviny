@@ -42,7 +42,7 @@ interface RegisterOptionProps {
   onCloseDialog?: (closed: boolean) => void;
 }
 
-const RegisterOption: React.FC<RegisterOptionProps> = ({
+export const RegisterOption: React.FC<RegisterOptionProps> = ({
   value,
   icon,
   title,
@@ -173,7 +173,127 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
     </Dialog>
   );
 };
-
+const RegisterOptionsForFormsTypes = ({ isCollapsed }: { isCollapsed?: boolean }) => {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="font-medium">
+          <UserRoundPlus />
+          {!isCollapsed && <span>Register</span>}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md md:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-center text-xl font-semibold">
+            Choose Registration Type
+          </DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="user" className="mt-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger
+              value="user"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <User className="h-4 w-4 mr-2" />
+              User
+            </TabsTrigger>
+            <TabsTrigger
+              value="service"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Service Provider
+            </TabsTrigger>
+            <TabsTrigger
+              value="rider"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Truck className="h-4 w-4 mr-2" />
+              Rider
+            </TabsTrigger>
+          </TabsList>
+          <RegisterOption
+            value="user"
+            icon={<User className="h-8 w-8" />}
+            title="User Account"
+            description="Access services as a regular user"
+            buttonText="Create User Account"
+            isUser={true}
+            benefits={[
+              "Book services from verified providers",
+              "Manage appointments in one place",
+              "Save favorites and preferences",
+              "Access exclusive offers and discounts",
+            ]}
+            onCloseDialog={() => {
+              // Find the dialog element and close it
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                // If using shadcn/ui dialog, trigger close via Escape key event
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
+          />
+          
+          <RegisterOption
+            value="service"
+            icon={<Building2 className="h-8 w-8" />}
+            title="Service Provider Account"
+            description="Offer your services to customers"
+            buttonText="Create Provider Account"
+            link="/provider/new"
+            benefits={[
+              "List your services to our growing user base",
+              "Manage bookings and schedule efficiently",
+              "Receive payments securely through our platform",
+              "Build your reputation with verified reviews",
+            ]}
+            onCloseDialog={() => {
+              // Find the dialog element and close it
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                // If using shadcn/ui dialog, trigger close via Escape key event
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
+          />
+          <RegisterOption
+            value="rider"
+            icon={<Truck className="h-8 w-8" />}
+            title="Rider Account"
+            description="Deliver with ease and get access to powerful tools"
+            buttonText="Create Rider Account"
+            link="/rider/new"
+            benefits={[
+              "Access to real-time delivery and route optimization tools",
+              "Integrated map support for efficient navigation",
+              "Easily manage delivery tasks and schedules",
+              "Grow your reputation through customer ratings and feedback",
+            ]}
+            onCloseDialog={() => {
+              const dialog = document.querySelector(
+                '[role="dialog"]'
+              ) as HTMLElement | null;
+              if (dialog) {
+                dialog.dispatchEvent(
+                  new KeyboardEvent("keydown", { key: "Escape" })
+                );
+              }
+            }}
+          />
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+};
 const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
   return (
     <Dialog>

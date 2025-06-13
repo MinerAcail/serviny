@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, X, ImageIcon, LayoutDashboard } from "lucide-react";
+import { ArrowRight, X, ImageIcon, LayoutDashboard, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { GET_PROVIDER } from "../serviceProviders/profile";
-import { useQuery } from "@apollo/client";
+import { gql, useQuery } from "@apollo/client";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
 import { LandingAppointmentBookingSystem } from "../serviceProviders/APPOINTMENT/book";
 import { GET_ALL_GALLERY } from "../serviceProviders/updates";
@@ -25,6 +25,8 @@ import {
 } from "../ui/dialog";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import { DeliveryServiceSystemNew } from "../serviceProviders/APPOINTMENT/completeDeliveryOrder";
+import { BusinessTypeEnum } from "@/middleware/context/businessType";
+import moment from "moment";
 // import { GET_PRICE_CARDS } from "../serviceProviders/pandp/Price";
 
 // Custom hook for detecting screen size
@@ -107,12 +109,27 @@ export interface Gallery {
   createdAt: string;
   updatedAt: string;
 }
-
+export const GET_ALL_PRODUCT = gql`
+   query getAllProducts($vendorId:String){
+    getAllProducts(vendorId:$vendorId){
+      id
+      name
+      description
+      categories
+      imageUrls
+      createdAt
+      updatedAt
+    }
+  }
+`;
 // Gallery Showcase Component
 const ServiceProviderToolsShowcase = ({
   serviceId,
+  businessType
 }: {
   serviceId?: string;
+  businessType?: string;
+
 }) => {
   const [galleryItems, setGalleryItems] = useState<Gallery[]>([]);
   const [currentItem, setCurrentItem] = useState(0);
@@ -126,6 +143,7 @@ const ServiceProviderToolsShowcase = ({
       setGalleryItems(data.getAllGallery);
     },
   });
+ 
 
   useEffect(() => {
     if (galleryItems.length > 0) {
@@ -243,6 +261,166 @@ const ServiceProviderToolsShowcase = ({
     </div>
   );
 };
+// VendorProductsToolsShowcase Component for E-commerce
+// Define the Product type
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  categories: string[];
+  imageUrls: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+const VendorProductsToolsShowcase = ({
+  serviceId,
+  businessType
+}: {
+  serviceId?: string;
+  businessType?: string;
+}) => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [currentItem, setCurrentItem] = useState(0);
+  const { isMobile } = useScreenSize();
+
+  const { loading, error } = useQuery(GET_ALL_PRODUCT, {
+    variables: {
+      vendorId: serviceId,
+    },
+    onCompleted: (data) => {
+      setProducts(data.getAllProducts);
+    },
+  });
+
+  useEffect(() => {
+    if (products.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentItem((prev) => (prev + 1) % products.length);
+      }, 4000);
+
+      return () => clearInterval(interval);
+    }
+  }, [products]);
+
+  // Display loading state while fetching products
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-emerald-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Display error message if query failed
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center text-destructive">
+          <p>Failed to load products</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Display empty state if no products
+  if (products.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center">
+          <Package className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No products available</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="relative mx-auto flex flex-col items-center justify-center w-full max-w-md h-[250px] sm:h-[300px] md:h-[350px] lg:h-[400px]">
+        {products.map((product, index) => (
+          <div
+            key={product.id}
+            className={`w-full rounded-2xl p-4 sm:p-6 border shadow-sm border-border bg-blue-300/20 dark:bg-blue-950/10
+              transition-all duration-700 transform absolute
+              ${
+                currentItem === index
+                  ? "opacity-100 scale-100 z-10"
+                  : "opacity-0 scale-95 z-0"
+              }`}
+            aria-hidden={currentItem !== index}
+          >
+            <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
+              {/* Product Image */}
+              <div className="relative w-full h-32 sm:h-40 rounded-lg overflow-hidden">
+                <img
+                  src={product.imageUrls?.[0] || "/api/placeholder/400/320"}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+                {/* Product Badge */}
+                <div className="absolute top-2 right-2">
+                  <span className="px-2 py-1 text-xs rounded-full bg-blue-500 text-white shadow-lg">
+                    Product
+                  </span>
+                </div>
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-medium line-clamp-1">
+                {product.name}
+              </h3>
+
+              {/* Categories */}
+              {product?.categories && (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {product?.categories
+                    .slice(0, isMobile ? 2 : 3)
+                    .map((category, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {category}
+                      </span>
+                    ))}
+                </div>
+              )}
+
+              <p className="text-muted-foreground text-xs sm:text-sm line-clamp-2">
+                {product.description}
+              </p>
+
+              {/* Product Info */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Package className="h-3 w-3" />
+                <span>Updated {moment(product.updatedAt).fromNow()}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Navigation Dots */}
+        <div className="absolute -bottom-7 flex gap-1">
+          {products.map((_, idx) => (
+            <button
+              key={idx}
+              className={`w-2 h-2 rounded-full transition-all ${
+                currentItem === idx
+                  ? "bg-blue-600 w-4"
+                  : "bg-muted-foreground/40"
+              }`}
+              onClick={() => setCurrentItem(idx)}
+              aria-label={`View product ${idx + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 ///
 export type provider = {
   getProvider: {
@@ -258,13 +436,25 @@ export type provider = {
     createdAt: string;
   };
 };
-
+// Helper function to check if business type is e-commerce
+const isEcommerceBusinessType = (businessType: string) => {
+  const ecommerceTypes = [
+    BusinessTypeEnum.PRE_ORDER,
+    BusinessTypeEnum.DROP_SHIPPING,
+    BusinessTypeEnum.ECOMMERCE_STANDARD,
+    BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+  ];
+  return ecommerceTypes.includes(businessType);
+};
 export default function ServiceLandingPage({
   onClose,
   serviceId,
+  businessType
 }: {
   onClose: () => void;
   serviceId: string;
+  businessType: string;
+
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(true);
   const [isDialogAbout, setDialogAbout] = useState(false);
@@ -467,9 +657,23 @@ export default function ServiceLandingPage({
                             </div>
                           </div>
                         </div>
+                         {/* Conditional Showcase Component */}
                         <div className="w-full h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
-                          <ServiceProviderToolsShowcase serviceId={serviceId} />
+                          {isEcommerceBusinessType(businessType) ? (
+                            <VendorProductsToolsShowcase 
+                              businessType={businessType} 
+                              serviceId={serviceId} 
+                            />
+                          ) : (
+                            <ServiceProviderToolsShowcase 
+                              businessType={businessType} 
+                              serviceId={serviceId} 
+                            />
+                          )}
                         </div>
+                        {/* <div className="w-full h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
+                          <ServiceProviderToolsShowcase businessType={businessType} serviceId={serviceId} />
+                        </div> */}
                       </div>
 
                       {/* Appointment Booking System - Moved outside the grid for better responsiveness */}
@@ -504,21 +708,9 @@ export default function ServiceLandingPage({
                               : "text-3xl sm:text-4xl"
                           )}
                         >
-                          Expert Care For All Your Needs
+                          Expert For All Your Delivery Needs
                         </h2>
-                        <p
-                          className={cn(
-                            "max-w-[900px] text-foreground/80 drop-shadow-sm",
-                            isMobile
-                              ? "text-sm"
-                              : isTablet
-                              ? "text-base"
-                              : "md:text-lg"
-                          )}
-                        >
-                          From routine check-ups to advanced procedures, we
-                          provide comprehensive care with a gentle touch.
-                        </p>
+                        
                       </div>
 
                       <AnimatedFeatureSection serviceId={serviceId} delay={0} />

@@ -76,25 +76,20 @@ export function ServiceProviderProfile() {
   // Check if the query string contains ?lt
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
-  // const {
-  //   data: themeData,
-  //   // loading: themeLoading,
-  //   // error: themeError,
-  // } = useQuery(GET_THEME, {
-  //   variables: { serviceId },
-  // });
-  // useEffect(() => {
-  //   if (themeData?.getUseTheme) {
-  //     setTheme(themeData.getUseTheme);
-  //   }
-  // }, [themeData, setTheme]);
+ 
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
   });
 
   const [isTabsFixed, setIsTabsFixed] = useState(false);
-  const [activeTab, setActiveTab] = useState("portfolio");
+  
+  // Initialize activeTab from localStorage with serviceId-specific key
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+    return savedTab || "portfolio";
+  });
+  
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -104,6 +99,13 @@ export function ServiceProviderProfile() {
     const savedState = localStorage.getItem("isServiceDialogOpen");
     return savedState !== null ? JSON.parse(savedState) : true;
   });
+
+  // Function to handle tab change and save to localStorage
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    localStorage.setItem(`activeTab_${serviceId}`, newTab);
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       if (tabsRef.current && tabsPlaceholderRef.current) {
@@ -123,6 +125,19 @@ export function ServiceProviderProfile() {
     }
   }, [activeTab]);
 
+  // Update localStorage when serviceId changes
+  useEffect(() => {
+    if (serviceId) {
+      const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+      if (savedTab) {
+        setActiveTab(savedTab);
+      } else {
+        // Reset to default if no saved tab for this service
+        setActiveTab("portfolio");
+      }
+    }
+  }, [serviceId]);
+
   // if (loading) return <p>Loading...</p>;
   // if (error) return <p>Error: {error.message}</p>;
   // if () return <p>No provider found.</p>;
@@ -135,6 +150,7 @@ export function ServiceProviderProfile() {
     return (
       <ServiceLandingPage
         serviceId={serviceId ?? ""}
+        businessType={data?.getProvider?.businessType}
         onClose={() => {
           setDialogState(false);
           localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
@@ -179,11 +195,13 @@ export function ServiceProviderProfile() {
                   }`}
                 >
                   <div
-                    className={`${isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""}`}
+                    className={`${
+                      isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""
+                    }`}
                   >
                     <Tabs
                       value={activeTab}
-                      onValueChange={setActiveTab}
+                      onValueChange={handleTabChange}
                       className="w-full"
                       ref={tabsRef}
                     >
@@ -210,7 +228,7 @@ export function ServiceProviderProfile() {
                             >
                               Portfolio
                             </TabsTrigger>
-<TabsTrigger
+                            <TabsTrigger
                               value="policies"
                               className="rounded-full"
                             >
@@ -219,19 +237,9 @@ export function ServiceProviderProfile() {
                             <TabsTrigger value="price" className="rounded-full">
                               Price
                             </TabsTrigger>
-                            
                           </>
                         )}
                       </TabsList>
-                      {/* <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
-                        <TabsTrigger value="portfolio" className="rounded-full">
-                          Items
-                        </TabsTrigger>
-
-                        <TabsTrigger value="policies" className="rounded-full">
-                          Policies
-                        </TabsTrigger>
-                      </TabsList> */}
                     </Tabs>
                   </div>
                 </div>
@@ -242,7 +250,7 @@ export function ServiceProviderProfile() {
                 >
                   <Tabs
                     value={activeTab}
-                    onValueChange={setActiveTab}
+                    onValueChange={handleTabChange}
                     className="w-full "
                   >
                     <TabsContent value="portfolio">
@@ -264,7 +272,6 @@ export function ServiceProviderProfile() {
                     </TabsContent>
                     <TabsContent value="policies">
                       <Policies />
-                      
                     </TabsContent>
                   </Tabs>
                 </div>

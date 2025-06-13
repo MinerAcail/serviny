@@ -30,7 +30,13 @@ func ReadFile(filePath string) ([]byte, error) {
 	}
 	return content, nil
 }
-
+	func GetKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
 func DeleteByID(db *gorm.DB, model interface{}, id string) error {
 	// Find the model instance by ID
 	if err := db.Where("id = ?", id).First(model).Error; err != nil {

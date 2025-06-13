@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import FormsPage, {
   FormsPageAtMain,
 } from "@/components/user/formBuilder/FormsPage";
+import FormsPagePolicies from "@/components/user/formBuilder/FormsPagePolicies";
 
 // GraphQL queries and mutations
 const GET_POLICY_INFORMATION = gql`
@@ -837,7 +838,7 @@ const Policies: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <FormsPageAtMain />
+      <FormsPagePolicies serviceId={serviceId ?? ""}/>
 
       {/* No policies message */}
       {!hasPolicies && (

@@ -7,7 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 interface FormField {
   id: string;
@@ -18,6 +29,7 @@ interface FormField {
   options?: string[];
   validation?: string;
   order?: number;
+  customRegex?: string;
 }
 
 interface FormFieldEditorProps {
@@ -42,8 +54,9 @@ export function FormFieldEditor({ field, onUpdate, onRemove, onMove }: FormField
     onUpdate({ required: checked })
   }
 
-  const handleValidationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ validation: e.target.value })
+  const handleValidationChange = (value: string) => {
+    // Convert "none" back to empty string for storage
+    onUpdate({ validation: value === "none" ? "" : value })
   }
 
   const handleOptionChange = (index: number, value: string) => {
@@ -62,6 +75,16 @@ export function FormFieldEditor({ field, onUpdate, onRemove, onMove }: FormField
     newOptions.splice(index, 1)
     onUpdate({ options: newOptions })
   }
+
+  // Validation options for the select dropdown
+  const validationOptions = [
+    { value: "none", label: "No validation" },
+    { value: "email", label: "Email address" },
+    { value: "phone", label: "Phone number" },
+    { value: "url", label: "Website URL" },
+    { value: "number", label: "Numbers only" },
+    { value: "alphabetic", label: "Letters only" },
+  ]
 
   const getFieldTypeIcon = (type: string) => {
     const iconClass = "h-4 w-4"
@@ -123,10 +146,18 @@ export function FormFieldEditor({ field, onUpdate, onRemove, onMove }: FormField
                     <span className="text-red-600">Required</span>
                   </>
                 )}
-                {hasOptions && field.options?.length > 0 && (
+                {hasOptions && (field.options?.length ?? 0) > 0 && (
                   <>
                     <span>•</span>
-                    <span>{field.options.length} option{field.options.length !== 1 ? 's' : ''}</span>
+                    <span>{(field.options?.length ?? 0)} option{(field.options?.length ?? 0) !== 1 ? 's' : ''}</span>
+                  </>
+                )}
+                {field.validation && (
+                  <>
+                    <span>•</span>
+                    <span className="text-blue-600">
+                      {validationOptions.find(opt => opt.value === field.validation)?.label || 'Validated'}
+                    </span>
                   </>
                 )}
                 {field.order !== undefined && (
@@ -225,21 +256,45 @@ export function FormFieldEditor({ field, onUpdate, onRemove, onMove }: FormField
                 </div>
               )}
 
-              {/* Validation */}
+              {/* Validation Select */}
               {showValidation && (
                 <div className="space-y-2">
                   <Label htmlFor={`validation-${field.id}`} className="text-sm font-medium text-gray-700">
                     Validation Pattern (Optional)
                   </Label>
+                  <Select value={field.validation || "none"} onValueChange={handleValidationChange}>
+                    <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="Select validation pattern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {validationOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Select a validation pattern to enforce data format requirements
+                  </p>
+                </div>
+              )}
+
+              {/* Custom Regex Input (shown only when "custom" is selected) */}
+              {showValidation && field.validation === "custom" && (
+                <div className="space-y-2">
+                  <Label htmlFor={`custom-regex-${field.id}`} className="text-sm font-medium text-gray-700">
+                    Custom Regex Pattern
+                  </Label>
                   <Input
-                    id={`validation-${field.id}`}
-                    value={field.validation || ""}
-                    onChange={handleValidationChange}
-                    placeholder="e.g., email, phone, or custom regex"
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    id={`custom-regex-${field.id}`}
+                    value={field.customRegex || ""}
+                    onChange={(e) => onUpdate({ customRegex: e.target.value })}
+                    placeholder="Enter your custom regex pattern (e.g., ^[A-Z]{2}[0-9]{4}$)"
+                    className="font-mono text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   />
                   <p className="text-xs text-gray-500">
-                    Common patterns: email, phone, url, or custom regex
+                    Enter a valid JavaScript regex pattern without delimiters
                   </p>
                 </div>
               )}

@@ -58,6 +58,7 @@ const router = createBrowserRouter([
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <ImprovedServiceProvider /> },
       { path: "/rider/new", element: <RiderRegistration /> },
+      { path: "/vob", element: <UserServiceViewer /> }, //view orders bookings
 
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/check", element: <Checkout /> },
@@ -184,6 +185,7 @@ import OrderManagementSystem from "@/components/custom/orders/order-management-s
 import SubmissionsViewer from "@/components/user/formBuilder/submissionsViewer";
 import FormAndRequestTabs from "@/components/user/formBuilder/tabbed-forms";
 import BusinessTypeSelector from "@/components/serviceProviders/createProvider/business-type-selector";
+import UserServiceViewer from "@/components/custom/USER_MAP_WORK/viewService";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

@@ -278,7 +278,7 @@ func (r *mutationResolver) DuplicateForm(ctx context.Context, id string, title *
 
 // SubmitForm is the resolver for the submitForm field.
 func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmissionInput, signImage []*graphql.Upload) (*model.FormSubmission, error) {
-// Start a transaction
+	// Start a transaction
 	tx := r.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -321,7 +321,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 	log.Printf("📝 Form submission debug:")
 	log.Printf("   - Form ID: %s", formID)
 	log.Printf("   - Number of signature files: %d", len(signImage))
-	log.Printf("   - Form data keys: %v", getKeys(formData))
+	log.Printf("   - Form data keys: %v", helper.GetKeys(formData))
 
 	// Handle signature image uploads if provided
 	var signatureURLs []string
@@ -338,7 +338,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 		// Upload signature files to MinIO
 		for i, file := range signImage {
 			log.Printf("📤 Uploading signature file %d: %s (size: %d bytes)", i+1, file.Filename, file.Size)
-			
+
 			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "signatures", file)
 			if err != nil {
 				tx.Rollback()
@@ -354,7 +354,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 		if field.Required {
 			// Use field label as key (matching frontend logic)
 			fieldValue, exists := formData[field.Label]
-			
+
 			// For signature fields, also check if we have signature files
 			if field.Type == "SIGNATURE" || field.Type == "signature" {
 				if len(signImage) > 0 {
@@ -363,7 +363,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 					continue
 				}
 			}
-			
+
 			if !exists || fieldValue == nil || fieldValue == "" {
 				// Special handling for signature fields marked as "signature_provided"
 				if field.Type == "SIGNATURE" || field.Type == "signature" {
@@ -372,7 +372,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 						continue
 					}
 				}
-				
+
 				tx.Rollback()
 				return nil, fmt.Errorf("required field '%s' is missing or empty", field.Label)
 			}
@@ -428,14 +428,7 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 	log.Printf("✅ Form submission completed successfully: %s", submission.ID)
 	return &submission, nil
 }
-// Helper function to get map keys for debugging
-func getKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
+
 // UpdateSubmissionStatus is the resolver for the updateSubmissionStatus field.
 func (r *mutationResolver) UpdateSubmissionStatus(ctx context.Context, id string, status model.SubmissionStatus) (*model.FormSubmission, error) {
 	panic(fmt.Errorf("not implemented: UpdateSubmissionStatus - updateSubmissionStatus"))
@@ -550,6 +543,15 @@ func (r *queryResolver) Forms(ctx context.Context, filter *model.FormsFilter, li
 		return nil, fmt.Errorf("failed to fetch forms: %w", err)
 	}
 
+	return forms, nil
+}
+
+// GetForms is the resolver for the getForms field.
+func (r *queryResolver) GetForms(ctx context.Context, serviceID string) ([]*model.Form, error) {
+	var forms []*model.Form
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&forms).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch forms: %w", err)
+	}
 	return forms, nil
 }
 

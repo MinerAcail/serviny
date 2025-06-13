@@ -8,7 +8,6 @@ import { gql, useQuery, useMutation } from "@apollo/client";
 
 import { Button } from "@/components/ui/button";
 import { FormPreview } from "./FormPreview";
-import { FormSubmission } from "./FormSubmission";
 import { toast } from "sonner";
 
 // Updated GraphQL query to match backend schema
@@ -76,29 +75,16 @@ interface Form {
   updatedAt: string;
 }
 
-// Form data validation
-const validateFormData = (form: any): form is Form => {
-  if (!form || !form.fields || !Array.isArray(form.fields)) {
-    return false;
-  }
-
-  return form.fields.every(
-    (field: any) => field.id && field.type && field.label
-  );
-};
 
 export default function FormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [signatureFiles, setSignatureFiles] = useState<File[]>([]);
-  const [localForm, setLocalForm] = useState<Form | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // GraphQL query to fetch form
-  const { data, loading, error, refetch } = useQuery(GET_FORM, {
+  const { data, loading,  refetch } = useQuery(GET_FORM, {
     variables: { id: id },
     skip: !id,
     errorPolicy: "all",
@@ -108,8 +94,6 @@ export default function FormPage() {
   const [submitFormMutation] = useMutation(SUBMIT_FORM, {
     onCompleted: (data) => {
       console.log("Form submitted successfully:", data);
-      setSubmissionResult(data.submitForm);
-      setIsSubmitted(true);
       setIsSubmitting(false);
       toast.success("Form submitted successfully!", {
         description: "Your form has been submitted and is being processed.",
@@ -141,7 +125,7 @@ export default function FormPage() {
 
       if (fieldType === "CHECKBOX") {
         // For checkbox fields, initialize each option
-        field.options?.forEach((option, index: number) => {
+        field.options?.forEach((option) => {
           initialData[`${fieldKey}-${option}`] = false; // Use label + option name
         });
       } else if (fieldType === "SIGNATURE") {
@@ -155,15 +139,15 @@ export default function FormPage() {
 
   // Effect to handle form data initialization
   useEffect(() => {
-    const form = data?.form || localForm;
+    const form = data?.form;
     if (form && Object.keys(formData).length === 0) {
       initializeFormData(form);
     }
-  }, [data?.form, localForm, formData]);
+  }, [data?.form,  formData]);
 
   // Updated handleInputChange function - simplified for auto-capture
   const handleInputChange = (fieldId: string, value: any) => {
-    const form = data?.form || localForm;
+    const form = data?.form
     const field = form?.fields.find((f) => f.id === fieldId);
     const fieldKey = field?.label || fieldId;
 
@@ -257,148 +241,124 @@ export default function FormPage() {
     return { isValid: missingFields.length === 0, missingFields };
   };
 
-  const validateFieldData = (form: Form) => {
-    const errors: string[] = [];
 
-    form.fields.forEach((field: FormField) => {
-      const fieldKey = field.label;
-      const value = formData[fieldKey];
-      const fieldType = field.type.toUpperCase();
 
-      // Skip validation if field is empty and not required
-      if (!field.required && (!value || value === "")) {
-        return;
-      }
+// Updated validateFieldData function
+const validateFieldData = (form:Form) => {
+  const errors: string[] = [];
 
-      // Skip validation for non-text fields
-      if (["CHECKBOX", "RADIO", "SELECT", "SIGNATURE"].includes(fieldType)) {
-        return;
-      }
+  form.fields.forEach((field:FormField) => {
+    const fieldKey = field.label;
+    const value = formData[fieldKey];
+    const fieldType = field.type.toUpperCase();
 
-      // Skip validation if no validation rule is set
-      if (!field.validation || field.validation.trim() === "") {
-        return;
-      }
-
-      // Convert value to string for validation
-      const stringValue = String(value || "").trim();
-
-      // Skip if value is empty (already handled by required field validation)
-      if (stringValue === "") {
-        return;
-      }
-
-      console.log(`🔍 Validating field: "${field.label}"`);
-      console.log(`   - Field type: ${fieldType}`);
-      console.log(`   - Validation rule: "${field.validation}"`);
-      console.log(`   - Current value: "${stringValue}"`);
-
-      // Email validation
-      if (field.validation === "email") {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(stringValue)) {
-          console.log(`❌ Email validation failed for field: ${field.label}`);
-          errors.push(`${field.label} must be a valid email address`);
-        } else {
-          console.log(`✅ Email validation passed for field: ${field.label}`);
-        }
-        return;
-      }
-
-      // Phone validation
-      if (field.validation === "phone") {
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        const cleanedPhone = stringValue.replace(/[\s\-\(\)]/g, "");
-        if (!phoneRegex.test(cleanedPhone)) {
-          console.log(`❌ Phone validation failed for field: ${field.label}`);
-          errors.push(`${field.label} must be a valid phone number`);
-        } else {
-          console.log(`✅ Phone validation passed for field: ${field.label}`);
-        }
-        return;
-      }
-
-      // URL validation
-      if (field.validation === "url") {
-        try {
-          new URL(stringValue);
-          console.log(`✅ URL validation passed for field: ${field.label}`);
-        } catch {
-          console.log(`❌ URL validation failed for field: ${field.label}`);
-          errors.push(`${field.label} must be a valid URL`);
-        }
-        return;
-      }
-
-      // Number validation
-      if (field.validation === "number") {
-        if (isNaN(Number(stringValue))) {
-          console.log(`❌ Number validation failed for field: ${field.label}`);
-          errors.push(`${field.label} must be a valid number`);
-        } else {
-          console.log(`✅ Number validation passed for field: ${field.label}`);
-        }
-        return;
-      }
-
-      // Custom regex validation (only if not a predefined type)
-      if (!["email", "phone", "url", "number"].includes(field.validation)) {
-        // Handle common invalid validation strings
-        if (
-          field.validation === "custom regex" ||
-          field.validation === "text" ||
-          field.validation === "string" ||
-          field.validation === "name" ||
-          field.validation === "names"
-        ) {
-          console.log(
-            `⚠️ Skipping invalid validation rule: "${field.validation}" for field: ${field.label}`
-          );
-          return;
-        }
-
-        try {
-          console.log(`🔧 Testing custom regex: ${field.validation}`);
-          const regex = new RegExp(field.validation);
-          if (!regex.test(stringValue)) {
-            console.log(
-              `❌ Custom regex validation failed for field: ${field.label}`
-            );
-            console.log(`   - Expected pattern: ${field.validation}`);
-            console.log(`   - Actual value: ${stringValue}`);
-            errors.push(
-              `${field.label} format is invalid (expected pattern: ${field.validation})`
-            );
-          } else {
-            console.log(
-              `✅ Custom regex validation passed for field: ${field.label}`
-            );
-          }
-        } catch (regexError) {
-          console.warn(
-            `⚠️ Invalid regex pattern for field ${field.label}: ${field.validation}`,
-            regexError
-          );
-          // Don't add error for invalid regex patterns, just skip validation
-        }
-      }
-    });
-
-    if (errors.length > 0) {
-      console.log(`🚨 Total validation errors found: ${errors.length}`);
-      console.log("Error details:", errors);
-    } else {
-      console.log("✅ All validations passed!");
+    // Skip validation if field is empty and not required
+    if (!field.required && (!value || value === "")) {
+      return;
     }
 
-    return errors;
-  };
+    // Skip validation for non-text fields
+    if (["CHECKBOX", "RADIO", "SELECT", "SIGNATURE"].includes(fieldType)) {
+      return;
+    }
+
+    // Skip validation if no validation rule is set or set to "none"
+    if (!field.validation || field.validation.trim() === "" || field.validation === "none") {
+      return;
+    }
+
+    // Convert value to string for validation
+    const stringValue = String(value || "").trim();
+
+    // Skip if value is empty (already handled by required field validation)
+    if (stringValue === "") {
+      return;
+    }
+
+    console.log(`🔍 Validating field: "${field.label}"`);
+    console.log(`   - Field type: ${fieldType}`);
+    console.log(`   - Validation rule: "${field.validation}"`);
+    console.log(`   - Current value: "${stringValue}"`);
+
+    // Email validation
+    if (field.validation === "email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(stringValue)) {
+        console.log(`❌ Email validation failed for field: ${field.label}`);
+        errors.push(`${field.label} must be a valid email address`);
+      } else {
+        console.log(`✅ Email validation passed for field: ${field.label}`);
+      }
+      return;
+    }
+
+    // Phone validation
+    if (field.validation === "phone") {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      const cleanedPhone = stringValue.replace(/[\s\-()]/g, "");
+      if (!phoneRegex.test(cleanedPhone)) {
+        console.log(`❌ Phone validation failed for field: ${field.label}`);
+        errors.push(`${field.label} must be a valid phone number`);
+      } else {
+        console.log(`✅ Phone validation passed for field: ${field.label}`);
+      }
+      return;
+    }
+
+    // URL validation
+    if (field.validation === "url") {
+      try {
+        new URL(stringValue);
+        console.log(`✅ URL validation passed for field: ${field.label}`);
+      } catch {
+        console.log(`❌ URL validation failed for field: ${field.label}`);
+        errors.push(`${field.label} must be a valid URL`);
+      }
+      return;
+    }
+
+    // Number validation
+    if (field.validation === "number") {
+      if (isNaN(Number(stringValue))) {
+        console.log(`❌ Number validation failed for field: ${field.label}`);
+        errors.push(`${field.label} must be a valid number`);
+      } else {
+        console.log(`✅ Number validation passed for field: ${field.label}`);
+      }
+      return;
+    }
+
+    // Alphabetic validation
+    if (field.validation === "alphabetic") {
+      const alphabeticRegex = /^[a-zA-Z\s]+$/;
+      if (!alphabeticRegex.test(stringValue)) {
+        console.log(`❌ Alphabetic validation failed for field: ${field.label}`);
+        errors.push(`${field.label} must contain only letters`);
+      } else {
+        console.log(`✅ Alphabetic validation passed for field: ${field.label}`);
+      }
+      return;
+    }
+
+    // If we reach here, it's an unknown validation type
+    console.log(`⚠️ Unknown validation rule: "${field.validation}" for field: ${field.label}`);
+  });
+
+  if (errors.length > 0) {
+    console.log(`🚨 Total validation errors found: ${errors.length}`);
+    console.log("Error details:", errors);
+  } else {
+    console.log("✅ All validations passed!");
+  }
+
+  return errors;
+};
 
   // Updated handleSubmit function with automatic signature capture
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const form = data?.form || localForm;
+    const form = data?.form;
     if (!form) {
       toast.error("Form data not available");
       return;
@@ -595,19 +555,9 @@ export default function FormPage() {
     navigate(-1);
   };
 
-  const handleRetryForm = () => {
-    setIsSubmitted(false);
-    setSubmissionResult(null);
-    setSignatureFiles([]);
-    // Reset form data
-    const form = data?.form || localForm;
-    if (form) {
-      initializeFormData(form);
-    }
-  };
-
+  
   // Loading state
-  if (loading && !localForm) {
+  if (loading ) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center max-w-md w-full mx-4">
@@ -623,7 +573,7 @@ export default function FormPage() {
     );
   }
 
-  const form = data?.form || localForm;
+  const form = data?.form ;
 
   // Error state - form not found
   if (!loading && !form) {
@@ -709,21 +659,6 @@ export default function FormPage() {
     );
   }
 
-  // Submission state
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
-        <FormSubmission
-          formTitle={form.title}
-          formId={form.id}
-          submissionData={formData}
-          submissionResult={submissionResult}
-          onBackToForms={handleBackToForms}
-          onRetry={handleRetryForm}
-        />
-      </div>
-    );
-  }
 
   // Sort fields by order before rendering
   const sortedFields = [...form.fields].sort(
@@ -752,6 +687,7 @@ export default function FormPage() {
             <FormPreview
               title={form.title}
               description={form.description}
+              type={form.type}
               fields={sortedFields}
               formData={formData}
               onInputChange={handleInputChange}
