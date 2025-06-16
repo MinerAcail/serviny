@@ -1,4 +1,3 @@
-// Complete MapAndSearch component with CheckoutDialog integration
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,20 +7,20 @@ import {
   Navigation,
   Search,
   X,
-  Share2,
-  Copy,
-  Info,
 } from "lucide-react";
 import { PinDropper } from "./PinDropper";
 import { Input } from "@/components/ui/input";
-// import CheckoutDialog from "./CheckoutDialog";
+import PaymentModal from "./payment-modal";
 import { RefObject, useEffect, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { TransportMode } from "./dataUtils";
 import { toast } from "sonner";
-import { gql, useMutation } from "@apollo/client";
-import CheckoutDialog from "@/components/custom/orders/checkout-dialog";
-// CheckoutDialog
+import { gql, useMutation, useQuery } from "@apollo/client";
+import { useNavigate } from "react-router";
+
+// FIXED: Ensure CSS is imported
+import "maplibre-gl/dist/maplibre-gl.css";
+
 const UPDATE_WITH_LOCATION = gql`
   mutation updateWithLocation($input: addCoordinateInput!) {
     updateWithLocation(input: $input) {
@@ -46,6 +45,37 @@ const UPDATE_WITH_LOCATION = gql`
           name
           price
           imageUrls
+        }
+      }
+    }
+  }
+`;
+
+const GET_ORDER_DETAILS = gql`
+  query GetOrderDetails($orderId: String!) {
+    getOrderDetails(orderId: $orderId) {
+      id
+      userId
+      status
+      estimatedDeliveryDate
+      deliveryAddress
+      coordinates
+      createdAt
+      deliveryFee
+      duration
+      distance
+      isochroneMetaId
+      items {
+        id
+        productId
+        quantity
+        itemType
+        product {
+          id
+          name
+          price
+          imageUrls
+          description
         }
       }
     }
@@ -128,6 +158,15 @@ interface MapAndSearchProps {
   ) => any;
 }
 
+interface PaymentResult {
+  method: "cash" | "momo";
+  referenceCode?: string;
+  phoneNumber?: string;
+  amount: number;
+  orderId: string;
+  timestamp: string;
+}
+
 export function MapAndSearch({
   handleSearchChange,
   searchValue,
@@ -168,137 +207,128 @@ export function MapAndSearch({
   zoneDetails = [],
   geocoderRef,
 }: MapAndSearchProps) {
-  const [showShareOptions, setShowShareOptions] = useState(false);
-  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  // FIXED: Simplified state management based on working version
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
-
-  // Checkout Dialog States
-  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
-  const [checkoutData, setCheckoutData] = useState<any>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrderDetails, setPaymentOrderDetails] = useState<any>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [redirectProgress, setRedirectProgress] = useState(0);
+  
+  // NEW: Store final payment details for success modal
+  const [finalPaymentDetails, setFinalPaymentDetails] = useState<{
+    itemsTotal: number;
+    deliveryFee: number;
+    totalPaid: number;
+  } | null>(null);
 
   const [updateWithLocation] = useMutation(UPDATE_WITH_LOCATION);
+  const navigate = useNavigate();
 
-  // Effect to automatically show info panel when directions are available
-  useEffect(() => {
-    if (showDirections && directionsDistance !== null && directionsTime) {
-      setShowInfoPanel(true);
-    }
-  }, [showDirections, directionsDistance, directionsTime]);
+  // Fetch order details
+  const { data: orderData, loading: orderLoading, error: orderError } = useQuery(GET_ORDER_DETAILS, {
+    variables: { orderId },
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Function to copy the current URL to clipboard
-  const copyUrlToClipboard = () => {
-    navigator.clipboard
-      .writeText(window.location.href)
-      .then(() => {
-        toast.success("URL copied!", {
-          description: "You can now share this location with others.",
-          duration: 3000,
-        });
-        setShowShareOptions(false);
-      })
-      .catch(() => {
-        toast.error("Failed to copy URL", {
-          description: "Please try again or copy the URL manually.",
-          duration: 3000,
-        });
-      });
-  };
-
-  // Helper function to transform order data to checkout format
-  const transformOrderToCheckoutData = (
-    order: any,
-    deliveryAddress: string
-  ) => {
-    const items =
-      order.items?.map((item: any) => ({
-        id: item.id,
-        name: item.product?.name || "Unknown Product",
-        description: item.product?.description || "",
-        price: item.product?.price || 0,
-
-        quantity: item.quantity,
-        image: item.product?.imageUrls?.[0] || "",
-        category: item.itemType || "General",
-      })) || [];
-
-    // Parse address components if possible
-    const addressParts = deliveryAddress.split(",").map((part) => part.trim());
-    let city = "",
-      state = "",
-      zipCode = "";
-
-    if (addressParts.length >= 2) {
-      // Try to extract city, state from the last parts
-      const lastPart = addressParts[addressParts.length - 1];
-      const secondLastPart = addressParts[addressParts.length - 2];
-
-      // Simple regex to find zip code
-      const zipMatch = lastPart.match(/\b\d{5}(-\d{4})?\b/);
-      if (zipMatch) {
-        zipCode = zipMatch[0];
-        state = lastPart.replace(zipMatch[0], "").trim();
-        city = secondLastPart;
-      } else if (addressParts.length >= 3) {
-        state = lastPart;
-        city = secondLastPart;
-      }
-    }
-
-    return {
-      items,
-      deliveryLocation: {
-        address: deliveryAddress,
-        city: city || "",
-        state: state || "",
-        zipCode: zipCode || "",
-        coordinates: order.coordinates
-          ? {
-              lat: order.coordinates[1],
-              lng: order.coordinates[0],
-            }
-          : clickedPoint
-          ? {
-              lat: clickedPoint.lat,
-              lng: clickedPoint.lng,
-            }
-          : undefined,
-        instructions: "",
+  // Calculate items total from order data
+  const calculateItemsTotal = () => {
+    if (!orderData?.getOrderDetails?.items) return 0;
+    
+    return orderData.getOrderDetails.items.reduce(
+      (sum: number, item: any) => {
+        const price = Number(item.product?.price) || 0;
+        const quantity = item.quantity || 0;
+        return sum + (price * quantity);
       },
-      rider: selectedRiderId
-        ? {
-            id: selectedRiderId,
-            name: "Assigned Rider", // You might want to fetch rider details
-            avatar: "",
-            rating: 4.8,
-            phone: "+1234567890",
-            vehicleType: "Motorcycle",
-            estimatedArrival: directionsTime || "30 min",
-            isOnline: true,
-          }
-        : undefined,
-      deliveryFee: order.deliveryFee,
-      serviceFee: 2.99,
-      tax: calculateTax(items),
-      discount: 0,
-      estimatedDeliveryTime:
-        order.estimatedDeliveryDate || directionsTime || "30-45 min",
-      orderNumber: order.id,
-      status: order.status || "PENDING",
-      deliveryDistance: order.distance,
-      deliveryDuration: order.duration,
+      0
+    );
+  };
+
+  // Enhanced delivery zone price calculation
+  const getDeliveryZonePriceAndOrderDetails = () => {
+    let zonePriceCalculated = 0;
+    let isochroneMetaId: string | undefined = undefined;
+
+    if (
+      !clickedPoint ||
+      !isochrones.length ||
+      !calculatePointDeliveryInfo ||
+      !vendorLocation ||
+      !zoneDetails.length
+    ) {
+      return { zonePriceCalculated: 0, isochroneMetaId: undefined };
+    }
+
+    try {
+      const pointInfo = calculatePointDeliveryInfo(
+        [clickedPoint.lng, clickedPoint.lat],
+        isochrones,
+        vendorLocation,
+        zoneDetails,
+        transportMode
+      );
+
+      if (pointInfo) {
+        if (pointInfo.inZone && pointInfo.zone) {
+          zonePriceCalculated = pointInfo.zone.price || pointInfo.deliveryFee || 0;
+          isochroneMetaId = pointInfo.isochroneMetaId;
+        } else {
+          zonePriceCalculated = pointInfo.deliveryFee || 0;
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error calculating point delivery info:", error);
+    }
+
+    return { zonePriceCalculated, isochroneMetaId };
+  };
+
+  // FIXED: Payment and confirm handler based on working version
+  const handlePaymentAndConfirm = () => {
+    if (!clickedPoint) {
+      toast.error("Please select a delivery location first");
+      return;
+    }
+
+    if (orderLoading) {
+      toast.error("Order data is still loading, please wait...");
+      return;
+    }
+
+    if (orderError || !orderData?.getOrderDetails) {
+      toast.error("Failed to load order details");
+      return;
+    }
+
+    // Collect delivery address for payment details
+    let deliveryAddress = "";
+    if (searchValue && searchValue.trim() !== "" && !searchValue.includes("Unnamed")) {
+      deliveryAddress = searchValue.trim();
+    } else {
+      deliveryAddress = `${clickedPoint.lat.toFixed(6)}, ${clickedPoint.lng.toFixed(6)}`;
+    }
+
+    // Calculate totals
+    const { zonePriceCalculated } = getDeliveryZonePriceAndOrderDetails();
+    const itemsTotal = calculateItemsTotal();
+    const totalAmount = itemsTotal + zonePriceCalculated;
+
+    // Create payment order details
+    const paymentDetails = {
+      id: orderId,
+      amount: totalAmount,
+      description: `Order delivery from ${vendorLocation?.address?.split(',')[0] || 'Store'} to ${deliveryAddress.split(',')[0] || 'Your location'}`,
+      vendor: "WinneMart",
+      itemsTotal: itemsTotal,
+      deliveryFee: zonePriceCalculated,
     };
+
+    setPaymentOrderDetails(paymentDetails);
+    setShowPaymentModal(true);
   };
 
-  const calculateTax = (items: any[]) => {
-    const subtotal =
-      items?.reduce(
-        (sum: number, item: any) => sum + item.price * item.quantity,
-        0
-      ) || 0;
-    return subtotal * 0.08; // 8% tax
-  };
-
+  // FIXED: Location checkout after payment based on working version
   const handleLocationCheckout = async () => {
     if (isUpdatingLocation) return;
 
@@ -306,50 +336,30 @@ export function MapAndSearch({
       setIsUpdatingLocation(true);
       setCheckoutError(null);
 
-      // Validation checks
-      if (!orderId) {
-        setCheckoutError("Order ID is required");
-        toast.error("Order ID is required");
-        return;
-      }
-
-      if (!clickedPoint) {
-        setCheckoutError("Please select a delivery location first");
-        toast.error("Please select a delivery location first");
-        return;
-      }
       // Get point delivery info to extract isochroneMetaId
       let isochroneMetaId: string | undefined = undefined;
-      // Check if location is within delivery zones (optional warning)
       if (
         isochrones.length > 0 &&
         calculatePointDeliveryInfo &&
         vendorLocation
       ) {
         const pointInfo = calculatePointDeliveryInfo(
-          [clickedPoint.lng, clickedPoint.lat],
+          [clickedPoint!.lng, clickedPoint!.lat],
           isochrones,
           vendorLocation,
           zoneDetails,
           transportMode
         );
-        // Extract isochroneMetaId from point info
         if (pointInfo) {
-          console.log("Point delivery info:", pointInfo);
-
-          // The calculatePointDeliveryInfo already returns isochroneMetaId
           isochroneMetaId = pointInfo.isochroneMetaId;
-
-          console.log("Extracted isochroneMetaId:", isochroneMetaId);
         }
       }
 
       // Show loading state
-      toast.loading("Adding location to order...", { id: "location-checkout" });
+      toast.loading("Processing order location...", { id: "location-checkout" });
 
       // Collect delivery address
       let deliveryAddress = "";
-
       if (
         searchValue &&
         searchValue.trim() !== "" &&
@@ -360,7 +370,7 @@ export function MapAndSearch({
         try {
           const geocodeResult = await new Promise<string>((resolve, reject) => {
             geocoderRef.current!.geocode(
-              { location: { lat: clickedPoint.lat, lng: clickedPoint.lng } },
+              { location: { lat: clickedPoint!.lat, lng: clickedPoint!.lng } },
               (results, status) => {
                 if (status === "OK" && results && results[0]) {
                   resolve(results[0].formatted_address);
@@ -373,26 +383,24 @@ export function MapAndSearch({
           deliveryAddress = geocodeResult;
         } catch (geocodeError) {
           console.warn("Reverse geocoding failed:", geocodeError);
-          deliveryAddress = `${clickedPoint.lat.toFixed(
+          deliveryAddress = `${clickedPoint!.lat.toFixed(
             6
-          )}, ${clickedPoint.lng.toFixed(6)}`;
+          )}, ${clickedPoint!.lng.toFixed(6)}`;
         }
       } else {
-        deliveryAddress = `${clickedPoint.lat.toFixed(
+        deliveryAddress = `${clickedPoint!.lat.toFixed(
           6
-        )}, ${clickedPoint.lng.toFixed(6)}`;
+        )}, ${clickedPoint!.lng.toFixed(6)}`;
       }
 
       // Prepare mutation input
       const mutationInput = {
         orderId: orderId,
         deliveryAddress: deliveryAddress,
-        coordinates: [clickedPoint.lng, clickedPoint.lat],
+        coordinates: [clickedPoint!.lng, clickedPoint!.lat],
         ...(isochroneMetaId && { isochroneMetaId: isochroneMetaId }),
         ...(selectedRiderId && { ridersId: selectedRiderId }),
       };
-
-      console.log("Updating order with location:", mutationInput);
 
       // Execute the mutation
       const result = await updateWithLocation({
@@ -401,34 +409,23 @@ export function MapAndSearch({
 
       // Handle successful response
       if (result?.data?.updateWithLocation) {
-        const updatedOrder = result.data.updateWithLocation;
-
-        // Transform order data for checkout dialog
-        const transformedCheckoutData = transformOrderToCheckoutData(
-          updatedOrder,
-          deliveryAddress
-        );
-        setCheckoutData(transformedCheckoutData);
-
         // Show success message
-        toast.success("Location added to order successfully!", {
+        toast.success("Order completed successfully!", {
           id: "location-checkout",
-          description: `Order updated with delivery location`,
+          description: "Location added and payment processed",
           duration: 4000,
         });
 
-        // Show checkout dialog
-        setShowCheckoutDialog(true);
+        // Clear directions and selections
+        if (showDirections) {
+          clearDirections(mapInstance);
+          setShowDirections(false);
+        }
+        setClickedPoint(null);
 
-        console.log("Order updated successfully:", updatedOrder);
-
-        // Clear directions after showing dialog
-        setTimeout(() => {
-          if (showDirections) {
-            clearDirections(mapInstance);
-            setShowDirections(false);
-          }
-        }, 1000);
+        // Show success modal and start redirect
+        setShowSuccessMessage(true);
+        setRedirectProgress(0);
       } else {
         throw new Error("No data returned from mutation");
       }
@@ -440,18 +437,12 @@ export function MapAndSearch({
 
       if (error.graphQLErrors?.length > 0) {
         errorMessage = error.graphQLErrors[0].message;
-        if (errorMessage.includes("not found")) {
-          errorDescription = "Order not found or access denied";
-        } else if (errorMessage.includes("coordinates")) {
-          errorDescription = "Invalid coordinates provided";
-        }
       } else if (error.networkError) {
         errorMessage = "Network error";
         errorDescription = "Please check your internet connection";
       }
 
       setCheckoutError(errorMessage);
-
       toast.error(errorMessage, {
         id: "location-checkout",
         description: errorDescription,
@@ -462,62 +453,97 @@ export function MapAndSearch({
     }
   };
 
-  // Checkout dialog handlers
-  const handleCheckoutClose = () => {
-    setShowCheckoutDialog(false);
-    setCheckoutData(null);
-    setCheckoutError(null);
-  };
+  // Payment completion handler
+  const handlePaymentComplete = (paymentData: PaymentResult) => {
+    console.log("Payment completed:", paymentData);
+    
+    toast.success("Payment successful!", {
+      description: `Method: ${paymentData.method.toUpperCase()}`,
+      duration: 3000,
+    });
 
-  const handlePlaceOrder = async () => {
-    try {
-      // Here you would typically call an API to finalize the order
-      toast.success("Order placed successfully!", {
-        description: "You will receive a confirmation shortly.",
-        duration: 5000,
-      });
-
-      handleCheckoutClose();
-
-      // Optionally redirect or update UI state
-      // window.location.href = '/orders'; // or use router
-    } catch (error) {
-      toast.error("Failed to place order", {
-        description: "Please try again.",
-        duration: 3000,
+    // FIXED: Store payment details before clearing modal
+    if (paymentOrderDetails) {
+      setFinalPaymentDetails({
+        itemsTotal: paymentOrderDetails.itemsTotal || 0,
+        deliveryFee: paymentOrderDetails.deliveryFee || 0,
+        totalPaid: paymentOrderDetails.amount || 0,
       });
     }
+
+    // Close payment modal
+    setShowPaymentModal(false);
+    setPaymentOrderDetails(null);
+
+    // Now process the location checkout
+    handleLocationCheckout();
   };
 
-  const handleUpdateQuantity = (itemId: string, quantity: number) => {
-    if (!checkoutData) return;
-
-    setCheckoutData({
-      ...checkoutData,
-      items: checkoutData.items.map((item: any) =>
-        item.id === itemId ? { ...item, quantity } : item
-      ),
-    });
+  // Payment modal handlers
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false);
+    setPaymentOrderDetails(null);
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    if (!checkoutData) return;
+  // Redirect effect
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout;
 
-    setCheckoutData({
-      ...checkoutData,
-      items: checkoutData.items.filter((item: any) => item.id !== itemId),
-    });
-  };
+    if (showSuccessMessage) {
+      progressInterval = setInterval(() => {
+        setRedirectProgress((prev) => {
+          const newProgress = prev + 2;
+          if (newProgress >= 100) {
+            window.location.href = '/vob';
+            return 100;
+          }
+          return newProgress;
+        });
+      }, 50);
+    }
 
-  const handleEditLocation = () => {
-    setShowCheckoutDialog(false);
-    toast.info("You can now select a new location on the map");
-  };
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
+  }, [showSuccessMessage]);
 
-  // Function to toggle info panel
-  const toggleInfoPanel = () => {
-    setShowInfoPanel(!showInfoPanel);
-  };
+  // Show loading if order data is still loading
+  if (orderLoading) {
+    return (
+      <div className="space-y-1">
+        <div className="h-[500px] rounded-2xl overflow-hidden border-0 shadow-sm bg-white relative">
+          <div className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#0071E3] mb-2" />
+              <p className="text-[#0071E3] font-medium">Loading order details...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if order failed to load
+  if (orderError) {
+    return (
+      <div className="space-y-1">
+        <div className="bg-[#FEF2F2] p-4 rounded-xl text-[#EF4444] border border-[#FEE2E2]">
+          <p className="font-medium">Failed to load order details</p>
+          <p className="text-sm">{orderError.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefetch}
+            className="mt-2 border-[#EF4444] text-[#EF4444] hover:bg-[#FEF2F2] hover:text-[#EF4444]"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -641,34 +667,39 @@ export function MapAndSearch({
             </div>
           </div>
 
-          {/* Pin dropper button */}
-          <div className="absolute bottom-3 right-3 z-10">
+          {/* Action buttons */}
+          <div className="absolute bottom-3 right-3 z-10 flex gap-2">
+            {/* FIXED: Payment & Confirm button */}
             {showDirections && (
               <Button
                 size="sm"
-                variant={isPinDropperActive ? "default" : "outline"}
-                className="rounded-full text-xs p bg-green-600 hover:bg-green-700 text-white"
-                onClick={handleLocationCheckout}
-                disabled={isUpdatingLocation || !clickedPoint}
+                className="rounded-full text-xs bg-green-600 hover:bg-green-700 text-white"
+                onClick={handlePaymentAndConfirm}
+                disabled={isUpdatingLocation || !clickedPoint || orderLoading}
               >
                 {isUpdatingLocation ? (
                   <span className="flex items-center">
                     <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                    Adding Location...
+                    Processing...
+                  </span>
+                ) : orderLoading ? (
+                  <span className="flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    Loading Order...
                   </span>
                 ) : (
                   <span className="flex items-center">
                     <MapPin className="h-3 w-3 mr-1.5" />
-                    Add Location to Order
+                    Payment & Confirm
                   </span>
                 )}
               </Button>
             )}
+
+            {/* Show Directions button */}
             {!isPinDropperActive && directionsReady && !showDirections && (
               <Button
                 size="sm"
-                variant={isPinDropperActive ? "default" : "outline"}
-                // className="rounded-full text-xs p bg-green-600 hover:bg-green-700 text-white"
                 className="bg-[#0071E3] hover:bg-[#0062C3] text-white text-xs rounded-full px-4 shadow-sm"
                 onClick={handleShowDirectionsClick}
               >
@@ -676,6 +707,8 @@ export function MapAndSearch({
                 Show Directions
               </Button>
             )}
+
+            {/* Pin Dropper button */}
             <Button
               size="sm"
               variant={isPinDropperActive ? "default" : "outline"}
@@ -692,84 +725,114 @@ export function MapAndSearch({
             </Button>
           </div>
 
-          {/* Directions info card */}
-          {/* {showDirections && directionsDistance !== null && directionsTime && (
-            <div
-              className={`absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-4 max-w-xs border border-[#E5E5EA] transition-all duration-300 ${
-                showInfoPanel ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <div className="h-6 w-6 rounded-full bg-[#0071E3] flex items-center justify-center mr-2">
-                    <Navigation className="h-3 w-3 text-white" />
-                  </div>
-                  <h3 className="font-medium text-[#1D1D1F]">Route Details</h3>
+          {/* Order summary overlay */}
+          {orderData?.getOrderDetails && (
+            <div className="absolute top-3 right-3 z-10">
+              <div className="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl text-xs shadow-sm border border-gray-200/50">
+                <div className="text-gray-600 mb-1">Order Total</div>
+                <div className="font-bold text-green-600">
+                  GH₵{calculateItemsTotal().toFixed(2)}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 rounded-full"
-                  onClick={toggleInfoPanel}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-[#86868B]">Distance</span>
-                  <span className="font-medium">
-                    {directionsDistance.toFixed(2)} km
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#86868B]">Est. Travel Time</span>
-                  <span className="font-medium">{directionsTime}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#86868B]">Transport Mode</span>
-                  <span className="font-medium capitalize">
-                    {transportMode}
-                  </span>
+                <div className="text-gray-500 text-[10px]">
+                  {orderData.getOrderDetails.items?.length || 0} items
                 </div>
               </div>
             </div>
-          )} */}
-
-          {/* Collapsed info toggle button */}
-          {/* {showDirections &&
-            directionsDistance !== null &&
-            directionsTime &&
-            !showInfoPanel && (
-              <button
-                onClick={toggleInfoPanel}
-                className="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-sm cursor-pointer hover:bg-white transition-colors"
-              >
-                <Info className="h-4 w-4 text-[#0071E3]" />
-              </button>
-            )} */}
+          )}
         </div>
       </div>
 
-      {/* Checkout Dialog */}
-      {checkoutData && (
-        <CheckoutDialog
-          isOpen={showCheckoutDialog}
-          onClose={handleCheckoutClose}
-          checkoutData={checkoutData}
-          onUpdateQuantity={handleUpdateQuantity}
-          onRemoveItem={handleRemoveItem}
-          onEditLocation={handleEditLocation}
-          onPlaceOrder={handlePlaceOrder}
-          isProcessing={false}
-          mode="confirmation"
-          title="Order Updated"
-          showPaymentMethod={false}
-          showOrderActions={true}
+      {/* Payment Modal */}
+      {paymentOrderDetails && (
+        <PaymentModal
+          open={showPaymentModal}
+          onOpenChange={handlePaymentModalClose}
+          orderDetails={paymentOrderDetails}
+          onPaymentComplete={handlePaymentComplete}
         />
+      )}
+
+      {/* Success Message with Redirect Progress */}
+      {showSuccessMessage && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-[90vw] shadow-2xl">
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-green-300/40 shadow-lg">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Success Message */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Order Updated Successfully!</h3>
+              <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                Your delivery location has been added and payment confirmed.
+              </p>
+              
+              {/* Order Details */}
+              <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left">
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="text-gray-600">Items Total:</span>
+                  <span className="font-medium">GH₵{finalPaymentDetails?.itemsTotal?.toFixed(2) || calculateItemsTotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="text-gray-600">Delivery Fee:</span>
+                  <span className="font-medium">GH₵{finalPaymentDetails?.deliveryFee?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="h-px bg-gray-200 my-2"></div>
+                <div className="flex justify-between items-center font-bold">
+                  <span className="text-gray-900">Total Paid:</span>
+                  <span className="text-green-600">GH₵{finalPaymentDetails?.totalPaid?.toFixed(2) || '0.00'}</span>
+                </div>
+              </div>
+
+              {/* Redirect Section */}
+              <div className="pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center border border-blue-300/40 shadow-lg">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <h4 className="text-md font-semibold text-gray-900 mb-2">Redirecting...</h4>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Taking you to view all your orders
+                </p>
+                
+                {/* Progress Bar */}
+                <div className="w-full max-w-xs mx-auto mb-4">
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>Loading</span>
+                    <span>{Math.round(redirectProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-100 ease-out shadow-lg"
+                      style={{ width: `${redirectProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Loading animation dots */}
+                <div className="flex items-center justify-center gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce shadow-lg" />
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce shadow-lg"
+                    style={{ animationDelay: "0.1s" }}
+                  />
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce shadow-lg"
+                    style={{ animationDelay: "0.2s" }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
 }
-
-

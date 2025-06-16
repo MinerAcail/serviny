@@ -22,7 +22,7 @@ import {
 } from "./Hook/dataUtils";
 
 import { MapAndSearch } from "../mapAndSearch";
-import { useLocation, useParams, useSearchParams } from "react-router";
+import {  useParams, useSearchParams } from "react-router";
 import { DeliveryZoneVisualizerMenu } from "./deliveryZoneVisualizerMenu";
 import { toast } from "sonner";
 import { useVendorIsochrones } from "./Hook/Isochrones";

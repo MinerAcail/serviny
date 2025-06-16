@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/twpayne/go-polyline"
@@ -473,6 +475,7 @@ func GetRouteGeoJSON(userLat, userLng float64, result model.IsochroneResult) (st
 	return geoJSONStr, nil
 }
 // Enhanced GetBookRouteGeoJSON with performance metrics and error handling for bookings
+// Enhanced GetBookRouteGeoJSON with better validation and error handling
 func GetBookRouteGeoJSON(pickupLat, pickupLng, dropoffLat, dropoffLng float64) (string, error) {
 	if DirectionsClient == nil {
 		return "", fmt.Errorf("directions client not initialized")
@@ -487,8 +490,37 @@ func GetBookRouteGeoJSON(pickupLat, pickupLng, dropoffLat, dropoffLng float64) (
 	if pickupLng < -180 || pickupLng > 180 || dropoffLng < -180 || dropoffLng > 180 {
 		return "", fmt.Errorf("invalid longitude values: pickup=%.6f, dropoff=%.6f", pickupLng, dropoffLng)
 	}
+
+	// ENHANCED: Check for identical coordinates (the problematic case from your logs)
+	const coordinateTolerance = 0.000001 // ~0.1 meters
+	if math.Abs(pickupLat-dropoffLat) < coordinateTolerance && math.Abs(pickupLng-dropoffLng) < coordinateTolerance {
+		log.Printf("⚠️ WARNING: Pickup and dropoff coordinates are essentially identical (within %.6f degrees)", coordinateTolerance)
+		log.Printf("📍 Pickup: [%.6f, %.6f], Dropoff: [%.6f, %.6f]", pickupLat, pickupLng, dropoffLat, dropoffLng)
+		
+		// Return a minimal valid GeoJSON for identical coordinates
+		minimalRoute := GeoJSON{
+			Type: "Feature",
+			Geometry: GeoJSONGeometry{
+				Type:        "LineString",
+				Coordinates: [][]float64{{pickupLng, pickupLat}, {dropoffLng, dropoffLat}},
+			},
+			Metadata: RouteMetadata{
+				Summary:  "Same location",
+				Distance: "0 m",
+				Duration: "0 mins",
+			},
+		}
+		
+		geoJSONBytes, err := json.Marshal(minimalRoute)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal minimal route GeoJSON: %w", err)
+		}
+		
+		log.Printf("🔄 Generated minimal route for identical coordinates")
+		return string(geoJSONBytes), nil
+	}
 	
-	log.Printf("Getting route from pickup [%.6f, %.6f] to dropoff [%.6f, %.6f]", pickupLat, pickupLng, dropoffLat, dropoffLng)
+	log.Printf("🗺️ Getting route from pickup [%.6f, %.6f] to dropoff [%.6f, %.6f]", pickupLat, pickupLng, dropoffLat, dropoffLng)
 	
 	// Prepare Google Maps Directions API request
 	// Google expects "lat,lng" format in the API request
@@ -500,18 +532,52 @@ func GetBookRouteGeoJSON(pickupLat, pickupLng, dropoffLat, dropoffLng float64) (
 		Units:       "metric",
 	}
 
-	log.Printf("Requesting directions: %s -> %s (mode: %s)", directionsReq.Origin, directionsReq.Destination, directionsReq.Mode)
+	log.Printf("📡 Requesting directions: %s -> %s (mode: %s)", directionsReq.Origin, directionsReq.Destination, directionsReq.Mode)
 
-	// Fetch route from Google Directions API
-	directionsResp, err := directionsClient.GetDirections(&directionsReq)
+	// ENHANCED: Add retry logic for API failures
+	var directionsResp *GoogleDirectionsResponse
+	var err error
+	maxRetries := 3
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		directionsResp, err = directionsClient.GetDirections(&directionsReq)
+		if err == nil {
+			break
+		}
+		
+		if attempt < maxRetries {
+			waitTime := time.Duration(attempt) * time.Second
+			log.Printf("⚠️ Attempt %d failed, retrying in %v: %v", attempt, waitTime, err)
+			time.Sleep(waitTime)
+		}
+	}
+	
 	if err != nil {
-		return "", fmt.Errorf("failed to get directions from Google API: %w", err)
+		return "", fmt.Errorf("failed to get directions from Google API after %d attempts: %w", maxRetries, err)
+	}
+
+	// ENHANCED: Validate the response
+	if directionsResp == nil {
+		return "", fmt.Errorf("received nil directions response")
+	}
+	
+	if len(directionsResp.Routes) == 0 {
+		return "", fmt.Errorf("no routes found in directions response")
+	}
+	
+	if len(directionsResp.Routes[0].Legs) == 0 {
+		return "", fmt.Errorf("no legs found in first route")
 	}
 
 	// Convert directions response to GeoJSON (this handles coordinate swapping correctly)
 	geoJSON := ConvertToGeoJSON(directionsResp)
 	if geoJSON == nil {
 		return "", fmt.Errorf("could not convert directions to GeoJSON")
+	}
+
+	// ENHANCED: Validate the generated GeoJSON
+	if len(geoJSON.Geometry.Coordinates) == 0 {
+		return "", fmt.Errorf("generated GeoJSON has no coordinates")
 	}
 
 	// Marshal to JSON string
@@ -521,13 +587,12 @@ func GetBookRouteGeoJSON(pickupLat, pickupLng, dropoffLat, dropoffLng float64) (
 	}
 	geoJSONStr := string(geoJSONBytes)
 
-	log.Printf("Successfully generated GeoJSON route with %d coordinates", len(geoJSON.Geometry.Coordinates))
-	log.Printf("Route metadata - Summary: %s, Distance: %s, Duration: %s", 
+	log.Printf("✅ Successfully generated GeoJSON route with %d coordinates", len(geoJSON.Geometry.Coordinates))
+	log.Printf("📊 Route metadata - Summary: %s, Distance: %s, Duration: %s", 
 		geoJSON.Metadata.Summary, geoJSON.Metadata.Distance, geoJSON.Metadata.Duration)
 	
 	return geoJSONStr, nil
 }
-
 
 // GetRouteGeoJSONWithPool - Alternative version using worker pool for high-frequency calls
 func GetRouteGeoJSONWithPool(userLat, userLng float64, result model.IsochroneResult) (string, error) {

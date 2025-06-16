@@ -149,7 +149,7 @@ func (r *mutationResolver) GetGrowthData(ctx context.Context, id string) (*model
 }
 
 // CreateMultipleBookings is the resolver for the createMultipleBookings field.
-func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, serviceID string) ([]*model.AppointmentBooking, error) {
+func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, serviceID string) ([]*model.AppointmentBooking, error) {
 	UserIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Service ID: %v", err)
@@ -174,7 +174,12 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 		}
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
-
+	// Generate multiGroupId if this is a multi-location delivery
+	var multiGroupId *string
+	if isMulti != nil && *isMulti {
+		groupId := uuid.New().String()
+		multiGroupId = &groupId
+	}
 	// Begin a transaction to ensure all bookings are created atomically
 	tx := r.DB.Begin()
 	if tx.Error != nil {
@@ -239,15 +244,16 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 
 		// Create a new booking
 		booking := &model.AppointmentBooking{
-			ServiceID: serviceID,
-			UserID:    USERID.String(),
-			UserType:  bookerInput.UserType,
-			StartTime: bookerInput.StartTime,
-			EndTime:   *bookerInput.EndTime,
-			Day:       day,
-			Item:      bookerInput.Item,
-			Notes:     bookerInput.Notes,
-			TableSize: bookerInput.TableSize,
+			ServiceID:    serviceID,
+			UserID:       USERID.String(),
+			UserType:     bookerInput.UserType,
+			StartTime:    bookerInput.StartTime,
+			EndTime:      *bookerInput.EndTime,
+			Day:          day,
+			Item:         bookerInput.Item,
+			Notes:        bookerInput.Notes,
+			TableSize:    bookerInput.TableSize,
+			MultiGroupID: multiGroupId, // Set the generated UUID for multi-location bookings
 		}
 
 		// Save the booking to the database
@@ -949,6 +955,19 @@ func (r *queryResolver) GetAppointmentBooking(ctx context.Context, bookID *strin
 		return nil, fmt.Errorf("failed to fetch booking: %w", err)
 	}
 	return &booking, nil
+}
+
+// GetAppointmentBookingByMultiGroupID is the resolver for the getAppointmentBookingByMultiGroupId field.
+func (r *queryResolver) GetAppointmentBookingByMultiGroupID(ctx context.Context, multiGroupID *string) ([]*model.AppointmentBooking, error) {
+	if multiGroupID == nil || *multiGroupID == "" {
+		return nil, fmt.Errorf("multiGroupID is required")
+	}
+
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("multi_group_id = ?", *multiGroupID).Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch appointment bookings for multiGroupID %s: %v", *multiGroupID, err)
+	}
+	return bookings, nil
 }
 
 // ID is the resolver for the id field.

@@ -1373,6 +1373,24 @@ func (r *queryResolver) GetOrder(ctx context.Context, id string) (*model.Order, 
 	return &order, nil
 }
 
+// GetOrderDetails is the resolver for the getOrderDetails field.
+func (r *queryResolver) GetOrderDetails(ctx context.Context, orderID string) (*model.Order, error) {
+	parsedOrderID, err := uuid.Parse(orderID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order ID: %w", err)
+	}
+
+	var order model.Order
+	if err := r.DB.Preload("Items.Product").Where("id = ?", parsedOrderID).First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("order not found with ID: %s", orderID)
+		}
+		return nil, fmt.Errorf("failed to fetch order details: %w", err)
+	}
+
+	return &order, nil
+}
+
 // GetAllOrderS is the resolver for the getAllOrderS field.
 func (r *queryResolver) GetAllOrderS(ctx context.Context) ([]*model.Order, error) {
 	var orders []*model.Order

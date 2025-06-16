@@ -301,6 +301,11 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 
+// GetUserInforFromContext is the resolver for the getUserInforFromContext field.
+func (r *queryResolver) GetUserInforFromContext(ctx context.Context) (*model.UsersInfor, error) {
+	panic(fmt.Errorf("not implemented: GetUserInforFromContext - getUserInforFromContext"))
+}
+
 // ClearClientCache is the resolver for the clearClientCache field.
 func (r *queryResolver) ClearClientCache(ctx context.Context) (bool, error) {
 	userID, err := middleware.GetIDFromContext(ctx)

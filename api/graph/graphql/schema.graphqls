@@ -46,6 +46,7 @@ extend type Query {
   ): UserBookings!
 
   getUserInfor(userId:String!): UsersInfor
+  getUserInforFromContext: UsersInfor
 
   clearClientCache: Boolean!
 

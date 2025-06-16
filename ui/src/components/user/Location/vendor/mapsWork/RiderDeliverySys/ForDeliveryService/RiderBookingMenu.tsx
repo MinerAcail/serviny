@@ -1,10 +1,10 @@
 // ==========================================
-// Updated RiderBookingMenu with Route Tracking
+// Updated RiderBookingMenu with Payment Integration
 // ==========================================
 
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   Navigation,
   X,
@@ -25,6 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import PaymentModal from "./payment-modal"; // Import the payment modal
 import type {
   RiderProfile,
   PricingZone,
@@ -55,7 +57,7 @@ interface RiderBookingMenuProps {
   handleEditLocations: () => void;
   handleStartPinDrop: () => void;
 
-  // NEW: Tracking props
+  // Tracking props
   isTrackingActive?: boolean;
   onStartTracking?: () => void;
   onStopTracking?: () => void;
@@ -78,7 +80,6 @@ export function RiderBookingMenu({
   setIsOpen,
   handleEditLocations,
   handleStartPinDrop,
-  // NEW: Tracking props
   isTrackingActive = false,
   onStartTracking,
   onStopTracking,
@@ -86,6 +87,10 @@ export function RiderBookingMenu({
   bookId,
 }: RiderBookingMenuProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+  
+  // NEW: Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   // Close drawer when clicking outside
   useEffect(() => {
@@ -104,6 +109,13 @@ export function RiderBookingMenu({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, setIsOpen]);
+
+  // Reset payment state when step changes
+  useEffect(() => {
+    if (currentStep !== "review") {
+      setPaymentCompleted(false);
+    }
+  }, [currentStep]);
 
   const getStepTitle = () => {
     switch (currentStep) {
@@ -124,6 +136,39 @@ export function RiderBookingMenu({
     if (currentStep === "review") return "Continue";
     if (currentStep === "complete") return "Booking Complete";
     return "Book Delivery";
+  };
+
+  // NEW: Handle payment completion
+  const handlePaymentComplete = (paymentData: any) => {
+    setPaymentCompleted(true);
+    setShowPaymentModal(false);
+    
+    toast.success(`Payment successful! Method: ${paymentData.method.toUpperCase()}`, {
+      description: `Amount: GH₵${paymentData.amount.toFixed(2)}`,
+    });
+
+    // Proceed with booking after payment
+    setTimeout(() => {
+      onBooking();
+    }, 500);
+  };
+
+  // NEW: Handle confirm booking - show payment modal first
+  const handleConfirmBooking = () => {
+    if (!calculation) return;
+    setShowPaymentModal(true);
+  };
+
+  // NEW: Create order details for payment modal
+  const createOrderDetails = () => {
+    if (!calculation || !riderProfile || !bookId) return null;
+
+    return {
+      id: bookId,
+      amount: calculation.totalPrice,
+      description: `Delivery from ${calculation.pickupLocation.address?.split(',')[0] || 'Pickup'} to ${calculation.dropoffLocation.address?.split(',')[0] || 'Destination'}`,
+      vendor: riderProfile.name || "Delivery Service",
+    };
   };
 
   return (
@@ -149,7 +194,7 @@ export function RiderBookingMenu({
 
               <div className="h-5 w-px bg-gray-200 mx-1" />
 
-              {/* NEW: Tracking button */}
+              {/* Tracking button */}
               {bookId && onStartTracking && onStopTracking && (
                 <>
                   <button
@@ -239,6 +284,13 @@ export function RiderBookingMenu({
                       Tracking
                     </Badge>
                   )}
+                  {/* NEW: Payment status indicator */}
+                  {paymentCompleted && currentStep === "review" && (
+                    <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Paid
+                    </Badge>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -290,8 +342,9 @@ export function RiderBookingMenu({
                         <ReviewStep
                           calculation={calculation}
                           isBooking={isBooking}
-                          onBooking={onBooking}
+                          onBooking={handleConfirmBooking} // NEW: Changed to handle payment first
                           onBack={() => setCurrentStep("locations")}
+                          paymentCompleted={paymentCompleted} // NEW: Pass payment status
                         />
                       </motion.div>
                     )}
@@ -344,6 +397,16 @@ export function RiderBookingMenu({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* NEW: Payment Modal */}
+      {calculation && createOrderDetails() && (
+        <PaymentModal
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          orderDetails={createOrderDetails()!}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 }
@@ -403,8 +466,6 @@ function PricingZonesCard({
   zones: PricingZone[];
   calculation: DeliveryCalculation | null;
 }) {
-  
-
   return (
     <Card className="border-0">
       <CardHeader className="pb-3">
@@ -475,16 +536,19 @@ function LocationsStep() {
   );
 }
 
+// NEW: Updated ReviewStep to handle payment status
 function ReviewStep({
   calculation,
   isBooking,
   onBooking,
   onBack,
+  paymentCompleted = false, // NEW: Payment status prop
 }: {
   calculation: DeliveryCalculation;
   isBooking: boolean;
   onBooking: () => void;
   onBack: () => void;
+  paymentCompleted?: boolean; // NEW: Optional payment status
 }) {
   return (
     <div className="space-y-4">
@@ -539,7 +603,7 @@ function ReviewStep({
             </div>
             <div>
               <div className="text-lg font-semibold text-blue-600">
-                ${calculation.totalPrice.toFixed(2)}
+                GH₵{calculation.totalPrice.toFixed(2)}
               </div>
               <div className="text-xs text-gray-500">Total Price</div>
             </div>
@@ -560,6 +624,21 @@ function ReviewStep({
               </p>
             </div>
           )}
+
+          {/* NEW: Payment Status Indicator */}
+          {paymentCompleted && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-900">
+                  Payment Completed
+                </span>
+              </div>
+              <p className="text-xs text-green-800 mt-1">
+                Ready to confirm your booking
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -573,16 +652,20 @@ function ReviewStep({
         >
           Back
         </Button>
-        <Button onClick={onBooking} disabled={isBooking} className="flex-1">
+        <Button 
+          onClick={onBooking} 
+          disabled={isBooking} 
+          className="flex-1"
+        >
           {isBooking ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Booking...
+              {paymentCompleted ? "Confirming..." : "Processing..."}
             </>
           ) : (
             <>
               <Package className="w-4 h-4 mr-2" />
-              Confirm Booking
+              {paymentCompleted ? "Confirm Booking" : "Choose Payment Method"}
             </>
           )}
         </Button>
@@ -591,7 +674,7 @@ function ReviewStep({
   );
 }
 
-// NEW: Updated Complete Step with Tracking Integration
+// Existing CompleteStepWithTracking component remains the same
 function CompleteStepWithTracking({
   bookingReference,
   calculation,
@@ -689,7 +772,7 @@ function CompleteStepWithTracking({
             <div className="flex justify-between">
               <span className="font-medium text-gray-900">Total Price</span>
               <span className="font-semibold text-lg text-blue-600">
-                ${calculation.totalPrice.toFixed(2)}
+                GH₵{calculation.totalPrice.toFixed(2)}
               </span>
             </div>
           </CardContent>

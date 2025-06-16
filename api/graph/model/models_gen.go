@@ -19,6 +19,11 @@ type AmenityInput struct {
 	Text string `json:"text"`
 }
 
+type AmountRange struct {
+	Min *int32 `json:"min,omitempty"`
+	Max *int32 `json:"max,omitempty"`
+}
+
 type AppointmentBookedData struct {
 	Book      *AppointmentBooking `json:"book"`
 	UsersData []*UserData         `json:"usersData"`
@@ -194,6 +199,11 @@ type DashboardData struct {
 	CategoriesServiceTypes []BookingType `json:"categoriesServiceTypes"`
 }
 
+type DateRange struct {
+	From *time.Time `json:"from,omitempty"`
+	To   *time.Time `json:"to,omitempty"`
+}
+
 type EventBookedData struct {
 	UserID           string        `json:"userId"`
 	UserName         string        `json:"userName"`
@@ -354,6 +364,47 @@ type OtpResponse struct {
 	OtpSent bool    `json:"otpSent"`
 	IsValid bool    `json:"IsValid"`
 	Email   *string `json:"email,omitempty"`
+}
+
+type PaymentConnection struct {
+	Edges      []*PaymentEdge `json:"edges"`
+	TotalCount int32          `json:"totalCount"`
+}
+
+type PaymentEdge struct {
+	Node   *Payment `json:"node"`
+	Cursor string   `json:"cursor"`
+}
+
+type PaymentFilter struct {
+	OrderID       *string        `json:"orderID,omitempty"`
+	Status        *PaymentStatus `json:"status,omitempty"`
+	Method        *PaymentMethod `json:"method,omitempty"`
+	CustomerEmail *string        `json:"customerEmail,omitempty"`
+	AmountRange   *AmountRange   `json:"amountRange,omitempty"`
+	DateRange     *DateRange     `json:"dateRange,omitempty"`
+}
+
+type PaymentMethodSummary struct {
+	Method      PaymentMethod `json:"method"`
+	Count       int32         `json:"count"`
+	TotalAmount int32         `json:"totalAmount"`
+	SuccessRate float64       `json:"successRate"`
+}
+
+type PaymentOrderBy struct {
+	Field     PaymentOrderField `json:"field"`
+	Direction OrderDirection    `json:"direction"`
+}
+
+type PaymentSummary struct {
+	TotalPayments      int32   `json:"totalPayments"`
+	SuccessfulPayments int32   `json:"successfulPayments"`
+	FailedPayments     int32   `json:"failedPayments"`
+	PendingPayments    int32   `json:"pendingPayments"`
+	TotalAmount        int32   `json:"totalAmount"`
+	TotalAmountInCedis float64 `json:"totalAmountInCedis"`
+	AverageAmount      float64 `json:"averageAmount"`
 }
 
 type PolicyDetailInput struct {
@@ -909,6 +960,186 @@ func (e *FormType) UnmarshalGQL(v any) error {
 }
 
 func (e FormType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type OrderDirection string
+
+const (
+	OrderDirectionAsc  OrderDirection = "ASC"
+	OrderDirectionDesc OrderDirection = "DESC"
+)
+
+var AllOrderDirection = []OrderDirection{
+	OrderDirectionAsc,
+	OrderDirectionDesc,
+}
+
+func (e OrderDirection) IsValid() bool {
+	switch e {
+	case OrderDirectionAsc, OrderDirectionDesc:
+		return true
+	}
+	return false
+}
+
+func (e OrderDirection) String() string {
+	return string(e)
+}
+
+func (e *OrderDirection) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = OrderDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid OrderDirection", str)
+	}
+	return nil
+}
+
+func (e OrderDirection) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type PaymentMethod string
+
+const (
+	PaymentMethodCard         PaymentMethod = "CARD"
+	PaymentMethodMobileMoney  PaymentMethod = "MOBILE_MONEY"
+	PaymentMethodBankTransfer PaymentMethod = "BANK_TRANSFER"
+	PaymentMethodUssd         PaymentMethod = "USSD"
+	PaymentMethodQR           PaymentMethod = "QR"
+)
+
+var AllPaymentMethod = []PaymentMethod{
+	PaymentMethodCard,
+	PaymentMethodMobileMoney,
+	PaymentMethodBankTransfer,
+	PaymentMethodUssd,
+	PaymentMethodQR,
+}
+
+func (e PaymentMethod) IsValid() bool {
+	switch e {
+	case PaymentMethodCard, PaymentMethodMobileMoney, PaymentMethodBankTransfer, PaymentMethodUssd, PaymentMethodQR:
+		return true
+	}
+	return false
+}
+
+func (e PaymentMethod) String() string {
+	return string(e)
+}
+
+func (e *PaymentMethod) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PaymentMethod(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PaymentMethod", str)
+	}
+	return nil
+}
+
+func (e PaymentMethod) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type PaymentOrderField string
+
+const (
+	PaymentOrderFieldCreatedAt PaymentOrderField = "CREATED_AT"
+	PaymentOrderFieldPaidAt    PaymentOrderField = "PAID_AT"
+	PaymentOrderFieldAmount    PaymentOrderField = "AMOUNT"
+	PaymentOrderFieldStatus    PaymentOrderField = "STATUS"
+)
+
+var AllPaymentOrderField = []PaymentOrderField{
+	PaymentOrderFieldCreatedAt,
+	PaymentOrderFieldPaidAt,
+	PaymentOrderFieldAmount,
+	PaymentOrderFieldStatus,
+}
+
+func (e PaymentOrderField) IsValid() bool {
+	switch e {
+	case PaymentOrderFieldCreatedAt, PaymentOrderFieldPaidAt, PaymentOrderFieldAmount, PaymentOrderFieldStatus:
+		return true
+	}
+	return false
+}
+
+func (e PaymentOrderField) String() string {
+	return string(e)
+}
+
+func (e *PaymentOrderField) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PaymentOrderField(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PaymentOrderField", str)
+	}
+	return nil
+}
+
+func (e PaymentOrderField) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "PENDING"
+	PaymentStatusSuccess   PaymentStatus = "SUCCESS"
+	PaymentStatusFailed    PaymentStatus = "FAILED"
+	PaymentStatusCancelled PaymentStatus = "CANCELLED"
+	PaymentStatusRefunded  PaymentStatus = "REFUNDED"
+)
+
+var AllPaymentStatus = []PaymentStatus{
+	PaymentStatusPending,
+	PaymentStatusSuccess,
+	PaymentStatusFailed,
+	PaymentStatusCancelled,
+	PaymentStatusRefunded,
+}
+
+func (e PaymentStatus) IsValid() bool {
+	switch e {
+	case PaymentStatusPending, PaymentStatusSuccess, PaymentStatusFailed, PaymentStatusCancelled, PaymentStatusRefunded:
+		return true
+	}
+	return false
+}
+
+func (e PaymentStatus) String() string {
+	return string(e)
+}
+
+func (e *PaymentStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PaymentStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PaymentStatus", str)
+	}
+	return nil
+}
+
+func (e PaymentStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

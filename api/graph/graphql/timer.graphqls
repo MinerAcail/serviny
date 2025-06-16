@@ -23,6 +23,7 @@ extend type Query {
   getConfirmedBookings(id: String!): Boolean!
 
   getAppointmentBooking(bookId:String):AppointmentBooking!
+  getAppointmentBookingByMultiGroupId(multiGroupId:String):[AppointmentBooking!]!
 }
 input addBookCoordinateInput {
   bookId: String!
@@ -40,6 +41,7 @@ extend type Mutation {
   getGrowthData(id: String!): GrowthData
   createMultipleBookings(
     input: [BookerInput!]!
+    isMulti:Boolean
     serviceId: String!
   ): [AppointmentBooking!]!
   updateMultipleBookingsWithLocation(
@@ -90,6 +92,7 @@ type AppointmentBooking {
   userId: String!
   isConfirmed: Boolean
   userType: UserType!
+  multiGroupId: String
   createdAt: Time!
   updatedAt: Time!
 }

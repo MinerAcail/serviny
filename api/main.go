@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/lehxees/serviny/database"
+	Paystack "github.com/lehxees/serviny/database/payment"
 	"github.com/lehxees/serviny/database/redis"
 	generated "github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
@@ -48,17 +49,13 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.RidersRequest{},
 		&model.Order{},
 		&model.CartItem{},
-		
-		
+
 		&model.RouteInfo{},
 		&model.RiderRange{},
 		&model.Form{},
 		&model.FormField{},
 		&model.FormField{},
 		&model.FormSubmission{},
-
-
-
 
 		&model.AppointmentBooking{},
 		&model.UserBookings{},
@@ -77,6 +74,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Price{},
 		&model.Booker{},
 		&model.TimeSlot{},
+
+		&model.Payment{},
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
@@ -172,6 +171,23 @@ func main() {
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	router.Handle("/query", server)
 
+	// GET endpoint for testing in browser
+	router.Get("/paystack/test", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+		w.Write([]byte("✅ Paystack webhook endpoint is active!"))
+	})
+
+	// Paystack webhook route
+	// paystackHandler := Paystack.NewPaystackHandler(db, redisClient)
+	// graphqlEndpoint := fmt.Sprintf("http://localhost:%s", port)
+graphqlEndpoint := fmt.Sprintf("http://localhost:%s/query", port)
+// This creates: http://localhost:4003/query
+	paystackHandler := Paystack.NewPaystackHandler(db, redisClient, graphqlEndpoint)
+
+	router.Post("/paystack/webhook", paystackHandler.HandleWebhook)
+
 	log.Printf("Connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Printf("Paystack webhook endpoint: http://localhost:%s/webhook/paystack", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }

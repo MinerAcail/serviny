@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Check,
   Settings,
+  MapPin,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import { useAuth } from "@/middleware/context/authContext";
@@ -60,12 +64,14 @@ const GET_ALL_UNAVAILABLE_PERIODS = gql`
 const CREATE_MULTIPLE_BOOKINGS = gql`
   mutation CreateMultipleBookings(
     $input: [BookerInput!]!
+    $isMulti: Boolean
     $serviceId: String!
   ) {
-    createMultipleBookings(input: $input, serviceId: $serviceId) {
+    createMultipleBookings(input: $input, isMulti: $isMulti, serviceId: $serviceId) {
       id
       startTime
       endTime
+      multiGroupId
     }
   }
 `;
@@ -73,6 +79,14 @@ const CREATE_MULTIPLE_BOOKINGS = gql`
 interface UserData {
   notes: string;
   itemType?: string;
+}
+
+interface DeliveryItem {
+  id: string;
+  itemDescription: string;
+  deliveryAddress: string;
+  dropoffLocation: [number, number]; // [lat, lng]
+  notes: string;
 }
 
 interface UnavailablePeriod {
@@ -102,6 +116,14 @@ interface CompleteDeliveryOrderProps {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
   setOrderSize: React.Dispatch<React.SetStateAction<number>>;
+  isMultiLocation: boolean;
+  setIsMultiLocation: React.Dispatch<React.SetStateAction<boolean>>;
+  deliveryItems: DeliveryItem[];
+  handleDeliveryItemChange: (itemId: string, field: string, value: any) => void;
+  deliveryWaitTime: number;
+  increaseWaitTime: () => void;
+  decreaseWaitTime: () => void;
+  maxDeliveryWaitTime: number;
 }
 
 const defaultTimeSlots: string[] = [
@@ -130,6 +152,15 @@ const defaultTimeSlots: string[] = [
   "11 pm",
   "12 am",
 ];
+
+// Generate a simple UUID
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 // Convert 12-hour time format to 24-hour format
 const convertTo24Hour = (time: string): number => {
@@ -182,7 +213,8 @@ export const DeliveryServiceSystem = ({
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const { user } = useAuth();
   const userId = user?.id;
-const navigate = useNavigate();
+  const navigate = useNavigate();
+  
   // States for the delivery system
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     null
@@ -198,6 +230,19 @@ const navigate = useNavigate();
     notes: "",
     itemType: "",
   });
+  
+  // Multi-location delivery states
+  const [isMultiLocation, setIsMultiLocation] = useState<boolean>(false);
+  const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([
+    {
+      id: generateUUID(),
+      itemDescription: "",
+      deliveryAddress: "",
+      dropoffLocation: [0, 0], // [lat, lng]
+      notes: ""
+    }
+  ]);
+  
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
   const [datesPerPage] = useState(7);
@@ -266,45 +311,70 @@ const navigate = useNavigate();
     }
   }, [data]);
 
-  // Create delivery orders mutation
-// 1. First, update your mutation to capture the returned IDs
-const [createMultipleBookings, { loading: orderLoading }] = useMutation(
-  CREATE_MULTIPLE_BOOKINGS,
-  {
-    onCompleted: (data) => {
-      toast.success("Delivery order created successfully!");
-
-      setSuccessMessage("Delivery order created successfully!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-      
-      // Check if we have created bookings and get the first ID
-      const createdBookings = data.createMultipleBookings || [];
-      const firstBookingId = createdBookings.length > 0 ? createdBookings[0].id : null;
-      
-      setDeliverySegments([]);
-      setSelectedStartTime(null);
-      setDeliveryDates([]);
-      setDialogOpenMain(false);
-      
-      // Navigate with the new booking ID if available
-      if (firstBookingId) {
-        // navigate(`/zonex/${serviceId}?cid=${firstBookingId}`);
-           navigate(`/delivery/${serviceId}/${firstBookingId}`, {
-  // state: { order: result?.data?.createOrderItems },
-  replace: true
-})
-      } else {
-        navigate(`/zonex/${serviceId}`);
+  // Update delivery items when order size changes
+  useEffect(() => {
+    if (orderSize > deliveryItems.length) {
+      // Add new items
+      const newItems = [];
+      for (let i = deliveryItems.length; i < orderSize; i++) {
+        newItems.push({
+          id: generateUUID(),
+          itemDescription: "",
+          deliveryAddress: "",
+          dropoffLocation: [0, 0] as [number, number],
+          notes: ""
+        });
       }
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+      setDeliveryItems(prev => [...prev, ...newItems]);
+    } else if (orderSize < deliveryItems.length) {
+      // Remove excess items
+      setDeliveryItems(prev => prev.slice(0, orderSize));
+    }
+  }, [orderSize, deliveryItems.length]);
 
-      setErrorMessage(`Error: ${error.message}`);
-      setTimeout(() => setErrorMessage(""), 5000);
-    },
-  }
-);
+  // Reset multi-location when order size is 1
+  useEffect(() => {
+    if (orderSize === 1) {
+      setIsMultiLocation(false);
+    }
+  }, [orderSize]);
+
+  // Create delivery orders mutation
+  const [createMultipleBookings, { loading: orderLoading }] = useMutation(
+    CREATE_MULTIPLE_BOOKINGS,
+    {
+      onCompleted: (data) => {
+        toast.success("Delivery order created successfully!");
+
+        setSuccessMessage("Delivery order created successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+        
+        // Check if we have created bookings and get the first ID
+        const createdBookings = data.createMultipleBookings || [];
+        const firstBookingId = createdBookings.length > 0 ? createdBookings[0].id : null;
+        
+        setDeliverySegments([]);
+        setSelectedStartTime(null);
+        setDeliveryDates([]);
+        setDialogOpenMain(false);
+        
+        // Navigate with the new booking ID if available
+        if (firstBookingId) {
+          navigate(`/delivery/${serviceId}/${firstBookingId}`, {
+            replace: true
+          });
+        } else {
+          navigate(`/zonex/${serviceId}`);
+        }
+      },
+      onError: (error) => {
+        toast.error(`Error: ${error.message}`);
+
+        setErrorMessage(`Error: ${error.message}`);
+        setTimeout(() => setErrorMessage(""), 5000);
+      },
+    }
+  );
 
   // Generate dates for the current view, starting from today
   useEffect(() => {
@@ -512,6 +582,16 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleDeliveryItemChange = (itemId: string, field: string, value: any): void => {
+    setDeliveryItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, [field]: value }
+          : item
+      )
+    );
+  };
+
   const proceedToDeliveryDetails = (): void => {
     if (deliverySegments.length === 0) {
       setErrorMessage("Please select an order time");
@@ -540,28 +620,62 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
       return;
     }
 
+    // Validate multi-location items if enabled
+    if (isMultiLocation) {
+      const invalidItems = deliveryItems.some(item => 
+        !item.itemDescription.trim() || !item.deliveryAddress.trim()
+      );
+      
+      if (invalidItems) {
+        setErrorMessage("Please fill in all item descriptions and delivery addresses");
+        setTimeout(() => setErrorMessage(""), 3000);
+        return;
+      }
+    }
+
     // Prepare delivery inputs
-    const deliveryInputs = deliverySegments.map((segment) => ({
-      startTime: timeToISOString(segment.startDate, segment.startTime),
+    const multiGroupId = isMultiLocation ? generateUUID() : null;
+    
+    let deliveryInputs;
+    
+    if (isMultiLocation) {
+      // Create separate booking for each item with unique locations
+      deliveryInputs = deliveryItems.map((item) => ({
+        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
+        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        notes: item.notes,
+        tableSize: 1, // Each item is individual
+     
+      notes: userData.notes,
+      userId: userId,
+      userType: user.type,
+      item: userData.itemType,
+        multiGroupId: multiGroupId,
+      }));
+    } else {
+      // Single delivery
+      deliveryInputs = deliverySegments.map(segment => ({
+         startTime: timeToISOString(segment.startDate, segment.startTime),
       endTime: timeToISOString(segment.endDate, segment.endTime),
       notes: userData.notes,
       tableSize: orderSize, // Repurposed for order size
       userId: userId,
       userType: user.type,
-      item: userData.itemType, // Item property contains the item type
-    }));
+      item: userData.itemType,
+        multiGroupId: null,
+      }));
+    }
 
     // Call the mutation to create the delivery order
-
     createMultipleBookings({
       variables: {
         input: deliveryInputs,
+        isMulti: isMultiLocation,
         serviceId: serviceId,
       },
     });
 
     setIsDialogOpen(false);
-    // navigate(`/zoneX/${serviceId}`);
   };
 
   return (
@@ -774,6 +888,7 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
       <DeliveryTimeDialog
         decreaseWaitTime={decreaseWaitTime}
         increaseWaitTime={increaseWaitTime}
@@ -785,6 +900,7 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
         isOpen={isDialogOpenDeliverySetting}
         onContinue={proceedToDeliveryDetails}
       />
+      
       <CompleteDeliveryOrder
         isDialogOpen={isDialogOpen}
         setIsDialogOpen={setIsDialogOpen}
@@ -795,10 +911,19 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
         orderLoading={orderLoading}
         handleUserChange={handleUserChange}
         setOrderSize={setOrderSize}
+        isMultiLocation={isMultiLocation}
+        setIsMultiLocation={setIsMultiLocation}
+        deliveryItems={deliveryItems}
+        handleDeliveryItemChange={handleDeliveryItemChange}
+        deliveryWaitTime={deliveryWaitTime}
+        increaseWaitTime={increaseWaitTime}
+        decreaseWaitTime={decreaseWaitTime}
+        maxDeliveryWaitTime={maxDeliveryWaitTime}
       />
     </>
   );
 };
+
 export const DeliveryServiceSystemNew = ({
   isDialogOpenMain,
   setDialogOpenMain,
@@ -832,6 +957,19 @@ export const DeliveryServiceSystemNew = ({
     notes: "",
     itemType: "",
   });
+  
+  // Multi-location delivery states
+  const [isMultiLocation, setIsMultiLocation] = useState<boolean>(false);
+  const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([
+    {
+      id: generateUUID(),
+      itemDescription: "",
+      deliveryAddress: "",
+      dropoffLocation: [0, 0], // [lat, lng]
+      notes: ""
+    }
+  ]);
+  
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
   const [datesPerPage] = useState(7);
@@ -899,6 +1037,34 @@ export const DeliveryServiceSystemNew = ({
       setUnavailablePeriods(allUnavailablePeriods);
     }
   }, [data]);
+
+  // Update delivery items when order size changes
+  useEffect(() => {
+    if (orderSize > deliveryItems.length) {
+      // Add new items
+      const newItems = [];
+      for (let i = deliveryItems.length; i < orderSize; i++) {
+        newItems.push({
+          id: generateUUID(),
+          itemDescription: "",
+          deliveryAddress: "",
+          dropoffLocation: [0, 0] as [number, number],
+          notes: ""
+        });
+      }
+      setDeliveryItems(prev => [...prev, ...newItems]);
+    } else if (orderSize < deliveryItems.length) {
+      // Remove excess items
+      setDeliveryItems(prev => prev.slice(0, orderSize));
+    }
+  }, [orderSize, deliveryItems.length]);
+
+  // Reset multi-location when order size is 1
+  useEffect(() => {
+    if (orderSize === 1) {
+      setIsMultiLocation(false);
+    }
+  }, [orderSize]);
 
   // Create delivery orders mutation
   const [createMultipleBookings, { loading: orderLoading }] = useMutation(
@@ -1145,6 +1311,16 @@ export const DeliveryServiceSystemNew = ({
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleDeliveryItemChange = (itemId: string, field: string, value: any): void => {
+    setDeliveryItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, [field]: value }
+          : item
+      )
+    );
+  };
+
   const proceedToDeliveryDetails = (): void => {
     if (deliverySegments.length === 0) {
       setErrorMessage("Please select an order time");
@@ -1173,21 +1349,59 @@ export const DeliveryServiceSystemNew = ({
       return;
     }
 
+    // Validate multi-location items if enabled
+    if (isMultiLocation) {
+      const invalidItems = deliveryItems.some(item => 
+        !item.itemDescription.trim() || !item.deliveryAddress.trim()
+      );
+      
+      if (invalidItems) {
+        setErrorMessage("Please fill in all item descriptions and delivery addresses");
+        setTimeout(() => setErrorMessage(""), 3000);
+        return;
+      }
+    }
+
     // Prepare delivery inputs
-    const deliveryInputs = deliverySegments.map((segment) => ({
-      startTime: timeToISOString(segment.startDate, segment.startTime),
-      endTime: timeToISOString(segment.endDate, segment.endTime),
-      notes: userData.notes,
-      tableSize: orderSize, // Repurposed for order size
-      userId: userId,
-      userType: user.type,
-      item: userData.itemType, // Item property contains the item type
-    }));
+    const multiGroupId = isMultiLocation ? generateUUID() : null;
+    
+    let deliveryInputs;
+    
+    if (isMultiLocation) {
+      // Create separate booking for each item with unique locations
+      deliveryInputs = deliveryItems.map((item) => ({
+        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
+        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        notes: item.notes,
+        tableSize: 1, // Each item is individual
+        userId: userId,
+        userType: user.type,
+        item: item.itemDescription,
+        deliveryAddress: item.deliveryAddress,
+        dropoffLocation: item.dropoffLocation,
+        multiGroupId: multiGroupId,
+      }));
+    } else {
+      // Single delivery
+      deliveryInputs = deliverySegments.map(segment => ({
+        startTime: timeToISOString(segment.startDate, segment.startTime),
+        endTime: timeToISOString(segment.endDate, segment.endTime),
+        notes: userData.notes,
+        tableSize: orderSize, // Repurposed for order size
+        userId: userId,
+        userType: user.type,
+        item: userData.itemType, // Item property contains the item type
+        deliveryAddress: deliveryItems[0]?.deliveryAddress || "",
+        dropoffLocation: deliveryItems[0]?.dropoffLocation || [0, 0],
+        multiGroupId: null,
+      }));
+    }
 
     // Call the mutation to create the delivery order
     createMultipleBookings({
       variables: {
         input: deliveryInputs,
+        isMulti: isMultiLocation,
         serviceId: serviceId,
       },
     });
@@ -1448,6 +1662,14 @@ export const DeliveryServiceSystemNew = ({
           orderLoading={orderLoading}
           handleUserChange={handleUserChange}
           setOrderSize={setOrderSize}
+          isMultiLocation={isMultiLocation}
+          setIsMultiLocation={setIsMultiLocation}
+          deliveryItems={deliveryItems}
+          handleDeliveryItemChange={handleDeliveryItemChange}
+          deliveryWaitTime={deliveryWaitTime}
+          increaseWaitTime={increaseWaitTime}
+          decreaseWaitTime={decreaseWaitTime}
+          maxDeliveryWaitTime={maxDeliveryWaitTime}
         />
       </>
     );
@@ -1480,6 +1702,14 @@ export const DeliveryServiceSystemNew = ({
         orderLoading={orderLoading}
         handleUserChange={handleUserChange}
         setOrderSize={setOrderSize}
+        isMultiLocation={isMultiLocation}
+        setIsMultiLocation={setIsMultiLocation}
+        deliveryItems={deliveryItems}
+        handleDeliveryItemChange={handleDeliveryItemChange}
+        deliveryWaitTime={deliveryWaitTime}
+        increaseWaitTime={increaseWaitTime}
+        decreaseWaitTime={decreaseWaitTime}
+        maxDeliveryWaitTime={maxDeliveryWaitTime}
       />
     </div>
   );
@@ -1495,18 +1725,25 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
   orderLoading,
   handleUserChange,
   setOrderSize,
+  isMultiLocation,
+  setIsMultiLocation,
+  deliveryItems,
+  handleDeliveryItemChange,
+  deliveryWaitTime,
+  increaseWaitTime,
+  decreaseWaitTime,
+  maxDeliveryWaitTime,
 }) => {
-    
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogContent className="sm:max-w-md bg-white/95 backdrop-blur-sm border border-gray-100 shadow-xl rounded-2xl">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border border-gray-100 shadow-xl rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">
             Complete Your Order
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5 py-4">
+        <div className="space-y-5 py-4 px-6">
           {/* Delivery Time Summary */}
           <div className="mb-4">
             <h3 className="text-sm font-medium mb-3 flex items-center text-gray-900">
@@ -1532,16 +1769,27 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
             </div>
           </div>
 
-          {/* Order Details */}
-          <div className="space-y-4">
-            <div>
-              <Label
-                htmlFor="orderSize"
-                className="block mb-2 text-sm font-medium text-gray-900"
-              >
-                Number of Items
-              </Label>
-              <Select
+          {/* Order Size */}
+          <div>
+            <Label
+              htmlFor="orderSize"
+              className="block mb-2 text-sm font-medium text-gray-900"
+            >
+              Number of Items
+            </Label>
+            {/* <Select
+              value={orderSize.toString()}
+              onValueChange={(value) => setOrderSize(parseInt(value))}
+            >
+                <SelectContent className="rounded-xl border-gray-200">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size} {size === 1 ? "item" : "items"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+            </Select> */}
+     <Select
                 value={orderSize.toString()}
                 onValueChange={(value) => setOrderSize(parseInt(value))}
               >
@@ -1556,40 +1804,117 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label
-                htmlFor="itemType"
-                className="block mb-2 text-sm font-medium text-gray-900"
-              >
-                Item Type
-              </Label>
-              <Textarea
-                id="itemType"
-                name="itemType"
-                placeholder="Please describe your items..."
-                value={userData.itemType}
-                onChange={handleUserChange}
-                className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 min-h-[50px] resize-none"
-              />
-            </div>
-            <div>
-              <Label
-                htmlFor="notes"
-                className="block mb-2 text-sm font-medium text-gray-900"
-              >
-                Item Description & Special Instructions
-              </Label>
-              <Textarea
-                id="notes"
-                name="notes"
-                value={userData.notes}
-                onChange={handleUserChange}
-                placeholder="Please describe your items and any special delivery instructions..."
-                className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 min-h-[100px] resize-none"
-              />
-            </div>
+       
           </div>
+
+          {/* Multi-location toggle (only show if more than 1 item) */}
+          {orderSize > 1 && (
+            <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-200">
+              <div className="flex items-center space-x-3">
+                <MapPin className="h-5 w-5 text-amber-600" />
+                <div>
+                  <Label className="text-sm font-medium text-amber-900">
+                    Are these going to different locations?
+                  </Label>
+                  <p className="text-xs text-amber-700">
+                    Enable if items need to be delivered to separate addresses
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={isMultiLocation}
+                onCheckedChange={setIsMultiLocation}
+              />
+            </div>
+          )}
+
+          {/* Delivery Items */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-gray-900">
+              {isMultiLocation ? "Delivery Details (Per Item)" : "Delivery Details"}
+            </h3>
+            
+            {isMultiLocation ? (
+              // Multi-location: Show form for each item
+              <div className="space-y-4">
+                {deliveryItems.map((item, index) => (
+                  <Card key={item.id} className="border border-gray-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-900">
+                          Item {index + 1}
+                        </h4>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs font-medium text-gray-700">
+                            Item Description
+                          </Label>
+                          <Input
+                            placeholder="Describe this item..."
+                            value={item.itemDescription}
+                            onChange={(e) => handleDeliveryItemChange(item.id, 'itemDescription', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                       
+                        
+                        <div>
+                          <Label className="text-xs font-medium text-gray-700">
+                            Special Instructions
+                          </Label>
+                          <Textarea
+                            placeholder="Any special delivery instructions for this item..."
+                            value={item.notes}
+                            onChange={(e) => handleDeliveryItemChange(item.id, 'notes', e.target.value)}
+                            className="mt-1 min-h-[60px] resize-none"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              // Single location: Show unified form
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="itemType" className="block mb-2 text-sm font-medium text-gray-900">
+                    Item Description
+                  </Label>
+                  <Textarea
+                    id="itemType"
+                    name="itemType"
+                    placeholder="Please describe your items..."
+                    value={userData.itemType}
+                    onChange={handleUserChange}
+                    className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 min-h-[50px] resize-none"
+                  />
+                </div>
+                
+               
+                
+                <div>
+                  <Label htmlFor="notes" className="block mb-2 text-sm font-medium text-gray-900">
+                    Special Instructions
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    value={userData.notes}
+                    onChange={handleUserChange}
+                    placeholder="Any special delivery instructions..."
+                    className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 min-h-[100px] resize-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Wait Time Settings remove it no neeed for it here*/}
+         
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-3 mt-2">

@@ -54,6 +54,7 @@ const router = createBrowserRouter([
       { path: "/merge/:serviceId", element: <CheckType /> },
       { path: "view/:id", element: <FormPage /> },
       { path: "views", element: <SubmissionsViewer /> },
+      { path: "pay", element: <PaystackPage /> },
 
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <ImprovedServiceProvider /> },
@@ -186,6 +187,7 @@ import SubmissionsViewer from "@/components/user/formBuilder/submissionsViewer";
 import FormAndRequestTabs from "@/components/user/formBuilder/tabbed-forms";
 import BusinessTypeSelector from "@/components/serviceProviders/createProvider/business-type-selector";
 import UserServiceViewer from "@/components/custom/USER_MAP_WORK/viewService";
+import PaystackPage from "@/components/PAYMENT/Paystack";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

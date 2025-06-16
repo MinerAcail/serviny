@@ -1,0 +1,173 @@
+# Payment-related GraphQL schema
+# All payment operations are READ-ONLY via GraphQL
+# Payment mutations are handled exclusively via Paystack webhooks
+# Only for Ghana Cedis (GHS)
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+  USSD
+  QR
+}
+
+type Payment {
+  id: String!
+  createdAt: Time!
+  
+  # Order or bookings relationship
+  orderID: String!
+  
+  # Paystack details
+  paystackID: Int!
+  paystackReference: String!
+  
+  # Payment details
+  amount: Int! # Amount in Ghana pesewa (cents)
+  currency: String!
+  method: PaymentMethod!
+  status: PaymentStatus!
+  
+  # Timestamps
+  paidAt: Time
+  failedAt: Time
+  cancelledAt: Time
+  refundedAt: Time
+  
+  # Transaction details
+  gatewayResponse: String
+  failureReason: String
+  
+  # Customer information
+  customerEmail: String!
+  customerName: String!
+  customerPhone: String
+  customerCode: String
+  
+  # Card details (for card payments)
+  authorizationCode: String
+  cardLast4: String
+  cardBin: String
+  cardType: String
+  cardBank: String
+  cardBrand: String
+  cardExpMonth: String
+  cardExpYear: String
+  
+  # Metadata
+  metadata: String
+  webhookVerified: Boolean!
+  
+  # Computed fields
+  isSuccessful: Boolean!
+  isPending: Boolean!
+  isFailed: Boolean!
+  isRefunded: Boolean!
+}
+
+# Input for filtering payments
+input PaymentFilter {
+  orderID: String
+  status: PaymentStatus
+  method: PaymentMethod
+  customerEmail: String
+  amountRange: AmountRange
+  dateRange: DateRange
+}
+
+input AmountRange {
+  min: Int
+  max: Int
+}
+
+input DateRange {
+  from: Time
+  to: Time
+}
+
+# Pagination for payments
+type PaymentConnection {
+  edges: [PaymentEdge!]!
+  totalCount: Int!
+}
+
+type PaymentEdge {
+  node: Payment!
+  cursor: String!
+}
+
+# Payment summary for analytics
+type PaymentSummary {
+  totalPayments: Int!
+  successfulPayments: Int!
+  failedPayments: Int!
+  pendingPayments: Int!
+  totalAmount: Int! # In pesewa (Ghana cents)
+  totalAmountInCedis: Float!
+  averageAmount: Float!
+}
+
+# Extend the main Query type
+extend type Query {
+  # Get a specific payment by ID
+  payment(id: ID!): Payment
+  
+  # Get payments with filtering and pagination
+  payments(
+    filter: PaymentFilter
+    first: Int
+    after: String
+    orderBy: PaymentOrderBy
+  ): PaymentConnection!
+  
+  # Get all payments for a specific order
+  paymentsByOrder(orderID: String!): [Payment!]!
+  getAllPayments: [Payment!]!
+  
+  # Get the successful payment for an order (if any)
+  successfulPaymentForOrder(orderID: String!): Payment
+  
+  # Check if an order has been paid successfully
+  isOrderPaid(orderID: String!): Boolean!
+  
+  # Get payment summary/analytics
+  paymentSummary(
+    filter: PaymentFilter
+    dateRange: DateRange
+  ): PaymentSummary!
+  
+  # Get payment methods summary
+  paymentMethodsSummary(dateRange: DateRange): [PaymentMethodSummary!]!
+}
+
+input PaymentOrderBy {
+  field: PaymentOrderField!
+  direction: OrderDirection!
+}
+
+enum PaymentOrderField {
+  CREATED_AT
+  PAID_AT
+  AMOUNT
+  STATUS
+}
+
+enum OrderDirection {
+  ASC
+  DESC
+}
+
+type PaymentMethodSummary {
+  method: PaymentMethod!
+  count: Int!
+  totalAmount: Int!
+  successRate: Float! # Percentage
+}

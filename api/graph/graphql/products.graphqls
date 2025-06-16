@@ -155,6 +155,8 @@ extend type Query {
   getAllProductsByAdmin: [ProductInfor!]!
   getNewAddedProducts: [Product!]!
   getOrder(id: String!): Order!
+  getOrderDetails(orderId:String!): Order
+  
   getAllOrderS: [Order]
   getAllOrderHistory: [Order]
   getAllOrderItemsByProductId(orderId: String!): CartItemOrder
