@@ -24,6 +24,7 @@ extend type Query {
 
   getAppointmentBooking(bookId:String):AppointmentBooking!
   getAppointmentBookingByMultiGroupId(multiGroupId:String):[AppointmentBooking!]!
+  getMultiGroupedAppointmentBookingBybookId(bookId:String):[AppointmentBooking!]!
 }
 input addBookCoordinateInput {
   bookId: String!
@@ -47,6 +48,9 @@ extend type Mutation {
   updateMultipleBookingsWithLocation(
     input: addBookCoordinateInput!
   ): AppointmentBooking!
+  updateMultiGroupBookingsWithLocationBybookId(
+    input: [addBookCoordinateInput]!
+  ): [AppointmentBooking]!
   confirmBooking(id: String!): AppointmentBooking!
 
   deleteBooking(id: String!): Boolean

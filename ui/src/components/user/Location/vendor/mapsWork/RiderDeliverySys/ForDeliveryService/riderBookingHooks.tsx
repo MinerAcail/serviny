@@ -2481,3 +2481,466 @@ export function CompleteStepWithTracking({
     </div>
   );
 }
+
+
+// ==========================================
+// UPDATED: Multi-Delivery Hooks for Existing Bookings
+// ==========================================
+
+// import { gql, useQuery, useMutation } from "@apollo/client";
+// import { useCallback } from "react";
+// import { toast } from "sonner";
+import { MultiDeliveryItem } from "./multiBookingLocationsetting/riderBookingMultiDeliveryRequest";
+
+// ==========================================
+// GraphQL Queries and Mutations
+// ==========================================
+
+// NEW: Query to get multi-grouped bookings by bookID
+export const GET_MULTI_GROUPED_BOOKINGS = gql`
+  query GetMultiGroupedAppointmentBookingBybookId($bookId: String!) {
+    getMultiGroupedAppointmentBookingBybookId(bookId: $bookId) {
+      id
+      startTime
+      endTime
+      dropoffLocation
+      pickupLocation
+      deliveryAddress
+      item
+      notes
+      tableSize
+      multiGroupId
+      serviceId
+      riderId
+      isConfirmed
+      updatedAt
+    }
+  }
+`;
+
+// NEW: Mutation to update multi-group bookings with locations
+export const UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION = gql`
+  mutation UpdateMultiGroupBookingsWithLocationBybookId($input: [addBookCoordinateInput!]!) {
+    updateMultiGroupBookingsWithLocationBybookId(input: $input) {
+      id
+      startTime
+      endTime
+      dropoffLocation
+      pickupLocation
+      deliveryAddress
+      item
+      notes
+      tableSize
+      distance
+      duration
+      deliveryFee
+      isConfirmed
+      riderId
+      serviceId
+      updatedAt
+    }
+  }
+`;
+
+// ==========================================
+// Types for Multi-Group Booking Updates
+// ==========================================
+
+export interface MultiGroupBooking {
+  id: string;
+  startTime: string;
+  endTime: string;
+  dropoffLocation?: number[];
+  pickupLocation?: number[];
+  deliveryAddress?: string;
+  item?: string;
+  notes?: string;
+  tableSize: number;
+  multiGroupId?: string;
+  serviceId: string;
+  riderId?: string;
+  isConfirmed?: boolean;
+  distance?: string;
+  duration?: string;
+  deliveryFee?: string;
+  updatedAt: string;
+}
+
+export interface UpdateBookingLocationInput {
+  bookId: string;
+  deliveryAddress?: string;
+  dropoffLocation?: number[]; // [lng, lat]
+  pickupLocation?: number[]; // [lng, lat]
+  rangeMetaId?: string;
+  ridersId?: string;
+}
+
+// ==========================================
+// UPDATED: useMultiGroupBookingManagement Hook
+// ==========================================
+export function useMultiGroupBookingManagement(bookId?: string) {
+  // Query to get existing multi-group bookings
+  const {
+    data: multiGroupData,
+    loading: isLoadingBookings,
+    error: bookingsError,
+    refetch: refetchBookings,
+  } = useQuery(GET_MULTI_GROUPED_BOOKINGS, {
+    variables: { bookId: bookId || "" },
+    skip: !bookId,
+    onError: (error) => {
+      console.error("Error loading multi-group bookings:", error);
+      toast.error("Failed to load existing bookings");
+    },
+  });
+
+  // Mutation to update bookings with locations
+  const [updateMultiGroupBookings, { loading: isUpdatingBookings }] = useMutation(
+    UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION,
+    {
+      onError: (error) => {
+        console.error("Error updating multi-group bookings:", error);
+        toast.error("Failed to update booking locations");
+      },
+    }
+  );
+
+  const updateBookingsWithLocations = useCallback(
+    async (inputs: UpdateBookingLocationInput[]) => {
+      try {
+        console.log("🔄 Updating multi-group bookings with locations:", inputs);
+
+        const result = await updateMultiGroupBookings({
+          variables: { input: inputs },
+        });
+
+        if (result?.data?.updateMultiGroupBookingsWithLocationBybookId) {
+          const updatedBookings = result.data.updateMultiGroupBookingsWithLocationBybookId;
+          
+          toast.success("Booking locations updated successfully!", {
+            description: `${updatedBookings.length} bookings updated`,
+            duration: 4000,
+          });
+
+          // Refetch to get latest data
+          await refetchBookings();
+
+          return updatedBookings;
+        }
+
+        throw new Error("No data returned from mutation");
+      } catch (error: any) {
+        console.error("Update multi-group bookings error:", error);
+        
+        let errorMessage = "Failed to update booking locations";
+        if (error.graphQLErrors?.length > 0) {
+          errorMessage = error.graphQLErrors[0].message;
+        } else if (error.networkError) {
+          errorMessage = "Network error - please check your connection";
+        }
+
+        toast.error(errorMessage, { duration: 5000 });
+        throw error;
+      }
+    },
+    [updateMultiGroupBookings, refetchBookings]
+  );
+
+  return {
+    // Existing bookings data
+    multiGroupBookings: multiGroupData?.getMultiGroupedAppointmentBookingBybookId || [],
+    isLoadingBookings,
+    bookingsError: bookingsError?.message,
+    
+    // Update functionality
+    updateBookingsWithLocations,
+    isUpdatingBookings,
+    
+    // Refetch function
+    refetchBookings,
+  };
+}
+
+// ==========================================
+// HELPER: Convert Multi-Group Bookings to Delivery Items
+// ==========================================
+export function convertBookingsToDeliveryItems(bookings: MultiGroupBooking[]): MultiDeliveryItem[] {
+  return bookings.map((booking, index) => ({
+    id: booking.id,
+    itemDescription: booking.item || `Item ${index + 1}`,
+    deliveryAddress: booking.deliveryAddress || "",
+    dropoffLocation: booking.dropoffLocation 
+      ? [booking.dropoffLocation[1], booking.dropoffLocation[0]] // Convert lng,lat to lat,lng
+      : [0, 0] as [number, number],
+    notes: booking.notes || "",
+    // Add calculated data if available
+    calculated: booking.distance && booking.deliveryFee ? {
+      distance: parseFloat(booking.distance),
+      duration: booking.duration || "Unknown",
+      price: parseFloat(booking.deliveryFee),
+    } : undefined,
+  }));
+}
+
+// ==========================================
+// HELPER: Convert Delivery Items to Update Inputs
+// ==========================================
+export function convertDeliveryItemsToUpdateInputs(
+  deliveryItems: MultiDeliveryItem[],
+  pickupLocation: Location,
+  riderId?: string,
+  rangeMetaId?: string
+): UpdateBookingLocationInput[] {
+  return deliveryItems.map((item) => ({
+    bookId: item.id,
+    deliveryAddress: item.deliveryAddress,
+    dropoffLocation: [item.dropoffLocation[1], item.dropoffLocation[0]], // Convert lat,lng to lng,lat
+    pickupLocation: [pickupLocation.lng, pickupLocation.lat],
+    ...(riderId && { ridersId: riderId }),
+    ...(rangeMetaId && { rangeMetaId }),
+  }));
+}
+
+// ==========================================
+// UPDATED: useMultiDeliveryCalculation Hook
+// ==========================================
+export function useMultiDeliveryCalculation() {
+  const [totalCalculations, setTotalCalculations] = useState<{
+    totalDistance: number;
+    totalPrice: number;
+    averageDuration: string;
+    itemCalculations: Array<{
+      id: string;
+      distance: number;
+      duration: string;
+      price: number;
+    }>;
+  } | null>(null);
+  
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const calculateMultiDeliveryPricing = useCallback(
+    async (pickup: Location, deliveryItems: MultiDeliveryItem[], zones: PricingZone[]) => {
+      if (!pickup || deliveryItems.length === 0 || zones.length === 0) {
+        setError("Missing required data for calculation");
+        return null;
+      }
+
+      setIsCalculating(true);
+      setError(null);
+
+      try {
+        const itemCalculations = [];
+        let totalDistance = 0;
+        let totalPrice = 0;
+        const durations = [];
+
+        for (const item of deliveryItems) {
+          // Skip items without valid coordinates
+          if (item.dropoffLocation[0] === 0 && item.dropoffLocation[1] === 0) {
+            continue;
+          }
+
+          // Use existing calculated data if available
+          if (item.calculated) {
+            const itemCalc = {
+              id: item.id,
+              distance: item.calculated.distance,
+              duration: item.calculated.duration,
+              price: item.calculated.price,
+            };
+
+            itemCalculations.push(itemCalc);
+            totalDistance += item.calculated.distance;
+            totalPrice += item.calculated.price;
+            durations.push(item.calculated.duration);
+          } else {
+            // Calculate new pricing using existing delivery calculation
+            const dropoffLocation: Location = {
+              lat: item.dropoffLocation[0],
+              lng: item.dropoffLocation[1],
+              address: item.deliveryAddress,
+            };
+
+            // Use turf for distance calculation
+            const from = turf.point([pickup.lng, pickup.lat]);
+            const to = turf.point([dropoffLocation.lng, dropoffLocation.lat]);
+            const distance = turf.distance(from, to, { units: "kilometers" });
+
+            // Find matching pricing zone
+            const matchedZone = zones.find(
+              (zone) => distance >= zone.startKm && distance < zone.endKm
+            ) || zones[zones.length - 1];
+
+            if (matchedZone) {
+              const averageSpeed = 25; // km/h
+              const durationMinutes = Math.round((distance / averageSpeed) * 60);
+              const duration = durationMinutes < 60
+                ? `${durationMinutes} min`
+                : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+
+              const itemCalc = {
+                id: item.id,
+                distance: Number(distance.toFixed(2)),
+                duration,
+                price: matchedZone.price,
+              };
+
+              itemCalculations.push(itemCalc);
+              totalDistance += itemCalc.distance;
+              totalPrice += itemCalc.price;
+              durations.push(duration);
+            }
+          }
+        }
+
+        if (itemCalculations.length > 0) {
+          const averageDuration = durations[0]; // Simplified
+
+          const result = {
+            totalDistance: Number(totalDistance.toFixed(2)),
+            totalPrice,
+            averageDuration,
+            itemCalculations,
+          };
+
+          setTotalCalculations(result);
+
+          toast.success("Multi-delivery calculated!", {
+            description: `${itemCalculations.length} items • Total: $${totalPrice.toFixed(2)}`,
+            duration: 3000,
+          });
+
+          return result;
+        }
+
+        setError("No valid delivery items to calculate");
+        return null;
+      } catch (error) {
+        console.error("Multi-delivery calculation error:", error);
+        setError("Failed to calculate multi-delivery pricing");
+        return null;
+      } finally {
+        setIsCalculating(false);
+      }
+    },
+    []
+  );
+
+  const clearCalculations = useCallback(() => {
+    setTotalCalculations(null);
+    setError(null);
+  }, []);
+
+  return {
+    totalCalculations,
+    isCalculating,
+    error,
+    calculateMultiDeliveryPricing,
+    clearCalculations,
+  };
+}
+
+// ==========================================
+// UPDATED: Multi-Delivery State Manager
+// ==========================================
+export function useMultiDeliveryState(bookId?: string) {
+  const [pickupLocation, setPickupLocation] = useState<Location | null>(null);
+  const [deliveryItems, setDeliveryItems] = useState<MultiDeliveryItem[]>([]);
+  const [hasLoadedFromBookings, setHasLoadedFromBookings] = useState(false);
+
+  // Get existing bookings
+  const {
+    multiGroupBookings,
+    isLoadingBookings,
+    bookingsError,
+    updateBookingsWithLocations,
+    isUpdatingBookings,
+    refetchBookings,
+  } = useMultiGroupBookingManagement(bookId);
+
+  // Load data from existing bookings when available
+  useEffect(() => {
+    if (multiGroupBookings.length > 0 && !hasLoadedFromBookings) {
+      console.log("📦 Loading existing multi-group bookings:", multiGroupBookings);
+
+      // Set pickup location from first booking (they should all have the same pickup)
+      const firstBooking = multiGroupBookings[0];
+      if (firstBooking.pickupLocation && firstBooking.pickupLocation.length >= 2) {
+        const pickup: Location = {
+          lng: firstBooking.pickupLocation[0],
+          lat: firstBooking.pickupLocation[1],
+          address: "Pickup Location (Zone Center)",
+        };
+        setPickupLocation(pickup);
+      }
+
+      // Convert bookings to delivery items
+      const items = convertBookingsToDeliveryItems(multiGroupBookings);
+      setDeliveryItems(items);
+      setHasLoadedFromBookings(true);
+
+      toast.success(`Loaded ${items.length} existing deliveries`, {
+        description: "You can edit locations and update the bookings",
+      });
+    }
+  }, [multiGroupBookings, hasLoadedFromBookings]);
+
+  const updatePickupLocation = useCallback((location: Location | null) => {
+    setPickupLocation(location);
+  }, []);
+
+  const updateDeliveryItems = useCallback((items: MultiDeliveryItem[]) => {
+    setDeliveryItems(items);
+  }, []);
+
+  const clearAllData = useCallback(() => {
+    setPickupLocation(null);
+    setDeliveryItems([]);
+    setHasLoadedFromBookings(false);
+  }, []);
+
+  // Update bookings with new location data
+  const updateBookingLocations = useCallback(
+    async (riderId?: string, rangeMetaId?: string) => {
+      if (!pickupLocation || deliveryItems.length === 0) {
+        throw new Error("Pickup location and delivery items are required");
+      }
+
+      const updateInputs = convertDeliveryItemsToUpdateInputs(
+        deliveryItems,
+        pickupLocation,
+        riderId,
+        rangeMetaId
+      );
+
+      return await updateBookingsWithLocations(updateInputs);
+    },
+    [pickupLocation, deliveryItems, updateBookingsWithLocations]
+  );
+
+  return {
+    // State
+    pickupLocation,
+    deliveryItems,
+    
+    // Loading states
+    isLoadingBookings,
+    isUpdatingBookings,
+    
+    // Errors
+    bookingsError,
+    
+    // Data
+    multiGroupBookings,
+    hasLoadedFromBookings,
+    
+    // Actions
+    updatePickupLocation,
+    updateDeliveryItems,
+    clearAllData,
+    updateBookingLocations,
+    refetchBookings,
+  };
+}

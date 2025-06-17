@@ -403,132 +403,133 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddAmenity                         func(childComplexity int, priceCardID string, amenity model.AmenityInput) int
-		AddPolicyDetail                    func(childComplexity int, policyID string, input model.PolicyDetailInput) int
-		AddPrice                           func(childComplexity int, priceCardID string, price model.PriceInput) int
-		AddProductToCategoryBox            func(childComplexity int, input []*model.CategoryBoxInput) int
-		AdminLogin                         func(childComplexity int, input model.LoginInput) int
-		BookEvent                          func(childComplexity int, eventID string, userID string) int
-		BulkDeleteForms                    func(childComplexity int, ids []string) int
-		BulkDeleteSubmissions              func(childComplexity int, ids []string) int
-		CancelBooker                       func(childComplexity int, id string) int
-		CancelBookings                     func(childComplexity int, bookingsID string) int
-		CancelUserBookings                 func(childComplexity int, bookTypeID string, userID string) int
-		ClearCart                          func(childComplexity int) int
-		ClearLocalStore                    func(childComplexity int, orderID *string) int
-		ConfirmBooking                     func(childComplexity int, id string) int
-		CraeteRider                        func(childComplexity int, dpfile *graphql.Upload, idCardfiles []*graphql.Upload, input *model.RiderInput) int
-		CreateAdmin                        func(childComplexity int, input model.CreateAdminInput) int
-		CreateBooker                       func(childComplexity int, input model.BookersInput, serviceID string) int
-		CreateCategory                     func(childComplexity int, input model.CategoryInput) int
-		CreateCategoryBox                  func(childComplexity int, name *string) int
-		CreateEvent                        func(childComplexity int, input model.EventInput) int
-		CreateFavorite                     func(childComplexity int, input *model.CreateFavoriteInput) int
-		CreateForm                         func(childComplexity int, input model.CreateFormInput) int
-		CreateGallery                      func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput) int
-		CreateMultipleBookings             func(childComplexity int, input []*model.BookerInput, isMulti *bool, serviceID string) int
-		CreateOrderItems                   func(childComplexity int, input []*model.OrderInput) int
-		CreatePolicy                       func(childComplexity int, input model.CreatePolicyInput) int
-		CreatePriceCard                    func(childComplexity int, input model.PriceCardInput) int
-		CreateRecurringEvents              func(childComplexity int, input model.EventInput, endDate time.Time) int
-		CreateRentalItem                   func(childComplexity int, input model.RentalInput) int
-		CreateRiderRange                   func(childComplexity int, input model.NewRiderRangeInput) int
-		CreateService                      func(childComplexity int, dpfile *graphql.Upload, input model.CreateServiceInput) int
-		CreateSocialMedia                  func(childComplexity int, input *model.SocialMediaInput) int
-		CreateTimeSlot                     func(childComplexity int, input model.TimeSlotInput) int
-		CreateUnavailablePeriod            func(childComplexity int, input model.CreateUnavailablePeriodInput) int
-		CreateUser                         func(childComplexity int, input model.InputUser) int
-		DeleteAdmin                        func(childComplexity int, id string) int
-		DeleteAll                          func(childComplexity int) int
-		DeleteAllChatMessageByNumber       func(childComplexity int, customerNumber string) int
-		DeleteAllOrderItems                func(childComplexity int, orderID []string) int
-		DeleteAllRequestItems              func(childComplexity int) int
-		DeleteAllRouteData                 func(childComplexity int) int
-		DeleteBooking                      func(childComplexity int, id string) int
-		DeleteCategory                     func(childComplexity int, id string) int
-		DeleteCategoryBox                  func(childComplexity int, categoryID string) int
-		DeleteEvent                        func(childComplexity int, id string) int
-		DeleteForm                         func(childComplexity int, id string) int
-		DeleteGallery                      func(childComplexity int, id string) int
-		DeleteInventoryItem                func(childComplexity int, id string) int
-		DeleteOrderItems                   func(childComplexity int, orderID string) int
-		DeletePolicy                       func(childComplexity int, policyID string) int
-		DeletePriceCard                    func(childComplexity int, priceCardID string) int
-		DeleteProduct                      func(childComplexity int, id string) int
-		DeleteProductByAdmin               func(childComplexity int, productID string) int
-		DeleteRentalItem                   func(childComplexity int, id string) int
-		DeleteRequestItem                  func(childComplexity int, requestID string) int
-		DeleteRider                        func(childComplexity int, id string) int
-		DeleteRiderRange                   func(childComplexity int, id string) int
-		DeleteService                      func(childComplexity int, id string) int
-		DeleteSubmission                   func(childComplexity int, id string) int
-		DeleteTable                        func(childComplexity int) int
-		DeleteUnavailablePeriod            func(childComplexity int, id string) int
-		DeleteUserByID                     func(childComplexity int, id string) int
-		DeliveryLogin                      func(childComplexity int, input *model.LoginInput) int
-		DuplicateForm                      func(childComplexity int, id string, title *string) int
-		ExportFormSubmissions              func(childComplexity int, formID string, format *string) int
-		GenerateBookRoute                  func(childComplexity int, input model.GenerateBookRouteInput) int
-		GenerateIsochrone                  func(childComplexity int, input model.IsochroneInput) int
-		GenerateRoute                      func(childComplexity int, input model.GenerateRouteInput) int
-		GenerateSubDomain                  func(childComplexity int, serviceID string) int
-		GetGrowthData                      func(childComplexity int, id string) int
-		JobRequest                         func(childComplexity int, serviceID string, input model.RidersRequestInput) int
-		LogOut                             func(childComplexity int) int
-		ManageCacheIsochrone               func(childComplexity int, input model.CacheManagementInput) int
-		MarkMessagesAsRead                 func(childComplexity int, sender model.SenderType) int
-		ReSetPasswordORUpdateOtp           func(childComplexity int, input model.RequestOtpInput) int
-		RemoveAmenity                      func(childComplexity int, priceCardID string, amenityID string) int
-		RemovePrice                        func(childComplexity int, priceCardID string, id string) int
-		RemoveProductFromCategoryBox       func(childComplexity int, categoryID string, productID string) int
-		RequestForResetOtp                 func(childComplexity int, input model.ResetPassWordOtpInput) int
-		RequestItem                        func(childComplexity int, input model.RequestInput) int
-		RequestOtp                         func(childComplexity int, input model.RequestOtpInput) int
-		ResendOtp                          func(childComplexity int, input model.RequestOtpInput) int
-		ResetPassword                      func(childComplexity int, input model.ResetPasswordInput) int
-		RiderGoOffline                     func(childComplexity int) int
-		RiderGoOnline                      func(childComplexity int) int
-		SendChatMessage                    func(childComplexity int, input model.ChatMessageInput, orderID *string) int
-		SendChatMessageByNumber            func(childComplexity int, input model.ChatMessageAdminInput) int
-		ServiceLogin                       func(childComplexity int, input model.LoginInput) int
-		StarOrStoptLocationTracking        func(childComplexity int, isTracking bool) int
-		SubmitForm                         func(childComplexity int, input model.FormSubmissionInput, signImage []*graphql.Upload) int
-		UpdateAdmin                        func(childComplexity int, id string, input model.UpdateAdminInput) int
-		UpdateAdminStatus                  func(childComplexity int, id string, status string) int
-		UpdateAmenity                      func(childComplexity int, priceCardID string, amenityID string, text string) int
-		UpdateBookRoute                    func(childComplexity int, orderID string, status string) int
-		UpdateBooker                       func(childComplexity int, id string, input model.BookersInput) int
-		UpdateBookingType                  func(childComplexity int, typeArg model.BookingType) int
-		UpdateCategory                     func(childComplexity int, id string, input model.CategoryInput) int
-		UpdateEvent                        func(childComplexity int, input model.UpdateEventInput, eventID string) int
-		UpdateForm                         func(childComplexity int, input model.UpdateFormInput) int
-		UpdateGallery                      func(childComplexity int, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) int
-		UpdateInventoryItem                func(childComplexity int, id string, input model.InventoryItemInput, file graphql.Upload) int
-		UpdateMultipleBookingsWithLocation func(childComplexity int, input model.AddBookCoordinateInput) int
-		UpdateOrderRoute                   func(childComplexity int, orderID string, status string) int
-		UpdateOrderStatus                  func(childComplexity int, orderID *string, status string) int
-		UpdateOrderbyUser                  func(childComplexity int, orderID *string) int
-		UpdatePolicy                       func(childComplexity int, policyID *string, detailID *string, input *model.UpdatePolicyInput) int
-		UpdatePrice                        func(childComplexity int, cardID string, priceCardID string, input model.PriceInput) int
-		UpdatePriceCard                    func(childComplexity int, input model.UpdatePriceCardInput, priceCardID *string) int
-		UpdateProductByAdmin               func(childComplexity int, productID string, input model.ProductInputUpdate) int
-		UpdateRentalItem                   func(childComplexity int, id string, input model.RentalInput) int
-		UpdateRequestItemStatus            func(childComplexity int, requestID string, status model.ProductState) int
-		UpdateRider                        func(childComplexity int, id string, input model.RiderInput) int
-		UpdateRiderLocation                func(childComplexity int, coordinates []float64) int
-		UpdateRiderOnlineStatus            func(childComplexity int, status model.RiderStatus) int
-		UpdateRiderRange                   func(childComplexity int, input model.UpdateRiderRangeInput) int
-		UpdateRiderStatus                  func(childComplexity int, id string, status string) int
-		UpdateService                      func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
-		UpdateStateByServiceProvider       func(childComplexity int, riderID string, state *string) int
-		UpdateSubmissionStatus             func(childComplexity int, id string, status model.SubmissionStatus) int
-		UpdateUserByID                     func(childComplexity int, id string, input *model.InputUpdateUser) int
-		UpdateWithLocation                 func(childComplexity int, input model.AddCoordinateInput) int
-		UseGetRiderTracking                func(childComplexity int) int
-		UseTheme                           func(childComplexity int, serviceID string, theme *string) int
-		UserBookings                       func(childComplexity int, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) int
-		VendorUpload                       func(childComplexity int, files []*graphql.Upload, input model.ProductInput) int
-		VerifyOtp                          func(childComplexity int, input model.VerifyOtpInput) int
+		AddAmenity                                   func(childComplexity int, priceCardID string, amenity model.AmenityInput) int
+		AddPolicyDetail                              func(childComplexity int, policyID string, input model.PolicyDetailInput) int
+		AddPrice                                     func(childComplexity int, priceCardID string, price model.PriceInput) int
+		AddProductToCategoryBox                      func(childComplexity int, input []*model.CategoryBoxInput) int
+		AdminLogin                                   func(childComplexity int, input model.LoginInput) int
+		BookEvent                                    func(childComplexity int, eventID string, userID string) int
+		BulkDeleteForms                              func(childComplexity int, ids []string) int
+		BulkDeleteSubmissions                        func(childComplexity int, ids []string) int
+		CancelBooker                                 func(childComplexity int, id string) int
+		CancelBookings                               func(childComplexity int, bookingsID string) int
+		CancelUserBookings                           func(childComplexity int, bookTypeID string, userID string) int
+		ClearCart                                    func(childComplexity int) int
+		ClearLocalStore                              func(childComplexity int, orderID *string) int
+		ConfirmBooking                               func(childComplexity int, id string) int
+		CraeteRider                                  func(childComplexity int, dpfile *graphql.Upload, idCardfiles []*graphql.Upload, input *model.RiderInput) int
+		CreateAdmin                                  func(childComplexity int, input model.CreateAdminInput) int
+		CreateBooker                                 func(childComplexity int, input model.BookersInput, serviceID string) int
+		CreateCategory                               func(childComplexity int, input model.CategoryInput) int
+		CreateCategoryBox                            func(childComplexity int, name *string) int
+		CreateEvent                                  func(childComplexity int, input model.EventInput) int
+		CreateFavorite                               func(childComplexity int, input *model.CreateFavoriteInput) int
+		CreateForm                                   func(childComplexity int, input model.CreateFormInput) int
+		CreateGallery                                func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput) int
+		CreateMultipleBookings                       func(childComplexity int, input []*model.BookerInput, isMulti *bool, serviceID string) int
+		CreateOrderItems                             func(childComplexity int, input []*model.OrderInput) int
+		CreatePolicy                                 func(childComplexity int, input model.CreatePolicyInput) int
+		CreatePriceCard                              func(childComplexity int, input model.PriceCardInput) int
+		CreateRecurringEvents                        func(childComplexity int, input model.EventInput, endDate time.Time) int
+		CreateRentalItem                             func(childComplexity int, input model.RentalInput) int
+		CreateRiderRange                             func(childComplexity int, input model.NewRiderRangeInput) int
+		CreateService                                func(childComplexity int, dpfile *graphql.Upload, input model.CreateServiceInput) int
+		CreateSocialMedia                            func(childComplexity int, input *model.SocialMediaInput) int
+		CreateTimeSlot                               func(childComplexity int, input model.TimeSlotInput) int
+		CreateUnavailablePeriod                      func(childComplexity int, input model.CreateUnavailablePeriodInput) int
+		CreateUser                                   func(childComplexity int, input model.InputUser) int
+		DeleteAdmin                                  func(childComplexity int, id string) int
+		DeleteAll                                    func(childComplexity int) int
+		DeleteAllChatMessageByNumber                 func(childComplexity int, customerNumber string) int
+		DeleteAllOrderItems                          func(childComplexity int, orderID []string) int
+		DeleteAllRequestItems                        func(childComplexity int) int
+		DeleteAllRouteData                           func(childComplexity int) int
+		DeleteBooking                                func(childComplexity int, id string) int
+		DeleteCategory                               func(childComplexity int, id string) int
+		DeleteCategoryBox                            func(childComplexity int, categoryID string) int
+		DeleteEvent                                  func(childComplexity int, id string) int
+		DeleteForm                                   func(childComplexity int, id string) int
+		DeleteGallery                                func(childComplexity int, id string) int
+		DeleteInventoryItem                          func(childComplexity int, id string) int
+		DeleteOrderItems                             func(childComplexity int, orderID string) int
+		DeletePolicy                                 func(childComplexity int, policyID string) int
+		DeletePriceCard                              func(childComplexity int, priceCardID string) int
+		DeleteProduct                                func(childComplexity int, id string) int
+		DeleteProductByAdmin                         func(childComplexity int, productID string) int
+		DeleteRentalItem                             func(childComplexity int, id string) int
+		DeleteRequestItem                            func(childComplexity int, requestID string) int
+		DeleteRider                                  func(childComplexity int, id string) int
+		DeleteRiderRange                             func(childComplexity int, id string) int
+		DeleteService                                func(childComplexity int, id string) int
+		DeleteSubmission                             func(childComplexity int, id string) int
+		DeleteTable                                  func(childComplexity int) int
+		DeleteUnavailablePeriod                      func(childComplexity int, id string) int
+		DeleteUserByID                               func(childComplexity int, id string) int
+		DeliveryLogin                                func(childComplexity int, input *model.LoginInput) int
+		DuplicateForm                                func(childComplexity int, id string, title *string) int
+		ExportFormSubmissions                        func(childComplexity int, formID string, format *string) int
+		GenerateBookRoute                            func(childComplexity int, input model.GenerateBookRouteInput) int
+		GenerateIsochrone                            func(childComplexity int, input model.IsochroneInput) int
+		GenerateRoute                                func(childComplexity int, input model.GenerateRouteInput) int
+		GenerateSubDomain                            func(childComplexity int, serviceID string) int
+		GetGrowthData                                func(childComplexity int, id string) int
+		JobRequest                                   func(childComplexity int, serviceID string, input model.RidersRequestInput) int
+		LogOut                                       func(childComplexity int) int
+		ManageCacheIsochrone                         func(childComplexity int, input model.CacheManagementInput) int
+		MarkMessagesAsRead                           func(childComplexity int, sender model.SenderType) int
+		ReSetPasswordORUpdateOtp                     func(childComplexity int, input model.RequestOtpInput) int
+		RemoveAmenity                                func(childComplexity int, priceCardID string, amenityID string) int
+		RemovePrice                                  func(childComplexity int, priceCardID string, id string) int
+		RemoveProductFromCategoryBox                 func(childComplexity int, categoryID string, productID string) int
+		RequestForResetOtp                           func(childComplexity int, input model.ResetPassWordOtpInput) int
+		RequestItem                                  func(childComplexity int, input model.RequestInput) int
+		RequestOtp                                   func(childComplexity int, input model.RequestOtpInput) int
+		ResendOtp                                    func(childComplexity int, input model.RequestOtpInput) int
+		ResetPassword                                func(childComplexity int, input model.ResetPasswordInput) int
+		RiderGoOffline                               func(childComplexity int) int
+		RiderGoOnline                                func(childComplexity int) int
+		SendChatMessage                              func(childComplexity int, input model.ChatMessageInput, orderID *string) int
+		SendChatMessageByNumber                      func(childComplexity int, input model.ChatMessageAdminInput) int
+		ServiceLogin                                 func(childComplexity int, input model.LoginInput) int
+		StarOrStoptLocationTracking                  func(childComplexity int, isTracking bool) int
+		SubmitForm                                   func(childComplexity int, input model.FormSubmissionInput, signImage []*graphql.Upload) int
+		UpdateAdmin                                  func(childComplexity int, id string, input model.UpdateAdminInput) int
+		UpdateAdminStatus                            func(childComplexity int, id string, status string) int
+		UpdateAmenity                                func(childComplexity int, priceCardID string, amenityID string, text string) int
+		UpdateBookRoute                              func(childComplexity int, orderID string, status string) int
+		UpdateBooker                                 func(childComplexity int, id string, input model.BookersInput) int
+		UpdateBookingType                            func(childComplexity int, typeArg model.BookingType) int
+		UpdateCategory                               func(childComplexity int, id string, input model.CategoryInput) int
+		UpdateEvent                                  func(childComplexity int, input model.UpdateEventInput, eventID string) int
+		UpdateForm                                   func(childComplexity int, input model.UpdateFormInput) int
+		UpdateGallery                                func(childComplexity int, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) int
+		UpdateInventoryItem                          func(childComplexity int, id string, input model.InventoryItemInput, file graphql.Upload) int
+		UpdateMultiGroupBookingsWithLocationBybookID func(childComplexity int, input []*model.AddBookCoordinateInput) int
+		UpdateMultipleBookingsWithLocation           func(childComplexity int, input model.AddBookCoordinateInput) int
+		UpdateOrderRoute                             func(childComplexity int, orderID string, status string) int
+		UpdateOrderStatus                            func(childComplexity int, orderID *string, status string) int
+		UpdateOrderbyUser                            func(childComplexity int, orderID *string) int
+		UpdatePolicy                                 func(childComplexity int, policyID *string, detailID *string, input *model.UpdatePolicyInput) int
+		UpdatePrice                                  func(childComplexity int, cardID string, priceCardID string, input model.PriceInput) int
+		UpdatePriceCard                              func(childComplexity int, input model.UpdatePriceCardInput, priceCardID *string) int
+		UpdateProductByAdmin                         func(childComplexity int, productID string, input model.ProductInputUpdate) int
+		UpdateRentalItem                             func(childComplexity int, id string, input model.RentalInput) int
+		UpdateRequestItemStatus                      func(childComplexity int, requestID string, status model.ProductState) int
+		UpdateRider                                  func(childComplexity int, id string, input model.RiderInput) int
+		UpdateRiderLocation                          func(childComplexity int, coordinates []float64) int
+		UpdateRiderOnlineStatus                      func(childComplexity int, status model.RiderStatus) int
+		UpdateRiderRange                             func(childComplexity int, input model.UpdateRiderRangeInput) int
+		UpdateRiderStatus                            func(childComplexity int, id string, status string) int
+		UpdateService                                func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
+		UpdateStateByServiceProvider                 func(childComplexity int, riderID string, state *string) int
+		UpdateSubmissionStatus                       func(childComplexity int, id string, status model.SubmissionStatus) int
+		UpdateUserByID                               func(childComplexity int, id string, input *model.InputUpdateUser) int
+		UpdateWithLocation                           func(childComplexity int, input model.AddCoordinateInput) int
+		UseGetRiderTracking                          func(childComplexity int) int
+		UseTheme                                     func(childComplexity int, serviceID string, theme *string) int
+		UserBookings                                 func(childComplexity int, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) int
+		VendorUpload                                 func(childComplexity int, files []*graphql.Upload, input model.ProductInput) int
+		VerifyOtp                                    func(childComplexity int, input model.VerifyOtpInput) int
 	}
 
 	NearbyRider struct {
@@ -796,6 +797,7 @@ type ComplexityRoot struct {
 		GetIsochroneResult                            func(childComplexity int, location []float64, uuid string) int
 		GetIsochronesByRider                          func(childComplexity int, riderID string) int
 		GetIsochronesByService                        func(childComplexity int, vendorID string) int
+		GetMultiGroupedAppointmentBookingBybookID     func(childComplexity int, bookID *string) int
 		GetNewAddedCategoryBox                        func(childComplexity int) int
 		GetNewAddedProducts                           func(childComplexity int) int
 		GetOrder                                      func(childComplexity int, id string) int
@@ -1382,6 +1384,7 @@ type MutationResolver interface {
 	GetGrowthData(ctx context.Context, id string) (*model.GrowthData, error)
 	CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, serviceID string) ([]*model.AppointmentBooking, error)
 	UpdateMultipleBookingsWithLocation(ctx context.Context, input model.AddBookCoordinateInput) (*model.AppointmentBooking, error)
+	UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error)
 	ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error)
 	DeleteBooking(ctx context.Context, id string) (*bool, error)
 	CreateUser(ctx context.Context, input model.InputUser) (*model.User, error)
@@ -1567,6 +1570,7 @@ type QueryResolver interface {
 	GetConfirmedBookings(ctx context.Context, id string) (bool, error)
 	GetAppointmentBooking(ctx context.Context, bookID *string) (*model.AppointmentBooking, error)
 	GetAppointmentBookingByMultiGroupID(ctx context.Context, multiGroupID *string) ([]*model.AppointmentBooking, error)
+	GetMultiGroupedAppointmentBookingBybookID(ctx context.Context, bookID *string) ([]*model.AppointmentBooking, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, error)
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
 }
@@ -4414,6 +4418,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateInventoryItem(childComplexity, args["id"].(string), args["input"].(model.InventoryItemInput), args["file"].(graphql.Upload)), true
 
+	case "Mutation.updateMultiGroupBookingsWithLocationBybookId":
+		if e.complexity.Mutation.UpdateMultiGroupBookingsWithLocationBybookID == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateMultiGroupBookingsWithLocationBybookId_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateMultiGroupBookingsWithLocationBybookID(childComplexity, args["input"].([]*model.AddBookCoordinateInput)), true
+
 	case "Mutation.updateMultipleBookingsWithLocation":
 		if e.complexity.Mutation.UpdateMultipleBookingsWithLocation == nil {
 			break
@@ -6412,6 +6428,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetIsochronesByService(childComplexity, args["vendorId"].(string)), true
+
+	case "Query.getMultiGroupedAppointmentBookingBybookId":
+		if e.complexity.Query.GetMultiGroupedAppointmentBookingBybookID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getMultiGroupedAppointmentBookingBybookId_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetMultiGroupedAppointmentBookingBybookID(childComplexity, args["bookId"].(*string)), true
 
 	case "Query.getNewAddedCategoryBox":
 		if e.complexity.Query.GetNewAddedCategoryBox == nil {
@@ -11783,6 +11811,29 @@ func (ec *executionContext) field_Mutation_updateInventoryItem_argsFile(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_updateMultiGroupBookingsWithLocationBybookId_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateMultiGroupBookingsWithLocationBybookId_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateMultiGroupBookingsWithLocationBybookId_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*model.AddBookCoordinateInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNaddBookCoordinateInput2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAddBookCoordinateInput(ctx, tmp)
+	}
+
+	var zeroVal []*model.AddBookCoordinateInput
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_updateMultipleBookingsWithLocation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -14094,6 +14145,29 @@ func (ec *executionContext) field_Query_getIsochronesByService_argsVendorID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMultiGroupedAppointmentBookingBybookId_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getMultiGroupedAppointmentBookingBybookId_argsBookID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["bookId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getMultiGroupedAppointmentBookingBybookId_argsBookID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("bookId"))
+	if tmp, ok := rawArgs["bookId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -33919,6 +33993,107 @@ func (ec *executionContext) fieldContext_Mutation_updateMultipleBookingsWithLoca
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateMultiGroupBookingsWithLocationBybookId(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateMultiGroupBookingsWithLocationBybookId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateMultiGroupBookingsWithLocationBybookID(rctx, fc.Args["input"].([]*model.AddBookCoordinateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AppointmentBooking)
+	fc.Result = res
+	return ec.marshalNAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateMultiGroupBookingsWithLocationBybookId(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AppointmentBooking_id(ctx, field)
+			case "startTime":
+				return ec.fieldContext_AppointmentBooking_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_AppointmentBooking_endTime(ctx, field)
+			case "day":
+				return ec.fieldContext_AppointmentBooking_day(ctx, field)
+			case "item":
+				return ec.fieldContext_AppointmentBooking_item(ctx, field)
+			case "notes":
+				return ec.fieldContext_AppointmentBooking_notes(ctx, field)
+			case "tableSize":
+				return ec.fieldContext_AppointmentBooking_tableSize(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_AppointmentBooking_serviceId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_AppointmentBooking_riderId(ctx, field)
+			case "duration":
+				return ec.fieldContext_AppointmentBooking_duration(ctx, field)
+			case "distance":
+				return ec.fieldContext_AppointmentBooking_distance(ctx, field)
+			case "deliveryFee":
+				return ec.fieldContext_AppointmentBooking_deliveryFee(ctx, field)
+			case "dropoffLocation":
+				return ec.fieldContext_AppointmentBooking_dropoffLocation(ctx, field)
+			case "pickupLocation":
+				return ec.fieldContext_AppointmentBooking_pickupLocation(ctx, field)
+			case "estimatedDeliveryDate":
+				return ec.fieldContext_AppointmentBooking_estimatedDeliveryDate(ctx, field)
+			case "deliveryAddress":
+				return ec.fieldContext_AppointmentBooking_deliveryAddress(ctx, field)
+			case "userId":
+				return ec.fieldContext_AppointmentBooking_userId(ctx, field)
+			case "isConfirmed":
+				return ec.fieldContext_AppointmentBooking_isConfirmed(ctx, field)
+			case "userType":
+				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AppointmentBooking_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AppointmentBooking_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AppointmentBooking", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateMultiGroupBookingsWithLocationBybookId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_confirmBooking(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_confirmBooking(ctx, field)
 	if err != nil {
@@ -49928,6 +50103,107 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBookingByMultiGroup
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getAppointmentBookingByMultiGroupId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getMultiGroupedAppointmentBookingBybookId(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getMultiGroupedAppointmentBookingBybookId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetMultiGroupedAppointmentBookingBybookID(rctx, fc.Args["bookId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AppointmentBooking)
+	fc.Result = res
+	return ec.marshalNAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getMultiGroupedAppointmentBookingBybookId(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AppointmentBooking_id(ctx, field)
+			case "startTime":
+				return ec.fieldContext_AppointmentBooking_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_AppointmentBooking_endTime(ctx, field)
+			case "day":
+				return ec.fieldContext_AppointmentBooking_day(ctx, field)
+			case "item":
+				return ec.fieldContext_AppointmentBooking_item(ctx, field)
+			case "notes":
+				return ec.fieldContext_AppointmentBooking_notes(ctx, field)
+			case "tableSize":
+				return ec.fieldContext_AppointmentBooking_tableSize(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_AppointmentBooking_serviceId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_AppointmentBooking_riderId(ctx, field)
+			case "duration":
+				return ec.fieldContext_AppointmentBooking_duration(ctx, field)
+			case "distance":
+				return ec.fieldContext_AppointmentBooking_distance(ctx, field)
+			case "deliveryFee":
+				return ec.fieldContext_AppointmentBooking_deliveryFee(ctx, field)
+			case "dropoffLocation":
+				return ec.fieldContext_AppointmentBooking_dropoffLocation(ctx, field)
+			case "pickupLocation":
+				return ec.fieldContext_AppointmentBooking_pickupLocation(ctx, field)
+			case "estimatedDeliveryDate":
+				return ec.fieldContext_AppointmentBooking_estimatedDeliveryDate(ctx, field)
+			case "deliveryAddress":
+				return ec.fieldContext_AppointmentBooking_deliveryAddress(ctx, field)
+			case "userId":
+				return ec.fieldContext_AppointmentBooking_userId(ctx, field)
+			case "isConfirmed":
+				return ec.fieldContext_AppointmentBooking_isConfirmed(ctx, field)
+			case "userType":
+				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AppointmentBooking_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AppointmentBooking_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AppointmentBooking", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getMultiGroupedAppointmentBookingBybookId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -69171,6 +69447,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateMultiGroupBookingsWithLocationBybookId":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateMultiGroupBookingsWithLocationBybookId(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "confirmBooking":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_confirmBooking(ctx, field)
@@ -73776,6 +74059,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getMultiGroupedAppointmentBookingBybookId":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getMultiGroupedAppointmentBookingBybookId(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getUserById":
 			field := field
 
@@ -77245,6 +77550,44 @@ func (ec *executionContext) marshalNAppointmentBookedData2ᚖgithubᚗcomᚋlehx
 
 func (ec *executionContext) marshalNAppointmentBooking2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx context.Context, sel ast.SelectionSet, v model.AppointmentBooking) graphql.Marshaler {
 	return ec._AppointmentBooking(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx context.Context, sel ast.SelectionSet, v []*model.AppointmentBooking) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOAppointmentBooking2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
 }
 
 func (ec *executionContext) marshalNAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AppointmentBooking) graphql.Marshaler {
@@ -81137,6 +81480,23 @@ func (ec *executionContext) unmarshalNaddBookCoordinateInput2githubᚗcomᚋlehx
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNaddBookCoordinateInput2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAddBookCoordinateInput(ctx context.Context, v any) ([]*model.AddBookCoordinateInput, error) {
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]*model.AddBookCoordinateInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOaddBookCoordinateInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAddBookCoordinateInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) unmarshalNaddCoordinateInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAddCoordinateInput(ctx context.Context, v any) (model.AddCoordinateInput, error) {
 	res, err := ec.unmarshalInputaddCoordinateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -81399,6 +81759,13 @@ func (ec *executionContext) unmarshalOAmountRange2ᚖgithubᚗcomᚋlehxeesᚋse
 	}
 	res, err := ec.unmarshalInputAmountRange(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAppointmentBooking2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx context.Context, sel ast.SelectionSet, v *model.AppointmentBooking) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AppointmentBooking(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOAppointmentBookingData2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingData(ctx context.Context, sel ast.SelectionSet, v *model.AppointmentBookingData) graphql.Marshaler {
@@ -83110,6 +83477,14 @@ func (ec *executionContext) marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 		return graphql.Null
 	}
 	return ec.___Type(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOaddBookCoordinateInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAddBookCoordinateInput(ctx context.Context, v any) (*model.AddBookCoordinateInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputaddBookCoordinateInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOcategoryBox2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCategoryBox(ctx context.Context, sel ast.SelectionSet, v []*model.CategoryBox) graphql.Marshaler {

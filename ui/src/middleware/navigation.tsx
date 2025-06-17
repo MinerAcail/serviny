@@ -49,6 +49,7 @@ const router = createBrowserRouter([
       // { path: "/delivery/:riderId/:bookId", element: <RiderZoneSetup /> },
       // { path: "/delivery/:riderId/:bookId", element: <AutocompleteSearchMap /> },
       { path: "/delivery/:riderId/:bookId", element: <RiderBookingDeliveryRequest /> },
+      { path: "/multidelivery/:riderId/:bookId", element: <RiderBookingMultiDeliveryRequest /> },
 
 
       { path: "/merge/:serviceId", element: <CheckType /> },
@@ -188,6 +189,7 @@ import FormAndRequestTabs from "@/components/user/formBuilder/tabbed-forms";
 import BusinessTypeSelector from "@/components/serviceProviders/createProvider/business-type-selector";
 import UserServiceViewer from "@/components/custom/USER_MAP_WORK/viewService";
 import PaystackPage from "@/components/PAYMENT/Paystack";
+import { RiderBookingMultiDeliveryRequest } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/multiBookingLocationsetting/riderBookingMultiDeliveryRequest";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 

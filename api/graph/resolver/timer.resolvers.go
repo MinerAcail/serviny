@@ -542,6 +542,284 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 	return &booking, nil
 }
 
+// UpdateMultiGroupBookingsWithLocationBybookID is the resolver for the updateMultiGroupBookingsWithLocationBybookId field.
+func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error) {
+	if len(input) == 0 {
+		return nil, fmt.Errorf("input cannot be empty")
+	}
+
+	// Get user ID from context for authorization
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID from context: %w", err)
+	}
+
+	if userIDStr == nil || *userIDStr == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	var updatedBookings []*model.AppointmentBooking
+
+	// Start database transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+
+	// Ensure rollback on panic or error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	log.Printf("Processing %d bookings for user %s", len(input), *userIDStr)
+
+	for i, in := range input {
+		if in.BookID == "" {
+			tx.Rollback()
+			return nil, fmt.Errorf("bookID is required for input at index %d", i)
+		}
+
+		// Parse and validate booking ID
+		bookingID, err := uuid.Parse(in.BookID)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid booking ID format at index %d: %w", i, err)
+		}
+
+		// Find and verify booking ownership
+		var booking model.AppointmentBooking
+		if err := tx.Where("id = ? AND user_id = ?", bookingID, *userIDStr).First(&booking).Error; err != nil {
+			tx.Rollback()
+			if err == gorm.ErrRecordNotFound {
+				return nil, fmt.Errorf("booking not found or access denied for booking %s", in.BookID)
+			}
+			return nil, fmt.Errorf("failed to fetch booking %s: %w", in.BookID, err)
+		}
+
+		log.Printf("Updating booking %s with location for user %s", bookingID, *userIDStr)
+
+		// Update delivery address if provided
+		if in.DeliveryAddress != nil && *in.DeliveryAddress != "" {
+			booking.DeliveryAddress = *in.DeliveryAddress
+			log.Printf("Delivery address provided for booking %s: %s", in.BookID, *in.DeliveryAddress)
+		}
+
+		// Update dropoff location if provided
+		if in.DropoffLocation != nil && len(in.DropoffLocation) >= 2 {
+			lng := *in.DropoffLocation[0]
+			lat := *in.DropoffLocation[1]
+
+			// Validate coordinate ranges
+			if lng < -180 || lng > 180 {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid dropoff longitude for booking %s: %.6f (must be between -180 and 180)", in.BookID, lng)
+			}
+			if lat < -90 || lat > 90 {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid dropoff latitude for booking %s: %.6f (must be between -90 and 90)", in.BookID, lat)
+			}
+
+			dropoffCoordinates := pq.Float64Array{lng, lat}
+			booking.DropoffLocation = dropoffCoordinates
+			log.Printf("Updated dropoff coordinates for booking %s: [%.6f, %.6f]", in.BookID, lng, lat)
+		}
+
+		// Update pickup location if provided
+		if in.PickupLocation != nil && len(in.PickupLocation) >= 2 {
+			lng := *in.PickupLocation[0]
+			lat := *in.PickupLocation[1]
+
+			// Validate coordinate ranges
+			if lng < -180 || lng > 180 {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid pickup longitude for booking %s: %.6f (must be between -180 and 180)", in.BookID, lng)
+			}
+			if lat < -90 || lat > 90 {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid pickup latitude for booking %s: %.6f (must be between -90 and 90)", in.BookID, lat)
+			}
+
+			pickupCoordinates := pq.Float64Array{lng, lat}
+			booking.PickupLocation = pickupCoordinates
+			log.Printf("Updated pickup coordinates for booking %s: [%.6f, %.6f]", in.BookID, lng, lat)
+		}
+
+		// Update rider ID if provided
+		if in.RidersID != nil && *in.RidersID != "" {
+			// Validate rider ID format
+			riderUUID, err := uuid.Parse(*in.RidersID)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("invalid rider ID format for booking %s: %w", in.BookID, err)
+			}
+
+			// Ensure service ID is available
+			if booking.ServiceID == "" {
+				tx.Rollback()
+				return nil, fmt.Errorf("booking %s must have a service assigned before assigning a rider", in.BookID)
+			}
+
+			// Ensure coordinates are available for validation
+			if in.PickupLocation == nil || len(in.PickupLocation) < 2 ||
+				in.DropoffLocation == nil || len(in.DropoffLocation) < 2 {
+				tx.Rollback()
+				return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider for booking %s", in.BookID)
+			}
+
+			// Check if it's a service
+			var service model.Service
+			serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
+
+			if serviceErr == nil {
+				// It's a service - find the best rider for this service
+				validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), in.PickupLocation)
+				if err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to assign rider from service for booking %s: %w", in.BookID, err)
+				}
+
+				booking.RiderID = validRiderID
+				log.Printf("Assigned rider %s from service %s for booking %s", validRiderID, riderUUID, in.BookID)
+			} else if serviceErr == gorm.ErrRecordNotFound {
+				// Check if it's a direct rider
+				var rider model.Rider
+				riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+
+				if riderErr == nil {
+					// It's a direct rider - validate the relationship
+					validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), in.PickupLocation)
+					if err != nil {
+						tx.Rollback()
+						return nil, fmt.Errorf("failed to assign rider for booking %s: %w", in.BookID, err)
+					}
+					booking.RiderID = validRiderID
+					log.Printf("Assigned direct rider %s for booking %s", validRiderID, in.BookID)
+				} else if riderErr == gorm.ErrRecordNotFound {
+					tx.Rollback()
+					return nil, fmt.Errorf("no rider or service found with ID %s for booking %s", riderUUID, in.BookID)
+				} else {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to check rider for booking %s: %w", in.BookID, riderErr)
+				}
+			} else {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to check service for booking %s: %w", in.BookID, serviceErr)
+			}
+		}
+
+		// Calculate delivery fee based on range if both pickup/dropoff locations and rider are available
+		if in.PickupLocation != nil && len(in.PickupLocation) >= 2 &&
+			in.DropoffLocation != nil && len(in.DropoffLocation) >= 2 &&
+			booking.RiderID != "" {
+
+			pickupLng := *in.PickupLocation[0]
+			pickupLat := *in.PickupLocation[1]
+			dropoffLng := *in.DropoffLocation[0]
+			dropoffLat := *in.DropoffLocation[1]
+
+			// Generate route data only if isochrone relationship exists
+			geoJSONStr, err := directions.GetBookRouteGeoJSON(pickupLat, pickupLng, dropoffLat, dropoffLng)
+			if err == nil {
+				routeInfo := &model.RouteInfo{
+					OrderID: bookingID.String(),
+					Geojson: &geoJSONStr,
+					UserID:  *userIDStr,
+				}
+				if err := tx.Create(routeInfo).Error; err != nil {
+					log.Printf("Warning: failed to save route info for booking %s: %v", in.BookID, err)
+				} else {
+					log.Printf("Successfully saved route info for booking %s", in.BookID)
+				}
+			} else {
+				log.Printf("Warning: failed to generate route GeoJSON for booking %s: %v", in.BookID, err)
+			}
+		}
+
+		// Get range metadata if provided (alternative pricing method)
+		if in.RangeMetaID != nil && *in.RangeMetaID != "" {
+			var riderRange model.RiderRange
+			if err := tx.Where("id = ?", *in.RangeMetaID).First(&riderRange).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					log.Printf("Warning: range metadata not found for ID: %s on booking %s", *in.RangeMetaID, in.BookID)
+				} else {
+					log.Printf("Warning: failed to get range metadata for booking %s: %v", in.BookID, err)
+				}
+			} else {
+				feeStr := fmt.Sprintf("%.2f", riderRange.Price)
+				booking.DeliveryFee = &feeStr
+				log.Printf("Updated delivery fee from range metadata for booking %s: %s", in.BookID, feeStr)
+			}
+		}
+
+		// Save the updated booking
+		if err := tx.Save(&booking).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to update booking %s: %w", in.BookID, err)
+		}
+
+		updatedBookings = append(updatedBookings, &booking)
+		log.Printf("Booking %s updated successfully", booking.ID)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Update Appointment Booked Data with route data in goroutines (non-blocking)
+	for _, booking := range updatedBookings {
+		go func(bookingIDStr string, resolver *mutationResolver) {
+			// Add a small delay to ensure the route data is fully committed
+			time.Sleep(500 * time.Millisecond)
+
+			// Create a new context for the goroutine (with timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			// Get route data
+			routeData, err := resolver.Query().GetRouteData(ctx, bookingIDStr)
+			if err != nil {
+				log.Printf("Goroutine warning: could not get route data for Appointment Booked Data %s: %v", bookingIDStr, err)
+				return
+			}
+
+			if routeData != nil {
+				// Update Appointment Booked Data with route data
+				distanceStr := routeData.Distance
+				durationStr := routeData.Duration
+
+				// Use a new transaction for this update
+				updateTx := resolver.DB.Begin()
+				if updateTx.Error != nil {
+					log.Printf("Goroutine warning: failed to start transaction for Appointment Booked Data %s: %v", bookingIDStr, updateTx.Error)
+					return
+				}
+
+				if err := updateTx.Model(&model.AppointmentBooking{}).Where("id = ?", bookingIDStr).Updates(map[string]interface{}{
+					"distance": &distanceStr,
+					"duration": &durationStr,
+				}).Error; err != nil {
+					updateTx.Rollback()
+					log.Printf("Goroutine warning: failed to update Appointment Booked Data %s with route data: %v", bookingIDStr, err)
+				} else {
+					if err := updateTx.Commit().Error; err != nil {
+						log.Printf("Goroutine warning: failed to commit route data update for Appointment Booked Data %s: %v", bookingIDStr, err)
+					} else {
+						log.Printf("Goroutine success: updated Appointment Booked Data %s with route data (distance: %s, duration: %s)",
+							bookingIDStr, distanceStr, durationStr)
+					}
+				}
+			}
+		}(booking.ID.String(), r)
+	}
+
+	log.Printf("Successfully updated %d bookings", len(updatedBookings))
+	return updatedBookings, nil
+}
+
 // ConfirmBooking is the resolver for the confirmBooking field.
 func (r *mutationResolver) ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error) {
 	// Find the booking by ID
@@ -967,6 +1245,36 @@ func (r *queryResolver) GetAppointmentBookingByMultiGroupID(ctx context.Context,
 	if err := r.DB.Where("multi_group_id = ?", *multiGroupID).Order("created_at DESC").Find(&bookings).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch appointment bookings for multiGroupID %s: %v", *multiGroupID, err)
 	}
+	return bookings, nil
+}
+
+// GetMultiGroupedAppointmentBookingBybookID is the resolver for the getMultiGroupedAppointmentBookingBybookId field.
+func (r *queryResolver) GetMultiGroupedAppointmentBookingBybookID(ctx context.Context, bookID *string) ([]*model.AppointmentBooking, error) {
+	if bookID == nil || *bookID == "" {
+		return nil, fmt.Errorf("bookID is required")
+	}
+
+	// Find the booking by ID
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", *bookID).First(&booking).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("booking not found with ID: %s", *bookID)
+		}
+		return nil, fmt.Errorf("failed to fetch booking: %w", err)
+	}
+
+	// Check if booking has a multiGroupID
+	if booking.MultiGroupID == nil || *booking.MultiGroupID == "" {
+		// If not part of a group, just return the single booking
+		return []*model.AppointmentBooking{&booking}, nil
+	}
+
+	// Fetch all bookings with the same multiGroupID
+	var bookings []*model.AppointmentBooking
+	if err := r.DB.Where("multi_group_id = ?", *booking.MultiGroupID).Order("created_at ASC").Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch grouped bookings: %w", err)
+	}
+
 	return bookings, nil
 }
 
