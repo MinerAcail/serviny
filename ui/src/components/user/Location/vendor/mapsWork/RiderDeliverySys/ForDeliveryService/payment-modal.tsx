@@ -33,7 +33,7 @@ interface PaymentResult {
 }
 
 type PaymentMethod = "cash" | "momo" | null
-
+///
 export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null)
   const [phoneNumber, setPhoneNumber] = useState("")

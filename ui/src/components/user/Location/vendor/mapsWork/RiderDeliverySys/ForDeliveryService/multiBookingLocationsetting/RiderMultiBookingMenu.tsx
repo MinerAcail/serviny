@@ -1,5 +1,5 @@
 // ==========================================
-// NEW: RiderMultiBookingMenu Component
+// Updated RiderMultiBookingMenu with Payment Integration
 // ==========================================
 
 "use client";
@@ -41,10 +41,10 @@ import { ZONE_COLORS } from "@/components/config/map";
 
 // Import multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
+import PaymentModal from "../payment-modal";
 
-// NEW: Payment modal import (would need to be created or adapted)
-// import PaymentModal from "./payment-modal";
-
+// NEW: Payment modal import
+// import PaymentModal from "./payment-modal"; // Ensure this path is correct for your project
 interface RiderMultiBookingMenuProps {
   // Rider data
   riderProfile: RiderProfile | undefined;
@@ -111,7 +111,7 @@ export function RiderMultiBookingMenu({
 }: RiderMultiBookingMenuProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   
-  // NEW: Payment modal state (for future implementation)
+  // NEW: Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
 
@@ -167,7 +167,7 @@ export function RiderMultiBookingMenu({
     item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
   );
 
-  // NEW: Handle payment completion (placeholder for future)
+  // NEW: Handle payment completion
   const handlePaymentComplete = (paymentData: any) => {
     setPaymentCompleted(true);
     setShowPaymentModal(false);
@@ -176,18 +176,35 @@ export function RiderMultiBookingMenu({
       description: `Amount: GH₵${paymentData.amount.toFixed(2)}`,
     });
 
+    // Proceed with booking after payment
     setTimeout(() => {
       onBooking();
     }, 500);
   };
 
-  // NEW: Handle confirm multi-booking
+  // NEW: Handle confirm multi-booking - show payment modal first
   const handleConfirmMultiBooking = () => {
     if (!totalCalculations) return;
     
-    // For now, directly proceed to booking
-    // In future, could show payment modal first
-    onBooking();
+    // Show payment modal first
+    setShowPaymentModal(true);
+  };
+
+  // NEW: Create order details for payment modal
+  const createOrderDetails = () => {
+    if (!totalCalculations || !riderProfile || !bookId) return null;
+
+    const firstItem = completedItems[0];
+    const description = completedItems.length === 1 
+      ? `Delivery: ${firstItem?.itemDescription || 'Item'}`
+      : `Multi-delivery: ${completedItems.length} destinations`;
+
+    return {
+      id: bookId,
+      amount: totalCalculations.totalPrice,
+      description,
+      vendor: riderProfile.name || "Multi-Delivery Service",
+    };
   };
 
   return (
@@ -286,7 +303,7 @@ export function RiderMultiBookingMenu({
                   <div className="h-5 w-px bg-gray-200 mx-1" />
                   <div className="flex items-center gap-1 text-[12px] font-medium text-green-700">
                     <DollarSign className="h-4 w-4" />
-                    <span>${totalCalculations.totalPrice.toFixed(0)}</span>
+                    <span>GH₵{totalCalculations.totalPrice.toFixed(0)}</span>
                   </div>
                 </>
               )}
@@ -332,6 +349,7 @@ export function RiderMultiBookingMenu({
                       Tracking
                     </Badge>
                   )}
+                  {/* NEW: Payment status indicator */}
                   {paymentCompleted && currentStep === "review" && (
                     <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -390,9 +408,9 @@ export function RiderMultiBookingMenu({
                           totalCalculations={totalCalculations}
                           deliveryItems={deliveryItems}
                           isBooking={isBooking}
-                          onBooking={handleConfirmMultiBooking}
+                          onBooking={handleConfirmMultiBooking} // NEW: Changed to handle payment first
                           onBack={() => setCurrentStep("locations")}
-                          paymentCompleted={paymentCompleted}
+                          paymentCompleted={paymentCompleted} // NEW: Pass payment status
                         />
                       </motion.div>
                     )}
@@ -444,20 +462,15 @@ export function RiderMultiBookingMenu({
         )}
       </AnimatePresence>
 
-      {/* Future: Payment Modal for multi-delivery */}
-      {/* {totalCalculations && (
+      {/* NEW: Payment Modal for multi-delivery */}
+      {totalCalculations && createOrderDetails() && (
         <PaymentModal
           open={showPaymentModal}
           onOpenChange={setShowPaymentModal}
-          orderDetails={{
-            id: bookId || "",
-            amount: totalCalculations.totalPrice,
-            description: `Multi-delivery: ${deliveryItems.length} destinations`,
-            vendor: riderProfile?.name || "Delivery Service",
-          }}
+          orderDetails={createOrderDetails()!}
           onPaymentComplete={handlePaymentComplete}
         />
-      )} */}
+      )}
     </div>
   );
 }
@@ -541,7 +554,7 @@ function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
                 </span>
               </div>
               <span className="font-semibold text-[13px] text-center text-gray-900">
-                ${zone.price.toFixed(2)}
+                GH₵{zone.price.toFixed(2)}
               </span>
             </div>
           ))}
@@ -588,21 +601,21 @@ function MultiLocationStep() {
   );
 }
 
-// NEW: Multi-Delivery Review Step
+// NEW: Multi-Delivery Review Step with Payment Integration
 function MultiReviewStep({
   totalCalculations,
   deliveryItems,
   isBooking,
   onBooking,
   onBack,
-  paymentCompleted = false,
+  paymentCompleted = false, // NEW: Payment status prop
 }: {
   totalCalculations: any;
   deliveryItems: MultiDeliveryItem[];
   isBooking: boolean;
   onBooking: () => void;
   onBack: () => void;
-  paymentCompleted?: boolean;
+  paymentCompleted?: boolean; // NEW: Optional payment status
 }) {
   const [showItemDetails, setShowItemDetails] = useState(false);
 
@@ -660,7 +673,7 @@ function MultiReviewStep({
             <span className="font-medium">View Delivery Details ({completedItems.length})</span>
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="text-xs">
-                ${totalCalculations.totalPrice.toFixed(2)}
+                GH₵{totalCalculations.totalPrice.toFixed(2)}
               </Badge>
               <motion.div
                 animate={{ rotate: showItemDetails ? 180 : 0 }}
@@ -722,7 +735,7 @@ function MultiReviewStep({
             )}
           </AnimatePresence>
 
-          {/* Payment Status */}
+          {/* NEW: Payment Status */}
           {paymentCompleted && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center space-x-2">
@@ -762,7 +775,7 @@ function MultiReviewStep({
           ) : (
             <>
               <Truck className="w-4 h-4 mr-2" />
-              {paymentCompleted ? "Confirm Multi-Delivery" : "Book Multi-Delivery"}
+              {paymentCompleted ? "Confirm Multi-Delivery" : "Choose Payment Method"}
             </>
           )}
         </Button>

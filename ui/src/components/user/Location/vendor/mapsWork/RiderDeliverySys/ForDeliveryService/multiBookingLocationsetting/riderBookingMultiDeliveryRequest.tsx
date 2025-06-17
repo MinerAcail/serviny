@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
@@ -12,8 +12,6 @@ import "../../../map-popup.css";
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
-
-
 
 export interface MultiDeliveryItem {
   id: string;
@@ -30,22 +28,21 @@ export interface MultiDeliveryItem {
 
 type BookingStep = "locations" | "review" | "complete";
 
-
-
 // ==========================================
 // HOOKS IMPORTS
 // ==========================================
 
 import {
   useRiderZones,
-  useSimpleMapManagerWithCenteredPinDrop,
   useRouteTracking,
   RouteInfoPanel,
   type Location,
   useMultiDeliveryCalculation,
   useMultiGroupBookingManagement,
   convertBookingsToDeliveryItems,
-  convertDeliveryItemsToUpdateInputs, // KEY HOOK!
+  convertDeliveryItemsToUpdateInputs,
+  // Import the multi-delivery map manager
+  useMultiDeliveryMapManager,
 } from "../riderBookingHooks";
 
 import {
@@ -84,9 +81,18 @@ export function RiderBookingMultiDeliveryRequest() {
   // 2. REFS
   // ==========================================
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const autocompleteServiceRef =
+    useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(
+    null
+  );
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  // NEW: Performance optimization refs
+  const lastProcessedDataRef = useRef<string>("");
+  const mapUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const calculationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMapUpdatingRef = useRef(false);
 
   // ==========================================
   // 3. LOCAL STATE
@@ -114,15 +120,15 @@ export function RiderBookingMultiDeliveryRequest() {
   });
 
   // ==========================================
-  // 5. MULTI-GROUP BOOKING MANAGEMENT (KEY HOOK!)
+  // 5. MULTI-GROUP BOOKING MANAGEMENT
   // ==========================================
   const {
-    multiGroupBookings,           // Existing bookings from backend
-    isLoadingBookings,           // Loading state
-    bookingsError,               // Error state
-    updateBookingsWithLocations, // Function to update bookings
-    isUpdatingBookings,          // Update loading state
-    refetchBookings,             // Refetch function
+    multiGroupBookings,
+    isLoadingBookings,
+    bookingsError,
+    updateBookingsWithLocations,
+    isUpdatingBookings,
+    refetchBookings,
   } = useMultiGroupBookingManagement(bookId);
 
   // ==========================================
@@ -134,8 +140,6 @@ export function RiderBookingMultiDeliveryRequest() {
     isLoading: zonesLoading,
     error: zonesError,
   } = useRiderZones(riderId);
-  console.log("riderZones",riderZones);
-  
 
   // ==========================================
   // 7. MULTI-DELIVERY CALCULATION
@@ -149,19 +153,24 @@ export function RiderBookingMultiDeliveryRequest() {
   } = useMultiDeliveryCalculation();
 
   // ==========================================
-  // 8. MAP MANAGEMENT
+  // 8. MULTI-DELIVERY MAP MANAGEMENT
   // ==========================================
   const {
     mapInstance,
     mapLoaded,
     mapInitialized,
     initializeMapWithPickup,
+    // Multi-delivery functions
+    updateMultiDeliveryMarkers,
+    drawMultiDeliveryRoutes,
+    fitMapToAllLocations,
+    // Single delivery functions (for compatibility)
     updateMarkers,
     drawCoverageZones,
     drawRoute,
     fitMapToMarkers,
     clearMap,
-  } = useSimpleMapManagerWithCenteredPinDrop();
+  } = useMultiDeliveryMapManager();
 
   // ==========================================
   // 9. PIN DROP FUNCTIONALITY
@@ -191,21 +200,65 @@ export function RiderBookingMultiDeliveryRequest() {
   } = useRouteTracking(bookId);
 
   // ==========================================
-  // 11. LOAD EXISTING BOOKINGS EFFECT
+  // 11. MEMOIZED DELIVERY DATA (PERFORMANCE OPTIMIZATION)
+  // ==========================================
+  const memoizedDeliveryData = useMemo(() => {
+    const completedDeliveryItems = deliveryItems.filter(
+      (item) =>
+        item.deliveryAddress &&
+        item.itemDescription &&
+        item.dropoffLocation[0] !== 0 &&
+        item.dropoffLocation[1] !== 0
+    );
+
+    const deliveryLocations: Location[] = completedDeliveryItems.map(
+      (item) => ({
+        lng: item.dropoffLocation[1], // Convert from [lat, lng] to [lng, lat]
+        lat: item.dropoffLocation[0],
+        address: item.deliveryAddress,
+      })
+    );
+
+    const itemDescriptions = completedDeliveryItems.map(
+      (item) => item.itemDescription
+    );
+
+    return {
+      deliveryLocations,
+      itemDescriptions,
+      count: completedDeliveryItems.length,
+      // Create a stable key for comparison
+      key: completedDeliveryItems
+        .map(
+          (item) =>
+            `${item.id}-${item.dropoffLocation[0]}-${item.dropoffLocation[1]}-${item.deliveryAddress}-${item.itemDescription}`
+        )
+        .join("|"),
+    };
+  }, [deliveryItems]);
+
+  // ==========================================
+  // 12. LOAD EXISTING BOOKINGS EFFECT
   // ==========================================
   useEffect(() => {
     if (multiGroupBookings.length > 0 && !hasLoadedFromBookings) {
-      console.log("📦 Loading existing bookings:", multiGroupBookings);
-      
+      console.log(
+        "📦 Loading existing multi-group bookings:",
+        multiGroupBookings
+      );
+
       // Convert backend bookings to UI format
       const firstBooking = multiGroupBookings[0];
-      
+
       // Set pickup location from first booking
-      if (firstBooking.pickupLocation && firstBooking.pickupLocation.length >= 2) {
+      if (
+        firstBooking.pickupLocation &&
+        firstBooking.pickupLocation.length >= 2
+      ) {
         const pickup: Location = {
           lng: firstBooking.pickupLocation[0], // Backend uses lng,lat
           lat: firstBooking.pickupLocation[1],
-          address: firstBooking.pickupAddress || "Pickup Location (Zone Center)"
+          address: "Pickup Location (Zone Center)",
         };
         setPickupLocation(pickup);
         console.log("🏠 Set pickup location:", pickup);
@@ -218,19 +271,20 @@ export function RiderBookingMultiDeliveryRequest() {
       setDialogHasBeenCompleted(true);
 
       toast.success(`Loaded ${items.length} existing deliveries`, {
-        description: "Edit locations or proceed with current setup"
+        description: "Edit locations or proceed with current setup",
       });
     }
   }, [multiGroupBookings, hasLoadedFromBookings]);
 
   // ==========================================
-  // 12. GOOGLE PLACES INITIALIZATION EFFECT
+  // 13. GOOGLE PLACES INITIALIZATION EFFECT
   // ==========================================
   useEffect(() => {
     if (!isLoaded) return;
 
     console.log("🔧 Initializing Google Places services...");
-    autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+    autocompleteServiceRef.current =
+      new google.maps.places.AutocompleteService();
     geocoderRef.current = new google.maps.Geocoder();
 
     const serviceDiv = document.createElement("div");
@@ -241,24 +295,151 @@ export function RiderBookingMultiDeliveryRequest() {
   }, [isLoaded]);
 
   // ==========================================
-  // 13. MAP INITIALIZATION EFFECT
+  // 14. MAP INITIALIZATION EFFECT
   // ==========================================
   useEffect(() => {
-    if (!mapRef.current || !pickupLocation || mapInitialized || !dialogHasBeenCompleted) {
+    if (
+      !mapRef.current ||
+      !pickupLocation ||
+      mapInitialized ||
+      !dialogHasBeenCompleted
+    ) {
       return;
     }
 
-    console.log("🗺️ Pickup location set - initializing map:", pickupLocation.address);
+    console.log(
+      "🗺️ Pickup location set - initializing multi-delivery map:",
+      pickupLocation.address
+    );
 
     const timer = setTimeout(() => {
       initializeMapWithPickup(mapRef.current!, pickupLocation, maptilerApiKey);
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [pickupLocation, mapInitialized, initializeMapWithPickup, maptilerApiKey, dialogHasBeenCompleted]);
+  }, [
+    pickupLocation,
+    mapInitialized,
+    initializeMapWithPickup,
+    maptilerApiKey,
+    dialogHasBeenCompleted,
+  ]);
 
   // ==========================================
-  // 14. CALCULATION EFFECT
+  // 15. OPTIMIZED: MULTI-DELIVERY MAP UPDATE EFFECT
+  // ==========================================
+  useEffect(() => {
+    if (
+      !mapLoaded ||
+      !pickupLocation ||
+      isTrackingActive ||
+      !dialogHasBeenCompleted
+    ) {
+      return;
+    }
+
+    // Create a unique key for this update
+    const currentDataKey = `${pickupLocation.lat}-${pickupLocation.lng}-${memoizedDeliveryData.key}-${riderZones.length}-${showZones}`;
+
+    // Skip if we've already processed this exact data
+    if (
+      lastProcessedDataRef.current === currentDataKey ||
+      isMapUpdatingRef.current
+    ) {
+      console.log("⏭️ Skipping duplicate map update");
+      return;
+    }
+
+    // Clear any pending updates
+    if (mapUpdateTimeoutRef.current) {
+      clearTimeout(mapUpdateTimeoutRef.current);
+    }
+
+    // Debounce the map update
+    mapUpdateTimeoutRef.current = setTimeout(() => {
+      if (!mapLoaded || isTrackingActive) return;
+
+      console.log("📍 Updating multi-delivery map (debounced):", {
+        pickup: pickupLocation.address,
+        deliveryCount: memoizedDeliveryData.count,
+        zonesCount: riderZones.length,
+        showZones,
+      });
+
+      isMapUpdatingRef.current = true;
+      lastProcessedDataRef.current = currentDataKey;
+
+      try {
+        // 1. Update markers first
+        updateMultiDeliveryMarkers(
+          pickupLocation,
+          memoizedDeliveryData.deliveryLocations,
+          memoizedDeliveryData.itemDescriptions
+        );
+
+        // 2. Draw zones after a short delay
+        if (riderZones.length > 0 && showZones) {
+          setTimeout(() => {
+            if (mapLoaded && !isTrackingActive) {
+              drawCoverageZones(pickupLocation, riderZones);
+            }
+          }, 150);
+        }
+
+        // 3. Draw routes and fit map after zones
+        if (memoizedDeliveryData.deliveryLocations.length > 0) {
+          setTimeout(() => {
+            if (mapLoaded && !isTrackingActive) {
+              drawMultiDeliveryRoutes(
+                pickupLocation,
+                memoizedDeliveryData.deliveryLocations
+              );
+
+              // Fit map with longer delay to ensure all elements are rendered
+              setTimeout(() => {
+                if (mapLoaded && !isTrackingActive) {
+                  fitMapToAllLocations(
+                    pickupLocation,
+                    memoizedDeliveryData.deliveryLocations
+                  );
+                }
+              }, 300);
+            }
+          }, 250);
+        }
+      } catch (error) {
+        console.error("❌ Error in map update:", error);
+      } finally {
+        // Reset updating flag after all operations
+        setTimeout(() => {
+          isMapUpdatingRef.current = false;
+        }, 1000);
+      }
+    }, 200); // 200ms debounce
+
+    // Cleanup function
+    return () => {
+      if (mapUpdateTimeoutRef.current) {
+        clearTimeout(mapUpdateTimeoutRef.current);
+      }
+    };
+  }, [
+    mapLoaded,
+    pickupLocation?.lat,
+    pickupLocation?.lng,
+    memoizedDeliveryData.key, // Use the memoized key instead of complex dependencies
+    riderZones.length,
+    showZones,
+    isTrackingActive,
+    dialogHasBeenCompleted,
+    updateMultiDeliveryMarkers,
+    drawCoverageZones,
+    drawMultiDeliveryRoutes,
+    fitMapToAllLocations,
+  ]);
+
+  // ==========================================
+  // 16. OPTIMIZED: CALCULATION EFFECT
   // ==========================================
   useEffect(() => {
     if (
@@ -271,29 +452,51 @@ export function RiderBookingMultiDeliveryRequest() {
       return;
     }
 
-    // Auto-calculate pricing for all valid delivery items
-    const validItems = deliveryItems.filter(item => 
-      item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
+    const validItems = deliveryItems.filter(
+      (item) =>
+        item.deliveryAddress &&
+        item.itemDescription &&
+        item.dropoffLocation[0] !== 0 &&
+        item.dropoffLocation[1] !== 0
     );
 
     if (validItems.length === 0) {
       return;
     }
 
-    console.log("💰 Auto-calculating multi-delivery pricing for", validItems.length, "items");
-    calculateMultiDeliveryPricing(pickupLocation, validItems, riderZones);
+    // Clear existing timeout
+    if (calculationTimeoutRef.current) {
+      clearTimeout(calculationTimeoutRef.current);
+    }
+
+    // Debounce calculation
+    calculationTimeoutRef.current = setTimeout(() => {
+      console.log(
+        "💰 Auto-calculating multi-delivery pricing for",
+        validItems.length,
+        "items"
+      );
+      calculateMultiDeliveryPricing(pickupLocation, validItems, riderZones);
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (calculationTimeoutRef.current) {
+        clearTimeout(calculationTimeoutRef.current);
+      }
+    };
   }, [
     pickupLocation?.lat,
     pickupLocation?.lng,
-    deliveryItems.length,
+    memoizedDeliveryData.count, // Use count instead of complex dependency
     riderZones.length,
     isCalculating,
     dialogHasBeenCompleted,
     calculateMultiDeliveryPricing,
+    
   ]);
 
   // ==========================================
-  // 15. STEP PROGRESSION EFFECT
+  // 17. STEP PROGRESSION EFFECT
   // ==========================================
   useEffect(() => {
     if (totalCalculations && currentStep === "locations") {
@@ -302,7 +505,7 @@ export function RiderBookingMultiDeliveryRequest() {
   }, [totalCalculations, currentStep]);
 
   // ==========================================
-  // ROUTE PANEL MANAGEMENT
+  // 18. ROUTE PANEL MANAGEMENT
   // ==========================================
 
   const handleCloseRoutePanel = useCallback(() => {
@@ -311,10 +514,10 @@ export function RiderBookingMultiDeliveryRequest() {
   }, []);
 
   useEffect(() => {
-    console.log("🔍 Route tracking state changed:", { 
-      isTrackingActive, 
-      hasRouteData: !!routeData, 
-      showRoutePanel 
+    console.log("🔍 Route tracking state changed:", {
+      isTrackingActive,
+      hasRouteData: !!routeData,
+      showRoutePanel,
     });
 
     if (isTrackingActive && routeData) {
@@ -328,33 +531,92 @@ export function RiderBookingMultiDeliveryRequest() {
     }
   }, [isTrackingActive, routeData, showRoutePanel]);
 
+  // ==========================================
+  // 19. CLEANUP EFFECTS
+  // ==========================================
   useEffect(() => {
     return () => {
-      console.log("🔧 Component cleanup - closing route panel");
+      console.log("🔧 Component cleanup");
+      if (mapUpdateTimeoutRef.current) {
+        clearTimeout(mapUpdateTimeoutRef.current);
+      }
+      if (calculationTimeoutRef.current) {
+        clearTimeout(calculationTimeoutRef.current);
+      }
+      lastProcessedDataRef.current = "";
+      isMapUpdatingRef.current = false;
       setShowRoutePanel(false);
     };
   }, []);
 
   // ==========================================
-  // 16. EVENT HANDLERS
+  // 20. DEBUG EFFECTS (can be removed in production)
+  // ==========================================
+  useEffect(() => {
+    console.log("🔍 Multi-delivery debug:", {
+      mapLoaded,
+      pickupLocation: !!pickupLocation,
+      pickupAddress: pickupLocation?.address,
+      deliveryItemsCount: deliveryItems.length,
+      completedDeliveries: memoizedDeliveryData.count,
+      riderZonesCount: riderZones.length,
+      showZones,
+      dialogCompleted: dialogHasBeenCompleted,
+      isTrackingActive,
+    });
+  }, [
+    mapLoaded,
+    pickupLocation,
+    deliveryItems.length,
+    memoizedDeliveryData.count,
+    riderZones.length,
+    showZones,
+    dialogHasBeenCompleted,
+    isTrackingActive,
+  ]);
+
+  useEffect(() => {
+    console.log("🟢 Rider zones debug:", {
+      zonesLoading,
+      zonesError,
+      riderZonesLength: riderZones.length,
+      riderZones: riderZones.map((zone) => ({
+        id: zone.id,
+        startKm: zone.startKm,
+        endKm: zone.endKm,
+        price: zone.price,
+      })),
+      riderId,
+    });
+  }, [riderZones, zonesLoading, zonesError, riderId]);
+
+  // ==========================================
+  // 21. EVENT HANDLERS
   // ==========================================
 
-  const handleLocationsComplete = useCallback((pickup: Location, items: MultiDeliveryItem[]) => {
-    setPickupLocation(pickup);
-    setDeliveryItems(items);
-    setCurrentStep("locations");
-    clearCalculations();
-    setDialogHasBeenCompleted(true);
+  const handleLocationsComplete = useCallback(
+    (pickup: Location, items: MultiDeliveryItem[]) => {
+      setPickupLocation(pickup);
+      setDeliveryItems(items);
+      setCurrentStep("locations");
+      clearCalculations();
+      setDialogHasBeenCompleted(true);
 
-    // Reset tracking if active
-    if (isTrackingActive) {
-      stopTracking();
-    }
+      // Reset tracking if active
+      if (isTrackingActive) {
+        stopTracking();
+      }
 
-    toast.success("Multi-delivery locations updated!", {
-      description: `Pickup + ${items.length} delivery destinations`,
-    });
-  }, [clearCalculations, isTrackingActive, stopTracking]);
+      // Clear performance tracking refs
+      lastProcessedDataRef.current = "";
+      isMapUpdatingRef.current = false;
+
+      toast.success("Multi-delivery locations updated!", {
+        description: `Pickup + ${items.length} delivery destinations`,
+      });
+    },
+    [clearCalculations, isTrackingActive, stopTracking]
+  );
 
   const handleDialogClose = useCallback(() => {
     setShowLocationDialog(false);
@@ -369,11 +631,17 @@ export function RiderBookingMultiDeliveryRequest() {
   }, [isTrackingActive, stopTracking]);
 
   // ==========================================
-  // MULTI-BOOKING HANDLER
+  // 22. MULTI-BOOKING HANDLER
   // ==========================================
-  
+
   const handleMultiBooking = useCallback(async () => {
-    if (!totalCalculations || !pickupLocation || !deliveryItems.length || !riderId || !bookId) {
+    if (
+      !totalCalculations ||
+      !pickupLocation ||
+      !deliveryItems.length ||
+      !riderId ||
+      !bookId
+    ) {
       toast.error("Missing required multi-delivery booking information");
       return;
     }
@@ -402,18 +670,30 @@ export function RiderBookingMultiDeliveryRequest() {
       setCurrentStep("complete");
 
       toast.success("Multi-delivery bookings updated!", {
-        description: `${deliveryItems.length} deliveries • Total: ${totalCalculations.totalPrice.toFixed(2)}`,
+        description: `${
+          deliveryItems.length
+        } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
         duration: 5000,
       });
     } catch (error: unknown) {
       console.error("❌ Multi-delivery booking update failed:", error);
-      toast.error("Failed to update multi-delivery bookings. Please try again.", { 
-        duration: 5000 
-      });
+      toast.error(
+        "Failed to update multi-delivery bookings. Please try again.",
+        {
+          duration: 5000,
+        }
+      );
     } finally {
       setIsBooking(false);
     }
-  }, [totalCalculations, pickupLocation, deliveryItems, riderId, bookId, updateBookingsWithLocations]);
+  }, [
+    totalCalculations,
+    pickupLocation,
+    deliveryItems,
+    riderId,
+    bookId,
+    updateBookingsWithLocations,
+  ]);
 
   const resetBooking = useCallback(() => {
     setPickupLocation(null);
@@ -426,6 +706,16 @@ export function RiderBookingMultiDeliveryRequest() {
     setBookingReference(null);
     setShowLocationDialog(true);
     setDialogHasBeenCompleted(false);
+
+    // Reset performance refs
+    lastProcessedDataRef.current = "";
+    isMapUpdatingRef.current = false;
+    if (mapUpdateTimeoutRef.current) {
+      clearTimeout(mapUpdateTimeoutRef.current);
+    }
+    if (calculationTimeoutRef.current) {
+      clearTimeout(calculationTimeoutRef.current);
+    }
 
     if (isTrackingActive) {
       stopTracking();
@@ -448,38 +738,184 @@ export function RiderBookingMultiDeliveryRequest() {
   ]);
 
   // ==========================================
-  // 17. OTHER HANDLERS (pin drop, tracking, etc.)
+  // 23. PIN DROP HANDLERS
   // ==========================================
 
   const handleStartPinDrop = useCallback(() => {
     startPinDropMode();
   }, [startPinDropMode]);
 
-  const handlePinDropChoice = useCallback((mode: "pickup" | "dropoff") => {
-    handleDialogChoice(mode);
-  }, [handleDialogChoice]);
+  const handlePinDropChoice = useCallback(
+  (mode: "pickup" | "dropoff", deliveryItemId?: string) => {
+    console.log("🎯 handlePinDropChoice called:", { mode, deliveryItemId });
+    handleDialogChoice(mode, deliveryItemId);
+  },
+  [handleDialogChoice]
+);
+const forceMapUpdate = useCallback(() => {
+  console.log("🔄 forceMapUpdate called");
+  
+  // Clear the last processed data to force a map update
+  lastProcessedDataRef.current = '';
+  isMapUpdatingRef.current = false;
+  
+  // Clear any pending timeouts
+  if (mapUpdateTimeoutRef.current) {
+    clearTimeout(mapUpdateTimeoutRef.current);
+  }
+  
+  // Force immediate update with the current state
+  setTimeout(() => {
+    if (!pickupLocation) {
+      console.log("❌ No pickup location for force update");
+      return;
+    }
+    
+    // Get current delivery data
+    const currentCompletedItems = deliveryItems.filter(item => 
+      item.deliveryAddress && 
+      item.itemDescription &&
+      item.dropoffLocation[0] !== 0 && 
+      item.dropoffLocation[1] !== 0
+    );
+
+    const currentDeliveryLocations: Location[] = currentCompletedItems.map(item => ({
+      lng: item.dropoffLocation[1], // Convert from [lat, lng] to [lng, lat]
+      lat: item.dropoffLocation[0],
+      address: item.deliveryAddress
+    }));
+
+    const currentItemDescriptions = currentCompletedItems.map(item => item.itemDescription);
+    
+    console.log("🔄 Force updating map with:", {
+      pickup: pickupLocation.address,
+      deliveryCount: currentDeliveryLocations.length,
+      deliveries: currentDeliveryLocations.map(loc => loc.address)
+    });
+    
+    if (currentDeliveryLocations.length > 0) {
+      updateMultiDeliveryMarkers(
+        pickupLocation,
+        currentDeliveryLocations,
+        currentItemDescriptions
+      );
+      
+      if (riderZones.length > 0 && showZones) {
+        setTimeout(() => drawCoverageZones(pickupLocation, riderZones), 100);
+      }
+      
+      setTimeout(() => {
+        drawMultiDeliveryRoutes(pickupLocation, currentDeliveryLocations);
+        setTimeout(() => {
+          fitMapToAllLocations(pickupLocation, currentDeliveryLocations);
+        }, 200);
+      }, 200);
+    } else {
+      // Only pickup, no deliveries
+      updateMultiDeliveryMarkers(pickupLocation, [], []);
+      if (riderZones.length > 0 && showZones) {
+        drawCoverageZones(pickupLocation, riderZones);
+      }
+    }
+  }, 100);
+}, [
+  pickupLocation,
+  deliveryItems,
+  riderZones,
+  showZones,
+  updateMultiDeliveryMarkers,
+  drawCoverageZones,
+  drawMultiDeliveryRoutes,
+  fitMapToAllLocations
+]);
+
 
   const handlePinDropConfirm = useCallback(() => {
     const result = confirmPinLocation();
-    if (!result) return;
+    if (!result) {
+      console.log("❌ No pin drop result");
+      return;
+    }
 
-    const { location, mode } = result;
+    const { location, mode, deliveryItemId } = result;
+
+    console.log("🎯 Pin drop confirmed:", {
+      location: location.address,
+      mode,
+      deliveryItemId,
+    });
 
     if (mode === "pickup") {
       setPickupLocation(location);
+
+      // Reset performance refs when pickup changes
+      lastProcessedDataRef.current = "";
+      isMapUpdatingRef.current = false;
+
       toast.success("Pickup location updated!", {
         description: "Zone center moved to pin location",
       });
-    } else {
-      toast.info("Multi-delivery pin drop needs item selection");
+    } else if (mode === "dropoff" && deliveryItemId) {
+      // FIXED: Update specific delivery item
+      setDeliveryItems((prev) => {
+        const updated = prev.map((item) => {
+          if (item.id === deliveryItemId) {
+            console.log(`📍 Updating delivery item ${item.id}:`, {
+              oldAddress: item.deliveryAddress,
+              newAddress: location.address,
+              oldCoords: item.dropoffLocation,
+              newCoords: [location.lat, location.lng],
+            });
+
+            return {
+              ...item,
+              deliveryAddress: location.address,
+              dropoffLocation: [location.lat, location.lng] as [number, number],
+            };
+          }
+          return item;
+        });
+
+        console.log("📦 Updated delivery items:", updated);
+        return updated;
+      });
+
+      // Find the updated item for toast
+      const updatedItem = deliveryItems.find(
+        (item) => item.id === deliveryItemId
+      );
+
+      toast.success("Delivery location updated!", {
+        description: `${
+          updatedItem?.itemDescription || "Delivery"
+        } moved to pin location`,
+      });
+
+      // Reset performance refs to trigger map update
+      lastProcessedDataRef.current = "";
+      isMapUpdatingRef.current = false;
+       // FORCE map update after state change
+    setTimeout(() => {
+      forceMapUpdate();
+    }, 200);
     }
 
     clearCalculations();
-  }, [confirmPinLocation, clearCalculations]);
-
+  }, [
+    confirmPinLocation,
+    setPickupLocation,
+    setDeliveryItems,
+    deliveryItems,
+    clearCalculations,
+    forceMapUpdate
+  ]);
   const handlePinDropCancel = useCallback(() => {
     cancelPinDrop();
   }, [cancelPinDrop]);
+
+  // ==========================================
+  // 24. TRACKING HANDLERS
+  // ==========================================
 
   const handleStartTracking = useCallback(() => {
     if (!bookId) {
@@ -499,22 +935,53 @@ export function RiderBookingMultiDeliveryRequest() {
 
   const handleStopTracking = useCallback(() => {
     console.log("⏹️ Stopping multi-delivery tracking mode");
-    
+
     stopTracking();
     setShowRoutePanel(false);
 
+    // Reset performance refs
+    lastProcessedDataRef.current = "";
+    isMapUpdatingRef.current = false;
+
+    // Restore normal multi-delivery map view
     if (pickupLocation && deliveryItems.length > 0) {
       setTimeout(() => {
+        updateMultiDeliveryMarkers(
+          pickupLocation,
+          memoizedDeliveryData.deliveryLocations,
+          memoizedDeliveryData.itemDescriptions
+        );
+
         if (riderZones.length > 0) {
           drawCoverageZones(pickupLocation, riderZones);
         }
-        fitMapToMarkers();
+
+        if (memoizedDeliveryData.deliveryLocations.length > 0) {
+          drawMultiDeliveryRoutes(
+            pickupLocation,
+            memoizedDeliveryData.deliveryLocations
+          );
+          fitMapToAllLocations(
+            pickupLocation,
+            memoizedDeliveryData.deliveryLocations
+          );
+        }
       }, 500);
     }
-  }, [stopTracking, pickupLocation, deliveryItems, riderZones, drawCoverageZones, fitMapToMarkers]);
+  }, [
+    stopTracking,
+    pickupLocation,
+    deliveryItems.length,
+    memoizedDeliveryData,
+    riderZones,
+    updateMultiDeliveryMarkers,
+    drawCoverageZones,
+    drawMultiDeliveryRoutes,
+    fitMapToAllLocations,
+  ]);
 
   // ==========================================
-  // 18. LOADING STATE
+  // 25. LOADING STATE
   // ==========================================
   if (!isLoaded || zonesLoading || isLoadingBookings) {
     return (
@@ -523,10 +990,9 @@ export function RiderBookingMultiDeliveryRequest() {
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-500">Loading multi-delivery booking...</p>
           <p className="text-xs text-gray-400 mt-2">
-            {isLoadingBookings 
-              ? "Loading existing bookings..." 
-              : "Setting up delivery zones..."
-            }
+            {isLoadingBookings
+              ? "Loading existing bookings..."
+              : "Setting up delivery zones..."}
           </p>
         </div>
       </div>
@@ -534,7 +1000,7 @@ export function RiderBookingMultiDeliveryRequest() {
   }
 
   // ==========================================
-  // 19. ERROR STATE
+  // 26. ERROR STATE
   // ==========================================
   if (zonesError || bookingsError) {
     return (
@@ -554,43 +1020,60 @@ export function RiderBookingMultiDeliveryRequest() {
   }
 
   // ==========================================
-  // WELCOME MESSAGE COMPONENT
+  // 27. WELCOME MESSAGE COMPONENT
   // ==========================================
   const WelcomeMessage = () => (
     <div className="text-center py-16">
       <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          className="h-8 w-8 text-blue-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
       </div>
       <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-        {hasLoadedFromBookings ? "Update Multi-Delivery Locations" : "Multi-Delivery Booking"}
+        {hasLoadedFromBookings
+          ? "Update Multi-Delivery Locations"
+          : "Multi-Delivery Booking"}
       </h2>
       <p className="text-gray-600 mb-6 max-w-md mx-auto">
-        {hasLoadedFromBookings 
+        {hasLoadedFromBookings
           ? "Edit your existing multi-delivery booking locations and update the details."
-          : "Set one pickup location and multiple delivery destinations. Perfect for multiple orders or packages going to different addresses."
-        }
+          : "Set one pickup location and multiple delivery destinations. Perfect for multiple orders or packages going to different addresses."}
       </p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
         <button
           onClick={() => setShowLocationDialog(true)}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
-          {hasLoadedFromBookings ? "Edit Multi-Delivery" : "Setup Multi-Delivery"}
+          {hasLoadedFromBookings
+            ? "Edit Multi-Delivery"
+            : "Setup Multi-Delivery"}
         </button>
       </div>
     </div>
   );
 
   // ==========================================
-  // 20. MAIN RENDER
+  // 28. MAIN RENDER
   // ==========================================
   return (
     <div className="py-6 font-sans w-full min-h-screen">
       <div className="max-w-4xl h-full mx-auto space-y-6">
-        
         {/* Multi-Location Input Dialog */}
         <MultiLocationInputDialog
           isOpen={showLocationDialog}
@@ -612,6 +1095,8 @@ export function RiderBookingMultiDeliveryRequest() {
               onCancel={cancelDialog}
               hasPickup={!!pickupLocation}
               hasDropoff={deliveryItems.length > 0}
+              deliveryItems={deliveryItems}
+              isMultiDelivery={true}
             />
 
             <EnhancedPinDropControlPanel
@@ -624,9 +1109,10 @@ export function RiderBookingMultiDeliveryRequest() {
             />
 
             {/* Welcome Message (when no data) */}
-            {!pickupLocation && !deliveryItems.length && !showLocationDialog && !hasLoadedFromBookings && (
-              <WelcomeMessage />
-            )}
+            {!pickupLocation &&
+              !deliveryItems.length &&
+              !showLocationDialog &&
+              !hasLoadedFromBookings && <WelcomeMessage />}
 
             {/* Main Interface (when has pickup) */}
             {pickupLocation && (

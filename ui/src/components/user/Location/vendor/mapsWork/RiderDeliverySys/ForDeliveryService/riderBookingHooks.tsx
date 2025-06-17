@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import * as turf from "@turf/turf";
 import maplibregl from "maplibre-gl";
 import { ZONE_COLORS } from "@/components/config/map";
-
+import "./mapstyle.css";
 // ==========================================
 // GraphQL Queries
 // ==========================================
@@ -795,8 +795,6 @@ export function useSimpleMapManagerWithCenteredPinDrop() {
 
         // Remove center marker source
         if (map.getSource("pickup-center")) map.removeSource("pickup-center");
-
-    
 
         // Draw zones from largest to smallest
         const sortedZones = [...riderZones].sort((a, b) => b.endKm - a.endKm);
@@ -2163,8 +2161,6 @@ export function RouteInfoPanel({
           ref={panelRef}
           className="absolute top-4 right-4 z-[9999] w-80 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden animate-in slide-in-from-right-2 fade-in duration-300"
         >
-         
-
           {/* Content */}
           <div className="p-5 space-y-4">
             {/* Live Status Banner */}
@@ -2183,10 +2179,22 @@ export function RouteInfoPanel({
             {/* Route Summary Card */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-3">
-                <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="h-4 w-4 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
-                <p className="text-sm font-semibold text-blue-900">Route Summary</p>
+                <p className="text-sm font-semibold text-blue-900">
+                  Route Summary
+                </p>
               </div>
               <p className="text-xs text-blue-700 leading-relaxed bg-white/50 rounded-lg p-3">
                 {routeData.metadata.summary}
@@ -2196,19 +2204,21 @@ export function RouteInfoPanel({
             {/* Distance & Duration Stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white border border-gray-200 rounded-xl p-4 text-center hover:shadow-md transition-shadow duration-200">
-                
                 <div className="text-lg font-bold text-gray-900">
                   {routeData.metadata.distance}
                 </div>
-                <div className="text-xs text-gray-500 font-medium">Distance</div>
+                <div className="text-xs text-gray-500 font-medium">
+                  Distance
+                </div>
               </div>
-              
+
               <div className="bg-white border border-gray-200 rounded-xl p-4 text-center hover:shadow-md transition-shadow duration-200">
-                
                 <div className="text-lg font-bold text-gray-900">
                   {routeData.metadata.duration}
                 </div>
-                <div className="text-xs text-gray-500 font-medium">Duration</div>
+                <div className="text-xs text-gray-500 font-medium">
+                  Duration
+                </div>
               </div>
             </div>
 
@@ -2217,34 +2227,68 @@ export function RouteInfoPanel({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg className="h-3 w-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="h-3 w-3 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                   </div>
-                  <h4 className="font-semibold text-gray-900 text-sm">Booking Details</h4>
+                  <h4 className="font-semibold text-gray-900 text-sm">
+                    Booking Details
+                  </h4>
                 </div>
                 <span className="font-mono text-xs bg-white px-2 py-1 rounded-md border border-gray-200">
                   #{booking.id.slice(0, 8)}
                 </span>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="bg-white/80 rounded-lg p-3 space-y-2">
                   <div className="flex items-start space-x-2">
-                    <svg className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <svg
+                      className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
                     </svg>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-600">Delivery Address</p>
+                      <p className="text-xs font-medium text-gray-600">
+                        Delivery Address
+                      </p>
                       <p className="text-sm text-gray-900 truncate">
                         {booking.deliveryAddress || "Not set"}
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start space-x-2">
-                    <svg className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    <svg
+                      className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                      />
                     </svg>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-gray-600">Item</p>
@@ -2261,7 +2305,9 @@ export function RouteInfoPanel({
                     <div className="grid grid-cols-2 gap-3">
                       {booking.distance && booking.duration && (
                         <div className="text-center">
-                          <p className="text-xs font-medium text-gray-600">Route</p>
+                          <p className="text-xs font-medium text-gray-600">
+                            Route
+                          </p>
                           <p className="text-sm font-semibold text-gray-900">
                             {booking.distance} • {booking.duration}
                           </p>
@@ -2269,7 +2315,9 @@ export function RouteInfoPanel({
                       )}
                       {booking.deliveryFee && (
                         <div className="text-center">
-                          <p className="text-xs font-medium text-gray-600">Fee</p>
+                          <p className="text-xs font-medium text-gray-600">
+                            Fee
+                          </p>
                           <p className="text-sm font-semibold text-green-600">
                             ${booking.deliveryFee}
                           </p>
@@ -2340,8 +2388,18 @@ export function RouteInfoPanel({
               }}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2 px-4 font-medium text-sm transition-colors duration-200 flex items-center justify-center space-x-2"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
               <span>Close Route Panel</span>
             </button>
@@ -2482,7 +2540,6 @@ export function CompleteStepWithTracking({
   );
 }
 
-
 // ==========================================
 // UPDATED: Multi-Delivery Hooks for Existing Bookings
 // ==========================================
@@ -2520,7 +2577,9 @@ export const GET_MULTI_GROUPED_BOOKINGS = gql`
 
 // NEW: Mutation to update multi-group bookings with locations
 export const UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION = gql`
-  mutation UpdateMultiGroupBookingsWithLocationBybookId($input: [addBookCoordinateInput!]!) {
+  mutation UpdateMultiGroupBookingsWithLocationBybookId(
+    $input: [addBookCoordinateInput!]!
+  ) {
     updateMultiGroupBookingsWithLocationBybookId(input: $input) {
       id
       startTime
@@ -2595,15 +2654,13 @@ export function useMultiGroupBookingManagement(bookId?: string) {
   });
 
   // Mutation to update bookings with locations
-  const [updateMultiGroupBookings, { loading: isUpdatingBookings }] = useMutation(
-    UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION,
-    {
+  const [updateMultiGroupBookings, { loading: isUpdatingBookings }] =
+    useMutation(UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION, {
       onError: (error) => {
         console.error("Error updating multi-group bookings:", error);
         toast.error("Failed to update booking locations");
       },
-    }
-  );
+    });
 
   const updateBookingsWithLocations = useCallback(
     async (inputs: UpdateBookingLocationInput[]) => {
@@ -2615,8 +2672,9 @@ export function useMultiGroupBookingManagement(bookId?: string) {
         });
 
         if (result?.data?.updateMultiGroupBookingsWithLocationBybookId) {
-          const updatedBookings = result.data.updateMultiGroupBookingsWithLocationBybookId;
-          
+          const updatedBookings =
+            result.data.updateMultiGroupBookingsWithLocationBybookId;
+
           toast.success("Booking locations updated successfully!", {
             description: `${updatedBookings.length} bookings updated`,
             duration: 4000,
@@ -2631,7 +2689,7 @@ export function useMultiGroupBookingManagement(bookId?: string) {
         throw new Error("No data returned from mutation");
       } catch (error: any) {
         console.error("Update multi-group bookings error:", error);
-        
+
         let errorMessage = "Failed to update booking locations";
         if (error.graphQLErrors?.length > 0) {
           errorMessage = error.graphQLErrors[0].message;
@@ -2648,14 +2706,15 @@ export function useMultiGroupBookingManagement(bookId?: string) {
 
   return {
     // Existing bookings data
-    multiGroupBookings: multiGroupData?.getMultiGroupedAppointmentBookingBybookId || [],
+    multiGroupBookings:
+      multiGroupData?.getMultiGroupedAppointmentBookingBybookId || [],
     isLoadingBookings,
     bookingsError: bookingsError?.message,
-    
+
     // Update functionality
     updateBookingsWithLocations,
     isUpdatingBookings,
-    
+
     // Refetch function
     refetchBookings,
   };
@@ -2664,21 +2723,26 @@ export function useMultiGroupBookingManagement(bookId?: string) {
 // ==========================================
 // HELPER: Convert Multi-Group Bookings to Delivery Items
 // ==========================================
-export function convertBookingsToDeliveryItems(bookings: MultiGroupBooking[]): MultiDeliveryItem[] {
+export function convertBookingsToDeliveryItems(
+  bookings: MultiGroupBooking[]
+): MultiDeliveryItem[] {
   return bookings.map((booking, index) => ({
     id: booking.id,
     itemDescription: booking.item || `Item ${index + 1}`,
     deliveryAddress: booking.deliveryAddress || "",
-    dropoffLocation: booking.dropoffLocation 
+    dropoffLocation: booking.dropoffLocation
       ? [booking.dropoffLocation[1], booking.dropoffLocation[0]] // Convert lng,lat to lat,lng
-      : [0, 0] as [number, number],
+      : ([0, 0] as [number, number]),
     notes: booking.notes || "",
     // Add calculated data if available
-    calculated: booking.distance && booking.deliveryFee ? {
-      distance: parseFloat(booking.distance),
-      duration: booking.duration || "Unknown",
-      price: parseFloat(booking.deliveryFee),
-    } : undefined,
+    calculated:
+      booking.distance && booking.deliveryFee
+        ? {
+            distance: parseFloat(booking.distance),
+            duration: booking.duration || "Unknown",
+            price: parseFloat(booking.deliveryFee),
+          }
+        : undefined,
   }));
 }
 
@@ -2716,12 +2780,16 @@ export function useMultiDeliveryCalculation() {
       price: number;
     }>;
   } | null>(null);
-  
+
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const calculateMultiDeliveryPricing = useCallback(
-    async (pickup: Location, deliveryItems: MultiDeliveryItem[], zones: PricingZone[]) => {
+    async (
+      pickup: Location,
+      deliveryItems: MultiDeliveryItem[],
+      zones: PricingZone[]
+    ) => {
       if (!pickup || deliveryItems.length === 0 || zones.length === 0) {
         setError("Missing required data for calculation");
         return null;
@@ -2769,16 +2837,22 @@ export function useMultiDeliveryCalculation() {
             const distance = turf.distance(from, to, { units: "kilometers" });
 
             // Find matching pricing zone
-            const matchedZone = zones.find(
-              (zone) => distance >= zone.startKm && distance < zone.endKm
-            ) || zones[zones.length - 1];
+            const matchedZone =
+              zones.find(
+                (zone) => distance >= zone.startKm && distance < zone.endKm
+              ) || zones[zones.length - 1];
 
             if (matchedZone) {
               const averageSpeed = 25; // km/h
-              const durationMinutes = Math.round((distance / averageSpeed) * 60);
-              const duration = durationMinutes < 60
-                ? `${durationMinutes} min`
-                : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+              const durationMinutes = Math.round(
+                (distance / averageSpeed) * 60
+              );
+              const duration =
+                durationMinutes < 60
+                  ? `${durationMinutes} min`
+                  : `${Math.floor(durationMinutes / 60)}h ${
+                      durationMinutes % 60
+                    }m`;
 
               const itemCalc = {
                 id: item.id,
@@ -2808,7 +2882,9 @@ export function useMultiDeliveryCalculation() {
           setTotalCalculations(result);
 
           toast.success("Multi-delivery calculated!", {
-            description: `${itemCalculations.length} items • Total: $${totalPrice.toFixed(2)}`,
+            description: `${
+              itemCalculations.length
+            } items • Total: $${totalPrice.toFixed(2)}`,
             duration: 3000,
           });
 
@@ -2863,11 +2939,17 @@ export function useMultiDeliveryState(bookId?: string) {
   // Load data from existing bookings when available
   useEffect(() => {
     if (multiGroupBookings.length > 0 && !hasLoadedFromBookings) {
-      console.log("📦 Loading existing multi-group bookings:", multiGroupBookings);
+      console.log(
+        "📦 Loading existing multi-group bookings:",
+        multiGroupBookings
+      );
 
       // Set pickup location from first booking (they should all have the same pickup)
       const firstBooking = multiGroupBookings[0];
-      if (firstBooking.pickupLocation && firstBooking.pickupLocation.length >= 2) {
+      if (
+        firstBooking.pickupLocation &&
+        firstBooking.pickupLocation.length >= 2
+      ) {
         const pickup: Location = {
           lng: firstBooking.pickupLocation[0],
           lat: firstBooking.pickupLocation[1],
@@ -2924,23 +3006,1004 @@ export function useMultiDeliveryState(bookId?: string) {
     // State
     pickupLocation,
     deliveryItems,
-    
+
     // Loading states
     isLoadingBookings,
     isUpdatingBookings,
-    
+
     // Errors
     bookingsError,
-    
+
     // Data
     multiGroupBookings,
     hasLoadedFromBookings,
-    
+
     // Actions
     updatePickupLocation,
     updateDeliveryItems,
     clearAllData,
     updateBookingLocations,
     refetchBookings,
+  };
+}
+
+// ==========================================
+// COMPLETE: useMultiDeliveryMapManager Hook
+// Add this to your riderBookingHooks.tsx file
+// ==========================================
+
+// Types
+export interface Location {
+  lng: number;
+  lat: number;
+  address: string;
+}
+
+export interface PricingZone {
+  id: string;
+  riderId: string;
+  startKm: number;
+  endKm: number;
+  price: number;
+  updatedAt?: string;
+}
+
+export interface MultiDeliveryMarker {
+  id: string;
+  marker: maplibregl.Marker;
+  location: Location;
+  index: number;
+}
+
+export function useMultiDeliveryMapManager() {
+  // ==========================================
+  // State Management
+  // ==========================================
+  const mapInstance = useRef<maplibregl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
+
+  // Single markers (for compatibility)
+  const [pickupMarker, setPickupMarker] = useState<maplibregl.Marker | null>(
+    null
+  );
+  const [dropoffMarker, setDropoffMarker] = useState<maplibregl.Marker | null>(
+    null
+  );
+
+  // Multi-delivery markers
+  const [multiDeliveryMarkers, setMultiDeliveryMarkers] = useState<
+    MultiDeliveryMarker[]
+  >([]);
+
+  // ==========================================
+  // Initialize map with pickup location
+  // ==========================================
+  const initializeMapWithPickup = useCallback(
+    (
+      container: HTMLDivElement,
+      pickupLocation: Location,
+      maptilerApiKey?: string
+    ) => {
+      console.log(
+        "🗺️ Initializing multi-delivery map centered on pickup:",
+        pickupLocation.address
+      );
+
+      // Clean up existing map
+      if (mapInstance.current) {
+        console.log("🗑️ Removing existing map instance");
+        mapInstance.current.remove();
+        mapInstance.current = null;
+        setMapLoaded(false);
+      }
+
+      try {
+        let mapStyle;
+
+        if (maptilerApiKey) {
+          mapStyle = `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerApiKey}`;
+        } else {
+          mapStyle = {
+            version: 8,
+            name: "Basic",
+            sources: {
+              osm: {
+                type: "raster",
+                tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                tileSize: 256,
+              },
+            },
+            layers: [{ id: "osm", type: "raster", source: "osm" }],
+          };
+        }
+
+        const initialCenter: [number, number] = [
+          pickupLocation.lng,
+          pickupLocation.lat,
+        ];
+        const initialZoom = 13;
+
+        console.log("🎯 Initializing map with PICKUP center:", initialCenter);
+
+        const map = new maplibregl.Map({
+          container,
+          style: mapStyle,
+          center: initialCenter,
+          zoom: initialZoom,
+          attributionControl: false,
+          maxZoom: 18,
+          minZoom: 2,
+        });
+
+        mapInstance.current = map;
+
+        map.on("load", () => {
+          console.log("✅ Multi-delivery map loaded successfully");
+          setMapLoaded(true);
+          setMapInitialized(true);
+        });
+
+        map.on("error", (e) => {
+          console.error("❌ Multi-delivery map error:", e);
+        });
+      } catch (error) {
+        console.error("❌ Failed to initialize multi-delivery map:", error);
+        setMapLoaded(false);
+      }
+    },
+    []
+  );
+
+  // ==========================================
+  // Create Single Marker (for compatibility)
+  // ==========================================
+  const createMarker = useCallback(
+    (location: Location, type: "pickup" | "dropoff") => {
+      if (!mapInstance.current || !mapLoaded) return null;
+
+      const isPickup = type === "pickup";
+      const color = isPickup ? "#22c55e" : "#ef4444";
+      const icon = isPickup ? "📍" : "🎯";
+      const title = isPickup
+        ? "Pickup Location (Zone Center)"
+        : "Drop-off Location";
+
+      try {
+        const marker = new maplibregl.Marker({
+          color,
+          scale: 1.2,
+        })
+          .setLngLat([location.lng, location.lat])
+          .setPopup(
+            new maplibregl.Popup({ offset: 25 }).setHTML(`
+              <div style="padding: 8px; font-family: system-ui;">
+                <strong style="color: ${color};">${icon} ${title}</strong><br/>
+                <small style="color: #666;">${location.address}</small>
+                ${
+                  isPickup
+                    ? '<br/><small style="color: #22c55e; font-weight: 500;">🎯 All zones center here</small>'
+                    : ""
+                }
+              </div>
+            `)
+          )
+          .addTo(mapInstance.current);
+
+        console.log(`✅ Created ${type} marker:`, location.address);
+        return marker;
+      } catch (error) {
+        console.error(`❌ Error creating ${type} marker:`, error);
+        return null;
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Create Multi-Delivery Marker
+  // ==========================================
+
+  const createEnhancedMultiDeliveryMarker = useCallback(
+    (
+      location: Location,
+      index: number,
+      total: number,
+      itemDescription?: string
+    ) => {
+      if (!mapInstance.current || !mapLoaded) return null;
+
+      try {
+        console.log(`✅ Creating proper marker with visible badge ${index}`);
+
+        // Create a container that mimics MapLibre's exact marker structure
+        const markerContainer = document.createElement("div");
+        markerContainer.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      `;
+
+        // Create the marker wrapper (this is how MapLibre structures it)
+        const markerWrapper = document.createElement("div");
+        markerWrapper.style.cssText = `
+        position: relative;
+        pointer-events: auto;
+        cursor: pointer;
+      `;
+
+        // Create the actual marker SVG (exactly like MapLibre's default marker)
+        const markerSvg = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg"
+        );
+        markerSvg.setAttribute("display", "block");
+        markerSvg.setAttribute("height", "41px");
+        markerSvg.setAttribute("width", "27px");
+        markerSvg.setAttribute("viewBox", "0 0 27 41");
+        markerSvg.style.cssText = `
+        cursor: pointer;
+      `;
+
+        // Create the marker path (MapLibre's exact marker shape)
+        const markerPath = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "path"
+        );
+        markerPath.setAttribute(
+          "d",
+          "M13.5,0C6.044,0,0,6.044,0,13.5C0,20.956,13.5,41,13.5,41S27,20.956,27,13.5C27,6.044,20.956,0,13.5,0z"
+        );
+        markerPath.setAttribute("fill", "#ef4444");
+        markerPath.setAttribute("stroke", "#ffffff");
+        markerPath.setAttribute("stroke-width", "2");
+
+        markerSvg.appendChild(markerPath);
+
+        // Create the number badge positioned relative to the marker
+        const badge = document.createElement("div");
+        badge.style.cssText = `
+        position: absolute;
+        top: -5px;
+        right: -10px;
+        width: 20px;
+        height: 20px;
+        background: #dc2626;
+        border: 2px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        z-index: 1000;
+        pointer-events: none;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+        badge.textContent = index.toString();
+
+        // Assemble the marker
+        markerWrapper.appendChild(markerSvg);
+        markerWrapper.appendChild(badge);
+        markerContainer.appendChild(markerWrapper);
+
+        // Create the MapLibre marker with our custom element
+        const marker = new maplibregl.Marker({
+          element: markerContainer,
+          anchor: "bottom",
+          scale: 1.2,
+        })
+          .setLngLat([location.lng, location.lat])
+          .setPopup(
+            new maplibregl.Popup({
+              offset: 25,
+              closeButton: true,
+              closeOnClick: false,
+            }).setHTML(`
+        <div style="padding: 12px; font-family: system-ui; min-width: 220px; max-width: 300px;">
+          
+          
+          ${
+            itemDescription
+              ? `
+            <div style="
+          margin-bottom: 8px; 
+          padding: 8px; 
+          background: #f3f4f6; 
+          border-radius: 6px;
+          border-left: 3px solid #ef4444;
+            ">
+          <div style="font-weight: 600; color: #374151; font-size: 14px; margin-bottom: 2px;">📦 Item</div>
+          <div style="color: #6b7280; font-size: 13px;">${itemDescription}</div>
+            </div>
+          `
+              : ""
+          }
+          
+          <div style="
+            padding: 8px; 
+            background: #fef2f2; 
+            border-radius: 6px;
+            border: 1px solid #fecaca;
+          ">
+            <div style="font-weight: 600; color: #ef4444; font-size: 12px; margin-bottom: 4px;">📍 DELIVERY ADDRESS</div>
+            <div style="color: #374151; font-size: 13px; line-height: 1.4;">${
+              location.address
+            }</div>
+          </div>
+          ${index}/${total}
+         
+        </div>
+          `)
+          )
+          .addTo(mapInstance.current);
+
+        // Fit map to marker if only one delivery
+        if (total === 1 && mapInstance.current) {
+          mapInstance.current.flyTo({
+            center: [location.lng, location.lat],
+            zoom: 15,
+            speed: 1.2,
+            curve: 1.2,
+            essential: true,
+          });
+        }
+
+        // Click handler for popup
+        markerWrapper.addEventListener("click", (e) => {
+          e.stopPropagation();
+          marker.togglePopup();
+        });
+
+        console.log(
+          `✅ Created proper marker with visible badge ${index}:`,
+          location.address
+        );
+        return marker;
+      } catch (error) {
+        console.error(`❌ Error creating proper marker ${index}:`, error);
+        return null;
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Update Multi-Delivery Markers
+  // ==========================================
+  const updateMultiDeliveryMarkers = useCallback(
+    (
+      pickup: Location,
+      deliveryLocations: Location[],
+      itemDescriptions?: string[]
+    ) => {
+      if (!mapInstance.current || !mapLoaded) {
+        console.log("⏳ Cannot update multi-delivery markers: map not ready");
+        return;
+      }
+
+      console.log("📍 Updating multi-delivery markers:", {
+        pickup: !!pickup,
+        deliveries: deliveryLocations.length,
+      });
+
+      // Clear existing pickup marker
+      if (pickupMarker) {
+        pickupMarker.remove();
+        setPickupMarker(null);
+      }
+
+      // Clear existing delivery markers
+      multiDeliveryMarkers.forEach(({ marker }) => marker.remove());
+      setMultiDeliveryMarkers([]);
+
+      // Clear single dropoff marker for compatibility
+      if (dropoffMarker) {
+        dropoffMarker.remove();
+        setDropoffMarker(null);
+      }
+
+      // Create pickup marker
+      if (pickup) {
+        const newPickupMarker = createMarker(pickup, "pickup");
+        setPickupMarker(newPickupMarker);
+      }
+
+      // Create delivery markers
+      if (deliveryLocations.length > 0) {
+        const newMultiMarkers: MultiDeliveryMarker[] = [];
+
+        deliveryLocations.forEach((location, index) => {
+          const itemDescription = itemDescriptions?.[index];
+          const marker = createEnhancedMultiDeliveryMarker(
+            location,
+            index + 1,
+            deliveryLocations.length,
+            itemDescription
+          );
+
+          if (marker) {
+            newMultiMarkers.push({
+              id: `delivery-${index}`,
+              marker,
+              location,
+              index: index + 1,
+            });
+          }
+        });
+
+        setMultiDeliveryMarkers(newMultiMarkers);
+        console.log(`✅ Created ${newMultiMarkers.length} delivery markers`);
+      }
+    },
+    [
+      mapLoaded,
+      createMarker,
+      createEnhancedMultiDeliveryMarker,
+      pickupMarker,
+      multiDeliveryMarkers,
+      dropoffMarker,
+    ]
+  );
+
+  // ==========================================
+  // Update Single Markers (for compatibility)
+  // ==========================================
+  const updateMarkers = useCallback(
+    (pickup?: Location | null, dropoff?: Location | null) => {
+      if (!mapInstance.current || !mapLoaded) {
+        console.log("⏳ Cannot update markers: map not ready");
+        return;
+      }
+
+      console.log("📍 Updating single markers:", {
+        pickup: !!pickup,
+        dropoff: !!dropoff,
+      });
+
+      // Clear existing markers
+      if (pickupMarker) {
+        pickupMarker.remove();
+        setPickupMarker(null);
+      }
+      if (dropoffMarker) {
+        dropoffMarker.remove();
+        setDropoffMarker(null);
+      }
+
+      // Create new markers
+      if (pickup) {
+        const newPickupMarker = createMarker(pickup, "pickup");
+        setPickupMarker(newPickupMarker);
+      }
+
+      if (dropoff) {
+        const newDropoffMarker = createMarker(dropoff, "dropoff");
+        setDropoffMarker(newDropoffMarker);
+      }
+    },
+    [mapLoaded, createMarker, pickupMarker, dropoffMarker]
+  );
+
+  // ==========================================
+  // Draw Coverage Zones
+  // ==========================================
+  const drawCoverageZones = useCallback(
+    (pickupLocation: Location, riderZones: PricingZone[]) => {
+      if (!mapInstance.current || !mapLoaded || !riderZones.length) return;
+
+      console.log(
+        "🟢 Drawing coverage zones centered on pickup:",
+        pickupLocation.address
+      );
+
+      const map = mapInstance.current;
+      const centerPoint: [number, number] = [
+        pickupLocation.lng,
+        pickupLocation.lat,
+      ];
+
+      try {
+        // Clear existing zones
+        for (let i = 0; i < 10; i++) {
+          const fillId = `zone-${i}`;
+          const outlineId = `zone-outline-${i}`;
+
+          if (map.getLayer(fillId)) map.removeLayer(fillId);
+          if (map.getLayer(outlineId)) map.removeLayer(outlineId);
+        }
+
+        if (map.getLayer("pickup-center")) map.removeLayer("pickup-center");
+
+        for (let i = 0; i < 10; i++) {
+          const fillId = `zone-${i}`;
+          if (map.getSource(fillId)) map.removeSource(fillId);
+        }
+
+        if (map.getSource("pickup-center")) map.removeSource("pickup-center");
+
+        // Draw zones from largest to smallest
+        const sortedZones = [...riderZones].sort((a, b) => b.endKm - a.endKm);
+
+        sortedZones.forEach((zone, index) => {
+          try {
+            const outerCircle = turf.circle(centerPoint, zone.endKm, {
+              units: "kilometers",
+              steps: 64,
+            });
+
+            let zonePolygon = outerCircle;
+
+            if (zone.startKm > 0) {
+              const innerCircle = turf.circle(centerPoint, zone.startKm, {
+                units: "kilometers",
+                steps: 64,
+              });
+
+              try {
+                const difference = turf.difference(
+                  turf.feature(outerCircle.geometry),
+                  turf.feature(innerCircle.geometry)
+                );
+                if (difference) zonePolygon = difference;
+              } catch {
+                // Use full circle if difference fails
+              }
+            }
+
+            const layerId = `zone-${index}`;
+            const outlineId = `zone-outline-${index}`;
+            const color = ZONE_COLORS[index % ZONE_COLORS.length];
+
+            map.addSource(layerId, {
+              type: "geojson",
+              data: zonePolygon,
+            });
+
+            map.addLayer({
+              id: layerId,
+              type: "fill",
+              source: layerId,
+              paint: {
+                "fill-color": color,
+                "fill-opacity": 0.3,
+              },
+            });
+
+            map.addLayer({
+              id: outlineId,
+              type: "line",
+              source: layerId,
+              paint: {
+                "line-color": color,
+                "line-width": 2,
+                "line-opacity": 0.8,
+              },
+            });
+
+            console.log(
+              `✅ Zone ${index + 1}: ${zone.startKm}-${zone.endKm}km, $${
+                zone.price
+              }`
+            );
+          } catch (error) {
+            console.error(`❌ Error creating zone ${index}:`, error);
+          }
+        });
+
+        // Add center marker
+        const centerMarkerId = "pickup-center";
+
+        map.addSource(centerMarkerId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: centerPoint,
+            },
+          },
+        });
+
+        map.addLayer({
+          id: centerMarkerId,
+          type: "circle",
+          source: centerMarkerId,
+          paint: {
+            "circle-radius": 8,
+            "circle-color": "#22c55e",
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+
+        console.log("✅ Coverage zones drawn successfully");
+      } catch (error) {
+        console.error("❌ Error drawing coverage zones:", error);
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Draw Multi-Delivery Routes
+  // ==========================================
+  const drawMultiDeliveryRoutes = useCallback(
+    (pickup: Location, deliveryLocations: Location[]) => {
+      if (!mapInstance.current || !mapLoaded) return;
+
+      console.log(
+        "🛣️ Drawing multi-delivery routes from pickup to",
+        deliveryLocations.length,
+        "destinations"
+      );
+
+      const map = mapInstance.current;
+
+      try {
+        // Clear existing routes
+        if (map.getLayer("multi-route")) map.removeLayer("multi-route");
+        if (map.getLayer("multi-route-outline"))
+          map.removeLayer("multi-route-outline");
+        if (map.getSource("multi-route")) map.removeSource("multi-route");
+
+        // Create routes from pickup to each delivery
+        const routeFeatures = deliveryLocations.map((delivery, index) => ({
+          type: "Feature" as const,
+          properties: {
+            deliveryIndex: index + 1,
+            color: `hsl(${(index * 60) % 360}, 70%, 50%)`, // Different color for each route
+          },
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [
+              [pickup.lng, pickup.lat],
+              [delivery.lng, delivery.lat],
+            ],
+          },
+        }));
+
+        const routeCollection = {
+          type: "FeatureCollection" as const,
+          features: routeFeatures,
+        };
+
+        map.addSource("multi-route", {
+          type: "geojson",
+          data: routeCollection,
+        });
+
+        // Add route outline (wider, darker)
+        map.addLayer({
+          id: "multi-route-outline",
+          type: "line",
+          source: "multi-route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": "#1f2937",
+            "line-width": 6,
+            "line-opacity": 0.4,
+          },
+        });
+
+        // Add main route lines with different colors
+        map.addLayer({
+          id: "multi-route",
+          type: "line",
+          source: "multi-route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": [
+              "case",
+              ["==", ["%", ["get", "deliveryIndex"], 4], 1],
+              "#3b82f6", // Blue
+              ["==", ["%", ["get", "deliveryIndex"], 4], 2],
+              "#ef4444", // Red
+              ["==", ["%", ["get", "deliveryIndex"], 4], 3],
+              "#10b981", // Green
+              "#f59e0b", // Orange
+            ],
+            "line-width": 4,
+            "line-opacity": 0.8,
+          },
+        });
+
+        console.log("✅ Multi-delivery routes drawn successfully");
+      } catch (error) {
+        console.error("❌ Error drawing multi-delivery routes:", error);
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Draw Single Route (for compatibility)
+  // ==========================================
+  const drawRoute = useCallback(
+    (pickup: Location, dropoff: Location) => {
+      if (!mapInstance.current || !mapLoaded) return;
+
+      console.log("🛣️ Drawing single route from pickup to dropoff");
+
+      const map = mapInstance.current;
+
+      try {
+        // Clear existing route
+        if (map.getLayer("route")) map.removeLayer("route");
+        if (map.getSource("route")) map.removeSource("route");
+
+        const routeData = {
+          type: "Feature" as const,
+          properties: {},
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [
+              [pickup.lng, pickup.lat],
+              [dropoff.lng, dropoff.lat],
+            ],
+          },
+        };
+
+        map.addSource("route", {
+          type: "geojson",
+          data: routeData,
+        });
+
+        map.addLayer({
+          id: "route",
+          type: "line",
+          source: "route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 4,
+            "line-opacity": 0.8,
+          },
+        });
+
+        console.log("✅ Single route drawn successfully");
+      } catch (error) {
+        console.error("❌ Error drawing single route:", error);
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Fit Map to All Locations
+  // ==========================================
+  const fitMapToAllLocations = useCallback(
+    (pickup: Location, deliveryLocations: Location[]) => {
+      if (!mapInstance.current || !mapLoaded) return;
+
+      try {
+        const bounds = new maplibregl.LngLatBounds();
+
+        // Add pickup location
+        bounds.extend([pickup.lng, pickup.lat]);
+
+        // Add all delivery locations
+        deliveryLocations.forEach((delivery) => {
+          bounds.extend([delivery.lng, delivery.lat]);
+        });
+
+        // Only fit bounds if we have multiple locations
+        if (deliveryLocations.length > 0) {
+          mapInstance.current.fitBounds(bounds, {
+            padding: {
+              top: 80,
+              bottom: 80,
+              left: 80,
+              right: 80,
+            },
+            duration: 1000,
+            maxZoom: 15,
+          });
+
+          console.log("✅ Map fitted to show all multi-delivery locations");
+        }
+      } catch (error) {
+        console.error(
+          "❌ Error fitting map to multi-delivery locations:",
+          error
+        );
+      }
+    },
+    [mapLoaded]
+  );
+
+  // ==========================================
+  // Fit Map to Markers (for compatibility)
+  // ==========================================
+  const fitMapToMarkers = useCallback(() => {
+    if (!mapInstance.current || !mapLoaded) return;
+
+    const coordinates = [];
+    if (pickupMarker) coordinates.push(pickupMarker.getLngLat());
+    if (dropoffMarker) coordinates.push(dropoffMarker.getLngLat());
+
+    if (coordinates.length === 0) return;
+
+    try {
+      if (coordinates.length === 1) {
+        // Only pickup - already centered
+        return;
+      } else {
+        // Both pickup and dropoff - fit to show both
+        const bounds = new maplibregl.LngLatBounds();
+        coordinates.forEach((coord) => bounds.extend(coord));
+
+        mapInstance.current.fitBounds(bounds, {
+          padding: 80,
+          duration: 1000,
+          maxZoom: 15,
+        });
+
+        console.log("✅ Map fitted to show both locations");
+      }
+    } catch (error) {
+      console.error("❌ Error fitting map:", error);
+    }
+  }, [mapLoaded, pickupMarker, dropoffMarker]);
+
+  // ==========================================
+  // Clear Map
+  // ==========================================
+  const clearMap = useCallback(() => {
+    if (!mapInstance.current) return;
+
+    try {
+      // Clear single markers
+      if (pickupMarker) pickupMarker.remove();
+      if (dropoffMarker) dropoffMarker.remove();
+
+      // Clear multi-delivery markers
+      multiDeliveryMarkers.forEach(({ marker }) => marker.remove());
+
+      setPickupMarker(null);
+      setDropoffMarker(null);
+      setMultiDeliveryMarkers([]);
+
+      console.log("✅ Multi-delivery map cleared");
+    } catch (error) {
+      console.error("❌ Error clearing multi-delivery map:", error);
+    }
+  }, [pickupMarker, dropoffMarker, multiDeliveryMarkers]);
+
+  // ==========================================
+  // Get Map Center
+  // ==========================================
+  const getMapCenter = useCallback(() => {
+    if (!mapInstance.current) return null;
+
+    const center = mapInstance.current.getCenter();
+    return {
+      lng: center.lng,
+      lat: center.lat,
+    };
+  }, []);
+
+  // ==========================================
+  // Reverse Geocoding
+  // ==========================================
+  const reverseGeocode = useCallback(
+    async (
+      lng: number,
+      lat: number,
+      geocoderRef?: React.RefObject<google.maps.Geocoder | null>
+    ): Promise<string> => {
+      try {
+        if (geocoderRef?.current) {
+          return new Promise((resolve) => {
+            geocoderRef.current!.geocode(
+              { location: { lat, lng } },
+              (results, status) => {
+                if (
+                  status === google.maps.GeocoderStatus.OK &&
+                  results &&
+                  results[0]
+                ) {
+                  resolve(results[0].formatted_address);
+                } else {
+                  resolve(
+                    `📍 Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+                  );
+                }
+              }
+            );
+          });
+        }
+
+        return `📍 Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      } catch (error) {
+        console.error("Reverse geocoding error:", error);
+        return `📍 Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
+    },
+    []
+  );
+
+  // ==========================================
+  // Add Map Move Listener
+  // ==========================================
+  const addMapMoveListener = useCallback((callback: () => void) => {
+    if (!mapInstance.current) return;
+
+    const map = mapInstance.current;
+    map.on("moveend", callback);
+
+    return () => {
+      map.off("moveend", callback);
+    };
+  }, []);
+
+  // ==========================================
+  // Cleanup Effect
+  // ==========================================
+  useEffect(() => {
+    return () => {
+      try {
+        if (pickupMarker) pickupMarker.remove();
+        if (dropoffMarker) dropoffMarker.remove();
+        multiDeliveryMarkers.forEach(({ marker }) => marker.remove());
+        if (mapInstance.current) {
+          mapInstance.current.remove();
+          mapInstance.current = null;
+        }
+      } catch (error) {
+        console.warn("Multi-delivery cleanup error:", error);
+      }
+      setMapLoaded(false);
+      setMapInitialized(false);
+    };
+  }, []);
+
+  // ==========================================
+  // Return Hook Interface
+  // ==========================================
+  return {
+    // Map instance and state
+    mapInstance,
+    mapLoaded,
+    mapInitialized,
+
+    // Markers
+    pickupMarker,
+    dropoffMarker,
+    multiDeliveryMarkers,
+
+    // Initialization
+    initializeMapWithPickup,
+
+    // Single delivery functions (for compatibility)
+    updateMarkers,
+    drawRoute,
+    fitMapToMarkers,
+
+    // Multi-delivery functions
+    updateMultiDeliveryMarkers,
+    drawMultiDeliveryRoutes,
+    fitMapToAllLocations,
+
+    // Shared functions
+    drawCoverageZones,
+    clearMap,
+
+    // Utility functions
+    getMapCenter,
+    reverseGeocode,
+    addMapMoveListener,
   };
 }

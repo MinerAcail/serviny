@@ -2,6 +2,9 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import maplibregl from "maplibre-gl"
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown, ChevronUp, Package, X } from "lucide-react";
+
 // import type { Location } from "./riderBookingHooks"
 export interface Location {
   lng: number
@@ -17,11 +20,13 @@ export function useEnhancedPinDrop(
   const [pinDropState, setPinDropState] = useState<{
     isActive: boolean
     mode: 'pickup' | 'dropoff' | null
+    selectedDeliveryItemId: string | null
     showDialog: boolean
     pendingLocation: { lng: number; lat: number } | null
   }>({
     isActive: false,
     mode: null,
+    selectedDeliveryItemId: null,
     showDialog: false,
     pendingLocation: null
   })
@@ -56,23 +61,24 @@ export function useEnhancedPinDrop(
   }, [geocoderRef])
 
   // Create draggable pin with enhanced styling
-  const createDraggablePin = useCallback((lng: number, lat: number, mode: 'pickup' | 'dropoff') => {
+  const createDraggablePin = useCallback((lng: number, lat: number, mode: 'pickup' | 'dropoff', deliveryIndex?: number) => {
     if (!mapInstance.current) return null
 
     const color = mode === 'pickup' ? '#22c55e' : '#ef4444'
+    const icon = mode === 'pickup' ? '📍' : (deliveryIndex ? deliveryIndex.toString() : '🎯')
     
     // Create custom pin element
     const pinElement = document.createElement('div')
     pinElement.className = 'custom-pin'
     pinElement.innerHTML = `
       <div style="
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         background: ${color};
         border: 3px solid white;
         border-radius: 50% 50% 50% 0;
         transform: rotate(-45deg);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
         cursor: grab;
         transition: transform 0.2s ease;
       ">
@@ -83,9 +89,11 @@ export function useEnhancedPinDrop(
           align-items: center;
           justify-content: center;
           transform: rotate(45deg);
-          font-size: 14px;
+          font-size: ${mode === 'pickup' ? '16px' : '14px'};
+          font-weight: bold;
+          color: white;
         ">
-          ${mode === 'pickup' ? '📍' : '🎯'}
+          ${icon}
         </div>
       </div>
     `
@@ -99,7 +107,7 @@ export function useEnhancedPinDrop(
 
     // Handle drag events
     marker.on('dragstart', () => {
-      pinElement.style.transform = 'rotate(-45deg) scale(1.1)'
+      pinElement.style.transform = 'rotate(-45deg) scale(1.2)'
       pinElement.style.cursor = 'grabbing'
       setIsLoadingAddress(true)
     })
@@ -153,7 +161,12 @@ export function useEnhancedPinDrop(
 
   // Start pin drop mode
   const startPinDropMode = useCallback(() => {
-    setPinDropState(prev => ({ ...prev, isActive: true }))
+    setPinDropState(prev => ({ 
+      ...prev, 
+      isActive: true,
+      mode: null,
+      selectedDeliveryItemId: null
+    }))
     addMapClickHandler()
     
     toast.info("Pin Drop Mode Active", {
@@ -161,14 +174,17 @@ export function useEnhancedPinDrop(
     })
   }, [addMapClickHandler])
 
-  // Handle dialog choice (pickup or dropoff)
-  const handleDialogChoice = useCallback(async (mode: 'pickup' | 'dropoff') => {
+  // Handle dialog choice (pickup or dropoff with optional delivery item ID)
+  const handleDialogChoice = useCallback(async (mode: 'pickup' | 'dropoff', deliveryItemId?: string) => {
     const { pendingLocation } = pinDropState
     if (!pendingLocation) return
+
+    console.log(`🎯 Pin drop choice: ${mode}${deliveryItemId ? ` for delivery ${deliveryItemId}` : ''}`)
 
     setPinDropState(prev => ({
       ...prev,
       mode,
+      selectedDeliveryItemId: deliveryItemId || null,
       showDialog: false,
       pendingLocation: null
     }))
@@ -180,8 +196,15 @@ export function useEnhancedPinDrop(
       draggablePin.remove()
     }
 
+    // Get delivery index for display (if applicable)
+    let deliveryIndex: number | undefined
+    if (mode === 'dropoff' && deliveryItemId) {
+      // This will be passed from the parent component
+      deliveryIndex = undefined // Will be set by parent
+    }
+
     // Create new draggable pin
-    const newPin = createDraggablePin(pendingLocation.lng, pendingLocation.lat, mode)
+    const newPin = createDraggablePin(pendingLocation.lng, pendingLocation.lat, mode, deliveryIndex)
     setDraggablePin(newPin)
 
     // Get initial address
@@ -194,7 +217,8 @@ export function useEnhancedPinDrop(
       setIsLoadingAddress(false)
     }
 
-    toast.success(`${mode === 'pickup' ? 'Pickup' : 'Dropoff'} pin placed!`, {
+    const modeText = mode === 'pickup' ? 'Pickup' : 'Delivery'
+    toast.success(`${modeText} pin placed!`, {
       description: "Drag the pin to adjust the location"
     })
   }, [pinDropState, draggablePin, createDraggablePin, reverseGeocode])
@@ -210,6 +234,7 @@ export function useEnhancedPinDrop(
     setPinDropState({
       isActive: false,
       mode: null,
+      selectedDeliveryItemId: null,
       showDialog: false,
       pendingLocation: null
     })
@@ -228,32 +253,36 @@ export function useEnhancedPinDrop(
   }, [])
 
   // Confirm pin location
-  const confirmPinLocation = useCallback(() => {
-    if (!draggablePin || !pinDropState.mode) return null
+const confirmPinLocation = useCallback(() => {
+  if (!draggablePin || !pinDropState.mode) return null
 
-    const lngLat = draggablePin.getLngLat()
-    const location: Location = {
-      lng: lngLat.lng,
-      lat: lngLat.lat,
-      address: currentAddress
-    }
+  const lngLat = draggablePin.getLngLat()
+  const location: Location = {
+    lng: lngLat.lng,
+    lat: lngLat.lat,
+    address: currentAddress
+  }
 
-    const mode = pinDropState.mode
+  const mode = pinDropState.mode
+  const deliveryItemId = pinDropState.selectedDeliveryItemId
 
-    // Clean up
-    draggablePin.remove()
-    setDraggablePin(null)
-    removeMapClickHandler()
-    setPinDropState({
-      isActive: false,
-      mode: null,
-      showDialog: false,
-      pendingLocation: null
-    })
-    setCurrentAddress("")
+  console.log(`✅ Confirming pin location:`, { location, mode, deliveryItemId })
 
-    return { location, mode }
-  }, [draggablePin, pinDropState.mode, currentAddress, removeMapClickHandler])
+  // Clean up
+  draggablePin.remove()
+  setDraggablePin(null)
+  removeMapClickHandler()
+  setPinDropState({
+    isActive: false,
+    mode: null,
+    selectedDeliveryItemId: null,
+    showDialog: false,
+    pendingLocation: null
+  })
+  setCurrentAddress("")
+
+  return { location, mode, deliveryItemId }
+}, [draggablePin, pinDropState, currentAddress, removeMapClickHandler])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -267,6 +296,7 @@ export function useEnhancedPinDrop(
     // State
     isActive: pinDropState.isActive,
     currentMode: pinDropState.mode,
+    selectedDeliveryItemId: pinDropState.selectedDeliveryItemId,
     showDialog: pinDropState.showDialog,
     pendingLocation: pinDropState.pendingLocation,
     currentAddress,
@@ -282,93 +312,271 @@ export function useEnhancedPinDrop(
 }
 
 
+
 //done
 // Pin Drop Dialog Component
+interface EnhancedPinDropDialogProps {
+  isOpen: boolean;
+  onSelectMode: (mode: "pickup" | "dropoff", deliveryItemId?: string) => void;
+  onCancel: () => void;
+  hasPickup: boolean;
+  hasDropoff: boolean;
+  // NEW: Multi-delivery props
+  deliveryItems?: MultiDeliveryItem[];
+  isMultiDelivery?: boolean;
+}
+
 export function PinDropDialog({
   isOpen,
   onSelectMode,
   onCancel,
   hasPickup,
-  hasDropoff
-}: {
-  isOpen: boolean
-  onSelectMode: (mode: 'pickup' | 'dropoff') => void
-  onCancel: () => void
-  hasPickup: boolean
-  hasDropoff: boolean
-}) {
-  if (!isOpen) return null
+  hasDropoff,
+  deliveryItems = [],
+  isMultiDelivery = false,
+}: EnhancedPinDropDialogProps) {
+  const [showDeliverySelection, setShowDeliverySelection] = useState(false);
+
+  if (!isOpen) return null;
+
+  // Filter completed delivery items (items with addresses)
+  const completedItems = deliveryItems.filter(item => 
+    item.deliveryAddress && item.itemDescription
+  );
+
+  // Handle pickup selection
+  const handlePickupSelect = () => {
+    onSelectMode("pickup");
+  };
+
+  // Handle dropoff selection for single delivery
+  const handleSingleDropoffSelect = () => {
+    onSelectMode("dropoff");
+  };
+
+  // Handle dropoff selection for multi-delivery
+  const handleMultiDropoffSelect = (deliveryItemId: string) => {
+    onSelectMode("dropoff", deliveryItemId);
+    setShowDeliverySelection(false);
+  };
+
+  // Show delivery selection screen
+  const handleShowDeliverySelection = () => {
+    setShowDeliverySelection(true);
+  };
+
+  // Go back to main selection
+  const handleBackToMain = () => {
+    setShowDeliverySelection(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onCancel} />
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50" 
+        onClick={onCancel} 
+      />
       
       {/* Dialog */}
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10 animate-in zoom-in-95 duration-200">
-        <div className="p-6">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📍</span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Drop Pin Here?
-            </h3>
-            <p className="text-sm text-gray-600">
-              What type of location would you like to set?
-            </p>
-          </div>
-          
-          <div className="space-y-3">
-            <button
-              onClick={() => onSelectMode('pickup')}
-              className="w-full flex items-center justify-between p-4 border-2 border-green-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-all group"
+      <motion.div 
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+      >
+        <AnimatePresence mode="wait">
+          {!showDeliverySelection ? (
+            // Main Selection Screen
+            <motion.div
+              key="main-selection"
+              initial={{ opacity: 0, x: 0 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="p-6"
             >
-              <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-green-500 mr-3" />
-                <div className="text-left">
-                  <div className="font-medium text-gray-900">Pickup Location</div>
-                  <div className="text-sm text-gray-500">Sets the zone center</div>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📍</span>
                 </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Drop Pin Here?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  What type of location would you like to set?
+                </p>
               </div>
-              <div className="text-xl group-hover:scale-110 transition-transform">📍</div>
-            </button>
+              
+              <div className="space-y-3">
+                {/* Pickup Location Button */}
+                <button
+                  onClick={handlePickupSelect}
+                  className="w-full flex items-center justify-between p-4 border-2 border-green-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-all group"
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-green-500 mr-3" />
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900">Pickup Location</div>
+                      <div className="text-sm text-gray-500">Sets the zone center</div>
+                    </div>
+                  </div>
+                  <div className="text-xl group-hover:scale-110 transition-transform">📍</div>
+                </button>
 
-            <button
-              onClick={() => onSelectMode('dropoff')}
-              disabled={!hasPickup}
-              className={`w-full flex items-center justify-between p-4 border-2 rounded-xl transition-all group ${
-                hasPickup
-                  ? 'border-red-200 hover:border-red-300 hover:bg-red-50'
-                  : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-              }`}
+                {/* Dropoff Location Button */}
+                <button
+                  onClick={isMultiDelivery && completedItems.length > 1 ? handleShowDeliverySelection : handleSingleDropoffSelect}
+                  disabled={!hasPickup}
+                  className={`w-full flex items-center justify-between p-4 border-2 rounded-xl transition-all group ${
+                    hasPickup
+                      ? 'border-red-200 hover:border-red-300 hover:bg-red-50'
+                      : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-red-500 mr-3" />
+                    <div className="text-left">
+                      <div className={`font-medium ${hasPickup ? 'text-gray-900' : 'text-gray-400'}`}>
+                        Drop-off Location
+                      </div>
+                      <div className={`text-sm ${hasPickup ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {!hasPickup 
+                          ? 'Set pickup first' 
+                          : isMultiDelivery && completedItems.length > 1
+                          ? `Choose from ${completedItems.length} destinations`
+                          : 'Delivery destination'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {isMultiDelivery && completedItems.length > 1 && hasPickup && (
+                      <div className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">
+                        {completedItems.length}
+                      </div>
+                    )}
+                    <div className={`text-xl transition-transform ${hasPickup && isMultiDelivery && completedItems.length > 1 ? 'group-hover:scale-110' : hasPickup ? 'group-hover:scale-110' : ''}`}>
+                      {isMultiDelivery && completedItems.length > 1 && hasPickup ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        '🎯'
+                      )}
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={onCancel}
+                className="w-full mt-4 px-4 py-3 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          ) : (
+            // Delivery Selection Screen
+            <motion.div
+              key="delivery-selection"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+              className="p-6"
             >
-              <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-red-500 mr-3" />
-                <div className="text-left">
-                  <div className={`font-medium ${hasPickup ? 'text-gray-900' : 'text-gray-400'}`}>
-                    Drop-off Location
-                  </div>
-                  <div className={`text-sm ${hasPickup ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {hasPickup ? 'Delivery destination' : 'Set pickup first'}
-                  </div>
-                </div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={handleBackToMain}
+                  className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <ChevronUp className="h-4 w-4 mr-1 rotate-90" />
+                  <span className="text-sm">Back</span>
+                </button>
+                <button
+                  onClick={onCancel}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <div className={`text-xl transition-transform ${hasPickup ? 'group-hover:scale-110' : ''}`}>🎯</div>
-            </button>
-          </div>
 
-          <button
-            onClick={onCancel}
-            className="w-full mt-4 px-4 py-3 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Select Delivery to Update
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Choose which delivery destination you want to move to the pinned location
+                </p>
+              </div>
+
+              {/* Delivery Items List */}
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {completedItems.map((item, index) => (
+                  <motion.button
+                    key={item.id}
+                    onClick={() => handleMultiDropoffSelect(item.id)}
+                    className="w-full flex items-start space-x-3 p-4 border-2 border-gray-200 rounded-xl hover:border-red-300 hover:bg-red-50 transition-all group text-left"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    {/* Delivery Number */}
+                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm font-medium text-red-600 flex-shrink-0 group-hover:bg-red-200 transition-colors">
+                      {index + 1}
+                    </div>
+                    
+                    {/* Delivery Details */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 mb-1 truncate">
+                        {item.itemDescription}
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {item.deliveryAddress}
+                      </p>
+                      
+                      {/* Current Status */}
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span className="text-xs text-green-600 font-medium">
+                          Location set
+                        </span>
+                      </div>
+                      
+                      {/* Notes if any */}
+                      {item.notes && (
+                        <p className="text-xs text-gray-500 mt-1 italic">
+                          Note: {item.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Arrow Icon */}
+                    <div className="flex-shrink-0 text-gray-400 group-hover:text-red-500 transition-colors">
+                      <ChevronDown className="h-5 w-5 -rotate-90" />
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Info Note */}
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  💡 The selected delivery's location will be updated to the pinned position on the map.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
-  )
+  );
 }
+
 
 //done
 // Enhanced Pin Drop Control Panel

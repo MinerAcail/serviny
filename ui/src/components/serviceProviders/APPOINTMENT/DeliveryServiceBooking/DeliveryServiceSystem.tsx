@@ -311,7 +311,12 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
 
       if (firstBookingId) {
         // Build URL with conditional isMultiLocation parameter
-        let navigationUrl = `/delivery/${serviceId}/${firstBookingId}`;
+        let navigationUrl;
+        if (createdBookings.length === 1) {
+          navigationUrl = `/delivery/${serviceId}/${firstBookingId}`;
+        } else {
+          navigationUrl = `/multidelivery/${serviceId}/${firstBookingId}`;
+        }
         
         // Add isMultiLocation parameter only if it's true
         if (isMultiLocation) {
