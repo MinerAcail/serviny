@@ -28,6 +28,8 @@ import FormsPage, {
   FormsPageAtMain,
 } from "@/components/user/formBuilder/FormsPage";
 import FormsPagePolicies from "@/components/user/formBuilder/FormsPagePolicies";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
+import { useCheckAuthId } from "@/middleware/context/checkID";
 
 // GraphQL queries and mutations
 const GET_POLICY_INFORMATION = gql`
@@ -407,7 +409,14 @@ const NewPolicyForm: React.FC<{
 
 const Policies: React.FC = () => {
   // Get serviceId from URL params
-  const { serviceId } = useParams<{ serviceId: string }>();
+    const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  const { firstProfileId } = useProfileUpdate(updateServiceId);
+  const { user } = useAuth();
+      const localServiceId = localStorage.getItem("serviceId");
+
+  const serviceId = firstProfileId ?? updateServiceId ?? localServiceId;
+  const { isMatch } = useCheckAuthId(user?.id);
+
   const navigate = useNavigate();
 
   // Apollo query to fetch policies
@@ -682,6 +691,8 @@ const Policies: React.FC = () => {
           open={newPolicyDialogOpen}
           onOpenChange={setNewPolicyDialogOpen}
         >
+          {isMatch && (
+
           <div className="flex gap-3">
             <DialogTrigger className="" asChild>
               <Button className="flex items-center justify-end gap-1">
@@ -700,6 +711,8 @@ const Policies: React.FC = () => {
               Add Forms
             </Button>
           </div>
+
+          )}
           <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Policy</DialogTitle>
@@ -838,7 +851,7 @@ const Policies: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <FormsPagePolicies serviceId={serviceId ?? ""}/>
+      <FormsPagePolicies serviceId={serviceId ?? ""} />
 
       {/* No policies message */}
       {!hasPolicies && (

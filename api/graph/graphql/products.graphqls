@@ -65,6 +65,8 @@ type CartItemOrder {
   vendor: Service
   deliveryAddress: String!
   status: String!
+  paymentStatus: String
+  paymentMethod: String
   estimatedDeliveryDate: String!
   deliveryMetaData: ZoneMetaData
   routeData:RouteInfo
@@ -194,6 +196,7 @@ extend type Mutation {
   updateWithLocation(input: addCoordinateInput!): Order
   updateOrderbyUser(orderID: String): Boolean
   updateOrderStatus(orderID: String, status: String!): Boolean
+  updateOrderOrBookingStatus(orderID: String, status: String!): String!
   sendChatMessage(input: ChatMessageInput!, orderId: String): ChatMessage!
   sendChatMessageByNumber(input: ChatMessageAdminInput!): ChatMessage!
   markMessagesAsRead(sender: SenderType!): Boolean!

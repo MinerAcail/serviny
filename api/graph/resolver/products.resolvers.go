@@ -700,6 +700,39 @@ func (r *mutationResolver) UpdateOrderStatus(ctx context.Context, orderID *strin
 	return &result, nil
 }
 
+// UpdateOrderOrBookingStatus is the resolver for the updateOrderOrBookingStatus field.
+func (r *mutationResolver) UpdateOrderOrBookingStatus(ctx context.Context, orderID *string, status string) (string, error) {
+	// Get rider ID from context for authorization
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get rider ID from context: %w", err)
+	}
+	if orderID == nil || *orderID == "" {
+		return "", fmt.Errorf("orderID is required")
+	}
+
+	// Try to update Order first
+	var order model.Order
+	if err := r.DB.Where("id = ? AND rider_id = ?", *orderID, *riderIDStr).First(&order).Error; err == nil {
+		// Found order, update status
+		if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
+			return "", fmt.Errorf("failed to update order status: %w", err)
+		}
+		return order.Status, nil
+	}
+
+	// If not found, try AppointmentBooking
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ? AND rider_id = ?", *orderID, *riderIDStr).First(&booking).Error; err == nil {
+		if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
+			return "", fmt.Errorf("failed to update booking status: %w", err)
+		}
+		return "Booking status updated successfully", nil
+	}
+
+	return booking.Status, fmt.Errorf("no order or booking found with ID: %s", *orderID)
+}
+
 // SendChatMessage is the resolver for the sendChatMessage field.
 func (r *mutationResolver) SendChatMessage(ctx context.Context, input model.ChatMessageInput, orderID *string) (*model.ChatMessage, error) {
 	// Parse the order ID

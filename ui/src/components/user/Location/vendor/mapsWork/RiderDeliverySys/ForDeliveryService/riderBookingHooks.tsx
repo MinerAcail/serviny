@@ -1636,6 +1636,7 @@ export const UPDATE_BOOKING_WITH_LOCATION = gql`
       notes
       tableSize
       deliveryAddress
+      pickUpAddress
       item
       distance
       duration
@@ -1661,6 +1662,7 @@ export const GET_APPOINTMENT_BOOKING = gql`
       notes
       tableSize
       deliveryAddress
+      pickUpAddress
       item
       distance
       duration
@@ -1680,6 +1682,8 @@ export const GET_APPOINTMENT_BOOKING = gql`
 export interface AddBookCoordinateInput {
   bookId: string;
   deliveryAddress?: string;
+  pickUpAddress?: string
+
   dropoffLocation?: number[]; // [lng, lat]
   pickupLocation?: number[]; // [lng, lat]
   rangeMetaId?: string;
@@ -1696,6 +1700,7 @@ export interface AppointmentBooking {
   notes?: string;
   tableSize: number;
   deliveryAddress: string;
+  pickUpAddress: string;
   item?: string;
   distance?: string;
   duration?: string;
@@ -2753,18 +2758,52 @@ export function convertDeliveryItemsToUpdateInputs(
   deliveryItems: MultiDeliveryItem[],
   pickupLocation: Location,
   riderId?: string,
-  rangeMetaId?: string
+  zones?: PricingZone[] // Add zones parameter to calculate rangeMetaId per item
 ): UpdateBookingLocationInput[] {
-  return deliveryItems.map((item) => ({
-    bookId: item.id,
-    deliveryAddress: item.deliveryAddress,
-    dropoffLocation: [item.dropoffLocation[1], item.dropoffLocation[0]], // Convert lat,lng to lng,lat
-    pickupLocation: [pickupLocation.lng, pickupLocation.lat],
-    ...(riderId && { ridersId: riderId }),
-    ...(rangeMetaId && { rangeMetaId }),
-  }));
-}
+  return deliveryItems.map((item) => {
+    let rangeMetaId: string | undefined;
+    
+    // Calculate rangeMetaId for this specific item if zones are provided
+    if (zones && zones.length > 0) {
+      // Use existing calculated data if available
+      if (item.calculated && item.calculated.distance) {
+        const distance = item.calculated.distance;
+        const matchedZone = zones.find(
+          (zone) => distance >= zone.startKm && distance < zone.endKm
+        ) || zones[zones.length - 1];
+        
+        rangeMetaId = matchedZone?.id;
+      } else {
+        // Calculate distance and find zone
+        const dropoffLocation: Location = {
+          lat: item.dropoffLocation[0],
+          lng: item.dropoffLocation[1],
+          address: item.deliveryAddress,
+        };
 
+        // Calculate distance using turf (you'll need to import turf)
+        const from = turf.point([pickupLocation.lng, pickupLocation.lat]);
+        const to = turf.point([dropoffLocation.lng, dropoffLocation.lat]);
+        const distance = turf.distance(from, to, { units: "kilometers" });
+
+        const matchedZone = zones.find(
+          (zone) => distance >= zone.startKm && distance < zone.endKm
+        ) || zones[zones.length - 1];
+        
+        rangeMetaId = matchedZone?.id;
+      }
+    }
+
+    return {
+      bookId: item.id,
+      deliveryAddress: item.deliveryAddress,
+      dropoffLocation: [item.dropoffLocation[1], item.dropoffLocation[0]], // Convert lat,lng to lng,lat
+      pickupLocation: [pickupLocation.lng, pickupLocation.lat],
+      ...(riderId && { ridersId: riderId }),
+      ...(rangeMetaId && { rangeMetaId }), // Now each item gets its own rangeMetaId
+    };
+  });
+}
 // ==========================================
 // UPDATED: useMultiDeliveryCalculation Hook
 // ==========================================

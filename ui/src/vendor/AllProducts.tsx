@@ -289,7 +289,6 @@ export function ProductDetailDialog({
   );
 }
 
-
 // ProductCard Component
 export function ProductCard({
   product,
@@ -298,20 +297,20 @@ export function ProductCard({
   product: Product;
   onClick: (product: Product) => void;
 }) {
- const { addItem, getProductCount, isProductInCart, items } = useCart();
-  
+  const { addItem, getProductCount, isProductInCart, items } = useCart();
+  const { isAuthenticated } = useAuth();
   // Use the full product ID - don't split UUIDs
   const baseProductId = product.id;
-  
+
   // Check if product is already in cart (any variant)
   const isInCart = isProductInCart(baseProductId);
   // Get total count across all variants
   const productCount = getProductCount(baseProductId);
-  
+
   // State for shuffling badge animation
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  
+
   // Dialog state
   const [showItemTypeDialog, setShowItemTypeDialog] = useState(false);
   const [selectedItemType, setSelectedItemType] = useState<string>("");
@@ -349,13 +348,13 @@ export function ProductCard({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the parent onClick
-    
+
     // If product has multiple item types, show dialog
     if (hasValidItemTypes && validItemTypes.length > 1) {
       setShowItemTypeDialog(true);
       return;
     }
-    
+
     // If product has only one item type or no item types, add directly
     const itemType = hasValidItemTypes ? validItemTypes[0] : null;
     addToCartWithType(itemType);
@@ -372,7 +371,7 @@ export function ProductCard({
     };
 
     addItem(productWithType, 1);
-    
+
     toast.success(
       <div className="flex items-center gap-2">
         <span>
@@ -404,42 +403,85 @@ export function ProductCard({
           />
           {/* Add to Cart Button at top right */}
           <div className="absolute top-2 right-2 z-10">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
-              onClick={handleAddToCart}
-            >
-              <span className="text-[12px] text-primary-foreground">
-                {isInCart ? "Add More" : "Buy"}
-              </span>
-
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-primary-foreground ml-1"
+            {isAuthenticated ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
+                onClick={handleAddToCart}
               >
-                <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
-                <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                <circle cx="9" cy="9" r="2" />
-                <path d="M12 7v4" />
-                <path d="M10 9h4" />
-              </svg>
-
-              {productCount > 0 && (
-                <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
-                  {productCount}
+                <span className="text-[12px] text-primary-foreground">
+                  {isInCart ? "Add More" : "Buy"}
                 </span>
-              )}
-            </Button>
+
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-primary-foreground ml-1"
+                >
+                  <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                  <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                  <circle cx="9" cy="9" r="2" />
+                  <path d="M12 7v4" />
+                  <path d="M10 9h4" />
+                </svg>
+
+                {productCount > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                    {productCount}
+                  </span>
+                )}
+              </Button>
+            ) : (
+              <>
+                <Login>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="relative rounded-full p-2 bg-primary hover:bg-primary/90 shadow-md"
+                    onClick={() => {}}
+                  >
+                    <span className="text-[12px] text-primary-foreground">
+                      {isInCart ? "Add More" : "Buy"}
+                    </span>
+
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-primary-foreground ml-1"
+                    >
+                      <path d="M9 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                      <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="M12 7v4" />
+                      <path d="M10 9h4" />
+                    </svg>
+
+                    {productCount > 0 && (
+                      <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                        {productCount}
+                      </span>
+                    )}
+                  </Button>
+                </Login>
+              </>
+            )}
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-tr from-background/100 to-transparent p-3">
@@ -526,6 +568,8 @@ import {
 import { useCart } from "@/components/custom/cart/cart-context";
 import { formatPrice } from "@/components/global/formatPrice";
 import { toast } from "sonner";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
+import Login from "@/app/Login";
 
 // Define the GraphQL query for fetching categories
 const GET_ALL_CATEGORIES = gql`
@@ -597,9 +641,15 @@ export function CategoryFilter({
 
 // Main WorkProducts Component
 export function AllProducts() {
-  const { serviceId: vendorId } = useParams<{
-    serviceId: string;
-  }>();
+  const { user } = useAuth();
+  const userId = user?.id;
+  let { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+  const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
+  const localServiceId = localStorage.getItem("serviceId");
+
+  serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
+
+  const vendorId = firstProfileId ?? serviceId;
 
   // Sync vendorId to localStorage on mount or when vendorId changes
   useEffect(() => {

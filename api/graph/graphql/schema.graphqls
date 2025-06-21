@@ -28,7 +28,7 @@ type EventBookedData {
   bookTypeName: String!
   bookType: String!
   bookTypePrice: String!
-  booked:UserBookings!
+  booked: UserBookings!
 }
 
 extend type Query {
@@ -45,13 +45,21 @@ extend type Query {
     userId: String!
   ): UserBookings!
 
-  getUserInfor(userId:String!): UsersInfor
+  getUserInfor(userId: String!): UsersInfor
   getUserInforFromContext: UsersInfor
 
   clearClientCache: Boolean!
 
-  cheakType(serviceId:String!):String!
+  cheakType(serviceId: String!): String!
+  getProfiles: Profiles
+  getAProfileIdByUserId(userId: String): String
 
+  # payment status
+  getBookingOrderPaymentStatus(
+     entityId: String!
+    entityType: String!
+    statusType: String!
+    ): String
 }
 type UsersInfor {
   id: String!
@@ -63,7 +71,6 @@ type UsersInfor {
   coordinates: [Float]
 
   dpfile: String
-
 }
 extend type Mutation {
   deleteTable: Boolean!
@@ -85,8 +92,33 @@ extend type Mutation {
     # bookType: String!
     userId: String!
   ): Boolean!
-}
 
+  profiles(profileId: String!, removeProfileId: String): Profiles
+
+  ## payment status
+
+## for creating and updating booking order payment status
+  updateBookingOrderPaymentStatus(
+    id: String!
+    serviceId: String
+    userId: String
+    riderId: String
+    status: String!
+    entityId: String!
+    entityType: String!
+    statusType: String!
+  ): String!
+
+  # deleteBookingOrderPaymentStatus(id: String!): Boolean
+}
+type Profiles {
+  id: String!
+  type: String!
+  profileIds: [String]
+  userId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
 input LoginInput {
   password: String!
   number: String
@@ -109,3 +141,16 @@ type PurchaseHistory {
 }
 
 union Returns = User | Service | Admin | Rider
+
+type BookingOrderPaymentStatus {
+  id: String!
+  serviceId: String
+  userId: String
+  riderId: String
+  status: String!
+  method: String!
+  entityId: String!
+  entityType: String!
+  createdAt: Time!
+  updatedAt: Time!
+}

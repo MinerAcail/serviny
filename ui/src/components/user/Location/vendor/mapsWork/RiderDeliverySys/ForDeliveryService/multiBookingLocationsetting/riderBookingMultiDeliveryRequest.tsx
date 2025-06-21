@@ -492,7 +492,7 @@ export function RiderBookingMultiDeliveryRequest() {
     isCalculating,
     dialogHasBeenCompleted,
     calculateMultiDeliveryPricing,
-    
+
   ]);
 
   // ==========================================
@@ -634,66 +634,68 @@ export function RiderBookingMultiDeliveryRequest() {
   // 22. MULTI-BOOKING HANDLER
   // ==========================================
 
-  const handleMultiBooking = useCallback(async () => {
-    if (
-      !totalCalculations ||
-      !pickupLocation ||
-      !deliveryItems.length ||
-      !riderId ||
-      !bookId
-    ) {
-      toast.error("Missing required multi-delivery booking information");
-      return;
-    }
+const handleMultiBooking = useCallback(async () => {
+  if (
+    !totalCalculations ||
+    !pickupLocation ||
+    !deliveryItems.length ||
+    !riderId ||
+    !bookId
+  ) {
+    toast.error("Missing required multi-delivery booking information");
+    return;
+  }
 
-    setIsBooking(true);
+  setIsBooking(true);
 
-    try {
-      console.log("📦 Updating existing multi-delivery bookings...");
+  try {
+    console.log("📦 Updating existing multi-delivery bookings...");
 
-      // Convert delivery items to update inputs
-      const updateInputs = convertDeliveryItemsToUpdateInputs(
-        deliveryItems,
-        pickupLocation,
-        riderId
-      );
+    // Convert delivery items to update inputs
+    const updateInputs = convertDeliveryItemsToUpdateInputs(
+      deliveryItems,
+      pickupLocation,
+      riderId,
+      riderZones // Pass riderZones instead of undefined 'zones'
+    );
 
-      console.log("📝 Update inputs prepared:", updateInputs);
+    console.log("📝 Update inputs prepared:", updateInputs);
 
-      // Update existing bookings with location data
-      const updatedBookings = await updateBookingsWithLocations(updateInputs);
+    // Update existing bookings with location data
+    const updatedBookings = await updateBookingsWithLocations(updateInputs);
 
-      console.log("✅ Bookings updated successfully:", updatedBookings);
+    console.log("✅ Bookings updated successfully:", updatedBookings);
 
-      setBookingReference(bookId);
-      setBookingComplete(true);
-      setCurrentStep("complete");
+    setBookingReference(bookId);
+    setBookingComplete(true);
+    setCurrentStep("complete");
 
-      toast.success("Multi-delivery bookings updated!", {
-        description: `${
-          deliveryItems.length
-        } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
+    toast.success("Multi-delivery bookings updated!", {
+      description: `${
+        deliveryItems.length
+      } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
+      duration: 5000,
+    });
+  } catch (error: unknown) {
+    console.error("❌ Multi-delivery booking update failed:", error);
+    toast.error(
+      "Failed to update multi-delivery bookings. Please try again.",
+      {
         duration: 5000,
-      });
-    } catch (error: unknown) {
-      console.error("❌ Multi-delivery booking update failed:", error);
-      toast.error(
-        "Failed to update multi-delivery bookings. Please try again.",
-        {
-          duration: 5000,
-        }
-      );
-    } finally {
-      setIsBooking(false);
-    }
-  }, [
-    totalCalculations,
-    pickupLocation,
-    deliveryItems,
-    riderId,
-    bookId,
-    updateBookingsWithLocations,
-  ]);
+      }
+    );
+  } finally {
+    setIsBooking(false);
+  }
+}, [
+  totalCalculations,
+  pickupLocation,
+  deliveryItems,
+  riderId,
+  bookId,
+  riderZones, // Add riderZones to dependency array
+  updateBookingsWithLocations,
+]);
 
   const resetBooking = useCallback(() => {
     setPickupLocation(null);

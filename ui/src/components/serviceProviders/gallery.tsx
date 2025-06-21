@@ -279,14 +279,20 @@ export interface Gallery {
 import { DialogClose } from "@radix-ui/react-dialog";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 import UserAuthCard from "../custom/users/create";
-import { useAuth } from "@/middleware/context/authContext";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { DeliveryServiceSystem } from "./APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
 // import { DeliveryServiceSystem } from "./APPOINTMENT/completeDeliveryOrder";
 // import AppointmentBookingSystem, { DeliveryServiceSystem } from "./APPOINTMENT/book";
 //
 export function WorkGallery() {
-  const { isAuthenticated } = useAuth();
-  const { serviceId } = useParams<{ serviceId: string }>();
+  const { isAuthenticated, user } = useAuth();
+  const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  const { firstProfileId } = useProfileUpdate(updateServiceId);
+    const localServiceId = localStorage.getItem("serviceId");
+
+  const serviceId = firstProfileId ??updateServiceId ?? localServiceId ?? "";
+
+  // let { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   const [isDialogOpen, setDialogOpen] = useState(false);
 
   const [filter, setFilter] = useState("all");
@@ -428,7 +434,7 @@ export function WorkGallery() {
         setDialogOpenMain={setDialogOpen}
         serviceId={serviceId}
       />
-       {/* <AppointmentBookingSystem
+      {/* <AppointmentBookingSystem
         isDialogOpenMain={isDialogOpen}
         setDialogOpenMain={setDialogOpen}
         serviceId={serviceId}

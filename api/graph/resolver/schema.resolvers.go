@@ -13,9 +13,15 @@ import (
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/middleware"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+// ID is the resolver for the id field.
+func (r *bookingOrderPaymentStatusResolver) ID(ctx context.Context, obj *model.BookingOrderPaymentStatus) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
 
 // DeleteTable is the resolver for the deleteTable field.
 func (r *mutationResolver) DeleteTable(ctx context.Context) (bool, error) {
@@ -194,14 +200,199 @@ func (r *mutationResolver) CancelUserBookings(ctx context.Context, bookTypeID st
 	return true, nil
 }
 
+// Profiles is the resolver for the profiles field.
+func (r *mutationResolver) Profiles(ctx context.Context, profileID string, removeProfileID *string) (*model.Profiles, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	if userId == nil {
+		return nil, fmt.Errorf("user ID is nil")
+	}
+
+	user, err := r.Query().GetUserInfor(ctx, *userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %v", err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("user not found for ID: %v", *userId)
+	}
+
+	targetUser, err := r.Query().GetUserInfor(ctx, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target user info: %v", err)
+	}
+	if targetUser == nil {
+		return nil, fmt.Errorf("target user not found for ID: %v", profileID)
+	}
+
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start database transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	var profile model.Profiles
+	err = tx.Where("user_id = ? AND type = ?", *userId, user.Type).First(&profile).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// No existing profile found, create a new one
+			profile = model.Profiles{
+				Type:       user.Type,
+				UserId:     *userId,
+				ProfileIds: pq.StringArray{profileID},
+			}
+
+			if err := tx.Create(&profile).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to create profile: %w", err)
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				return nil, fmt.Errorf("failed to commit new profile: %w", err)
+			}
+
+			return &profile, nil
+		}
+
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to fetch profile: %w", err)
+	}
+
+	if removeProfileID != nil {
+		// Remove profile ID
+		updated := make([]string, 0, len(profile.ProfileIds))
+		for _, id := range profile.ProfileIds {
+			if id != *removeProfileID {
+				updated = append(updated, id)
+			}
+		}
+		profile.ProfileIds = updated
+	} else {
+		// Move to front if already exists, otherwise add to front
+		updatedIds := make([]string, 0, len(profile.ProfileIds))
+		for _, id := range profile.ProfileIds {
+			if id != profileID {
+				updatedIds = append(updatedIds, id)
+			}
+		}
+		profile.ProfileIds = append([]string{profileID}, updatedIds...)
+	}
+
+	if err := tx.Save(&profile).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update profile: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &profile, nil
+}
+
+// UpdateBookingOrderPaymentStatus is the resolver for the updateBookingOrderPaymentStatus field.
+func (r *mutationResolver) UpdateBookingOrderPaymentStatus(ctx context.Context, id string, serviceID *string, userID *string, riderID *string, status string, entityID string, entityType string, statusType string) (string, error) {
+	// Validate entityID
+	if entityID == "" {
+		return "", fmt.Errorf("entityID is required")
+	}
+
+	// Update Order status if statusType is "ORDER"
+	if statusType == "ORDER" {
+		var order model.Order
+		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err == nil {
+			if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
+				return "", fmt.Errorf("failed to update order status: %w", err)
+			}
+			return order.Status, nil
+		}
+	}
+
+	// Update AppointmentBooking status if statusType is "APPOINTMENT"
+	if statusType == "APPOINTMENT" {
+		var booking model.AppointmentBooking
+		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err == nil {
+			if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
+				return "", fmt.Errorf("failed to update booking status: %w", err)
+			}
+			return booking.Status, nil
+		}
+	}
+
+	// For PAYMENT statusType, update or create BookingOrderPaymentStatus
+	if statusType == "PAYMENT" {
+		var paymentStatus model.BookingOrderPaymentStatus
+		err := r.DB.Where("entity_id = ? AND entity_type = ?", entityID, entityType).First(&paymentStatus).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new
+				newPaymentStatus := model.BookingOrderPaymentStatus{
+					// ServiceID:  "",
+					// UserID:     "",
+					RiderID:    nil,
+					Status:     status,
+					Method:     "",
+					EntityID:   entityID,
+					EntityType: entityType,
+				}
+				if serviceID != nil {
+					newPaymentStatus.ServiceID = serviceID
+				}
+				if userID != nil {
+					newPaymentStatus.UserID = userID
+				}
+				if riderID != nil {
+					newPaymentStatus.RiderID = riderID
+				}
+				if err := r.DB.Create(&newPaymentStatus).Error; err != nil {
+					return "", fmt.Errorf("failed to create payment status: %w", err)
+				}
+				return newPaymentStatus.Status, nil
+			}
+			return "", fmt.Errorf("failed to fetch payment status: %w", err)
+		}
+		// Update existing
+		if err := r.DB.Model(&paymentStatus).Update("status", status).Error; err != nil {
+			return "", fmt.Errorf("failed to update payment status: %w", err)
+		}
+		return paymentStatus.Status, nil
+	}
+
+	return "", fmt.Errorf("no matching entity found or invalid statusType")
+}
+
+// ID is the resolver for the id field.
+func (r *profilesResolver) ID(ctx context.Context, obj *model.Profiles) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ProfileIds is the resolver for the profileIds field.
+func (r *profilesResolver) ProfileIds(ctx context.Context, obj *model.Profiles) ([]*string, error) {
+	var eachArray []*string
+	for _, url := range obj.ProfileIds {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
+	}
+	return eachArray, nil
+}
+
 // ID is the resolver for the id field.
 func (r *purchaseHistoryResolver) ID(ctx context.Context, obj *model.PurchaseHistory) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // ID is the resolver for the id field.
 func (r *purchaseHistoryItemResolver) ID(ctx context.Context, obj *model.PurchaseHistoryItem) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // GetID is the resolver for the getID field.
@@ -303,7 +494,66 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 
 // GetUserInforFromContext is the resolver for the getUserInforFromContext field.
 func (r *queryResolver) GetUserInforFromContext(ctx context.Context) (*model.UsersInfor, error) {
-	panic(fmt.Errorf("not implemented: GetUserInforFromContext - getUserInforFromContext"))
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	if userId == nil {
+		return nil, fmt.Errorf("user ID is nil")
+	}
+
+	// Try to find a user by ID
+	user := &model.User{}
+	if err := r.DB.First(user, "id = ?", userId).Error; err == nil {
+		email := ""
+		if user.Email != nil {
+			email = *user.Email
+		}
+		return &model.UsersInfor{
+			ID:          user.ID.String(),
+			Name:        user.Name,
+			Type:        user.Type,
+			Number:      user.Number,
+			Email:       email,
+			Coordinates: nil,
+			Location:    nil,
+			Dpfile:      nil,
+		}, nil
+	}
+	// Try to find a service by ID
+	service := &model.Service{}
+	if err := r.DB.First(service, "id = ?", userId).Error; err == nil {
+		return &model.UsersInfor{
+			ID:          service.ID.String(),
+			Name:        service.Name,
+			Type:        *service.BusinessType,
+			Number:      service.Number,
+			Email:       service.Email,
+			Location:    service.Location,
+			Dpfile:      service.Dpfile,
+			Coordinates: service.Coordinates,
+		}, nil
+	}
+
+	rider := &model.Rider{}
+	if err := r.DB.First(rider, "id = ?", userId).Error; err == nil {
+		email := ""
+		if rider.Email != "" {
+			email = rider.Email
+		}
+		return &model.UsersInfor{
+			ID:          rider.ID.String(),
+			Name:        rider.Name,
+			Type:        rider.Type,
+			Number:      rider.Number,
+			Email:       email,
+			Location:    rider.Location,
+			Dpfile:      rider.Dpfile,
+			Coordinates: rider.Coordinates,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 
 // ClearClientCache is the resolver for the clearClientCache field.
@@ -328,6 +578,78 @@ func (r *queryResolver) CheakType(ctx context.Context, serviceID string) (string
 	return *service.BusinessType, nil
 }
 
+// GetProfiles is the resolver for the getProfiles field.
+func (r *queryResolver) GetProfiles(ctx context.Context) (*model.Profiles, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	var profile model.Profiles
+	if err := r.DB.Where("user_id = ?", *userId).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("no profile found for this user and type")
+		}
+		return nil, fmt.Errorf("failed to fetch profile: %w", err)
+	}
+
+	return &profile, nil
+}
+
+// GetAProfileIDByUserID is the resolver for the getAProfileIdByUserId field.
+func (r *queryResolver) GetAProfileIDByUserID(ctx context.Context, userID *string) (*string, error) {
+	if userID == nil || *userID == "" {
+		return nil, fmt.Errorf("userID must be provided")
+	}
+
+	var profile model.Profiles
+	if err := r.DB.Where("user_id = ?", *userID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("profile not found for user")
+		}
+		return nil, fmt.Errorf("failed to fetch profile: %w", err)
+	}
+
+	id := profile.ProfileIds[0]
+	return &id, nil
+}
+
+// GetBookingOrderPaymentStatus is the resolver for the getBookingOrderPaymentStatus field.
+func (r *queryResolver) GetBookingOrderPaymentStatus(ctx context.Context, entityID string, entityType string, statusType string) (*string, error) {
+	if entityID == "" {
+		return nil, fmt.Errorf("entityID is required")
+	}
+
+	switch statusType {
+	case "ORDER":
+		var order model.Order
+		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err != nil {
+			return nil, fmt.Errorf("order not found: %w", err)
+		}
+		return &order.Status, nil
+
+	case "APPOINTMENT":
+		var booking model.AppointmentBooking
+		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err != nil {
+			return nil, fmt.Errorf("appointment not found: %w", err)
+		}
+		return &booking.Status, nil
+
+	case "PAYMENT":
+		var paymentStatus model.BookingOrderPaymentStatus
+		if err := r.DB.Where("entity_id = ? AND entity_type = ?", entityID, entityType).First(&paymentStatus).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+		}
+		return &paymentStatus.Status, nil
+
+	default:
+		return nil, fmt.Errorf("invalid statusType: %s", statusType)
+	}
+}
+
 // ID is the resolver for the id field.
 func (r *userBookingsResolver) ID(ctx context.Context, obj *model.UserBookings) (string, error) {
 	id := obj.ID.String()
@@ -343,6 +665,14 @@ func (r *usersInforResolver) Coordinates(ctx context.Context, obj *model.UsersIn
 	}
 	return result, nil
 }
+
+// BookingOrderPaymentStatus returns graph.BookingOrderPaymentStatusResolver implementation.
+func (r *Resolver) BookingOrderPaymentStatus() graph.BookingOrderPaymentStatusResolver {
+	return &bookingOrderPaymentStatusResolver{r}
+}
+
+// Profiles returns graph.ProfilesResolver implementation.
+func (r *Resolver) Profiles() graph.ProfilesResolver { return &profilesResolver{r} }
 
 // PurchaseHistory returns graph.PurchaseHistoryResolver implementation.
 func (r *Resolver) PurchaseHistory() graph.PurchaseHistoryResolver {
@@ -360,6 +690,8 @@ func (r *Resolver) UserBookings() graph.UserBookingsResolver { return &userBooki
 // UsersInfor returns graph.UsersInforResolver implementation.
 func (r *Resolver) UsersInfor() graph.UsersInforResolver { return &usersInforResolver{r} }
 
+type bookingOrderPaymentStatusResolver struct{ *Resolver }
+type profilesResolver struct{ *Resolver }
 type purchaseHistoryResolver struct{ *Resolver }
 type purchaseHistoryItemResolver struct{ *Resolver }
 type userBookingsResolver struct{ *Resolver }

@@ -3,7 +3,7 @@ import { createBrowserRouter, RouterProvider, useParams } from "react-router";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorPage from "./routError";
-import { AuthProvider, useAuth } from "./context/authContext";
+import { AuthProvider, useAuth, useProfileUpdate } from "./context/authContext";
 import ErrorLogin from "./routErrorLogin";
 // import { SidebarProvider } from "@/components/ui/sidebar";
 // import { AppSidebar } from "./bar";
@@ -32,7 +32,7 @@ import { SocialForm } from "@/components/custom/Socials/forms";
 import { InstallPage } from "@/components/custom/downloads/install-page";
 import { SidebarProvider } from "@/components/ui/sidebar";
 const router = createBrowserRouter([
-  { path: "/", element: <ServiceProvidersDirectory /> },
+  { path: "/all", element: <ServiceProvidersDirectory /> },
 
   {
     path: "/",
@@ -40,17 +40,30 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        path: "/",
+        element: <ServiceProviderProfile />,
+      },
+      {
+        index: true,
         path: "/providers/:serviceId",
         element: <ServiceProviderProfile />,
       },
       { path: "/sms", element: <VendorChatSystem /> },
       { path: "/mamp", element: <DeliveryTrackingMap /> },
-      { path: "/zonex/:vendorId/:orderId", element: <DeliveryZoneVisualizerVendor /> },
+      {
+        path: "/zonex/:vendorId/:orderId",
+        element: <DeliveryZoneVisualizerVendor />,
+      },
       // { path: "/delivery/:riderId/:bookId", element: <RiderZoneSetup /> },
       // { path: "/delivery/:riderId/:bookId", element: <AutocompleteSearchMap /> },
-      { path: "/delivery/:riderId/:bookId", element: <RiderBookingDeliveryRequest /> },
-      { path: "/multidelivery/:riderId/:bookId", element: <RiderBookingMultiDeliveryRequest /> },
-
+      {
+        path: "/delivery/:riderId/:bookId",
+        element: <RiderBookingDeliveryRequest />,
+      },
+      {
+        path: "/multidelivery/:riderId/:bookId",
+        element: <RiderBookingMultiDeliveryRequest />,
+      },
 
       { path: "/merge/:serviceId", element: <CheckType /> },
       { path: "view/:id", element: <FormPage /> },
@@ -60,7 +73,7 @@ const router = createBrowserRouter([
       { path: "/icons", element: <LucideIconSelector /> },
       { path: "/provider/new", element: <ImprovedServiceProvider /> },
       { path: "/rider/new", element: <RiderRegistration /> },
-      { path: "/vob", element: <UserServiceViewer /> }, //view orders bookings
+      { path: "/vob", element: <CheckBookingOrderDelivery /> }, //view orders bookings
 
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/check", element: <Checkout /> },
@@ -68,6 +81,7 @@ const router = createBrowserRouter([
       { path: "/reset", element: <PasswordReset /> },
       { path: "/red", element: <SpectaclesLoading /> },
       { path: "/type", element: <BusinessTypeSelector /> },
+      { path: "/history", element: <RiderHistory /> },
 
       { path: "/event/:eventId", element: <UpdatEvent /> },
 
@@ -76,6 +90,7 @@ const router = createBrowserRouter([
       { path: "/login", element: <ErrorLogin /> },
 
       { path: "*", element: <ErrorPage /> },
+      { path: "1", element: <RiderLiveMap /> },
     ],
   },
   // Routes with sidebar layout using Outlet
@@ -96,9 +111,6 @@ const router = createBrowserRouter([
       { path: "zonex", element: <ResultStepData /> },
       { path: "builder", element: <FormAndRequestTabs /> },
 
-
-
-
       {
         path: "update",
 
@@ -118,13 +130,12 @@ const router = createBrowserRouter([
       { path: "live", element: <AllRoutesDisplay /> },
 
       { path: "analytics", element: <Analytics /> },
-      { path: "history", element: <History /> },
+      { path: "history", element: <ServiceHistory /> },
       // { path: "request", element: <RiderRequests /> },
       { path: "vendors", element: <VendorsByDeliveryService /> },
     ],
   },
 ]);
-
 
 export function Navigation() {
   return (
@@ -175,7 +186,10 @@ import SingleRiderTrackingMap from "@/components/rider/getLocation";
 import DeliveryTrackingMap from "@/components/rider/getLocation";
 import VendorOrder from "@/components/custom/orders";
 import AllRoutesDisplay from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/hooks/getAllRouteData";
-import { DeliveryZoneVisualizerDeliveryService, RiderBookingDeliveryRequest } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService";
+import {
+  DeliveryZoneVisualizerDeliveryService,
+  RiderBookingDeliveryRequest,
+} from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService";
 import RiderBookingComponent from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/booking";
 import { RiderZoneSetup } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/books/riderflow";
 import AutocompleteSearchMap from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/try";
@@ -190,12 +204,21 @@ import BusinessTypeSelector from "@/components/serviceProviders/createProvider/b
 import UserServiceViewer from "@/components/custom/USER_MAP_WORK/viewService";
 import PaystackPage from "@/components/PAYMENT/Paystack";
 import { RiderBookingMultiDeliveryRequest } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/multiBookingLocationsetting/riderBookingMultiDeliveryRequest";
+import RiderLiveMap from "@/components/rider/LiveMap";
+import CheckBookingOrderDelivery from "@/components/GlobalLogic/checkBookingOrderDelivery";
+import RiderHistory from "../components/rider/history";
+import ServiceHistory from "../components/custom/vendors/history";
+// import ServiceHistory from "../components/custom/vendors/history";
+// import ServiceHistory from "../components/custom/vendors/history";
+// import RiderHistory from "@/components/rider/history";
 // import IsochroneComparison from "@/components/user/Location/vendor/visualize";
 // import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
 
 export function SidebarLayoutProvider() {
- const {user}= useAuth()
-  const { serviceId } = useParams();
+  const { user } = useAuth();
+  const { firstProfileId } = useProfileUpdate( null);
+
+  const serviceId = firstProfileId;
   // const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
   //   onCompleted: (data) => {
   //     if (data.clearClientCache) {
@@ -209,7 +232,7 @@ export function SidebarLayoutProvider() {
   //     clearCache();
   //   }
   // });
-// console.log("clearClientCache initialized",data);
+  // console.log("clearClientCache initialized",data);
   return (
     <div className="flex w-full h-screen overflow-hidden">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
@@ -228,19 +251,23 @@ export function SidebarLayoutProvider() {
 }
 
 export function Layout() {
-  const { serviceId } = useParams();
+  // const { serviceId } = useParams();
+  const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  // const { firstProfileId } = useProfileUpdate(updateServiceId);
+  // const serviceId = firstProfileId;
+  const { firstProfileId } = useProfileUpdate(null);
 
+  const serviceId = firstProfileId ??updateServiceId;
   return (
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
-        <CartProvider >
+        <CartProvider>
+          {/* Sidebar with scroll */}
+          <ScrollArea className="h-full border-r">
+            <SidebarMain serviceId={serviceId} />
+          </ScrollArea>
 
-        {/* Sidebar with scroll */}
-        <ScrollArea className="h-full border-r">
-          <SidebarMain serviceId={serviceId} />
-        </ScrollArea>
-
-        {/* Main content with scroll */}
+          {/* Main content with scroll */}
           <ScrollArea className="flex-1 p-4">
             <CartDrawer />
             <Outlet />

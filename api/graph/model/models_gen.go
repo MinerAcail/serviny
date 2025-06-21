@@ -42,6 +42,11 @@ type AppointmentBookingData struct {
 	PickupLocation        []float64   `json:"pickupLocation,omitempty"`
 	DropoffLocation       []float64   `json:"dropoffLocation,omitempty"`
 	DeliveryAddress       string      `json:"deliveryAddress"`
+	PickUpAddress         *string     `json:"pickUpAddress,omitempty"`
+	MultiGroupID          *string     `json:"multiGroupId,omitempty"`
+	Status                *string     `json:"status,omitempty"`
+	PaymentStatus         *string     `json:"paymentStatus,omitempty"`
+	PaymentMethod         *string     `json:"paymentMethod,omitempty"`
 	DeliveryFee           *string     `json:"deliveryFee,omitempty"`
 	Distance              *string     `json:"distance,omitempty"`
 	Duration              *string     `json:"duration,omitempty"`
@@ -104,6 +109,8 @@ type CartItemOrder struct {
 	Vendor                *Service             `json:"vendor,omitempty"`
 	DeliveryAddress       string               `json:"deliveryAddress"`
 	Status                string               `json:"status"`
+	PaymentStatus         *string              `json:"paymentStatus,omitempty"`
+	PaymentMethod         *string              `json:"paymentMethod,omitempty"`
 	EstimatedDeliveryDate string               `json:"estimatedDeliveryDate"`
 	DeliveryMetaData      *ZoneMetaData        `json:"deliveryMetaData,omitempty"`
 	RouteData             *RouteInfo           `json:"routeData,omitempty"`
@@ -535,6 +542,22 @@ type RiderProfile struct {
 	IsOnline     bool      `json:"isOnline"`
 }
 
+type RiderUpateInput struct {
+	Name         *string    `json:"name,omitempty"`
+	Email        *string    `json:"email,omitempty"`
+	Type         *string    `json:"type,omitempty"`
+	Number       *string    `json:"number,omitempty"`
+	State        *string    `json:"state,omitempty"`
+	Password     *string    `json:"password,omitempty"`
+	Availability *bool      `json:"availability,omitempty"`
+	Dpfile       *string    `json:"dpfile,omitempty"`
+	IDCard       []*string  `json:"idCard,omitempty"`
+	Location     *string    `json:"location,omitempty"`
+	Coordinates  []*float64 `json:"coordinates,omitempty"`
+	H3Indexes    []*string  `json:"h3Indexes,omitempty"`
+	Experience   *string    `json:"experience,omitempty"`
+}
+
 type RiderWithMapData struct {
 	Rider        *Rider             `json:"rider,omitempty"`
 	RiderService *Service           `json:"riderService,omitempty"`
@@ -743,6 +766,7 @@ type ZoneMetaDataInput struct {
 type AddBookCoordinateInput struct {
 	BookID          string     `json:"bookId"`
 	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
+	PickUpAddress   *string    `json:"pickUpAddress,omitempty"`
 	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
 	PickupLocation  []*float64 `json:"pickupLocation,omitempty"`
 	RangeMetaID     *string    `json:"rangeMetaId,omitempty"`

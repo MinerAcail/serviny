@@ -77,8 +77,9 @@ export function ActiveRiders({ riders, onRiderClick }: ActiveRidersProps) {
 
   return (
     <TooltipProvider>
-      <ScrollArea className="mt-6 h-[calc(70vh-140px)]">
-        <div className="space-y-4 pr-4">
+      <ScrollArea className="mt-6 h-full">
+        {/* Added pb-6 for bottom spacing and pr-4 for right padding */}
+        <div className="space-y-4 pr-4 pb-6">
           {sortedRiders.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -88,15 +89,18 @@ export function ActiveRiders({ riders, onRiderClick }: ActiveRidersProps) {
               <p className="text-gray-500">Try adjusting your search or check back later</p>
             </div>
           ) : (
-            sortedRiders.map((rider) => {
+            sortedRiders.map((rider, index) => {
               const totalOrders = rider.currentOrders.length
               const totalBookings = rider.currentBookings?.length || 0
               const totalServices = totalOrders + totalBookings
+              const isLastItem = index === sortedRiders.length - 1
 
               return (
                 <div
                   key={rider.id}
-                  className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 p-4 md:p-5 hover:shadow-lg transition-all duration-300 cursor-pointer active:scale-[0.98] relative overflow-hidden"
+                  className={`bg-white rounded-2xl border border-gray-100 hover:border-gray-200 p-4 md:p-5 hover:shadow-lg transition-all duration-300 cursor-pointer active:scale-[0.98] relative overflow-hidden ${
+                    isLastItem ? 'mb-4' : ''
+                  }`}
                   onClick={() => onRiderClick(rider)}
                 >
                   {/* Background gradient overlay for status */}

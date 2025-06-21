@@ -215,12 +215,15 @@ type AppointmentBookingData {
   tableSize: Int!
   userType: String!
   isConfirmed: Boolean
-  
   # Booking-specific location data
   pickupLocation: [Float!]
   dropoffLocation: [Float!]
   deliveryAddress: String!
-  
+  pickUpAddress: String
+  multiGroupId: String
+  status: String
+  paymentStatus: String
+  paymentMethod: String
   # Booking-specific pricing/route metadata
   deliveryFee: String
   distance: String

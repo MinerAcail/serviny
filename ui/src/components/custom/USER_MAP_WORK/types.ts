@@ -92,6 +92,7 @@ export const GET_ALL_USER_SERVICE_DATA = gql`
         pickupLocation
         dropoffLocation
         deliveryAddress
+        pickUpAddress
         deliveryFee
         distance
         duration

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useMutation, gql } from "@apollo/client";
-import { useAuth } from "@/middleware/context/authContext";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { Eye, EyeOff } from "lucide-react";
 import { ProtectType } from "@/middleware/useProtect";
 
@@ -45,6 +45,12 @@ const Login = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { login: Auth } = useAuth();
 
+  // const userId = user?.id;
+  const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+  // const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
+  // serviceId = firstProfileId ?? serviceId;
+  const { triggerUpdate, triggerUpdateByUserId } = useProfileUpdate(null);
+
   const [number, setNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -76,20 +82,35 @@ const Login = ({ children }: { children: ReactNode }) => {
       // Check if login was successful
       if (result?.data?.serviceLogin) {
         // Authenticate the user
-        Auth(result.data.serviceLogin);
+        // Auth(result.data.serviceLogin);
 
         // You can check the type to navigate to different routes if needed
         const userType = result.data.serviceLogin.type;
         console.log(userType);
 
-        if (userType === ProtectType.Service) {
-          navigate(`/providers/${result.data.serviceLogin.id}`);
-        } else {
-          setError("Invalid user type. Please contact support.");
+        try {
+          if (userType === ProtectType.Service) {
+            await triggerUpdate(result.data.serviceLogin.id);
+          } else if (userType === ProtectType.User && serviceId) {
+            // Only trigger if serviceId exists
+            await triggerUpdate(serviceId);
+          } else if (userType === ProtectType.Rider) {
+            const returnedProfileId = await triggerUpdateByUserId(
+              result.data.serviceLogin.id
+            );
+            if (returnedProfileId) {
+              localStorage.setItem("serviceId", returnedProfileId);
+              console.log("Profile ID:", returnedProfileId);
+            }
+          }
+        } catch (updateError) {
+          console.error("Failed to update profile:", updateError);
+          // Decide whether to continue navigation or show error
         }
       } else {
         setError("Login failed. Please try again.");
       }
+      navigate(`/`);
     } catch (err) {
       setError("An unexpected error occurred");
       navigate("/login");

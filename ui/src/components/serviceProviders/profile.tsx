@@ -33,7 +33,7 @@ import { GET_BOOK_TYPES } from "@/app/vendors/available";
 import { InventoryListDialog } from "@/app/vendors/rentalBasedBooking/bookRentals";
 import CheckForBookTYpe from "../custom/checkForBookTYpe";
 import UserAuthCard from "../custom/users/create";
-import { useAuth } from "@/middleware/context/authContext";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { useCheckAuthId } from "@/middleware/context/checkID";
 // import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
@@ -67,7 +67,13 @@ export const GET_PROVIDER = gql`
 //   }
 // `;
 export function ServiceProviderProfile() {
-  const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+  const { user } = useAuth();
+  const userId = user?.id;
+  let { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+    const localServiceId = localStorage.getItem("serviceId");
+  // serviceId = serviceId || localServiceId || "";
+  const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
+  serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
   const location = useLocation();
   // console.log(serviceId);
   // const { setTheme } = useTheme();
@@ -76,20 +82,20 @@ export function ServiceProviderProfile() {
   // Check if the query string contains ?lt
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
- 
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
-    variables: { serviceId },
+    variables: { serviceId: serviceId },
   });
+  console.log("data", data);
 
   const [isTabsFixed, setIsTabsFixed] = useState(false);
-  
+
   // Initialize activeTab from localStorage with serviceId-specific key
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
     return savedTab || "portfolio";
   });
-  
+
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -141,7 +147,11 @@ export function ServiceProviderProfile() {
   // if (loading) return <p>Loading...</p>;
   // if (error) return <p>Error: {error.message}</p>;
   // if () return <p>No provider found.</p>;
-
+  useEffect(() => {
+    if (serviceId) {
+      localStorage.setItem("serviceId", serviceId);
+    }
+  }, [serviceId]);
   // const provider = data?.getProvider;
 
   const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
@@ -205,23 +215,18 @@ export function ServiceProviderProfile() {
                       className="w-full"
                       ref={tabsRef}
                     >
-                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20   p-1">
-                        {data?.getProvider?.businessType ===
-                          BusinessTypeEnum.PRE_ORDER ||
-                        data?.getProvider?.businessType ===
-                          BusinessTypeEnum.DROP_SHIPPING ||
-                        data?.getProvider?.businessType ===
-                          BusinessTypeEnum.ECOMMERCE_STANDARD ||
-                        data?.getProvider?.businessType ===
-                          BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                          <TabsTrigger
-                            value="portfolio"
-                            className="rounded-full"
-                          >
-                            Items
-                          </TabsTrigger>
-                        ) : (
-                          <>
+                      {data?.getProvider?.businessType ===
+                        BusinessTypeEnum.PRE_ORDER ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.DROP_SHIPPING ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                        <></>
+                      ) : (
+                        <>
+                          <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20   p-1">
                             <TabsTrigger
                               value="portfolio"
                               className="rounded-full"
@@ -237,9 +242,9 @@ export function ServiceProviderProfile() {
                             <TabsTrigger value="price" className="rounded-full">
                               Price
                             </TabsTrigger>
-                          </>
-                        )}
-                      </TabsList>
+                          </TabsList>
+                        </>
+                      )}
                     </Tabs>
                   </div>
                 </div>

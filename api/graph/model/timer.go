@@ -34,12 +34,12 @@ type AppointmentBooking struct {
 	PickupLocation        pq.Float64Array ` gorm:"type:float[]" json:"pickup_Location"`  // [lng, lat]
 	EstimatedDeliveryDate *string         `json:"estimatedDeliveryDate,omitempty"`
 	DeliveryAddress       string          `json:"deliveryAddress"`
-
+	PickUpAddress       *string          `json:"pickUpAddress,omitempty"`
 	UserID      string   `json:"userId"`
 	IsConfirmed *bool    `json:"isConfirmed,omitempty"`
 	UserType    UserType `json:"userType"`
 	MultiGroupID *string  `json:"multiGroupId,omitempty"`
-
+	Status 	string   `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

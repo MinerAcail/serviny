@@ -29,6 +29,7 @@ extend type Query {
 input addBookCoordinateInput {
   bookId: String!
   deliveryAddress: String
+  pickUpAddress: String
   dropoffLocation: [Float]
   pickupLocation: [Float]
   rangeMetaId: String
@@ -93,10 +94,12 @@ type AppointmentBooking {
   pickupLocation: [Float]
   estimatedDeliveryDate: String
   deliveryAddress: String
+  pickUpAddress: String
   userId: String!
   isConfirmed: Boolean
   userType: UserType!
   multiGroupId: String
+  status: String!
   createdAt: Time!
   updatedAt: Time!
 }
@@ -105,3 +108,5 @@ type UserAppointmentBookedData {
   book: [AppointmentBooking!]!
   userData: UserData!
 }
+
+

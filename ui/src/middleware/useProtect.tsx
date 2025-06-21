@@ -23,5 +23,7 @@ export const ProtectType = {
   Dispatch: "Dispatch",
   vendor: "VENDOR",
   Advertiser:"Advertiser",
-  Service:"SERVICE"
+  Service:"SERVICE",
+  User:"USER",
+  Rider:"DELIVERY"
 } as const;

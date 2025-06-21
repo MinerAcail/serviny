@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { MapPin, Plus, Minus, X, Trash2, ChevronDown, ChevronLeft, Edit3, Share, Download } from "lucide-react"
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -63,6 +63,14 @@ interface DeliveryZoneCreatorProps {
   maptilerApiKey?: string
 }
 
+// Map state interface for better state management
+interface MapState {
+  map: maplibregl.Map | null
+  isInitialized: boolean
+  isStyleLoaded: boolean
+  container: HTMLDivElement | null
+}
+
 // Conversion speeds in km/h (same as your backend)
 const SPEED_MAPPING = {
   walking: 5,
@@ -71,12 +79,244 @@ const SPEED_MAPPING = {
   car: 60
 }
 
-const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
+// Map initialization function similar to the UserServiceViewer pattern
+function initializeMap(
+  state: MapState,
+  container: HTMLDivElement,
+  maptilerApiKey: string,
+  vendor: Location,
+  onLoad: () => void
+): void {
+  if (state.isInitialized) {
+    console.warn("⚠️ Map already initialized")
+    return
+  }
+
+  console.log("🗺️ Starting delivery zone map initialization...")
+  console.log("📍 Container:", container)
+  console.log("🔑 API Key:", maptilerApiKey ? "Provided" : "Using demo tiles")
+  console.log("📍 Vendor location:", vendor)
+
+  const mapStyle = maptilerApiKey
+    ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
+    : "https://demotiles.maplibre.org/style.json"
+
+  console.log("🎨 Map style URL:", mapStyle)
+
+  try {
+    state.map = new maplibregl.Map({
+      container,
+      style: mapStyle,
+      center: [vendor.lng, vendor.lat],
+      zoom: 12,
+      attributionControl: false,
+      maxZoom: 18,
+      minZoom: 8,
+    })
+
+    console.log("✅ Map instance created successfully")
+
+    // Set up event listeners
+    state.map.on("load", () => {
+      console.log("🎯 Map loaded successfully!")
+      state.isInitialized = true
+      onLoad()
+    })
+
+    state.map.on("style.load", () => {
+      console.log("🎨 Map style loaded successfully!")
+      state.isStyleLoaded = true
+      
+      // Add vendor marker after style is loaded
+      if (state.map) {
+        addVendorMarker(state.map, vendor)
+      }
+    })
+
+    state.map.on("error", (e) => {
+      console.error("❌ Map error:", e)
+      console.error("Error details:", e.error)
+    })
+
+    state.map.on("styledata", () => {
+      console.log("🎨 Map style data loaded")
+    })
+
+    state.map.on("sourcedata", (e) => {
+      if (e.isSourceLoaded) {
+        console.log("📊 Map source loaded:", e.sourceId)
+      }
+    })
+
+    // Force a resize after a short delay to ensure proper rendering
+    setTimeout(() => {
+      if (state.map) {
+        state.map.resize()
+        console.log("📐 Map resized")
+      }
+    }, 100)
+
+  } catch (error) {
+    console.error("💥 Failed to initialize map:", error)
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
+    
+    // Try to fallback to demo tiles if using custom tiles failed
+    if (maptilerApiKey && mapStyle.includes('maptiler.com')) {
+      console.log("🔄 Falling back to demo tiles...")
+      setTimeout(() => {
+        initializeMap(state, container, "", vendor, onLoad)
+      }, 1000)
+    } else {
+      // Force callback after error to show UI
+      setTimeout(() => {
+        console.log("🔄 Force calling onLoad after error")
+        onLoad()
+      }, 3000)
+    }
+  }
+}
+
+// Add vendor marker function
+function addVendorMarker(map: maplibregl.Map, vendor: Location): void {
+  try {
+    const markerElement = document.createElement("div")
+    markerElement.className =
+      "w-8 h-8 bg-[#007aff] rounded-full border-4 border-white shadow-lg flex items-center justify-center"
+    markerElement.innerHTML = '<div class="w-2 h-2 bg-white rounded-full"></div>'
+
+    new maplibregl.Marker({ element: markerElement })
+      .setLngLat([vendor.lng, vendor.lat])
+      .setPopup(
+        new maplibregl.Popup({
+          offset: 25,
+          className: "ios-popup",
+        }).setHTML(`
+          <div class="p-2">
+            <div class="font-semibold text-[#1d1d1f]">${vendor.address}</div>
+            <div class="text-xs text-[#86868b] mt-1">Vendor Location</div>
+          </div>
+        `),
+      )
+      .addTo(map)
+    
+    console.log("📍 Vendor marker added successfully")
+  } catch (error) {
+    console.error("❌ Failed to add vendor marker:", error)
+  }
+}
+
+// Update map with isochrones function
+function updateMapWithIsochrones(
+  state: MapState,
+  isochrones: any[],
+  vendor: Location,
+  ranges: any[]
+): void {
+  if (!state.map || !state.isStyleLoaded || !isochrones.length) {
+    console.log("⏳ Map not ready for isochrone update", {
+      map: !!state.map,
+      styleLoaded: state.isStyleLoaded,
+      isochrones: isochrones.length
+    })
+    return
+  }
+
+  const map = state.map
+
+  try {
+    // Remove existing isochrone layers if they exist
+    if (map.getSource("isochrones")) {
+      const layersToRemove = ["isochrone-fill", "isochrone-outline"]
+      layersToRemove.forEach((layer) => {
+        if (map.getLayer(layer)) {
+          map.removeLayer(layer)
+        }
+      })
+      map.removeSource("isochrones")
+    }
+
+    // Create GeoJSON collection from isochrones
+    const geojsonData = {
+      type: "FeatureCollection",
+      features: isochrones.map((iso, index) => ({
+        ...iso.geojson,
+        properties: {
+          ...iso.geojson.properties,
+          zone: index + 1,
+          color: iso.color,
+        }
+      })),
+    }
+
+    map.addSource("isochrones", {
+      type: "geojson",
+      data: geojsonData,
+    })
+
+    // Add fill layer
+    map.addLayer({
+      id: "isochrone-fill",
+      type: "fill",
+      source: "isochrones",
+      paint: {
+        "fill-color": ["get", "color"],
+        "fill-opacity": 0.25,
+      },
+    })
+
+    // Add outline layer
+    map.addLayer({
+      id: "isochrone-outline",
+      type: "line",
+      source: "isochrones",
+      paint: {
+        "line-color": ["get", "color"],
+        "line-width": 3,
+        "line-opacity": 0.8,
+      },
+    })
+
+    // Fit bounds to show all isochrones
+    if (isochrones.length > 0) {
+      const bounds = new maplibregl.LngLatBounds()
+      bounds.extend([vendor.lng, vendor.lat])
+
+      const maxDistance = Math.max(...ranges.map((r) => r.distance))
+      const latOffset = maxDistance / 111
+      const lngOffset = maxDistance / (111 * Math.cos((vendor.lat * Math.PI) / 180))
+
+      bounds.extend([vendor.lng - lngOffset, vendor.lat - latOffset])
+      bounds.extend([vendor.lng + lngOffset, vendor.lat + latOffset])
+
+      map.fitBounds(bounds, {
+        padding: 60,
+        maxZoom: 14,
+        duration: 1500,
+      })
+    }
+
+    console.log("✅ Isochrones updated successfully")
+  } catch (error) {
+    console.error("❌ Failed to update isochrones:", error)
+  }
+}
+
+// Cleanup function
+function destroyMap(state: MapState): void {
+  if (state.map) {
+    console.log("🧹 Cleaning up map...")
+    state.map.remove()
+    state.map = null
+    state.isInitialized = false
+    state.isStyleLoaded = false
+  }
+}
+
 //
 export function MainDeliveryZoneCreator({serviceId}: {serviceId: string}) {
   const { user } = useAuth()
   const riderId = user?.id
-  // const { serviceId } = useParams<{ serviceId: string }>()
+  const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId },
@@ -173,8 +413,39 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [generatedData, setGeneratedData] = useState<any>(null)
 
-  const mapRef = useRef<HTMLDivElement | null>(null)
-  const mapInstance = useRef<maplibregl.Map | null>(null)
+  // Map state using similar pattern to UserServiceViewer
+  const mapStateRef = useRef<MapState>({
+    map: null,
+    isInitialized: false,
+    isStyleLoaded: false,
+    container: null
+  })
+  const [setupMapContainer, setSetupMapContainer] = useState<HTMLDivElement | null>(null)
+  const [reviewMapContainer, setReviewMapContainer] = useState<HTMLDivElement | null>(null)
+
+  // Callback refs for different steps
+  const setupMapRefCallback = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      console.log("📍 Setup map container is now available:", node)
+      setSetupMapContainer(node)
+    } else {
+      console.log("📍 Setup map container removed")
+      setSetupMapContainer(null)
+    }
+  }, [])
+
+  const reviewMapRefCallback = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      console.log("📍 Review map container is now available:", node)
+      setReviewMapContainer(node)
+    } else {
+      console.log("📍 Review map container removed")
+      setReviewMapContainer(null)
+    }
+  }, [])
+
+  // Get current active container based on step
+  const currentMapContainer = step === "setup" ? setupMapContainer : step === "review" ? reviewMapContainer : null
 
   // GraphQL mutation hook
   const [generateIsochrone] = useMutation(GENERATE_ISOCHRONE)
@@ -199,133 +470,104 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
     { value: "walking" as TransportMode, label: "Walking", icon: "🚶", speed: "5 km/h" },
   ]
 
-  // Initialize MapLibre GL JS map
+  // Initialize map when container becomes available
   useEffect(() => {
-    if (!mapRef.current || !vendor) return
-
-    const mapStyle = maptilerApiKey
-      ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
-      : "https://demotiles.maplibre.org/style.json"
-
-    const map = new maplibregl.Map({
-      container: mapRef.current,
-      style: mapStyle,
-      center: [vendor.lng, vendor.lat],
-      zoom: 12,
-      attributionControl: false,
-    })
-
-    mapInstance.current = map
-
-    // Add vendor marker with custom styling
-    const markerElement = document.createElement("div")
-    markerElement.className =
-      "w-8 h-8 bg-[#007aff] rounded-full border-4 border-white shadow-lg flex items-center justify-center"
-    markerElement.innerHTML = '<div class="w-2 h-2 bg-white rounded-full"></div>'
-
-    new maplibregl.Marker({ element: markerElement })
-      .setLngLat([vendor.lng, vendor.lat])
-      .setPopup(
-        new maplibregl.Popup({
-          offset: 25,
-          className: "ios-popup",
-        }).setHTML(`
-          <div class="p-2">
-            <div class="font-semibold text-[#1d1d1f]">${vendor.address}</div>
-            <div class="text-xs text-[#86868b] mt-1">Vendor Location</div>
-          </div>
-        `),
-      )
-      .addTo(map)
-
-    map.on("load", () => {
-      setMapLoaded(true)
-    })
-
-    return () => {
-      map.remove()
+    if (!currentMapContainer || !vendor) {
+      console.log("⏳ Waiting for map container or vendor data...", { 
+        container: !!currentMapContainer, 
+        vendor: !!vendor,
+        step 
+      })
+      return
     }
-  }, [vendor, maptilerApiKey])
+
+    // Reset map state when switching steps or if already initialized
+    if (mapStateRef.current.isInitialized) {
+      console.log("🔄 Resetting map for new step:", step)
+      destroyMap(mapStateRef.current)
+      setMapLoaded(false)
+    }
+
+    // Check if container has dimensions
+    const containerRect = currentMapContainer.getBoundingClientRect()
+    console.log("📐 Container dimensions:", {
+      width: containerRect.width,
+      height: containerRect.height,
+      top: containerRect.top,
+      left: containerRect.left,
+      step
+    })
+
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      console.warn("⚠️ Container has no dimensions, waiting...")
+      
+      const retryTimeout = setTimeout(() => {
+        const newRect = currentMapContainer.getBoundingClientRect()
+        if (newRect.width > 0 && newRect.height > 0) {
+          console.log("✅ Container now has dimensions, retrying initialization")
+          setSetupMapContainer(currentMapContainer === setupMapContainer ? currentMapContainer : setupMapContainer)
+          setReviewMapContainer(currentMapContainer === reviewMapContainer ? currentMapContainer : reviewMapContainer)
+        }
+      }, 1000)
+
+      return () => clearTimeout(retryTimeout)
+    }
+
+    console.log(`🗺️ Initializing delivery zone map for ${step} step...`)
+
+    try {
+      // Reset the map state
+      mapStateRef.current = {
+        map: null,
+        isInitialized: false,
+        isStyleLoaded: false,
+        container: currentMapContainer
+      }
+
+      initializeMap(
+        mapStateRef.current,
+        currentMapContainer,
+        maptilerApiKey || "",
+        vendor,
+        () => {
+          console.log(`✅ Map loaded successfully for ${step} step - setting mapLoaded to true`)
+          setMapLoaded(true)
+        }
+      )
+
+      // Debug timeout
+      const debugTimeout = setTimeout(() => {
+        if (!mapLoaded) {
+          console.log(`🐛 Map still loading after 5 seconds for ${step} step, debugging...`)
+          console.log("Map state:", mapStateRef.current)
+        }
+      }, 5000)
+
+      return () => clearTimeout(debugTimeout)
+    } catch (error) {
+      console.error("💥 Failed to initialize map:", error)
+      setTimeout(() => {
+        console.log("🔄 Force setting map loaded after error")
+        setMapLoaded(true)
+      }, 3000)
+    }
+  }, [currentMapContainer, vendor, maptilerApiKey, step]) // Add step dependency
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      destroyMap(mapStateRef.current)
+      setMapLoaded(false)
+    }
+  }, [])
 
   // Update map with isochrones when they change
   useEffect(() => {
-    if (!mapInstance.current || !isochrones.length) return
-
-    const map = mapInstance.current
-
-    // Remove existing isochrone layers
-    if (map.getSource("isochrones")) {
-      ;["isochrone-fill", "isochrone-outline"].forEach((layer) => {
-        if (map.getLayer(layer)) {
-          map.removeLayer(layer)
-        }
-      })
-      map.removeSource("isochrones")
+    if (mapStateRef.current && mapLoaded && isochrones.length > 0) {
+      console.log(`🔄 Updating map with ${isochrones.length} isochrones`)
+      updateMapWithIsochrones(mapStateRef.current, isochrones, vendor, ranges)
     }
-
-    // Create GeoJSON collection from isochrones
-    const geojsonData = {
-      type: "FeatureCollection",
-      features: isochrones.map((iso, index) => ({
-        ...iso.geojson,
-        properties: {
-          ...iso.geojson.properties,
-          zone: index + 1,
-          color: iso.color,
-        }
-      })),
-    }
-
-    map.addSource("isochrones", {
-      type: "geojson",
-      data: geojsonData,
-    })
-
-    // Add fill layer with animation
-    map.addLayer({
-      id: "isochrone-fill",
-      type: "fill",
-      source: "isochrones",
-      paint: {
-        "fill-color": ["get", "color"],
-        "fill-opacity": 0.25,
-      },
-    })
-
-    // Add outline layer
-    map.addLayer({
-      id: "isochrone-outline",
-      type: "line",
-      source: "isochrones",
-      paint: {
-        "line-color": ["get", "color"],
-        "line-width": 3,
-        "line-opacity": 0.8,
-      },
-    })
-
-    // Fit bounds to show all isochrones with animation
-    if (isochrones.length > 0) {
-      const bounds = new maplibregl.LngLatBounds()
-
-      // Add vendor location to bounds
-      bounds.extend([vendor.lng, vendor.lat])
-
-      // Extend bounds for each zone (approximate)
-      const maxDistance = Math.max(...ranges.map((r) => r.distance))
-      const latOffset = maxDistance / 111 // Rough km to degrees conversion
-      const lngOffset = maxDistance / (111 * Math.cos((vendor.lat * Math.PI) / 180))
-
-      bounds.extend([vendor.lng - lngOffset, vendor.lat - latOffset])
-      bounds.extend([vendor.lng + lngOffset, vendor.lat + latOffset])
-
-      map.fitBounds(bounds, {
-        padding: 60,
-        maxZoom: 14,
-        duration: 1500,
-      })
-    }
-  }, [isochrones, vendor, ranges])
+  }, [isochrones, vendor, ranges, mapLoaded])
 
   const handleAddRange = () => {
     if (ranges.find((r) => r.distance === currentRange)) {
@@ -342,12 +584,11 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
 
     setRanges([...ranges, newRange])
 
-    // Auto-increment for next range with haptic feedback simulation
+    // Auto-increment for next range
     const nextDistance = distanceOptions.find((d) => d > currentRange) || currentRange + 5
     setCurrentRange(nextDistance)
     setCurrentPrice(Math.round((currentPrice + 2.0) * 100) / 100)
 
-    // Show success feedback
     showSuccess("Zone added successfully!")
   }
 
@@ -391,28 +632,35 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
     setError(null)
 
     try {
-      // Sort ranges by distance for proper isochrone generation
       const sortedRanges = [...ranges].sort((a, b) => a.distance - b.distance)
-
-      // Convert distances to time ranges in seconds for the API
       const speed = SPEED_MAPPING[transportMode]
       const timeRanges = sortedRanges.map((range) => {
         const timeInMinutes = Math.round((range.distance / speed) * 60)
-        return Math.min(timeInMinutes * 60, 3600) // Cap at 60 minutes (3600 seconds)
+        return Math.min(timeInMinutes * 60, 3600)
       })
 
-      // Prepare metadata input for each zone
       const metaData = sortedRanges.map((range) => ({
         price: range.price
       }))
 
-      // Call the real GraphQL API
+      // Map transport modes to OpenRouteService profiles
+      const profileMapping = {
+        'walking': 'foot-walking',
+        'bike': 'cycling-regular', 
+        'motorbike': 'driving-car', // Use car profile for motorbike
+        'car': 'driving-car'
+      }
+
+      const openRouteProfile = profileMapping[transportMode] || 'driving-car'
+      
+      console.log(`🚗 Using transport mode: ${transportMode} -> OpenRoute profile: ${openRouteProfile}`)
+
       const response = await generateIsochrone({
         variables: {
           input: {
-            locations: [[vendor.lng, vendor.lat]], // OpenRouteService expects [longitude, latitude]
+            locations: [[vendor.lng, vendor.lat]],
             range: timeRanges,
-            transportMode: transportMode,
+            transportMode: openRouteProfile, // Use mapped profile instead of raw transportMode
             address: vendor.address,
             vendorId: vendor.placeId,
             metaData: metaData
@@ -421,11 +669,9 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
       })
 
       if (response?.data?.generateIsochrone?.geojson) {
-        // Parse the GeoJSON string returned from the API
         const geojsonData = JSON.parse(response.data.generateIsochrone.geojson)
         
         if (geojsonData?.features) {
-          // Create isochrone objects with the returned data
           const processedIsochrones = geojsonData.features.map((feature: any, index: number) => {
             const range = sortedRanges[index]
             return {
@@ -441,7 +687,6 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
           setIsochrones(processedIsochrones)
           setGeneratedData(response.data.generateIsochrone)
           setStep("review")
-
           showSuccess("Zones generated successfully!")
         } else {
           throw new Error("Invalid GeoJSON format received")
@@ -454,7 +699,9 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
       
       let errorMessage = "Failed to generate delivery zones. Please try again."
       
-      if (error?.message?.includes("Service Unavailable") || error?.message?.includes("503")) {
+      if (error?.message?.includes("Parameter 'profile' has incorrect value")) {
+        errorMessage = `Invalid transport mode for mapping service. Please try a different transport option.`
+      } else if (error?.message?.includes("Service Unavailable") || error?.message?.includes("503")) {
         errorMessage = "The mapping service is temporarily unavailable. Please try again in a few moments."
       } else if (error?.networkError) {
         errorMessage = "Network error. Please check your connection and try again."
@@ -470,7 +717,6 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
 
   const handleSaveZones = () => {
     if (generatedData && onSave) {
-      // Prepare final data for saving
       const deliveryZoneData = {
         riderId: riderId,
         vendorId: vendor.placeId || `vendor_${Date.now()}`,
@@ -510,7 +756,6 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
     if (navigator.share) {
       navigator.share(shareData)
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href)
       showSuccess("Link copied to clipboard!")
     }
@@ -720,7 +965,7 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
 
                   <div className="flex-1 bg-[#f5f5f7] rounded-xl p-4 md:p-6">
                     <div className="relative h-[200px] md:h-[300px] rounded-lg overflow-hidden">
-                      <div ref={mapRef} className="w-full h-full" />
+                      <div ref={setupMapRefCallback} className="w-full h-full" />
 
                       {!mapLoaded && (
                         <div className="absolute inset-0 flex items-center justify-center bg-[#f5f5f7]">
@@ -729,6 +974,16 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
                               <div className="absolute inset-0 rounded-full border-2 border-[#007aff] border-t-transparent animate-spin"></div>
                             </div>
                             <p className="text-sm text-[#86868b]">Loading map...</p>
+                            
+                            {/* Debug info in development */}
+                            {process.env.NODE_ENV === "development" && (
+                              <div className="text-xs text-gray-400 space-y-1 mt-2">
+                                <p>API Key: {maptilerApiKey ? "✅ Provided" : "❌ Using Demo"}</p>
+                                <p>Container: {setupMapContainer ? "✅ Ready" : "❌ Not Ready"}</p>
+                                <p>State: {mapStateRef.current.isInitialized ? "✅ Init" : "❌ Waiting"}</p>
+                                <p>Step: {step}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -953,7 +1208,28 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
                 <h2 className="text-2xl font-semibold mb-6">Review Delivery Zones</h2>
 
                 <div className="relative h-[300px] md:h-[450px] rounded-xl overflow-hidden mb-6 border border-[#e5e5e7]">
-                  <div ref={mapRef} className="w-full h-full" />
+                  <div ref={reviewMapRefCallback} className="w-full h-full" />
+                  
+                  {!mapLoaded && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#f5f5f7]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 relative">
+                          <div className="absolute inset-0 rounded-full border-2 border-[#007aff] border-t-transparent animate-spin"></div>
+                        </div>
+                        <p className="text-sm text-[#86868b]">Loading map...</p>
+                        
+                        {/* Debug info in development */}
+                        {process.env.NODE_ENV === "development" && (
+                          <div className="text-xs text-gray-400 space-y-1 mt-2">
+                            <p>API Key: {maptilerApiKey ? "✅ Provided" : "❌ Using Demo"}</p>
+                            <p>Container: {reviewMapContainer ? "✅ Ready" : "❌ Not Ready"}</p>
+                            <p>State: {mapStateRef.current.isInitialized ? "✅ Init" : "❌ Waiting"}</p>
+                            <p>Step: {step}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between mb-4">
@@ -1036,7 +1312,7 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
                     <h4 className="font-medium mb-2 text-blue-900">Generated Data Details</h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-blue-700 mb-1">id</p>
+                        <p className="text-blue-700 mb-1">ID</p>
                         <p className="text-blue-900 font-mono text-xs">{generatedData.id}</p>
                       </div>
                       <div>
@@ -1112,7 +1388,7 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
 
                   {generatedData && (
                     <div className="mt-4 pt-4 border-t border-[#e5e5e7]">
-                      <p className="text-xs text-[#86868b] mb-1">Generated id</p>
+                      <p className="text-xs text-[#86868b] mb-1">Generated ID</p>
                       <p className="text-sm font-mono bg-white px-2 py-1 rounded border text-[#1d1d1f]">
                         {generatedData.id}
                       </p>

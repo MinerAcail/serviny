@@ -334,7 +334,12 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 
 		log.Printf("Delivery address provided but not stored: %s", *input.DeliveryAddress)
 	}
+	if input.PickUpAddress != nil && *input.PickUpAddress != "" {
 
+		booking.PickUpAddress = input.PickUpAddress
+
+		log.Printf("Delivery address provided but not stored: %s", *input.PickUpAddress)
+	}
 	// Update dropoff location if provided
 	if input.DropoffLocation != nil && len(input.DropoffLocation) >= 2 {
 		lng := *input.DropoffLocation[0]
@@ -606,7 +611,11 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			booking.DeliveryAddress = *in.DeliveryAddress
 			log.Printf("Delivery address provided for booking %s: %s", in.BookID, *in.DeliveryAddress)
 		}
-
+		// Update delivery address if provided
+		if in.PickUpAddress != nil && *in.PickUpAddress != "" {
+			booking.PickUpAddress = in.PickUpAddress
+			log.Printf("Delivery address provided for booking %s: %s", in.BookID, *in.PickUpAddress)
+		}
 		// Update dropoff location if provided
 		if in.DropoffLocation != nil && len(in.DropoffLocation) >= 2 {
 			lng := *in.DropoffLocation[0]

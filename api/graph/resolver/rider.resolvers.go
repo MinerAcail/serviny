@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
@@ -114,8 +116,90 @@ func (r *mutationResolver) UpdateRiderStatus(ctx context.Context, id string, sta
 }
 
 // UpdateRider is the resolver for the updateRider field.
-func (r *mutationResolver) UpdateRider(ctx context.Context, id string, input model.RiderInput) (*model.Rider, error) {
-	panic(fmt.Errorf("not implemented: UpdateRider - updateRider"))
+func (r *mutationResolver) UpdateRider(ctx context.Context, id string, input model.RiderUpateInput) (*model.Rider, error) {
+	// Parse the UUID from input
+	UUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	var rider model.Rider
+	if err := r.DB.First(&rider, "id = ?", UUID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+
+	// Update fields if provided
+	if input.Name != nil {
+		rider.Name = *input.Name
+	}
+	if input.Email != nil {
+		rider.Email = *input.Email
+	}
+	if input.Type != nil {
+		rider.Type = *input.Type
+	}
+	if input.Number != nil {
+		rider.Number = helper.CleanPhoneNumber(*input.Number)
+	}
+	if input.State != nil {
+		rider.State = input.State
+	}
+	if input.Password != nil {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		hashedPasswordStr := string(hashedPassword)
+		rider.Password = &hashedPasswordStr
+	}
+	if input.Availability != nil {
+		rider.Availability = input.Availability
+	}
+	if input.Dpfile != nil {
+		rider.Dpfile = input.Dpfile
+	}
+	if input.IDCard != nil {
+		// Convert []*string to []string
+		var idCards []string
+		for _, s := range input.IDCard {
+			if s != nil {
+				idCards = append(idCards, *s)
+			}
+		}
+		rider.IDCard = idCards
+	}
+	if input.Location != nil {
+		rider.Location = input.Location
+	}
+	if input.Coordinates != nil {
+		// Convert []*float64 to []float64
+		var coords []float64
+		for _, f := range input.Coordinates {
+			if f != nil {
+				coords = append(coords, *f)
+			}
+		}
+		rider.Coordinates = coords
+	}
+	if input.H3Indexes != nil {
+		// Convert []*string to []string
+		var h3s []string
+		for _, s := range input.H3Indexes {
+			if s != nil {
+				h3s = append(h3s, *s)
+			}
+		}
+		rider.H3Indexes = h3s
+	}
+	if input.Experience != nil {
+		rider.Experience = *input.Experience
+	}
+
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider: %w", err)
+	}
+
+	return &rider, nil
 }
 
 // DeleteRider is the resolver for the deleteRider field.
@@ -590,6 +674,398 @@ func (r *queryResolver) RiderCurrentLocation(ctx context.Context, riderID string
 // GetAllRidersStatusState is the resolver for the getAllRidersStatusState field.
 func (r *queryResolver) GetAllRidersStatusState(ctx context.Context, status model.RiderStatus) ([]*model.Rider, error) {
 	panic(fmt.Errorf("not implemented: GetAllRidersStatusState - getAllRidersStatusState"))
+}
+
+// GetAllRidersBookingAndOrdersAssignedData is the resolver for the getAllRidersBookingAndOrdersAssignedData field.
+func (r *queryResolver) GetAllRidersBookingAndOrdersAssignedData(ctx context.Context) ([]*model.ServiceData, error) {
+	// Get Rider ID from context
+	riderIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Rider ID: %v", err)
+	}
+
+	var results []*model.ServiceData
+
+	// Get orders assigned to this specific rider
+	orderResults, orderErr := r.GetRiderAssignedOrders(ctx, *riderIDStr)
+	if orderErr != nil {
+		log.Printf("Warning: failed to get rider assigned orders: %v", orderErr)
+	} else {
+		results = append(results, orderResults...)
+		log.Printf("Retrieved %d assigned orders for rider %s", len(orderResults), *riderIDStr)
+	}
+
+	// Get bookings assigned to this specific rider
+	bookingResults, bookingErr := r.GetRiderAssignedBookings(ctx, *riderIDStr)
+	if bookingErr != nil {
+		log.Printf("Warning: failed to get rider assigned bookings: %v", bookingErr)
+	} else {
+		results = append(results, bookingResults...)
+		log.Printf("Retrieved %d assigned bookings for rider %s", len(bookingResults), *riderIDStr)
+	}
+
+	// If both failed, return error
+	if orderErr != nil && bookingErr != nil {
+		return nil, fmt.Errorf("failed to get both orders and bookings for rider: orders error: %v, bookings error: %v", orderErr, bookingErr)
+	}
+
+	// Sort results by creation date (most recent first)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].CreatedAt.After(results[j].CreatedAt)
+	})
+
+	log.Printf("Total retrieved %d service data items (%d orders + %d bookings) for rider %s",
+		len(results),
+		func() int {
+			if orderErr == nil {
+				return len(orderResults)
+			}
+			return 0
+		}(),
+		func() int {
+			if bookingErr == nil {
+				return len(bookingResults)
+			}
+			return 0
+		}(),
+		*riderIDStr)
+
+	return results, nil
+}
+
+// GetRiderAssignedOrders is the resolver for the getRiderAssignedOrders field.
+func (r *queryResolver) GetRiderAssignedOrders(ctx context.Context, riderID string) ([]*model.ServiceData, error) {
+	// Fetch orders where rider_id matches the specific rider
+	var orders []model.Order
+	if err := r.DB.Preload("Items").
+		Where("rider_id = ?", riderID).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch rider orders: %w", err)
+	}
+
+	if len(orders) == 0 {
+		log.Printf("No orders found for rider %s", riderID)
+		return []*model.ServiceData{}, nil
+	}
+
+	// Map productID to product to avoid multiple queries
+	productMap := make(map[string]*model.Product)
+	var productIDs []string
+	for _, order := range orders {
+		for _, item := range order.Items {
+			if _, exists := productMap[item.ProductID]; !exists {
+				productIDs = append(productIDs, item.ProductID)
+			}
+		}
+	}
+
+	// Fetch all products in bulk
+	var products []*model.Product
+	if err := r.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
+	}
+	for _, product := range products {
+		productMap[product.ID.String()] = product
+	}
+
+	// Prepare a map to cache vendors by their ID
+	vendorMap := make(map[string]*model.Service)
+
+	// Helper function to get vendor by product's VendorID
+	getVendor := func(vendorID *string) (*model.Service, error) {
+		if vendorID == nil || *vendorID == "" {
+			return nil, fmt.Errorf("product has no vendor ID")
+		}
+		if v, ok := vendorMap[*vendorID]; ok {
+			return v, nil
+		}
+		var vendor model.Service
+		if err := r.DB.Where("id = ?", *vendorID).First(&vendor).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch vendor/service: %w", err)
+		}
+		vendorMap[*vendorID] = &vendor
+		return &vendor, nil
+	}
+
+	var results []*model.ServiceData
+
+	for _, order := range orders {
+		// Get customer information
+		customer, err := r.Query().GetUserInfor(ctx, order.UserID)
+		if err != nil {
+			log.Printf("Warning: failed to get customer info for order %s: %v", order.ID, err)
+			continue
+		}
+
+		// Get rider information
+		rider, err := r.Query().GetUserInfor(ctx, riderID)
+		if err != nil {
+			log.Printf("Warning: failed to get rider info for order %s: %v", order.ID, err)
+			continue
+		}
+
+		// Get zone metadata (isochrone data)
+		var zoneMetaData *model.ZoneMetaData
+		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+			zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+			if err != nil {
+				log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
+					order.ID, *order.IsochroneMetaID, err)
+			}
+		}
+
+		// Get route data
+		var routeData *model.RouteInfo
+		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get route data for order %s: %v", order.ID, err)
+			}
+			routeData = nil
+		} else {
+			if routeData.CreatedAt.IsZero() {
+				routeData.CreatedAt = order.CreatedAt
+			}
+			if routeData.UpdatedAt.IsZero() {
+				routeData.UpdatedAt = order.CreatedAt
+			}
+		}
+
+		// Process product information and get vendor from product
+		var productInfor []*model.OrderproductInfor
+		var vendor *model.Service
+		var vendorErr error
+
+		for _, item := range order.Items {
+			if product, exists := productMap[item.ProductID]; exists {
+				productInfor = append(productInfor, &model.OrderproductInfor{
+					Product:  []*model.Product{product},
+					Quantity: item.Quantity,
+				})
+
+				// Get vendor from the first product
+				if vendor == nil {
+					vendor, vendorErr = getVendor(product.VendorID)
+					if vendorErr != nil {
+						log.Printf("Warning: failed to get vendor for order %s: %v", order.ID, vendorErr)
+					}
+				}
+			}
+		}
+
+		// Skip if no vendor found
+		if vendor == nil {
+			log.Printf("Warning: no vendor found for order %s, skipping", order.ID)
+			continue
+		}
+		var paymentStatus model.BookingOrderPaymentStatus
+		if err := r.DB.Where("entity_id = ? ", order.ID.String()).First(&paymentStatus).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// If not found, just set defaults
+				paymentStatus = model.BookingOrderPaymentStatus{
+					Status: "Pending",
+					Method: "Pending",
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+			}
+
+		}
+
+		// Create ServiceData for booking
+		// Handle possible nil paymentStatus
+		var paymentStatusValue, paymentMethodValue string
+		if paymentStatus.Status != "" {
+			paymentStatusValue = paymentStatus.Status
+		} else {
+			paymentStatusValue = "Pending"
+		}
+		if paymentStatus.Method != "" {
+			paymentMethodValue = paymentStatus.Method
+		} else {
+			paymentMethodValue = "Pending"
+		}
+		// Create ServiceData for order
+		serviceData := &model.ServiceData{
+			ID:        order.ID.String(),
+			ServiceID: riderID, // Use rider ID as service ID for rider-specific queries
+			Type:      model.ServiceTypeOrder,
+			Rider:     rider,
+			Customer:  customer,
+			Vendor:    vendor,
+			CreatedAt: order.CreatedAt,
+
+			OrderData: &model.CartItemOrder{
+				OrderID:               order.ID.String(),
+				ProductInfor:          productInfor,
+				Customer:              customer,
+				Rider:                 rider,
+				Order:                 &order,
+				Vendor:                vendor,
+				DeliveryAddress:       order.DeliveryAddress,
+				Status:                order.Status,
+				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
+				DeliveryMetaData:      zoneMetaData,
+				RouteData:             routeData,
+				ServiceFee:            order.DeliveryFee,
+				CreatedAt:             order.CreatedAt,
+				PaymentStatus:         &paymentStatusValue,
+				PaymentMethod:         &paymentMethodValue,
+			},
+			BookingData: nil,
+		}
+
+		results = append(results, serviceData)
+		log.Printf("Successfully processed order %s for rider %s", order.ID, riderID)
+	}
+
+	return results, nil
+}
+
+// GetRiderAssignedBookings is the resolver for the getRiderAssignedBookings field.
+func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID string) ([]*model.ServiceData, error) {
+	// Fetch bookings where rider_id matches the specific rider
+	var bookings []model.AppointmentBooking
+	if err := r.DB.Where("rider_id = ?", riderID).
+		Order("created_at DESC").
+		Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch rider bookings: %w", err)
+	}
+
+	if len(bookings) == 0 {
+		log.Printf("No bookings found for rider %s", riderID)
+		return []*model.ServiceData{}, nil
+	}
+
+	var results []*model.ServiceData
+
+	for _, booking := range bookings {
+		// Get customer information
+		customer, err := r.Query().GetUserInfor(ctx, booking.UserID)
+		if err != nil {
+			log.Printf("Warning: failed to get customer info for booking %s: %v", booking.ID, err)
+			continue
+		}
+
+		// Get rider information
+		rider, err := r.Query().GetUserInfor(ctx, riderID)
+		if err != nil {
+			log.Printf("Warning: failed to get rider info for booking %s: %v", booking.ID, err)
+			continue
+		}
+
+		// Get service information (the booking service - restaurant, hotel, etc.)
+		var service model.Service
+		if err := r.DB.Where("id = ?", booking.ServiceID).First(&service).Error; err != nil {
+			log.Printf("Warning: service not found for booking %s: %v", booking.ID, err)
+			continue
+		}
+
+		// Get route data
+		var routeData *model.RouteInfo
+		if err := r.DB.Where("order_id = ?", booking.ID.String()).First(&routeData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get route data for booking %s: %v", booking.ID, err)
+			}
+			routeData = nil
+		} else {
+			if routeData.CreatedAt.IsZero() {
+				routeData.CreatedAt = booking.CreatedAt
+			}
+			if routeData.UpdatedAt.IsZero() {
+				routeData.UpdatedAt = booking.CreatedAt
+			}
+		}
+
+		// Get range metadata
+		var rangeMetaData *model.RiderRange
+		if err := r.DB.Where("rider_id = ?", riderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
+			}
+		}
+
+		// Convert coordinates if they exist
+		var pickupLocation []float64
+		var dropoffLocation []float64
+
+		if len(booking.PickupLocation) >= 2 {
+			pickupLocation = []float64{booking.PickupLocation[0], booking.PickupLocation[1]}
+		}
+
+		if len(booking.DropoffLocation) >= 2 {
+			dropoffLocation = []float64{booking.DropoffLocation[0], booking.DropoffLocation[1]}
+		}
+		var paymentStatus model.BookingOrderPaymentStatus
+		if err := r.DB.Where("entity_id = ? ", booking.ID.String()).First(&paymentStatus).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+    // If not found, just set defaults
+    paymentStatus = model.BookingOrderPaymentStatus{
+        Status: "Pending",
+        Method: "Pending",
+    }
+} else if err != nil {
+    return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+}
+
+		}
+
+		// Create ServiceData for booking
+		// Handle possible nil paymentStatus
+		var paymentStatusValue, paymentMethodValue string
+		if paymentStatus.Status != "" {
+			paymentStatusValue = paymentStatus.Status
+		} else {
+			paymentStatusValue = "Pending"
+		}
+		if paymentStatus.Method != "" {
+			paymentMethodValue = paymentStatus.Method
+		} else {
+			paymentMethodValue = "Pending"
+		}
+		// Create ServiceData for booking
+		serviceData := &model.ServiceData{
+			ID:        booking.ID.String(),
+			ServiceID: riderID, // Use rider ID as service ID for rider-specific queries
+			Type:      model.ServiceTypeBooking,
+			Rider:     rider,
+			Customer:  customer,
+			Vendor:    &service,
+			CreatedAt: booking.CreatedAt,
+
+			BookingData: &model.AppointmentBookingData{
+				BookingID:             booking.ID.String(),
+				StartTime:             booking.StartTime,
+				EndTime:               booking.EndTime,
+				Day:                   booking.Day,
+				Notes:                 booking.Notes,
+				Item:                  booking.Item,
+				TableSize:             booking.TableSize,
+				UserType:              string(booking.UserType),
+				IsConfirmed:           booking.IsConfirmed,
+				PickupLocation:        pickupLocation,
+				DropoffLocation:       dropoffLocation,
+				DeliveryAddress:       booking.DeliveryAddress,
+				PickUpAddress:         booking.PickUpAddress,
+				DeliveryFee:           booking.DeliveryFee,
+				Distance:              booking.Distance,
+				Duration:              booking.Duration,
+				EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
+				RouteData:             routeData,
+				RangeMetaData:         rangeMetaData,
+				MultiGroupID:          booking.MultiGroupID,
+				Status:                &booking.Status,
+				PaymentStatus:         &paymentStatusValue,
+				PaymentMethod:         &paymentMethodValue,
+			},
+			OrderData: nil,
+		}
+
+		results = append(results, serviceData)
+		log.Printf("Successfully processed booking %s for rider %s", booking.ID, riderID)
+	}
+
+	return results, nil
 }
 
 // ID is the resolver for the id field.

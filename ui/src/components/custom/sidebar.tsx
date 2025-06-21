@@ -91,7 +91,7 @@ export function Sidebar() {
   });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navigation = [
-    { name: "Home", to: `/providers/${user?.id}?lo`, icon: Home }, // stays on /dbp/:serviceId
+    { name: "Home", to: `/`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
     ...(isEcommerceStandardOrEnterprise
       ? [
@@ -116,7 +116,7 @@ export function Sidebar() {
           },
           // { name: "Analytics", to: `analytics`, icon: ChartLine },
           { name: "History", to: `history`, icon: History },
-    { name: "Forms", to: "builder", icon: BookCopy  },
+          { name: "Forms", to: "builder", icon: BookCopy },
 
           // { name: "Request", to: `request`, icon: GitPullRequest },
           { name: "Vendors", to: `vendors`, icon: Building2 },
@@ -219,9 +219,9 @@ export function Sidebar() {
                 //   <SpectaclesLogo size={"sm"} variant="primary" />
                 // </Link>
 
-                 <Link to={"/"} className="flex w-[50%] items-center">
-                        <img src="/winnefull.png" alt="Logo" className="h-4 w-full"  />
-                      </Link>
+                <Link to={"/"} className="flex w-[50%] items-center">
+                  <img src="/winnefull.png" alt="Logo" className="h-4 w-full" />
+                </Link>
               )}
               <Button
                 variant="ghost"
@@ -293,6 +293,7 @@ export function Sidebar() {
 }
 
 import { gql, useQuery } from "@apollo/client";
+import { ProfileSwitcherContainer } from "../ProfileSwitcher";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
     clearClientCache
@@ -303,6 +304,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   console.log("serviceId", serviceId);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const localServiceId = localStorage.getItem("serviceId");
+  serviceId = serviceId ?? localServiceId ?? "";
   const { isMatch } = useCheckAuthId(serviceId);
   const { userType } = useProvider();
   const { isAuthenticated, user, clearCache } = useAuth();
@@ -328,24 +331,24 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   console.log("clearClientCache initialized", data);
   // const checkurl = location.pathname === "/install" || location.pathname === "/zonex";
   //id from localStorage
-  const currentVendorId = localStorage.getItem("currentVendorId");
   const navigation = [
     {
       name: "Home",
-      to: providers
-        ? `/`
-        : `/providers/${serviceId}?lo`,
+      to: `/?lo`,
       icon: Home,
     },
     { name: "Delivery", to: `/vob`, icon: PackageCheck }, // stays on /dbp/:serviceId
+          { name: "History", to: `history`, icon: History },
 
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
     // { name: "Message", to: "/sms", icon: MessageSquare },
+    { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
+    
     ...(isEcommerceStandardOrEnterprise
       ? [{ name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge }]
       : []),
     // Conditionally include items
-    ...(isMatch
+    ...(isMatch || user?.type === "DELIVERY"
       ? [
           {
             name: "Dashboard",
@@ -466,14 +469,14 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 isCollapsed && "justify-center px-2"
               )}
             >
-                {!isCollapsed && (
+              {!isCollapsed && (
                 // <Link to={"/"} className="flex  items-center">
                 //   <SpectaclesLogo size={"sm"} variant="primary" />
                 // </Link>
 
-                 <Link to={"/"} className="flex w-[50%] items-center">
-                        <img src="/winnefull.png" alt="Logo" className="h-4 w-full"  />
-                      </Link>
+                <Link to={"/"} className="flex w-[50%] items-center">
+                  <img src="/winnefull.png" alt="Logo" className="h-4 w-full" />
+                </Link>
               )}
               <Button
                 variant="ghost"
@@ -494,6 +497,11 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             </div>
           </div>
           <RegisterOptions isCollapsed={isCollapsed} />
+          {!isCollapsed && (
+
+          <ProfileSwitcherContainer  />
+          )}
+
           <div className="flex-1 overflow-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
               {navigation.map((item, index) => (

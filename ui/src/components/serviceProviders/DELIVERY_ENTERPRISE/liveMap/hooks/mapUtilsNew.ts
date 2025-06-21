@@ -1,5 +1,5 @@
 // Fixed mapUtils.ts with ServiceData support
-import type maplibregl from "maplibre-gl"
+import maplibregl from "maplibre-gl"
 import type { ServiceData, ProcessedRider, RouteData, ParsedRouteData } from "../serviceDataAndTypes"
 
 export const getStatusColor = (status: string): string => {
@@ -230,7 +230,7 @@ export const addRiderRoutesToMap = (
 
   console.log(`Adding routes to map: ${riderRoutes.size} Google routes, ${showRoutes ? "showing" : "hidden"}`)
 
-  // Remove existing route layers
+  // Remove existing route layers (both Google and database routes)
   riderRoutes.forEach((_, riderId) => {
     const layerId = `route-${riderId}`
     const arrowLayerId = `route-arrows-${riderId}`
@@ -249,8 +249,31 @@ export const addRiderRoutesToMap = (
     }
   })
 
-  // Also remove database route layers
+  // Remove all database route layers (including multigroup routes)
   riders.forEach((rider) => {
+    // Get all services for this rider to clean up all possible route layers
+    const riderServices = serviceData.filter((service) => service.rider?.id === rider.id)
+    
+    // Clean up individual service route layers
+    riderServices.forEach((service, index) => {
+      const serviceLayerId = `db-route-${rider.id}-service-${index}`
+      const serviceArrowLayerId = `db-route-arrows-${rider.id}-service-${index}`
+
+      if (mapInstance.getLayer(serviceLayerId)) {
+        mapInstance.removeLayer(serviceLayerId)
+      }
+      if (mapInstance.getSource(serviceLayerId)) {
+        mapInstance.removeSource(serviceLayerId)
+      }
+      if (mapInstance.getLayer(serviceArrowLayerId)) {
+        mapInstance.removeLayer(serviceArrowLayerId)
+      }
+      if (mapInstance.getSource(serviceArrowLayerId)) {
+        mapInstance.removeSource(serviceArrowLayerId)
+      }
+    })
+
+    // Also clean up the old single route layers
     const dbLayerId = `db-route-${rider.id}`
     const dbArrowLayerId = `db-route-arrows-${rider.id}`
 
@@ -312,7 +335,7 @@ export const addRiderRoutesToMap = (
     })
   })
 
-  // Add routes from database with enhanced debugging
+  // ENHANCED: Add routes from database - show ALL routes for multigroup bookings
   riders.forEach((rider) => {
     const riderServices = serviceData.filter((service) => service.rider?.id === rider.id)
     const servicesWithRoutes = riderServices.filter((service) => {
@@ -324,9 +347,127 @@ export const addRiderRoutesToMap = (
       return false
     })
 
-    if (servicesWithRoutes.length > 0) {
+    if (servicesWithRoutes.length === 0) return
+
+    console.log(`Processing ${servicesWithRoutes.length} database routes for rider ${rider.name}`)
+
+    // Check if we have multigroup bookings
+    const multiGroupServices = servicesWithRoutes.filter(service => 
+      service.type === 'BOOKING' && service.bookingData?.multiGroupId
+    )
+
+    const hasMultiGroup = multiGroupServices.length > 0
+    
+    if (hasMultiGroup) {
+      console.log(`Rider ${rider.name} has ${multiGroupServices.length} multigroup bookings - showing all routes`)
+      
+      // For multigroup bookings, show ALL routes
+      servicesWithRoutes.forEach((service, index) => {
+        let routeGeoJSON = null
+        let serviceType = service.type
+        
+        if (service.type === 'ORDER' && service.orderData?.routeData?.geojson) {
+          routeGeoJSON = service.orderData.routeData.geojson
+        } else if (service.type === 'BOOKING' && service.bookingData?.routeData?.geojson) {
+          routeGeoJSON = service.bookingData.routeData.geojson
+        }
+
+        if (routeGeoJSON) {
+          const parsedRoute = parseRouteGeoJSON(routeGeoJSON)
+
+          if (parsedRoute) {
+            console.log(`Adding database route ${index + 1}/${servicesWithRoutes.length} for rider ${rider.name}: ${parsedRoute.coordinates.length} points`)
+
+            const serviceLayerId = `db-route-${rider.id}-service-${index}`
+
+            // Create unique colors for different routes in multigroup
+            const routeColors = [
+              '#8B5CF6', // Purple
+              '#EC4899', // Pink  
+              '#06B6D4', // Cyan
+              '#84CC16', // Lime
+              '#F59E0B', // Amber
+              '#EF4444', // Red
+              '#10B981', // Emerald
+              '#6366F1', // Indigo
+            ]
+            
+            const routeColor = serviceType === 'BOOKING' 
+              ? routeColors[index % routeColors.length] 
+              : getStatusColor(rider.status)
+
+            const routeGeoJSONFeature = {
+              type: "Feature",
+              properties: {
+                riderId: rider.id,
+                riderName: rider.name,
+                status: rider.status,
+                distance: parsedRoute.distance,
+                duration: parsedRoute.duration,
+                source: "database",
+                serviceType: serviceType,
+                serviceIndex: index,
+                isMultiGroup: hasMultiGroup,
+                multiGroupId: service.type === 'BOOKING' ? service.bookingData?.multiGroupId : null,
+                bookingId: service.type === 'BOOKING' ? service.bookingData?.bookingId : null,
+                orderId: service.type === 'ORDER' ? service.orderData?.orderId : null,
+              },
+              geometry: {
+                type: "LineString",
+                coordinates: parsedRoute.coordinates,
+              },
+            }
+
+            try {
+              mapInstance.addSource(serviceLayerId, {
+                type: "geojson",
+                data: routeGeoJSONFeature,
+              })
+
+              // Different line styles for multigroup routes
+              const lineWidth = selectedRider?.id === rider.id ? 5 : 3
+              const lineOpacity = selectedRider?.id === rider.id ? 0.9 : 0.7
+              
+              // Use different dash patterns for each route in multigroup
+              const dashPatterns = [
+                [1, 0],     // Solid
+                [5, 5],     // Dashed
+                [2, 3],     // Dotted
+                [8, 3, 2, 3], // Dash-dot
+                [1, 2],     // Fine dotted
+                [10, 5],    // Long dash
+                [5, 5, 1, 5], // Dash-dot-dot
+                [3, 3, 1, 3, 1, 3], // Complex pattern
+              ]
+
+              mapInstance.addLayer({
+                id: serviceLayerId,
+                type: "line",
+                source: serviceLayerId,
+                paint: {
+                  "line-color": routeColor,
+                  "line-width": lineWidth,
+                  "line-opacity": lineOpacity,
+                  "line-dasharray": hasMultiGroup 
+                    ? dashPatterns[index % dashPatterns.length]
+                    : (serviceType === 'BOOKING' ? [3, 3] : [2, 2]),
+                },
+              })
+
+              console.log(`Successfully added database route layer ${serviceLayerId} with color ${routeColor}`)
+            } catch (error) {
+              console.error(`Error adding database route ${index} for rider ${rider.name}:`, error)
+            }
+          } else {
+            console.warn(`Failed to parse database route ${index} for rider ${rider.name}`)
+          }
+        }
+      })
+      
+    } else {
+      // For non-multigroup services, show only the first route (original behavior)
       const firstServiceWithRoute = servicesWithRoutes[0]
-      console.log(`Processing database route for rider ${rider.name}, service ${firstServiceWithRoute.id}`)
+      console.log(`Processing single database route for rider ${rider.name}, service ${firstServiceWithRoute.id}`)
 
       let routeGeoJSON = null
       if (firstServiceWithRoute.type === 'ORDER' && firstServiceWithRoute.orderData?.routeData?.geojson) {
@@ -339,13 +480,10 @@ export const addRiderRoutesToMap = (
         const parsedRoute = parseRouteGeoJSON(routeGeoJSON)
 
         if (parsedRoute) {
-          console.log(`Adding database route for rider ${rider.name}: ${parsedRoute.coordinates.length} points`)
-          console.log("Route bounds:", {
-            start: parsedRoute.coordinates[0],
-            end: parsedRoute.coordinates[parsedRoute.coordinates.length - 1],
-          })
+          console.log(`Adding single database route for rider ${rider.name}: ${parsedRoute.coordinates.length} points`)
 
           const dbLayerId = `db-route-${rider.id}`
+          const routeColor = firstServiceWithRoute.type === 'BOOKING' ? '#8B5CF6' : getStatusColor(rider.status)
 
           const routeGeoJSONFeature = {
             type: "Feature",
@@ -370,9 +508,6 @@ export const addRiderRoutesToMap = (
               data: routeGeoJSONFeature,
             })
 
-            // Different colors for different service types
-            const routeColor = firstServiceWithRoute.type === 'BOOKING' ? '#8B5CF6' : getStatusColor(rider.status)
-
             mapInstance.addLayer({
               id: dbLayerId,
               type: "line",
@@ -385,87 +520,178 @@ export const addRiderRoutesToMap = (
               },
             })
 
-            console.log(`Successfully added database route layer ${dbLayerId}`)
+            console.log(`Successfully added single database route layer ${dbLayerId}`)
           } catch (error) {
-            console.error(`Error adding database route for rider ${rider.name}:`, error)
+            console.error(`Error adding single database route for rider ${rider.name}:`, error)
           }
         } else {
-          console.warn(`Failed to parse database route for rider ${rider.name}`)
+          console.warn(`Failed to parse single database route for rider ${rider.name}`)
         }
       }
     }
   })
 }
 
+
 // Updated createRiderMarkerElement to handle ServiceData
+// Enhanced createRiderMarkerElement to show location names
+
+const createEnhancedPopup = (markerData: {
+  title: string;
+  subtitle?: string;
+  location?: string;
+  coordinates?: [number, number];
+  type: 'rider' | 'vendor' | 'customer' | 'pickup' | 'dropoff';
+  extraInfo?: string;
+  isFiltered?: boolean;
+}) => {
+  return new maplibregl.Popup({
+    offset: 25,
+    className: "custom-popup enhanced-popup",
+    closeOnClick: true,
+    closeButton: true,
+  }).setHTML(`
+    <div class="p-4 bg-white rounded-lg shadow-xl border max-w-xs">
+      <div class="flex items-start gap-3 mb-3">
+        <div class="flex-shrink-0">
+          ${getMarkerIcon(markerData.type)}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-semibold text-gray-900 text-sm leading-tight">
+            ${markerData.title}
+          </h3>
+          ${markerData.subtitle ? `
+            <p class="text-xs text-gray-600 mt-1">${markerData.subtitle}</p>
+          ` : ''}
+        </div>
+      </div>
+      
+      ${markerData.location ? `
+        <div class="bg-blue-50 rounded-lg p-3 mb-3">
+          <div class="flex items-start gap-2">
+            <span class="text-blue-600 text-sm">📍</span>
+            <div class="flex-1">
+              <div class="text-xs text-blue-600 font-medium mb-1">Location</div>
+              <div class="text-sm text-blue-900 font-medium leading-relaxed">${markerData.location}</div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      
+      ${markerData.coordinates ? `
+        <div class="bg-gray-50 rounded-lg p-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-600 text-sm">🗺️</span>
+            <div class="flex-1">
+              <div class="text-xs text-gray-500 font-medium mb-1">Coordinates</div>
+              <div class="text-xs text-gray-700 font-mono">
+                ${markerData.coordinates[1].toFixed(6)}, ${markerData.coordinates[0].toFixed(6)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      
+      ${markerData.extraInfo ? `
+        <div class="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 mb-2">
+          ${markerData.extraInfo}
+        </div>
+      ` : ''}
+      
+      <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+        <span class="text-xs font-medium px-2 py-1 rounded ${getTypeColor(markerData.type)}">
+          ${markerData.type.charAt(0).toUpperCase() + markerData.type.slice(1)}
+        </span>
+        ${markerData.isFiltered ? `
+          <span class="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">
+            🎯 Filtered
+          </span>
+        ` : ''}
+      </div>
+    </div>
+  `);
+};
+
+// Helper function to get marker icons
+const getMarkerIcon = (type: string): string => {
+  switch (type) {
+    case 'rider': return '<div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">R</div>';
+    case 'vendor': return '<div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-lg">🏪</div>';
+    case 'customer': return '<div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-lg">👤</div>';
+    case 'pickup': return '<div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-lg">📍</div>';
+    case 'dropoff': return '<div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-lg">🎯</div>';
+    default: return '<div class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-lg">📍</div>';
+  }
+};
+
+// Helper function to get type colors
+const getTypeColor = (type: string): string => {
+  switch (type) {
+    case 'rider': return 'bg-blue-100 text-blue-700';
+    case 'vendor': return 'bg-green-100 text-green-700';
+    case 'customer': return 'bg-red-100 text-red-700';
+    case 'pickup': return 'bg-purple-100 text-purple-700';
+    case 'dropoff': return 'bg-indigo-100 text-indigo-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+
 export const createRiderMarkerElement = (
   rider: ProcessedRider,
   riderRoutes: Map<string, RouteData>,
   onRiderClick: (rider: ProcessedRider) => void,
   serviceData?: ServiceData[],
+  showFilteredIndicator?: boolean,
 ): HTMLDivElement => {
   const markerContainer = document.createElement("div")
   markerContainer.className = "rider-marker-container"
   markerContainer.style.cssText = `
     position: relative;
     cursor: pointer;
-    width: 180px;
-    height: 90px;
-    transform: translate(-50%, -100%);
-  `
-
-  // Direction arrow with enhanced design
-  const arrowElement = document.createElement("div")
-  arrowElement.style.cssText = `
-    position: absolute;
-    top: -15px;
-    left: 50%;
-    transform: translateX(-50%) rotate(${rider.direction}deg);
-    color: ${getStatusColor(rider.status)};
-    z-index: 15;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-  `
-  arrowElement.innerHTML = `
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="white" strokeWidth="1">
-      <path d="M12 2l8 10-8-3-8 3z" />
-    </svg>
+    width: 40px;
+    height: 40px;
+    transform: translate(-50%, -50%);
   `
 
   // Main marker circle with vehicle icon
   const circleElement = document.createElement("div")
+  const baseSize = showFilteredIndicator ? 32 : 28
   circleElement.style.cssText = `
-    width: 24px;
-    height: 24px;
+    width: ${baseSize}px;
+    height: ${baseSize}px;
     border-radius: 50%;
     background-color: ${getStatusColor(rider.status)};
     border: 3px solid white;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     position: absolute;
-    top: 0;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
+    ${showFilteredIndicator ? 'border-color: #3B82F6; border-width: 4px;' : ''}
   `
 
   // Add vehicle icon
   const vehicleIcon = rider.vehicle === "Motorcycle" ? "🏍️" : "🚲"
-  circleElement.innerHTML = `<span style="font-size: 10px;">${vehicleIcon}</span>`
+  circleElement.innerHTML = `<span style="font-size: ${showFilteredIndicator ? '14px' : '12px'};">${vehicleIcon}</span>`
 
   // Enhanced pulse for active riders
   if (rider.status === "On Delivery") {
     const pulseElement = document.createElement("div")
     pulseElement.style.cssText = `
-      width: 24px;
-      height: 24px;
+      width: ${baseSize}px;
+      height: ${baseSize}px;
       border-radius: 50%;
       background-color: ${getStatusColor(rider.status)};
       position: absolute;
-      top: 0;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
       opacity: 0.5;
       z-index: 5;
@@ -473,92 +699,18 @@ export const createRiderMarkerElement = (
     markerContainer.appendChild(pulseElement)
   }
 
-  // Enhanced tooltip with better styling and database route info
-  const tooltipElement = document.createElement("div")
-  tooltipElement.style.cssText = `
-    position: absolute;
-    top: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(145deg, #ffffff, #f8fafc);
-    border-radius: 12px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    border: 1px solid #e2e8f0;
-    padding: 2px 7px;
-    min-width: fit-content;
-    z-index: 20;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    backdrop-filter: blur(10px);
-  `
-
-  const routeInfo = riderRoutes.get(rider.id)
-  let routeText = ""
-
-  // Check for Google route data first
-  if (routeInfo) {
-    routeText = `📍 ${routeInfo.distance.toFixed(1)}km • ${Math.round(routeInfo.duration / 60)}min`
-  } else if (serviceData) {
-    // Check for database route data
-    const riderServices = serviceData.filter((service) => service.rider?.id === rider.id)
-    const serviceWithRoute = riderServices.find((service) => {
-      if (service.type === 'ORDER') {
-        return service.orderData?.routeData?.geojson
-      } else if (service.type === 'BOOKING') {
-        return service.bookingData?.routeData?.geojson
-      }
-      return false
-    })
-
-    if (serviceWithRoute) {
-      let routeGeoJSON = null
-      if (serviceWithRoute.type === 'ORDER' && serviceWithRoute.orderData?.routeData?.geojson) {
-        routeGeoJSON = serviceWithRoute.orderData.routeData.geojson
-      } else if (serviceWithRoute.type === 'BOOKING' && serviceWithRoute.bookingData?.routeData?.geojson) {
-        routeGeoJSON = serviceWithRoute.bookingData.routeData.geojson
-      }
-
-      if (routeGeoJSON) {
-        const parsedRoute = parseRouteGeoJSON(routeGeoJSON)
-        if (parsedRoute) {
-          const icon = serviceWithRoute.type === 'BOOKING' ? '📅' : '🗺️'
-          routeText = `${icon} ${parsedRoute.distance} • ${parsedRoute.duration}`
-        }
-      }
-    }
-  }
-
-  // Count total services
-  const totalOrders = rider.currentOrders.length
-  const totalBookings = rider.currentBookings?.length || 0
-  const totalServices = totalOrders + totalBookings
-
-  tooltipElement.innerHTML = `
-    <div class="text-xs font-extralight text-gray-900 text-center ">
-       ${rider.name}
-    </div>
-  
-   
-  `
-
-  // Enhanced tooltip arrow
-  const tooltipArrow = document.createElement("div")
-  tooltipArrow.style.cssText = `
-    position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translateX(-50%) rotate(45deg);
-    width: 12px;
-    height: 12px;
-    background: linear-gradient(145deg, #ffffff, #f8fafc);
-    border-left: 1px solid #e2e8f0;
-    border-top: 1px solid #e2e8f0;
-  `
-  tooltipElement.appendChild(tooltipArrow)
-
-  markerContainer.appendChild(arrowElement)
   markerContainer.appendChild(circleElement)
-  markerContainer.appendChild(tooltipElement)
 
+  // Add hover effects
+  markerContainer.addEventListener("mouseenter", () => {
+    circleElement.style.transform = "translate(-50%, -50%) scale(1.1)"
+  })
+
+  markerContainer.addEventListener("mouseleave", () => {
+    circleElement.style.transform = "translate(-50%, -50%) scale(1)"
+  })
+
+  // Click handler for detailed info
   markerContainer.addEventListener("click", (e) => {
     e.stopPropagation()
     onRiderClick(rider)
@@ -566,6 +718,221 @@ export const createRiderMarkerElement = (
 
   return markerContainer
 }
+
+// Function to create vendor/customer markers with enhanced popups
+export const createServiceMarker = (
+  coordinates: [number, number],
+  markerData: {
+    title: string;
+    subtitle?: string;
+    location?: string;
+    type: 'vendor' | 'customer' | 'pickup' | 'dropoff';
+    extraInfo?: string;
+    color: string;
+    scale?: number;
+  },
+  isFiltered: boolean = false
+): maplibregl.Marker => {
+  const popup = createEnhancedPopup({
+    ...markerData,
+    coordinates,
+    isFiltered
+  });
+
+  return new maplibregl.Marker({
+    color: markerData.color,
+    scale: markerData.scale || (isFiltered ? 1.3 : 1.0),
+  })
+    .setLngLat(coordinates)
+    .setPopup(popup);
+};
+
+// Updated markers creation function for your useEffect
+export const createAllMarkersWithLocations = (
+  mapInstance: maplibregl.Map,
+  serviceData: ServiceData[],
+  riders: ProcessedRider[],
+  riderRoutes: Map<string, RouteData>,
+  handleRiderClick: (rider: ProcessedRider) => void,
+  showOnlyRelevant: boolean = false,
+  selectedEntity: any = null
+) => {
+  const markers: maplibregl.Marker[] = [];
+
+  // Determine what data to show
+  let servicesToShow = serviceData;
+  let ridersToShow = riders;
+
+  if (showOnlyRelevant && selectedEntity) {
+    servicesToShow = selectedEntity.relatedData.services || [];
+    ridersToShow = selectedEntity.relatedData.riders || [];
+  }
+
+  const addedVendors = new Set();
+  const addedPickupDropoff = new Set(); // Track pickup/dropoff to avoid duplicates
+
+  // Add vendor/customer markers for relevant services
+  servicesToShow.forEach((service, serviceIndex) => {
+    if (service.type === "ORDER" && service.orderData) {
+      const order = service.orderData;
+      if (!service.vendor?.coordinates || !order.order?.coordinates) return;
+
+      const vendorKey = `${service.vendor.id}-${service.vendor.coordinates[0]}-${service.vendor.coordinates[1]}`;
+      if (!addedVendors.has(vendorKey)) {
+        addedVendors.add(vendorKey);
+
+        // Vendor marker with enhanced popup
+        const vendorMarker = createServiceMarker(
+          service.vendor.coordinates,
+          {
+            title: service.vendor.name,
+            location: service.vendor.location,
+            type: 'vendor',
+            color: "#10B981",
+            extraInfo: `Order #${service.orderData.orderId.slice(-6)} • ${service.customer.name}`
+          },
+          showOnlyRelevant
+        );
+
+        vendorMarker.addTo(mapInstance);
+        markers.push(vendorMarker);
+
+        // Customer marker with enhanced popup
+        const customerMarker = createServiceMarker(
+          order.order.coordinates,
+          {
+            title: service.customer.name,
+            subtitle: `Order #${service.orderData.orderId.slice(-6)}`,
+            location: order.order.deliveryAddress,
+            type: 'customer',
+            color: "#EF4444",
+            extraInfo: `Distance: ${order.order.distance || 'N/A'} • Duration: ${order.order.duration || 'N/A'}`
+          },
+          showOnlyRelevant
+        );
+
+        customerMarker.addTo(mapInstance);
+        markers.push(customerMarker);
+      }
+    } else if (service.type === "BOOKING" && service.bookingData) {
+      const booking = service.bookingData;
+      
+      // Create unique keys for pickup/dropoff locations to handle multigroup properly
+      const pickupKey = booking.pickupLocation 
+        ? `pickup-${booking.pickupLocation[0]}-${booking.pickupLocation[1]}-${booking.bookingId}`
+        : null;
+      const dropoffKey = booking.dropoffLocation 
+        ? `dropoff-${booking.dropoffLocation[0]}-${booking.dropoffLocation[1]}-${booking.bookingId}`
+        : null;
+
+      // Pickup marker (unique per booking)
+      if (booking.pickupLocation && pickupKey && !addedPickupDropoff.has(pickupKey)) {
+        addedPickupDropoff.add(pickupKey);
+        
+        // Enhanced popup info for multigroup
+        let extraInfo = `Table for ${booking.tableSize} • ${booking.day}`;
+        if (booking.multiGroupId) {
+          extraInfo += ` • Multi-Group #${booking.multiGroupId.slice(-6)}`;
+        }
+
+        const pickupMarker = createServiceMarker(
+          booking.pickupLocation,
+          {
+            title: "Pickup Location",
+            subtitle: `${service.customer.name} • Booking #${booking.bookingId.slice(-6)}`,
+            location: booking.pickUpAddress || "Pickup location",
+            type: 'pickup',
+            color: "#8B5CF6",
+            extraInfo: extraInfo,
+            scale: booking.multiGroupId ? 1.2 : 1.0 // Slightly larger for multigroup
+          },
+          showOnlyRelevant || !!booking.multiGroupId
+        );
+
+        pickupMarker.addTo(mapInstance);
+        markers.push(pickupMarker);
+      }
+
+      // Dropoff marker (unique per booking)
+      if (booking.dropoffLocation && dropoffKey && !addedPickupDropoff.has(dropoffKey)) {
+        addedPickupDropoff.add(dropoffKey);
+        
+        // Enhanced popup info for multigroup
+        let extraInfo = `${booking.startTime ? new Date(booking.startTime).toLocaleTimeString() : ''} - ${booking.endTime ? new Date(booking.endTime).toLocaleTimeString() : ''}`;
+        if (booking.multiGroupId) {
+          extraInfo += ` • Multi-Group #${booking.multiGroupId.slice(-6)}`;
+        }
+
+        const dropoffMarker = createServiceMarker(
+          booking.dropoffLocation,
+          {
+            title: "Dropoff Location",
+            subtitle: `${service.customer.name} • Booking #${booking.bookingId.slice(-6)}`,
+            location: booking.deliveryAddress || "Dropoff location",
+            type: 'dropoff',
+            color: "#7C3AED",
+            extraInfo: extraInfo,
+            scale: booking.multiGroupId ? 1.2 : 1.0 // Slightly larger for multigroup
+          },
+          showOnlyRelevant || !!booking.multiGroupId
+        );
+
+        dropoffMarker.addTo(mapInstance);
+        markers.push(dropoffMarker);
+      }
+    }
+  });
+
+  // Add rider markers
+  ridersToShow.forEach((rider) => {
+    try {
+      const markerElement = createRiderMarkerElement(
+        rider,
+        riderRoutes,
+        handleRiderClick,
+        servicesToShow,
+        showOnlyRelevant
+      );
+
+      // Enhanced popup for riders with multigroup info
+      let extraInfo = `📦 ${rider.currentOrders.length} orders • 📅 ${rider.currentBookings?.length || 0} bookings • ⭐ ${rider.rating}/5`;
+      
+      // Check if rider has multigroup bookings
+      const multiGroupBookings = rider.currentBookings?.filter(booking => 
+        booking.type === 'BOOKING' && booking.bookingData?.multiGroupId
+      ) || [];
+      
+      if (multiGroupBookings.length > 0) {
+        const uniqueMultiGroups = [...new Set(multiGroupBookings.map(b => b.bookingData?.multiGroupId))];
+        extraInfo += ` • 🔗 ${uniqueMultiGroups.length} multi-group${uniqueMultiGroups.length !== 1 ? 's' : ''}`;
+      }
+
+      const riderPopup = createEnhancedPopup({
+        title: rider.name,
+        subtitle: `${rider.status} • ${rider.vehicle}`,
+        location: rider.location,
+        coordinates: [rider.position.lng, rider.position.lat],
+        type: 'rider',
+        extraInfo: extraInfo,
+        isFiltered: showOnlyRelevant
+      });
+
+      const marker = new maplibregl.Marker({
+        element: markerElement,
+        anchor: "center",
+      })
+        .setLngLat([rider.position.lng, rider.position.lat])
+        .setPopup(riderPopup)
+        .addTo(mapInstance);
+
+      markers.push(marker);
+    } catch (riderMarkerError) {
+      console.error(`Error creating marker for rider ${rider.name}:`, riderMarkerError);
+    }
+  });
+
+  return markers;
+};
 
 // Keep existing functions for parsing route data
 export const parseRouteGeoJSON = (geojsonString: string): ParsedRouteData | null => {

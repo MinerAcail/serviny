@@ -36,6 +36,7 @@ import {
 import { useQuery, gql } from "@apollo/client"
 import { useMemo, useState } from "react"
 
+//waitinghere
 export const GET_ALL_RIDERS_SERVICE_DATA = gql`
   query GetAllRidersServiceData {
     getAllRidersServiceData {

@@ -25,6 +25,8 @@ import { useParams } from "react-router";
 import { toast } from "sonner";
 import { ghSim } from "@/components/custom/ItemGrid";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
+import { useCheckAuthId } from "@/middleware/context/checkID";
 
 // GraphQL queries and mutations
 export const GET_PRICE_CARDS = gql`
@@ -322,8 +324,13 @@ const NewCardForm: React.FC<{
   </div>
 );
 const Price: React.FC = () => {
-  const { serviceId } = useParams<{ serviceId: string }>();
+  const {  user } = useAuth();
+   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  const { firstProfileId } = useProfileUpdate(updateServiceId);
+  const { isMatch } = useCheckAuthId(user?.id);
+    const localServiceId = localStorage.getItem("serviceId");
 
+   const serviceId = firstProfileId ??updateServiceId ?? localServiceId ?? "";
   // Apollo query and mutations
   const { loading, error, data, refetch } = useQuery(GET_PRICE_CARDS, {
     variables: { serviceId },
@@ -581,11 +588,13 @@ const Price: React.FC = () => {
       <div className="flex justify-between items-center mb-4">
         {/* Add New Card Dialog */}
         <Dialog open={newCardDialogOpen} onOpenChange={setNewCardDialogOpen}>
-          <DialogTrigger asChild>
+         {isMatch &&(
+           <DialogTrigger asChild>
             <Button className="flex items-center justify-end gap-1">
               <Plus className="h-4 w-4" />New Price
             </Button>
           </DialogTrigger>
+         )}
           <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Card</DialogTitle>
@@ -710,6 +719,7 @@ const Price: React.FC = () => {
         {cards.map((fullCard) => (
           <div key={fullCard.card.id} className="h-full">
             <PriceCardItem 
+
               fullCard={fullCard} 
               onEdit={editCard}
               onShare={shareCard}
@@ -726,7 +736,8 @@ const PriceCardItem: React.FC<{
   fullCard: FullCard;
   onEdit: (card: FullCard) => void;
   onShare: (card: FullCard) => void;
-}> = ({ fullCard, onEdit, onShare }) => (
+  isMatch?: boolean;
+}> = ({ fullCard, onEdit, onShare,isMatch }) => (
   <Card className="h-full flex flex-col">
     <CardHeader className="pb-2">
       <div className="flex justify-between items-start">
@@ -766,6 +777,8 @@ const PriceCardItem: React.FC<{
     </CardContent>
 
     <CardFooter className="mt-auto gap-2">
+      {isMatch && (
+
       <Button
         onClick={() => onEdit(fullCard)}
         className="flex-1 flex items-center justify-center gap-1"
@@ -773,6 +786,7 @@ const PriceCardItem: React.FC<{
       >
         <Edit className="h-4 w-4" /> Edit
       </Button>
+      )}
       <Button
         onClick={() => onShare(fullCard)}
         className="flex-1 flex items-center justify-center gap-1"

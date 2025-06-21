@@ -459,11 +459,22 @@ export default function ServiceLandingPage({
   const [isDialogOpen, setIsDialogOpen] = useState(true);
   const [isDialogAbout, setDialogAbout] = useState(false);
   const { isMobile, isTablet } = useScreenSize();
+  const localServiceId = localStorage.getItem("serviceId");
+  serviceId = serviceId || localServiceId || "";
+// console.log("Service ID:", serviceId, "Local Service ID:", localServiceId);
 
   const { data, loading, error } = useQuery<provider>(GET_PROVIDER, {
-    variables: { serviceId },
+    variables: { serviceId  },
   });
   const { isMatch } = useCheckAuthId(serviceId);
+  //when mount save serviceId in localStorage
+  useEffect(() => {
+    // Only update localStorage if the URL contains "providers/" (case-insensitive)
+    if (window.location.pathname.toLowerCase().includes("providers")) {
+      // console.log("Setting serviceId in localStorage:", serviceId);
+      localStorage.setItem("serviceId", serviceId);
+    }
+  }, [serviceId]);
 
   useEffect(() => {
     localStorage.setItem("isDialogOpen", JSON.stringify(isDialogOpen));
@@ -639,7 +650,7 @@ export default function ServiceLandingPage({
                                 className="gap-1.5 transition transform hover:translate-x-1 rounded-full w-fit mt-1 sm:mt-2 bg-gradient-to-r from-cyan-400/80 to-teal-500/80 backdrop-blur-sm hover:from-cyan-400/90 hover:to-teal-500/90 shadow-lg border border-white/20"
                                 onClick={() => setIsDialogOpen(false)}
                               >
-                                View All
+                                Get Started
                                 <ArrowRight
                                   className={`h-${isMobile ? "3" : "4"} w-${
                                     isMobile ? "3" : "4"

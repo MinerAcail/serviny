@@ -160,6 +160,7 @@ export default function RiderRequests() {
 
   const { data, loading, error, refetch } = useQuery<GetAllRidersResponse>(
     GET_ALL_RIDERS_RESPONSE,
+    
     {
       errorPolicy: "all",
       notifyOnNetworkStatusChange: true,

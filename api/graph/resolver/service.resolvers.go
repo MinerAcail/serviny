@@ -1731,8 +1731,34 @@ func (r *queryResolver) GetBookingServiceData(ctx context.Context) ([]*model.Ser
 		if len(booking.DropoffLocation) >= 2 {
 			dropoffLocation = []float64{booking.DropoffLocation[0], booking.DropoffLocation[1]}
 		}
+		var paymentStatus model.BookingOrderPaymentStatus
+		if err := r.DB.Where("entity_id = ? ", booking.ID.String()).First(&paymentStatus).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// If not found, just set defaults
+				paymentStatus = model.BookingOrderPaymentStatus{
+					Status: "Pending",
+					Method: "Pending",
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+			}
+
+		}
 
 		// Create ServiceData for booking
+		// Handle possible nil paymentStatus
+		var paymentStatusValue, paymentMethodValue string
+		if paymentStatus.Status != "" {
+			paymentStatusValue = paymentStatus.Status
+		} else {
+			paymentStatusValue = "Pending"
+		}
+		if paymentStatus.Method != "" {
+			paymentMethodValue = paymentStatus.Method
+		} else {
+			paymentMethodValue = "Pending"
+		}
+
 		serviceData := &model.ServiceData{
 			ID:        booking.ID.String(),
 			ServiceID: booking.ServiceID, // Use the actual booking service ID
@@ -1756,12 +1782,17 @@ func (r *queryResolver) GetBookingServiceData(ctx context.Context) ([]*model.Ser
 				PickupLocation:        pickupLocation,
 				DropoffLocation:       dropoffLocation,
 				DeliveryAddress:       booking.DeliveryAddress,
+				PickUpAddress:         booking.PickUpAddress,
 				DeliveryFee:           booking.DeliveryFee,
 				Distance:              booking.Distance,
 				Duration:              booking.Duration,
 				EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
 				RouteData:             routeData,
 				RangeMetaData:         rangeMetaData,
+				MultiGroupID:          booking.MultiGroupID,
+				Status:                &booking.Status,
+				PaymentStatus:         &paymentStatusValue,
+				PaymentMethod:         &paymentMethodValue,
 			},
 			OrderData: nil, // Not populated for bookings
 		}
@@ -1930,6 +1961,33 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 			continue
 		}
 
+		var paymentStatus model.BookingOrderPaymentStatus
+		if err := r.DB.Where("entity_id = ? ", order.ID.String()).First(&paymentStatus).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// If not found, just set defaults
+				paymentStatus = model.BookingOrderPaymentStatus{
+					Status: "Pending",
+					Method: "Pending",
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+			}
+
+		}
+
+		// Create ServiceData for booking
+		// Handle possible nil paymentStatus
+		var paymentStatusValue, paymentMethodValue string
+		if paymentStatus.Status != "" {
+			paymentStatusValue = paymentStatus.Status
+		} else {
+			paymentStatusValue = "Pending"
+		}
+		if paymentStatus.Method != "" {
+			paymentMethodValue = paymentStatus.Method
+		} else {
+			paymentMethodValue = "Pending"
+		}
 		// Create ServiceData for order
 		serviceData := &model.ServiceData{
 			ID:        order.ID.String(),
@@ -1942,18 +2000,21 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 
 			// Populate order-specific data
 			OrderData: &model.CartItemOrder{
-				OrderID:               order.ID.String(),
-				ProductInfor:          productInfor,
-				Customer:              customer,
-				Rider:                 rider,
-				Order:                 &order,
-				Vendor:                vendor,
-				DeliveryAddress:       order.DeliveryAddress,
+				OrderID:         order.ID.String(),
+				ProductInfor:    productInfor,
+				Customer:        customer,
+				Rider:           rider,
+				Order:           &order,
+				Vendor:          vendor,
+				DeliveryAddress: order.DeliveryAddress,
+
 				Status:                order.Status,
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
 				DeliveryMetaData:      zoneMetaData,
 				RouteData:             routeData,
 				ServiceFee:            order.DeliveryFee,
+				PaymentStatus:         &paymentStatusValue,
+				PaymentMethod:         &paymentMethodValue,
 				CreatedAt:             order.CreatedAt,
 			},
 			BookingData: nil, // Not populated for orders
@@ -2135,12 +2196,15 @@ func (r *queryResolver) GetBookingServiceDataByUserID(ctx context.Context) ([]*m
 				PickupLocation:        pickupLocation,
 				DropoffLocation:       dropoffLocation,
 				DeliveryAddress:       booking.DeliveryAddress,
+				PickUpAddress:         booking.PickUpAddress,
 				DeliveryFee:           booking.DeliveryFee,
 				Distance:              booking.Distance,
 				Duration:              booking.Duration,
 				EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
 				RouteData:             routeData,
 				RangeMetaData:         rangeMetaData,
+				MultiGroupID:          booking.MultiGroupID,
+				Status:                &booking.Status,
 			},
 			OrderData: nil, // Not populated for bookings
 		}

@@ -52,3 +52,20 @@ type UsersInfor struct {
 
 	Dpfile *string `json:"dpfile,omitempty"`
 }
+
+
+
+
+type BookingOrderPaymentStatus struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+
+	ServiceID  *string   `json:"serviceId,omitempty"`
+	UserID     *string   `json:"userId,omitempty"`
+	RiderID    *string   `json:"riderId,omitempty"`
+	Status     string    `json:"status"`
+	Method     string    `json:"method"`
+	EntityID   string    `json:"entityId"`
+	EntityType string    `json:"entityType"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}

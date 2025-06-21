@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { AlertCircle, User, Truck, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { useAuth } from "./context/authContext";
+import { useAuth, useProfileUpdate } from "./context/authContext";
 import React, { useState, useEffect } from "react";
 import { useMutation } from "@apollo/client";
 import { LOGIN } from "@/app/Login";
@@ -21,6 +21,10 @@ import UserAuthCard from "@/components/custom/users/create";
 export default function ErrorLogin() {
   const navigate = useNavigate();
   const { login: Auth } = useAuth();
+  const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
+
+  const { triggerUpdate } = useProfileUpdate(null);
+
   const [isMobile, setIsMobile] = useState(false);
 
   // Check for mobile screen size on component mount and window resize
@@ -83,13 +87,16 @@ export default function ErrorLogin() {
 
         // Navigate based on userType
         if (userType === ProtectType.Service) {
-          navigate(`/providers/${result.data.serviceLogin.id}`);
-        } else {
-          navigate("/");
+          triggerUpdate(result.data.serviceLogin.id);
+        } else if (userType === ProtectType.User) {
+          triggerUpdate(serviceId ?? "");
+        } else if (userType === ProtectType.Rider) {
+          triggerUpdate(result.data.serviceLogin.id);
         }
       } else {
-        setError("Login failed. Please check your credentials.");
+        setError("Login failed. Please try again.");
       }
+      navigate(`/`);
     } catch (err) {
       setError("An unexpected error occurred");
       console.error("Login error:", err);
@@ -97,7 +104,7 @@ export default function ErrorLogin() {
   };
 
   // Handle Enter key press
-  const handleKeyDown = (e:React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleLogin();
     }
@@ -106,8 +113,6 @@ export default function ErrorLogin() {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-
-
 
   // Login form component for reuse
   const LoginForm = () => (
@@ -171,10 +176,7 @@ export default function ErrorLogin() {
           </p>
         </div>
         <UserAuthCard>
-          <Button
-            variant="outline"
-            className="w-full"
-          >
+          <Button variant="outline" className="w-full">
             Create User Account
           </Button>
         </UserAuthCard>
@@ -192,7 +194,7 @@ export default function ErrorLogin() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() =>navigate("/provider/new")}
+          onClick={() => navigate("/provider/new")}
         >
           Create Service Account
         </Button>

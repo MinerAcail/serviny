@@ -33,6 +33,21 @@ input RiderInput {
   h3Indexes: [String]
   experience: String!
 }
+input RiderUpateInput {
+  name: String
+  email: String
+  type: String
+  number: String
+  state: String
+  password: String
+  availability: Boolean
+  dpfile: String
+  idCard: [String]
+  location: String
+  coordinates: [Float]
+  h3Indexes: [String]
+  experience: String
+}
 # Rider status enum
 enum RiderStatus {
   ONLINE
@@ -59,12 +74,22 @@ extend type Query {
   getRidersLocations: Rider!
   riderCurrentLocation(riderId: String!): [Float!]!
   getAllRidersStatusState(status: RiderStatus!): [Rider!]!
+
+
+  getAllRidersBookingAndOrdersAssignedData:[ServiceData]
+  getRiderAssignedOrders(
+    riderId: String!
+  ): [ServiceData]
+  getRiderAssignedBookings(
+    riderId: String!
+  ): [ServiceData]
+  
 }
 
 extend type Mutation {
   craeteRider(dpfile: Upload, idCardfiles: [Upload], input: RiderInput): Rider
   updateRiderStatus(id: String!, status: String!): Rider
-  updateRider(id: String!, input: RiderInput!): Rider
+  updateRider(id: String!, input: RiderUpateInput!): Rider
   deleteRider(id: String!): Boolean
 
   useGetRiderTracking: Rider

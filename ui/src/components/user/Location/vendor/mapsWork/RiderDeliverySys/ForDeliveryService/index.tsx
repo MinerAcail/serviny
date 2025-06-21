@@ -20,7 +20,7 @@ import {
   useRouteTracking,
   // useMapRouteDisplay,
   RouteInfoPanel,
-  
+
   // CompleteStepWithTracking,
   type Location,
   useBookingManagement,
@@ -44,6 +44,8 @@ interface AddBookCoordinateInput {
   deliveryAddress?: string;
   dropoffLocation?: number[]; // [lng, lat]
   pickupLocation?: number[]; // [lng, lat]
+  pickUpAddress?: string;
+
   rangeMetaId?: string;
   ridersId?: string;
 }
@@ -182,10 +184,10 @@ export function RiderBookingDeliveryRequest() {
 
   // Fix the useEffect that manages panel visibility
   useEffect(() => {
-    console.log("🔍 Route tracking state changed:", { 
-      isTrackingActive, 
-      hasRouteData: !!routeData, 
-      showRoutePanel 
+    console.log("🔍 Route tracking state changed:", {
+      isTrackingActive,
+      hasRouteData: !!routeData,
+      showRoutePanel,
     });
 
     if (isTrackingActive && routeData) {
@@ -269,7 +271,12 @@ export function RiderBookingDeliveryRequest() {
 
   // Initialize map when pickup is set and dialog has been completed
   useEffect(() => {
-    if (!mapRef.current || !pickupLocation || mapInitialized || !dialogHasBeenCompleted) {
+    if (
+      !mapRef.current ||
+      !pickupLocation ||
+      mapInitialized ||
+      !dialogHasBeenCompleted
+    ) {
       return;
     }
 
@@ -283,11 +290,22 @@ export function RiderBookingDeliveryRequest() {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [pickupLocation, mapInitialized, initializeMapWithPickup, maptilerApiKey, dialogHasBeenCompleted]);
+  }, [
+    pickupLocation,
+    mapInitialized,
+    initializeMapWithPickup,
+    maptilerApiKey,
+    dialogHasBeenCompleted,
+  ]);
 
   // Update map when locations change (only if not tracking and dialog completed)
   useEffect(() => {
-    if (!mapLoaded || !pickupLocation || isTrackingActive || !dialogHasBeenCompleted) {
+    if (
+      !mapLoaded ||
+      !pickupLocation ||
+      isTrackingActive ||
+      !dialogHasBeenCompleted
+    ) {
       return;
     }
 
@@ -476,10 +494,10 @@ export function RiderBookingDeliveryRequest() {
 
   const handleStopTracking = useCallback(() => {
     console.log("⏹️ Stopping delivery tracking mode");
-    
+
     // First stop tracking
     stopTracking();
-    
+
     // Immediately close the panel
     setShowRoutePanel(false);
 
@@ -567,6 +585,7 @@ export function RiderBookingDeliveryRequest() {
         deliveryAddress: dropoffLocation.address,
         dropoffLocation: [dropoffLocation.lng, dropoffLocation.lat],
         pickupLocation: [pickupLocation.lng, pickupLocation.lat],
+        pickUpAddress: pickupLocation.address,
         ridersId: riderId,
         // Add range metadata if available
         ...(calculation.matchedZone?.id && {
@@ -600,7 +619,8 @@ export function RiderBookingDeliveryRequest() {
         Array.isArray((error as { graphQLErrors?: unknown }).graphQLErrors) &&
         (error as { graphQLErrors: unknown[] }).graphQLErrors.length > 0
       ) {
-        errorMessage = (error as { graphQLErrors: { message: string }[] }).graphQLErrors[0].message;
+        errorMessage = (error as { graphQLErrors: { message: string }[] })
+          .graphQLErrors[0].message;
       } else if (
         typeof error === "object" &&
         error !== null &&
