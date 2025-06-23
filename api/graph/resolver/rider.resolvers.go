@@ -999,14 +999,14 @@ func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID st
 		var paymentStatus model.BookingOrderPaymentStatus
 		if err := r.DB.Where("entity_id = ? ", booking.ID.String()).First(&paymentStatus).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-    // If not found, just set defaults
-    paymentStatus = model.BookingOrderPaymentStatus{
-        Status: "Pending",
-        Method: "Pending",
-    }
-} else if err != nil {
-    return nil, fmt.Errorf("failed to fetch payment status: %w", err)
-}
+				// If not found, just set defaults
+				paymentStatus = model.BookingOrderPaymentStatus{
+					Status: "Pending",
+					Method: "Pending",
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+			}
 
 		}
 

@@ -563,7 +563,7 @@ function createVendorMarker(state: MapState, item: ServiceData, isSelected: bool
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               item.type === "ORDER" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"
             }">
-              ${item.type === "ORDER" ? "Restaurant" : "Venue"}
+              ${item.type === "ORDER" ? "PickUp" : "Venue"}
             </span>
           </div>
         </div>

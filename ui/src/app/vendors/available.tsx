@@ -258,9 +258,9 @@ export default function AvailabilityPage() {
     ? (bookingTypeData.getBookingType as BookType[])
     : [];
 
-    console.log("Booking Type", bookingTypeData?.getBookingType);
+  console.log("Booking Type", bookingTypeData?.getBookingType);
   console.log("Booking Type1111", bookingType);
-    
+
   // Parse hours and minutes from AM/PM time format
   const parseTime = (time12: string): { hours: number; minutes: number } => {
     const [timePart, period] = time12.split(/([ap]m)$/i);
@@ -413,321 +413,234 @@ export default function AvailabilityPage() {
 
   return (
     <div className=" py-10 w-full">
-
-      <Tabs defaultValue="booked" className="container mx-auto py-6">
-        {/* Tabs for switching between booked schedule and unavailable times */}
-        {bookingType && bookingType.length > 0 ? (
-          <>
-            <TabsList className="flex justify-center items-center">
-                {bookingType.includes(BookType.RENTAL) && (
-                <>
-                  <TabsTrigger value="rental">Rental Booking</TabsTrigger>
-                  <TabsTrigger value="rentalform">Rental Forms</TabsTrigger>
-                </>
-              )}
-              {bookingType.includes(BookType.APPOINTMENT) && (
-               <>
-                <TabsTrigger value="unavailable">Unavailable Times</TabsTrigger>
-                <TabsTrigger value="booked">Booked Schedule</TabsTrigger>
-               </>
-              )}
-              
-              {bookingType.includes(BookType.EVENT) && (
-                <TabsTrigger value="event">Event Schedule</TabsTrigger>
-              )}
-            </TabsList>
-            <TabsContent value="booked">
-              {bookingType.includes(BookType.EVENT) && <EventBookedMembers />}
-              {bookingType.includes(BookType.APPOINTMENT) && (
-                <AppointmentBookedMembers />
-              )}
-              
-            </TabsContent>
-            <TabsContent value="unavailable">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Manage Your Unavailable Hours</CardTitle>
-                  <CardDescription>
-                    Set the times when you are not available to provide services
-                    during your working hours (1am - 10pm).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center mb-6">
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button onClick={handleOpenDialog}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Unavailable Period
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add Unavailable Period</DialogTitle>
-                          <DialogDescription>
-                            Select when you are not available during your
-                            working hours (1am - 10pm).
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          {error && (
-                            <Alert variant="destructive">
-                              <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                          )}
-
-                          <div className="grid gap-2">
-                            <Label htmlFor="day">Day</Label>
-                            <Select
-                              value={newPeriod.day}
-                              onValueChange={(value) =>
-                                setNewPeriod({ ...newPeriod, day: value })
-                              }
-                            >
-                              <SelectTrigger id="day">
-                                <SelectValue placeholder="Select day" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {daysOfWeek.map((day) => (
-                                  <SelectItem key={day} value={day}>
-                                    {day}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                              <Label htmlFor="startTime">Start Time</Label>
-                              <Select
-                                value={newPeriod.startTime}
-                                onValueChange={(value) => {
-                                  const endTime = calculateEndTime(
-                                    value,
-                                    parseFloat(newPeriod.duration)
-                                  );
-                                  setNewPeriod({
-                                    ...newPeriod,
-                                    startTime: value,
-                                    endTime,
-                                  });
-                                }}
-                              >
-                                <SelectTrigger id="startTime">
-                                  <SelectValue placeholder="Select start time" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <div className="max-h-48 overflow-y-auto">
-                                    {availableStartTimes.map((time) => (
-                                      <SelectItem key={time} value={time}>
-                                        {time}
-                                      </SelectItem>
-                                    ))}
-                                  </div>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="grid gap-2">
-                              <Label htmlFor="duration">Duration</Label>
-                              <Select
-                                value={newPeriod.duration}
-                                onValueChange={(value) => {
-                                  const endTime = calculateEndTime(
-                                    newPeriod.startTime,
-                                    parseFloat(value)
-                                  );
-                                  setNewPeriod({
-                                    ...newPeriod,
-                                    duration: value,
-                                    endTime,
-                                  });
-                                }}
-                              >
-                                <SelectTrigger id="duration">
-                                  <SelectValue placeholder="Select duration" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <div className="max-h-48 overflow-y-auto">
-                                    {getAvailableDurations(
-                                      newPeriod.startTime
-                                    ).map((duration) => (
-                                      <SelectItem
-                                        key={duration.value}
-                                        value={duration.value}
-                                      >
-                                        {duration.label}
-                                      </SelectItem>
-                                    ))}
-                                  </div>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="border p-3 rounded-md bg-muted/50">
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                              {newPeriod.duration === "16" ||
-                              newPeriod.duration === "21" ? (
-                                <span className="text-sm">
-                                  You will be marked unavailable for the entire
-                                  day (1am - 10pm).
-                                </span>
-                              ) : (
-                                <span className="text-sm">
-                                  You will be marked unavailable from{" "}
-                                  <strong>{newPeriod.startTime}</strong> to{" "}
-                                  <strong>{newPeriod.endTime}</strong>.
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => setDialogOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={handleAddPeriod}
-                            disabled={createLoading}
-                          >
-                            {createLoading ? "Adding..." : "Add Period"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-
-                  {queryLoading && (
-                    <div className="flex justify-center py-8">
-                      <p>Loading periods...</p>
-                    </div>
-                  )}
-
-                  {queryError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertDescription>
-                        Error loading periods: {queryError.message}
-                      </AlertDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Your Unavailable Hours</CardTitle>
+          <CardDescription>
+            Set the times when you are not available to provide services during
+            your working hours (1am - 10pm).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between items-center mb-6">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={handleOpenDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Unavailable Period
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Unavailable Period</DialogTitle>
+                  <DialogDescription>
+                    Select when you are not available during your working hours
+                    (1am - 10pm).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
-                  {!queryLoading &&
-                  !queryError &&
-                  unavailablePeriods.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Day</TableHead>
-                          <TableHead>Time Period</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {unavailablePeriods.map((period) => (
-                          <TableRow key={period.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center">
-                                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                {period.day}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                                {period.startTime === WORKING_HOURS.start &&
-                                period.endTime === WORKING_HOURS.end
-                                  ? "Full Day (1am - 10pm)"
-                                  : `${period.startTime} - ${period.endTime}`}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeletePeriod(period.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                  <div className="grid gap-2">
+                    <Label htmlFor="day">Day</Label>
+                    <Select
+                      value={newPeriod.day}
+                      onValueChange={(value) =>
+                        setNewPeriod({ ...newPeriod, day: value })
+                      }
+                    >
+                      <SelectTrigger id="day">
+                        <SelectValue placeholder="Select day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {daysOfWeek.map((day) => (
+                          <SelectItem key={day} value={day}>
+                            {day}
+                          </SelectItem>
                         ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    !queryLoading &&
-                    !queryError && (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium">
-                          No unavailable periods set
-                        </h3>
-                        <p className="text-muted-foreground mt-1 mb-4">
-                          You haven't set any unavailable periods yet. Add one
-                          to let customers know when you're not available.
-                        </p>
-                      </div>
-                    )
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="event">
-              <EventCreationForm />
-            </TabsContent>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            {bookingType.includes(BookType.RENTAL) && (
-              <>
-                <TabsContent value="rental">
-                  <InventoryList />
-                </TabsContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="startTime">Start Time</Label>
+                      <Select
+                        value={newPeriod.startTime}
+                        onValueChange={(value) => {
+                          const endTime = calculateEndTime(
+                            value,
+                            parseFloat(newPeriod.duration)
+                          );
+                          setNewPeriod({
+                            ...newPeriod,
+                            startTime: value,
+                            endTime,
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="startTime">
+                          <SelectValue placeholder="Select start time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="max-h-48 overflow-y-auto">
+                            {availableStartTimes.map((time) => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <TabsContent value="rentalform">
-                  <InventoryItemForm />
-                </TabsContent>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center pb-20 pt-10 px-4 text-center bg-white rounded-2xl shadow-md">
-            <Library className="h-14 w-14 text-muted-foreground mb-6" />
+                    <div className="grid gap-2">
+                      <Label htmlFor="duration">Duration</Label>
+                      <Select
+                        value={newPeriod.duration}
+                        onValueChange={(value) => {
+                          const endTime = calculateEndTime(
+                            newPeriod.startTime,
+                            parseFloat(value)
+                          );
+                          setNewPeriod({
+                            ...newPeriod,
+                            duration: value,
+                            endTime,
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="duration">
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="max-h-48 overflow-y-auto">
+                            {getAvailableDurations(newPeriod.startTime).map(
+                              (duration) => (
+                                <SelectItem
+                                  key={duration.value}
+                                  value={duration.value}
+                                >
+                                  {duration.label}
+                                </SelectItem>
+                              )
+                            )}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-            <h3 className="text-xl font-semibold">
-              No Booking Types Available
-            </h3>
-
-            <p className="text-muted-foreground mt-2 mb-8 max-w-md">
-              You haven’t set any booking types yet. Add one to manage your
-              availability and let clients book with ease.
-            </p>
-
-            <Link to={`/dbp/booktypes`}>
-              <Button className="flex items-center gap-2 px-4 py-2 rounded-md">
-                <Library className="w-4 h-4" />
-                <span>Set Book Type</span>
-              </Button>
-            </Link>
-
-            <div className="text-center max-w-3xl mx-auto mt-12">
-              <h1 className="text-4xl font-bold tracking-tight mb-4">
-                Choose Your Booking Type
-              </h1>
-
-              <p className="text-muted-foreground text-lg">
-                Pick the booking type that suits your workflow. Whether it’s
-                consultations, sessions, or services—each option is tailored to
-                help you stay organized.
-              </p>
-            </div>
+                  <div className="border p-3 rounded-md bg-muted/50">
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                      {newPeriod.duration === "16" ||
+                      newPeriod.duration === "21" ? (
+                        <span className="text-sm">
+                          You will be marked unavailable for the entire day (1am
+                          - 10pm).
+                        </span>
+                      ) : (
+                        <span className="text-sm">
+                          You will be marked unavailable from{" "}
+                          <strong>{newPeriod.startTime}</strong> to{" "}
+                          <strong>{newPeriod.endTime}</strong>.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddPeriod} disabled={createLoading}>
+                    {createLoading ? "Adding..." : "Add Period"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
-      </Tabs>
+
+          {queryLoading && (
+            <div className="flex justify-center py-8">
+              <p>Loading periods...</p>
+            </div>
+          )}
+
+          {queryError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                Error loading periods: {queryError.message}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!queryLoading && !queryError && unavailablePeriods.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Day</TableHead>
+                  <TableHead>Time Period</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unavailablePeriods.map((period) => (
+                  <TableRow key={period.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center">
+                        <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {period.day}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {period.startTime === WORKING_HOURS.start &&
+                        period.endTime === WORKING_HOURS.end
+                          ? "Full Day (1am - 10pm)"
+                          : `${period.startTime} - ${period.endTime}`}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePeriod(period.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            !queryLoading &&
+            !queryError && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">
+                  No unavailable periods set
+                </h3>
+                <p className="text-muted-foreground mt-1 mb-4">
+                  You haven't set any unavailable periods yet. Add one to let
+                  customers know when you're not available.
+                </p>
+              </div>
+            )
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

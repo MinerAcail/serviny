@@ -66,6 +66,7 @@ type BookingOrderPaymentStatus struct {
 	Method     string    `json:"method"`
 	EntityID   string    `json:"entityId"`
 	EntityType string    `json:"entityType"`
+	Reference  *string   `json:"reference,omitempty"` 
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }

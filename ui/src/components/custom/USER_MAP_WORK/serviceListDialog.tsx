@@ -23,8 +23,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import moment from 'moment'
 import { ServiceData } from "./types"
-
-
+import { PaymentStatusSection } from "./viewService"
 
 interface ServiceStats {
   totalOrders: number
@@ -56,21 +55,36 @@ interface ServiceListDialogProps {
   filteredData: ServiceData[]
   selectedItem: ServiceData | null
   handleItemClick: (item: ServiceData) => void
+  handleJustPaymentItemClick?: (item: ServiceData) => void
   getStatusBadge: (item: ServiceData) => React.ReactNode
+  handleUpdateStatus: (status: string) => Promise<void>
+  isUpdatingStatus: boolean
+  paymentStatus: any
+  paymentLoading: boolean
+  handleOpenStatusDialog: () => void
 }
 
 // Enhanced ServiceCard component
-
 function ServiceCard({
   item,
   onClick,
   isSelected,
   getStatusBadge,
+  handleOpenStatusDialog,
+  isUpdatingStatus,
+  paymentStatus,
+  paymentLoading,
+  handleJustPaymentItemClick,
 }: {
   item: ServiceData
   onClick: () => void
   isSelected: boolean
   getStatusBadge: (item: ServiceData) => React.ReactNode
+  handleOpenStatusDialog?: () => void
+  isUpdatingStatus?: boolean
+  paymentStatus?: any
+  paymentLoading?: boolean
+  handleJustPaymentItemClick?: (item: ServiceData) => void
 }) {
   const [IsExpandable, setIsExpandable] = useState(isSelected)
 
@@ -136,6 +150,7 @@ function ServiceCard({
       onClick={() => {
         onClick()
         setIsExpandable(!IsExpandable)
+        
       }}
     >
       <div className="p-4 sm:p-5">
@@ -167,6 +182,9 @@ function ServiceCard({
             onClick={(e) => {
               e.stopPropagation()
               setIsExpandable(!IsExpandable)
+              if (handleJustPaymentItemClick) {
+                handleJustPaymentItemClick(item)
+              }
             }}
             className="flex items-center gap-2 flex-shrink-0 cursor-pointer"
           >
@@ -199,6 +217,30 @@ function ServiceCard({
               <div className="backdrop-blur-xl bg-orange-50/60 rounded-xl p-3 border border-orange-200/40">
                 <h4 className="font-medium text-gray-900 mb-2 text-sm">Order Details</h4>
                 <div className="text-xs sm:text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium capitalize">{item.orderData.status || "N/A"}</span>
+                      {handleOpenStatusDialog && isSelected && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenStatusDialog();
+                          }}
+                          disabled={isUpdatingStatus}
+                          className="h-6 px-2 text-xs backdrop-blur-xl bg-white/20 hover:bg-white/30 border-white/30"
+                        >
+                          {isUpdatingStatus ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Update"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <p>
                     <span className="text-gray-500">To:</span>{" "}
                     <span className="font-medium">{item.orderData.deliveryAddress || "N/A"}</span>
@@ -222,6 +264,54 @@ function ServiceCard({
               <div className="backdrop-blur-xl bg-purple-50/60 rounded-xl p-3 border border-purple-200/40">
                 <h4 className="font-medium text-gray-900 mb-2 text-sm">Booking Details</h4>
                 <div className="text-xs sm:text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium capitalize">{item.bookingData.status || "N/A"}</span>
+                      {handleOpenStatusDialog && isSelected && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenStatusDialog();
+                          }}
+                          disabled={isUpdatingStatus}
+                          className="h-6 px-2 text-xs backdrop-blur-xl bg-white/20 hover:bg-white/30 border-white/30"
+                        >
+                          {isUpdatingStatus ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Update"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Item/Service */}
+                  {item.bookingData.item && (
+                    <p>
+                      <span className="text-gray-500">Service:</span>{" "}
+                      <span className="font-medium">{item.bookingData.item}</span>
+                    </p>
+                  )}
+                  
+                  {/* Location Information */}
+                  {item.bookingData.pickUpAddress && (
+                    <p>
+                      <span className="text-gray-500">Pick-up Location:</span>{" "}
+                      <span className="font-medium">{item.bookingData.pickUpAddress}</span>
+                    </p>
+                  )}
+                  
+                  {item.bookingData.deliveryAddress && (
+                    <p>
+                      <span className="text-gray-500">Delivery Address:</span>{" "}
+                      <span className="font-medium">{item.bookingData.deliveryAddress}</span>
+                    </p>
+                  )}
+
                   {item.bookingData.startTime && item.bookingData.endTime ? (
                     // Use the new date-time range formatter
                     (() => {
@@ -256,14 +346,68 @@ function ServiceCard({
                       </p>
                     </>
                   )}
-                  <p>
-                    <span className="text-gray-500">Guests:</span>{" "}
-                    <span className="font-medium">{item.bookingData.tableSize || "N/A"} people</span>
-                  </p>
+                  
+                  {item.bookingData.tableSize && (
+                    <p>
+                      <span className="text-gray-500">Guests:</span>{" "}
+                      <span className="font-medium">{item.bookingData.tableSize} people</span>
+                    </p>
+                  )}
+                  
                   <p>
                     <span className="text-gray-500">Fee:</span>{" "}
                     <span className="font-medium text-green-600">GH₵{item.bookingData.deliveryFee || "0"}</span>
                   </p>
+                  
+                  {/* Notes */}
+                  {item.bookingData.notes && (
+                    <div className="mt-2 pt-2 border-t border-purple-200/30">
+                      <p className="text-gray-500 text-xs">Notes:</p>
+                      <p className="font-medium text-xs">{item.bookingData.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Payment Status Section */}
+            {isSelected && paymentStatus && (
+              <div className="backdrop-blur-xl bg-green-50/60 rounded-xl p-3 border border-green-200/40">
+                <h4 className="font-medium text-gray-900 mb-2 text-sm">Payment Information</h4>
+                <div className="text-xs sm:text-sm space-y-1">
+                  <p>
+                    <span className="text-gray-500">Method:</span>{" "}
+                    <span className="font-medium">{paymentStatus.method}</span>
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Status:</span>{" "}
+                    <span className={`font-medium ${
+                      paymentStatus.status === "COMPLETED" 
+                        ? "text-green-600" 
+                        : paymentStatus.status === "FAILED" 
+                        ? "text-red-600" 
+                        : "text-yellow-600"
+                    }`}>
+                      {paymentStatus.status}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Reference:</span>{" "}
+                    <span className="font-medium">{paymentStatus.reference}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+ <PaymentStatusSection
+                  paymentStatus={paymentStatus}
+                  onPayNow={() => {}}
+                />
+            {/* Payment Loading State */}
+            {isSelected && paymentLoading && (
+              <div className="backdrop-blur-xl bg-blue-50/60 rounded-xl p-3 border border-blue-200/40">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading payment status...
                 </div>
               </div>
             )}
@@ -287,6 +431,16 @@ function ServiceCard({
                     <Phone className="h-3 w-3 mr-1" />
                     Call
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Status Update Loading Indicator */}
+            {isUpdatingStatus && isSelected && (
+              <div className="backdrop-blur-xl bg-blue-50/60 rounded-xl p-3 border border-blue-200/40">
+                <div className="flex items-center gap-2 text-xs text-blue-600">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Updating status...
                 </div>
               </div>
             )}
@@ -318,7 +472,13 @@ export default function ServiceListDialog({
   filteredData,
   selectedItem,
   handleItemClick,
+  handleJustPaymentItemClick,
   getStatusBadge,
+  handleUpdateStatus,
+  isUpdatingStatus,
+  paymentStatus,
+  paymentLoading,
+  handleOpenStatusDialog,
 }: ServiceListDialogProps) {
   const [scrollY, setScrollY] = useState(0)
   const [isScrollingDown, setIsScrollingDown] = useState(false)
@@ -430,11 +590,15 @@ export default function ServiceListDialog({
                     className="px-3 py-2 border border-white/40 rounded-xl backdrop-blur-xl bg-white/60 text-sm h-10"
                   >
                     <option value="all">All Status</option>
+                    {/* Order statuses */}
                     <option value="CONFIRMED">Confirmed</option>
                     <option value="PREPARING">Preparing</option>
                     <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
                     <option value="DELIVERED">Delivered</option>
-                    <option value="confirmed">Booking Confirmed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                    <option value="PENDING">Pending</option>
+                    {/* Booking statuses */}
+                    <option value="COMPLETED">Completed</option>
                   </select>
                   <select
                     value={sortBy}
@@ -570,8 +734,13 @@ export default function ServiceListDialog({
                         key={item.id}
                         item={item}
                         onClick={() => handleItemClick(item)}
+                        handleJustPaymentItemClick={handleJustPaymentItemClick}
                         isSelected={selectedItem?.id === item.id}
                         getStatusBadge={getStatusBadge}
+                        handleOpenStatusDialog={handleOpenStatusDialog}
+                        isUpdatingStatus={isUpdatingStatus}
+                        paymentStatus={selectedItem?.id === item.id ? paymentStatus : null}
+                        paymentLoading={selectedItem?.id === item.id ? paymentLoading : false}
                       />
                     ))}
 

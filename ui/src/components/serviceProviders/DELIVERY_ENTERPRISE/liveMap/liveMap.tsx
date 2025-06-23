@@ -91,6 +91,7 @@ const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 const googleMapsApiKey = import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 const libraries: Libraries = ["places"];
+//
 export const GOOGLE_MAPS_CONFIG = {
   id: "google-map-script",
   googleMapsApiKey: googleMapsApiKey,

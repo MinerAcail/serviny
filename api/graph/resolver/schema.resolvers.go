@@ -20,7 +20,8 @@ import (
 
 // ID is the resolver for the id field.
 func (r *bookingOrderPaymentStatusResolver) ID(ctx context.Context, obj *model.BookingOrderPaymentStatus) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // DeleteTable is the resolver for the deleteTable field.
@@ -367,6 +368,85 @@ func (r *mutationResolver) UpdateBookingOrderPaymentStatus(ctx context.Context, 
 	return "", fmt.Errorf("no matching entity found or invalid statusType")
 }
 
+// OrderOrBookingPayment is the resolver for the orderOrBookingPayment field.
+func (r *mutationResolver) OrderOrBookingPayment(ctx context.Context, entityID string, entityType string, method string, reference string) (*model.BookingOrderPaymentStatus, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	if entityID == "" || entityType == "" || method == "" {
+		return nil, fmt.Errorf("entityID, entityType, and method are required")
+	}
+
+	//if entityType is booking, then entityID should be booking ID
+	var order model.Order
+	if entityType == "ORDER" {
+		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err == nil {
+			// Optionally update order status here if needed
+			order.Status = "PROCESSING"
+			if err := r.DB.Save(&order).Error; err != nil {
+				return nil, fmt.Errorf("failed to update order status: %w", err)
+			}
+		}
+	}
+
+	var booking model.AppointmentBooking
+	if entityType == "BOOKING" {
+		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err == nil {
+			// Optionally update booking status here if needed
+			booking.Status = "PROCESSING"
+			if err := r.DB.Save(&booking).Error; err != nil {
+				return nil, fmt.Errorf("failed to update booking status: %w", err)
+			}
+		}
+	}
+
+	// Create new payment status
+	newPaymentStatus := model.BookingOrderPaymentStatus{
+		EntityID:   entityID,
+		EntityType: entityType,
+		Method:     method,
+		Reference:  &reference,
+		Status:     "PROCESSING",
+		UserID:     userId,
+	}
+	if err := r.DB.Create(&newPaymentStatus).Error; err != nil {
+		return nil, fmt.Errorf("failed to create payment status: %w", err)
+	}
+	return &newPaymentStatus, nil
+}
+
+// UpdateOrderBookStatus is the resolver for the updateOrderBookStatus field.
+func (r *mutationResolver) UpdateOrderBookStatus(ctx context.Context, entityID string, entityType string, status string) (*string, error) {
+	if entityID == "" || entityType == "" || status == "" {
+		return nil, fmt.Errorf("entityID, entityType, and status are required")
+	}
+
+	switch entityType {
+	case "ORDER":
+		var order model.Order
+		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err != nil {
+			return nil, fmt.Errorf("order not found: %w", err)
+		}
+		if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
+			return nil, fmt.Errorf("failed to update order status: %w", err)
+		}
+		return &status, nil
+	case "APPOINTMENT":
+		var booking model.AppointmentBooking
+		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err != nil {
+			return nil, fmt.Errorf("appointment not found: %w", err)
+		}
+		if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
+			return nil, fmt.Errorf("failed to update appointment status: %w", err)
+		}
+		return &status, nil
+	default:
+		return nil, fmt.Errorf("invalid entityType: %s", entityType)
+	}
+}
+
 // ID is the resolver for the id field.
 func (r *profilesResolver) ID(ctx context.Context, obj *model.Profiles) (string, error) {
 	id := obj.ID.String()
@@ -614,6 +694,43 @@ func (r *queryResolver) GetAProfileIDByUserID(ctx context.Context, userID *strin
 	return &id, nil
 }
 
+// GetAProfileBusinessTypeByUserID is the resolver for the getAProfileBusinessTypeByUserId field.
+func (r *queryResolver) GetAProfileBusinessTypeByUserID(ctx context.Context) (*model.ProfileInfor, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	var profile model.Profiles
+	if err := r.DB.Where("user_id = ?", *userId).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("profile not found for user")
+		}
+		return nil, fmt.Errorf("failed to fetch profile: %w", err)
+	}
+
+	if len(profile.ProfileIds) == 0 {
+		return nil, fmt.Errorf("no profile IDs found for user")
+	}
+
+	profileID := profile.ProfileIds[0]
+	var service model.Service
+	if err := r.DB.Where("id = ?", profileID).First(&service).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	if service.BusinessType == nil {
+		return nil, fmt.Errorf("service business type is nil")
+	}
+	serviceID := service.ID.String()
+	ProfileInfor := model.ProfileInfor{
+		ID:           &serviceID,
+		BusinessType: service.BusinessType,
+	}
+
+	return &ProfileInfor, nil
+}
+
 // GetBookingOrderPaymentStatus is the resolver for the getBookingOrderPaymentStatus field.
 func (r *queryResolver) GetBookingOrderPaymentStatus(ctx context.Context, entityID string, entityType string, statusType string) (*string, error) {
 	if entityID == "" {
@@ -648,6 +765,30 @@ func (r *queryResolver) GetBookingOrderPaymentStatus(ctx context.Context, entity
 	default:
 		return nil, fmt.Errorf("invalid statusType: %s", statusType)
 	}
+}
+
+// GetBookingOrderPaymentStatusByUser is the resolver for the getBookingOrderPaymentStatusByUser field.
+func (r *queryResolver) GetBookingOrderPaymentStatusByUser(ctx context.Context, entityID string, entityType string) (*model.BookingOrderPaymentStatus, error) {
+	var paymentStatus model.BookingOrderPaymentStatus
+	if err := r.DB.Where("entity_id = ? AND entity_type = ?", entityID, entityType).First(&paymentStatus).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch payment status: %w", err)
+	}
+	return &paymentStatus, nil
+}
+
+// Getstau is the resolver for the getstau field.
+func (r *queryResolver) Getstau(ctx context.Context) ([]*model.BookingOrderPaymentStatus, error) {
+	var Status []*model.BookingOrderPaymentStatus
+
+	// Find all Status for the user
+	if err := r.DB.Find(&Status).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch Status for user: %w", err)
+	}
+
+	return Status, nil
 }
 
 // ID is the resolver for the id field.

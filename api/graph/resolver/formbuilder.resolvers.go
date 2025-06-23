@@ -578,7 +578,18 @@ func (r *queryResolver) Form(ctx context.Context, id string) (*model.Form, error
 
 // Submissions is the resolver for the submissions field.
 func (r *queryResolver) Submissions(ctx context.Context, formID *string, status *model.SubmissionStatus, limit *int32, offset *int32, orderBy *string, orderDirection *string) ([]*model.FormSubmission, error) {
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
 	query := r.DB.Model(&model.FormSubmission{})
+
+	// Filter by serviceID
+	if serviceIDStr != nil && *serviceIDStr != "" {
+		query = query.Where("service_id = ?", *serviceIDStr)
+	}
 
 	// Filter by formID if provided
 	if formID != nil && *formID != "" {

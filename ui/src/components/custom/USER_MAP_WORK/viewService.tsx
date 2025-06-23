@@ -1,27 +1,21 @@
-"use client";
-
-import type React from "react";
-
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useQuery } from "@apollo/client";
+import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
 import {
   Loader2,
   Package,
   Calendar,
   MapPin,
   Clock,
-  Eye,
   Search,
   RefreshCw,
   Phone,
-  ChevronRight,
   X,
   List,
   Settings,
-  Filter,
   ChevronDown,
   ChevronUp,
   BarChart3,
+  Clipboard,
 } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Button } from "@/components/ui/button";
@@ -44,11 +38,14 @@ import {
 // Import our modular files
 import {
   GET_ALL_USER_SERVICE_DATA,
+  GET_BOOKING_ORDER_PAYMENT_STATUS,
+  UPDATE_ORDER_BOOK_STATUS,
   type ServiceData,
   type ServiceStats,
   type ViewMode,
   type ActiveTab,
   type SortBy,
+  type PaymentStatus,
 } from "./types";
 
 // Import functional map manager
@@ -77,7 +74,11 @@ export default function UserServiceViewer() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("all");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(true);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(
+    null
+  );
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
 
   // Map refs - now using functional approach with callback ref
   const mapStateRef = useRef<MapState | null>(null);
@@ -104,6 +105,33 @@ export default function UserServiceViewer() {
       fetchPolicy: "cache-and-network",
     }
   );
+
+  // Payment status query (lazy loading)
+  const [getPaymentStatus, { loading: paymentLoading }] = useLazyQuery(
+    GET_BOOKING_ORDER_PAYMENT_STATUS,
+    {
+      onCompleted: (data) => {
+        setPaymentStatus(data.getBookingOrderPaymentStatusByUser);
+      },
+      onError: (error) => {
+        console.error("Failed to fetch payment status:", error);
+      },
+    }
+  );
+
+  // Update status mutation
+  const [updateOrderBookStatus] = useMutation(UPDATE_ORDER_BOOK_STATUS, {
+    onCompleted: (data) => {
+      console.log("Status updated successfully:", data);
+      setIsUpdatingStatus(false);
+      // Refetch data to get updated status
+      refetch();
+    },
+    onError: (error) => {
+      console.error("Failed to update status:", error);
+      setIsUpdatingStatus(false);
+    },
+  });
 
   const serviceData: ServiceData[] = useMemo(
     () => data?.getAllUserServiceData || [],
@@ -185,7 +213,7 @@ export default function UserServiceViewer() {
         setMapLoaded(true);
       }, 3000);
     }
-  }, [mapContainer, maptilerApiKey]); // Depend on mapContainer
+  }, [mapContainer, maptilerApiKey]);
 
   // Cleanup effect
   useEffect(() => {
@@ -232,13 +260,11 @@ export default function UserServiceViewer() {
             ?.toLowerCase()
             .includes(searchQuery.toLowerCase()));
 
+      // Updated status filtering to use status field for both orders and bookings
       const matchesStatus =
         statusFilter === "all" ||
         (item.type === "ORDER" && item.orderData?.status === statusFilter) ||
-        (item.type === "BOOKING" &&
-          (statusFilter === "confirmed"
-            ? item.bookingData?.isConfirmed
-            : !item.bookingData?.isConfirmed));
+        (item.type === "BOOKING" && item.bookingData?.status === statusFilter);
 
       const matchesTab =
         activeTab === "all" ||
@@ -256,18 +282,15 @@ export default function UserServiceViewer() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         case "status": {
+          // Updated to use status field for both types
           const statusA =
             a.type === "ORDER"
               ? a.orderData?.status || ""
-              : a.bookingData?.isConfirmed
-              ? "confirmed"
-              : "pending";
+              : a.bookingData?.status || "";
           const statusB =
             b.type === "ORDER"
               ? b.orderData?.status || ""
-              : b.bookingData?.isConfirmed
-              ? "confirmed"
-              : "pending";
+              : b.bookingData?.status || "";
           return statusA.localeCompare(statusB);
         }
         case "type":
@@ -300,7 +323,7 @@ export default function UserServiceViewer() {
     }
   }, [serviceData, filteredData, selectedItem, viewMode, mapLoaded]);
 
-  // Statistics
+  // Statistics - Updated to use status field
   const stats: ServiceStats = useMemo(() => {
     const orders = serviceData.filter((item) => item.type === "ORDER");
     const bookings = serviceData.filter((item) => item.type === "BOOKING");
@@ -313,8 +336,9 @@ export default function UserServiceViewer() {
           order.orderData?.status || ""
         )
       ).length,
+      // Updated to use status field instead of isConfirmed
       confirmedBookings: bookings.filter(
-        (booking) => booking.bookingData?.isConfirmed
+        (booking) => booking.bookingData?.status === "CONFIRMED"
       ).length,
     };
   }, [serviceData]);
@@ -323,17 +347,52 @@ export default function UserServiceViewer() {
   const handleItemClick = (item: ServiceData) => {
     console.log(`👆 Selected item: ${item.type} ${item.id}`);
     setSelectedItem(item);
-    setIsCardOpen(true); // Open the card when a new item is selected
+    setIsCardOpen(true);
     setViewMode("selected");
     setShowDialog(false);
+
+    // Fetch payment status for the selected item
+    const entityId =
+      item.type === "ORDER"
+        ? item.orderData?.orderId
+        : item.bookingData?.bookingId;
+
+    if (entityId) {
+      getPaymentStatus({
+        variables: {
+          entityId,
+          entityType: item.type === "ORDER" ? "ORDER" : "BOOKING",
+        },
+      });
+    }
+  };
+
+    const handleJustPaymentItemClick = (item: ServiceData) => {
+  
+
+    // Fetch payment status for the selected item
+    const entityId =
+      item.type === "ORDER"
+        ? item.orderData?.orderId
+        : item.bookingData?.bookingId;
+
+    if (entityId) {
+      getPaymentStatus({
+        variables: {
+          entityId,
+          entityType: item.type === "ORDER" ? "ORDER" : "BOOKING",
+        },
+      });
+    }
   };
 
   const handleViewAll = () => {
     console.log("👁️ Viewing all items");
     setSelectedItem(null);
-    setIsCardOpen(false); // Close the card
+    setIsCardOpen(false);
     setViewMode("all");
     setShowDialog(false);
+    setPaymentStatus(null);
   };
 
   const handleRefresh = () => {
@@ -341,47 +400,82 @@ export default function UserServiceViewer() {
     refetch();
   };
 
+  // Update status handler
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!selectedItem) return;
+
+    const entityId =
+      selectedItem.type === "ORDER"
+        ? selectedItem.orderData?.orderId
+        : selectedItem.bookingData?.bookingId;
+
+    if (!entityId) {
+      console.error("No entity ID found for status update");
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+
+    try {
+      await updateOrderBookStatus({
+        variables: {
+          entityId,
+          entityType: selectedItem.type === "ORDER" ? "ORDER" : "APPOINTMENT",
+          status: newStatus,
+        },
+      });
+      setShowStatusDialog(false);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Open status dialog
+  const handleOpenStatusDialog = () => {
+    setShowStatusDialog(true);
+  };
+
   // Toggle card visibility
   const handleToggleCard = () => {
     setIsCardOpen(!isCardOpen);
   };
 
-  // Status badge helper
+  // Status badge helper - Updated to use status field for both types
   const getStatusBadge = (item: ServiceData) => {
+    let status: string;
+    let colors: Record<string, string>;
+
     if (item.type === "ORDER") {
-      const status = item.orderData?.status || "UNKNOWN";
-      const colors = {
+      status = item.orderData?.status || "UNKNOWN";
+      colors = {
         CONFIRMED: "bg-blue-100/80 text-blue-800 border-blue-200/50",
         PREPARING: "bg-yellow-100/80 text-yellow-800 border-yellow-200/50",
         OUT_FOR_DELIVERY:
           "bg-purple-100/80 text-purple-800 border-purple-200/50",
         DELIVERED: "bg-green-100/80 text-green-800 border-green-200/50",
         CANCELLED: "bg-red-100/80 text-red-800 border-red-200/50",
+        PENDING: "bg-gray-100/80 text-gray-800 border-gray-200/50",
       };
-      return (
-        <Badge
-          className={`backdrop-blur-xl border ${
-            colors[status as keyof typeof colors] ||
-            "bg-gray-100/80 text-gray-800 border-gray-200/50"
-          }`}
-        >
-          {status}
-        </Badge>
-      );
     } else {
-      const isConfirmed = item.bookingData?.isConfirmed;
-      return (
-        <Badge
-          className={`backdrop-blur-xl border ${
-            isConfirmed
-              ? "bg-green-100/80 text-green-800 border-green-200/50"
-              : "bg-yellow-100/80 text-yellow-800 border-yellow-200/50"
-          }`}
-        >
-          {isConfirmed ? "Confirmed" : "Pending"}
-        </Badge>
-      );
+      status = item.bookingData?.status || "UNKNOWN";
+      colors = {
+        CONFIRMED: "bg-green-100/80 text-green-800 border-green-200/50",
+        PENDING: "bg-yellow-100/80 text-yellow-800 border-yellow-200/50",
+        CANCELLED: "bg-red-100/80 text-red-800 border-red-200/50",
+        COMPLETED: "bg-blue-100/80 text-blue-800 border-blue-200/50",
+      };
     }
+
+    return (
+      <Badge
+        className={`backdrop-blur-xl border ${
+          colors[status] || "bg-gray-100/80 text-gray-800 border-gray-200/50"
+        }`}
+      >
+        {status}
+      </Badge>
+    );
   };
 
   // Loading state
@@ -431,10 +525,11 @@ export default function UserServiceViewer() {
   }
 
   return (
-    <div className="fixed inset-0 z-5">
+    <div className=" z-5">
       {/* Full Screen Map */}
+      
       <div className="absolute inset-0">
-        <div ref={mapRefCallback} className="w-full h-full" />
+        <div ref={mapRefCallback} className="w-full h-full " />
         {!mapLoaded && (
           <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-white to-green-100 flex items-center justify-center">
             <div className="text-center backdrop-blur-xl bg-white/30 rounded-3xl p-8 border border-white/20 shadow-2xl max-w-md">
@@ -506,16 +601,6 @@ export default function UserServiceViewer() {
                 <span className="hidden sm:inline ml-2">Stats</span>
               </Button>
 
-              {/* <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                className="backdrop-blur-xl bg-white/20 hover:bg-white/30 border border-white/30 text-gray-700 h-10 px-3"
-              >
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline ml-2">Filter</span>
-              </Button> */}
-
               <Button
                 variant="ghost"
                 size="sm"
@@ -525,21 +610,10 @@ export default function UserServiceViewer() {
                 <List className="h-4 w-4" />
                 <span className="hidden sm:inline ml-2">List</span>
               </Button>
-
-              {/* <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSettings(true)}
-                className="backdrop-blur-xl bg-white/20 hover:bg-white/30 border border-white/30 text-gray-700 h-10 px-3"
-              >
-                <Settings className="h-4 w-4" />
-              </Button> */}
             </div>
           </div>
         </div>
       </div>
-
-     
 
       {/* Selected Item Info Card - Modified with toggle */}
       {selectedItem && (
@@ -548,7 +622,7 @@ export default function UserServiceViewer() {
             {/* Card Header - Always visible */}
             <div
               onClick={handleToggleCard}
-              className="p-4 sm:p-6 border-b border-white/20"
+              className="p-4 sm:p-6 border-b border-white/20 cursor-pointer"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -580,7 +654,10 @@ export default function UserServiceViewer() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleToggleCard}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleCard();
+                  }}
                   className="backdrop-blur-xl bg-white/20 hover:bg-white/30 border border-white/30 text-gray-700 h-8 w-8 p-0"
                 >
                   {isCardOpen ? (
@@ -608,8 +685,44 @@ export default function UserServiceViewer() {
                       {new Date(selectedItem.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {getStatusBadge(selectedItem)}
+                  <div className="flex items-center justify-between">
+                    {getStatusBadge(selectedItem)}
+                    {/* Status Update Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenStatusDialog}
+                      disabled={isUpdatingStatus}
+                      className="text-xs px-3 py-1 h-7 backdrop-blur-xl bg-white/20 hover:bg-white/30 border-white/30"
+                    >
+                      {isUpdatingStatus ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Settings className="h-3 w-3 mr-1" />
+                          Update Status
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
+
+               
+                <PaymentStatusSection
+                  paymentStatus={paymentStatus}
+                  onPayNow={() => {}}
+                />
+                {paymentLoading && (
+                  <div className="mt-4 pt-4 border-t border-white/20">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading payment status...
+                    </div>
+                  </div>
+                )}
 
                 {selectedItem.rider && (
                   <div className="mt-4 pt-4 border-t border-white/20">
@@ -635,6 +748,16 @@ export default function UserServiceViewer() {
                         <Phone className="h-4 w-4 mr-2" />
                         Call
                       </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status Update Loading Indicator */}
+                {isUpdatingStatus && (
+                  <div className="mt-4 pt-4 border-t border-white/20">
+                    <div className="flex items-center gap-2 text-xs text-blue-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Updating status...
                     </div>
                   </div>
                 )}
@@ -763,6 +886,153 @@ export default function UserServiceViewer() {
         </DialogContent>
       </Dialog>
 
+      {/* Status Update Dialog */}
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="backdrop-blur-xl bg-white/95 border border-white/30 rounded-2xl p-6 w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Update {selectedItem?.type === "ORDER" ? "Order" : "Booking"}{" "}
+              Status
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Select the new status for this{" "}
+              {selectedItem?.type === "ORDER" ? "order" : "booking"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedItem && (
+            <div className="space-y-4 mt-4">
+              {/* Current Status */}
+              <div className="p-3 bg-gray-50/80 rounded-lg backdrop-blur-xl">
+                <p className="text-sm text-gray-600 mb-1">Current Status:</p>
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(selectedItem)}
+                  <span className="text-sm font-medium">
+                    {selectedItem.type === "ORDER"
+                      ? selectedItem.orderData?.status || "Unknown"
+                      : selectedItem.bookingData?.status || "Unknown"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Options */}
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-gray-700 mb-2">
+                  Select New Status:
+                </label>
+                {selectedItem.type === "ORDER" ? (
+                  <div className="grid gap-2">
+                    {[
+                      "PENDING",
+                      "CONFIRMED",
+                      "PREPARING",
+                      "OUT_FOR_DELIVERY",
+                      "DELIVERED",
+                      "CANCELLED",
+                    ].map((status) => (
+                      <Button
+                        key={status}
+                        variant="outline"
+                        onClick={() => handleUpdateStatus(status)}
+                        disabled={
+                          isUpdatingStatus ||
+                          selectedItem.orderData?.status === status
+                        }
+                        className={`justify-start h-auto p-3 backdrop-blur-xl bg-white/60 hover:bg-white/80 border-white/40 ${
+                          selectedItem.orderData?.status === status
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-3 h-3 rounded-full ${
+                              status === "PENDING"
+                                ? "bg-gray-400"
+                                : status === "CONFIRMED"
+                                ? "bg-blue-500"
+                                : status === "PREPARING"
+                                ? "bg-yellow-500"
+                                : status === "OUT_FOR_DELIVERY"
+                                ? "bg-purple-500"
+                                : status === "DELIVERED"
+                                ? "bg-green-500"
+                                : "bg-red-500"
+                            }`}
+                          />
+                          <span className="font-medium">
+                            {status.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map(
+                      (status) => (
+                        <Button
+                          key={status}
+                          variant="outline"
+                          onClick={() => handleUpdateStatus(status)}
+                          disabled={
+                            isUpdatingStatus ||
+                            selectedItem.bookingData?.status === status
+                          }
+                          className={`justify-start h-auto p-3 backdrop-blur-xl bg-white/60 hover:bg-white/80 border-white/40 ${
+                            selectedItem.bookingData?.status === status
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-3 h-3 rounded-full ${
+                                status === "PENDING"
+                                  ? "bg-yellow-400"
+                                  : status === "CONFIRMED"
+                                  ? "bg-green-500"
+                                  : status === "COMPLETED"
+                                  ? "bg-blue-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                            <span className="font-medium">{status}</span>
+                          </div>
+                        </Button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-gray-200/50">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowStatusDialog(false)}
+                  disabled={isUpdatingStatus}
+                  className="flex-1 backdrop-blur-xl bg-white/60 hover:bg-white/80 border-white/40"
+                >
+                  Cancel
+                </Button>
+              </div>
+
+              {/* Loading Indicator */}
+              {isUpdatingStatus && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-blue-50/80 rounded-lg backdrop-blur-xl">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-blue-600 font-medium">
+                    Updating status...
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Main Dialog */}
       <ServiceListDialog
         open={showDialog}
@@ -784,8 +1054,174 @@ export default function UserServiceViewer() {
         filteredData={filteredData}
         selectedItem={selectedItem}
         handleItemClick={handleItemClick}
+        handleJustPaymentItemClick={handleJustPaymentItemClick}
         getStatusBadge={getStatusBadge}
+        handleUpdateStatus={handleUpdateStatus}
+        isUpdatingStatus={isUpdatingStatus}
+        paymentStatus={paymentStatus}
+        paymentLoading={paymentLoading}
+        handleOpenStatusDialog={handleOpenStatusDialog}
       />
+    </div>
+  );
+}
+
+import { AlertCircle, CreditCard, CheckCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+
+interface PaymentStatus {
+  method: string;
+  status: "COMPLETED" | "FAILED" | "PROCESSING" | "PENDING";
+  reference: string;
+  amount?: number;
+  currency?: string;
+}
+
+interface PaymentStatusProps {
+  paymentStatus: PaymentStatus | null;
+  onPayNow?: () => void;
+}
+
+export function PaymentStatusSection({
+  paymentStatus,
+  onPayNow,
+}: PaymentStatusProps) {
+  if (!paymentStatus) return null;
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "FAILED":
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case "PROCESSING":
+        return <Clock className="h-4 w-4 text-yellow-600 animate-bounce" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "text-green-600";
+      case "FAILED":
+        return "text-red-600";
+      case "PROCESSING":
+        return "text-yellow-600";
+      default:
+        return "text-gray-600";
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/20">
+      <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+        <CreditCard className="h-4 w-4" />
+        Payment Status
+      </h4>
+
+      {/* Processing Alert */}
+    
+
+      {/* Failed Payment Alert */}
+      {paymentStatus.status === "FAILED" && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <XCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <div className="font-medium mb-1">Payment Failed</div>
+            <div className="text-sm">
+              There was an issue processing your payment. Please try again or
+              contact support.
+            </div>
+          </AlertDescription>
+          {onPayNow && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="mt-3"
+              onClick={onPayNow}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Retry Payment
+            </Button>
+          )}
+        </Alert>
+      )}
+
+      {/* Completed Payment Success */}
+      {paymentStatus.status === "COMPLETED" && (
+        <Alert className="mb-4 border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <div className="font-medium">Payment Successful</div>
+            <div className="text-sm">
+              Your payment has been processed and the vendor can now fulfill
+              your order.
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Payment Details */}
+      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Payment Method:</span>
+          <span className="font-medium text-gray-900">
+            {paymentStatus.method}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Status:</span>
+          <div className="flex items-center gap-1">
+            {getStatusIcon(paymentStatus.status)}
+            <span
+              className={`font-medium ${getStatusColor(paymentStatus.status)}`}
+            >
+              {paymentStatus.status}
+            </span>
+          </div>
+        </div>
+
+        {paymentStatus.amount && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Amount:</span>
+            <span className="font-medium text-gray-900">
+              {paymentStatus.currency || "$"}
+              {paymentStatus.amount.toFixed(2)}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Reference:</span>
+            <span
+            className="font-mono flex flex-row gap-4 text-gray-900 text-sm cursor-pointer hover:underline"
+            title="Click to copy"
+            onClick={() => {
+              if (navigator?.clipboard) {
+              navigator.clipboard.writeText(paymentStatus.reference);
+              toast.success("Reference copied to clipboard!");
+              }
+            }}
+            >
+
+            <Clipboard className="h-4 w-4"/> {paymentStatus.reference}
+            </span>
+        </div>
+      </div>
+
+      {/* Processing Status Additional Info */}
+      {paymentStatus.status === "PROCESSING" && (
+        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
+            <span>Waiting for payment confirmation...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

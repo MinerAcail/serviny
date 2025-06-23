@@ -85,9 +85,9 @@ export const ProviderContextProvider: React.FC<
   const [userType, setUserType] = React.useState<"SERVICE" | "RIDER">(
     "SERVICE"
   );
-const {user}=useAuth()
-const serid =user?.id
-// console.log("ppt Service ID:", serviceId, "User ID:", serid);
+  const { user } = useAuth();
+  const serid = user?.id;
+  // console.log("ppt Service ID:", serviceId, "User ID:", serid);
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId: serid },

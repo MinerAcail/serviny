@@ -285,7 +285,7 @@ import { DeliveryServiceSystem } from "./APPOINTMENT/DeliveryServiceBooking/Deli
 // import AppointmentBookingSystem, { DeliveryServiceSystem } from "./APPOINTMENT/book";
 //
 export function WorkGallery() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
   const { firstProfileId } = useProfileUpdate(updateServiceId);
     const localServiceId = localStorage.getItem("serviceId");

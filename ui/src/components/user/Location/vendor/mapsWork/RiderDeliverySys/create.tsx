@@ -52,6 +52,7 @@ type Location = {
   lat: number
   lng: number
   placeId?: string
+  name?: string 
 }
 
 type TransportMode = "walking" | "bike" | "motorbike" | "car"
@@ -371,6 +372,7 @@ export function MainDeliveryZoneCreator({serviceId}: {serviceId: string}) {
     lat,
     lng,
     placeId: provider.id || "vendor_unknown",
+    name: provider.name || "Unknown Vendor",
   }
 
   const handleSave = (data: any) => {
@@ -818,6 +820,9 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
             <div>
               <h1 className="text-xl font-semibold">Delivery Zones</h1>
               <p className="text-sm text-[#86868b] truncate max-w-[200px] md:max-w-none">{vendor.address}</p>
+            {/* vender name */}
+            <p className="text-sm text-[#86868b] truncate max-w-[200px] md:max-w-none">{vendor.name}</p>
+              {/* <p className="text-sm text-[#86868b] truncate max-w-[200px] md:max-w-none">{vendor.address}</p> */}
             </div>
           </div>
 

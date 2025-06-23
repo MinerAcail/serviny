@@ -1,12 +1,30 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useMutation, useQuery } from '@apollo/client';
-import { gql } from '@apollo/client';
-import { Button } from '../ui/button';
-import { ArrowLeft, Check, ChevronDown, MapPin, Plus, Search, User, X, Trash2 } from 'lucide-react';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useMutation, useQuery } from "@apollo/client";
+import { gql } from "@apollo/client";
+import { Button } from "../ui/button";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  MapPin,
+  Plus,
+  Search,
+  User,
+  X,
+  Trash2,
+} from "lucide-react";
+import { Input } from "../ui/input";
+import { ScrollArea } from "../ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import { toast } from "sonner";
+import { useAuth } from "@/middleware/context/authContext";
 
 export const LIST_SERVICES = gql`
   query listServices($search: String, $limit: Int, $offset: Int) {
@@ -59,7 +77,8 @@ export interface UserProfileData {
 }
 
 export function useProfileUpdate(profileId: string | null | undefined) {
-  const [updateProfileMutation, { loading: updating, error: updateError }] = useMutation(PROFILES_MUTATION);
+  const [updateProfileMutation, { loading: updating, error: updateError }] =
+    useMutation(PROFILES_MUTATION);
 
   const {
     data: getProfileData,
@@ -80,7 +99,9 @@ export function useProfileUpdate(profileId: string | null | undefined) {
   const triggerUpdate = useCallback(
     async (newProfileId: string) => {
       try {
-        const res = await updateProfileMutation({ variables: { profileId: newProfileId } });
+        const res = await updateProfileMutation({
+          variables: { profileId: newProfileId },
+        });
         await refetch();
         lastTriggeredIdRef.current = newProfileId;
         return res.data?.profiles ?? null;
@@ -97,14 +118,16 @@ export function useProfileUpdate(profileId: string | null | undefined) {
     async (removeProfileId: string) => {
       try {
         // Use the first available profile as the new active profile, or empty string if removing the last one
-        const remainingProfiles = profile?.profileIds?.filter(id => id !== removeProfileId) || [];
-        const newActiveProfileId = remainingProfiles.length > 0 ? remainingProfiles[0] : "";
-        
-        const res = await updateProfileMutation({ 
-          variables: { 
+        const remainingProfiles =
+          profile?.profileIds?.filter((id) => id !== removeProfileId) || [];
+        const newActiveProfileId =
+          remainingProfiles.length > 0 ? remainingProfiles[0] : "";
+
+        const res = await updateProfileMutation({
+          variables: {
             profileId: newActiveProfileId,
-            removeProfileId: removeProfileId 
-          } 
+            removeProfileId: removeProfileId,
+          },
         });
         await refetch();
         return res.data?.profiles ?? null;
@@ -139,19 +162,23 @@ export function useProfileUpdate(profileId: string | null | undefined) {
 }
 
 export function useProfiles(userProfileData: any) {
-  
   // Fetch all available profiles
-  const { data: servicesData, loading: servicesLoading } = useQuery(LIST_SERVICES, {
-    variables: { limit: 100, offset: 0 }
-  });
+  const { data: servicesData, loading: servicesLoading } = useQuery(
+    LIST_SERVICES,
+    {
+      variables: { limit: 100, offset: 0 },
+    }
+  );
 
   const allProfiles: Profile[] = useMemo(() => {
     if (!servicesData?.listServices) return [];
-    
+
     return servicesData.listServices.map((service: any) => ({
       id: service.id,
       name: service.name,
-      email: `${service.name.toLowerCase().replace(/\s+/g, '.')}@${service.type}.com`,
+      email: `${service.name.toLowerCase().replace(/\s+/g, ".")}@${
+        service.type
+      }.com`,
       avatar: service.dpfile,
       type: service.type,
       profession: service.profession,
@@ -162,22 +189,25 @@ export function useProfiles(userProfileData: any) {
   // Get saved profiles based on user's profileIds
   const savedProfiles = useMemo(() => {
     if (!userProfileData?.profileIds || !allProfiles.length) return [];
-    
+
     return userProfileData.profileIds
-      .map((id: string) => allProfiles.find(profile => profile.id === id))
+      .map((id: string) => allProfiles.find((profile) => profile.id === id))
       .filter(Boolean)
       .map((profile: Profile, index: number) => ({
         ...profile,
-        lastUsed: index === 0 ? new Date() : new Date(Date.now() - (index * 24 * 60 * 60 * 1000))
+        lastUsed:
+          index === 0
+            ? new Date()
+            : new Date(Date.now() - index * 24 * 60 * 60 * 1000),
       }));
   }, [userProfileData?.profileIds, allProfiles]);
 
   // Get available profiles (not saved yet)
   const availableProfiles = useMemo(() => {
     if (!allProfiles.length || !userProfileData?.profileIds) return allProfiles;
-    
-    return allProfiles.filter(profile => 
-      !userProfileData.profileIds.includes(profile.id)
+
+    return allProfiles.filter(
+      (profile) => !userProfileData.profileIds.includes(profile.id)
     );
   }, [allProfiles, userProfileData?.profileIds]);
 
@@ -185,7 +215,7 @@ export function useProfiles(userProfileData: any) {
     savedProfiles,
     availableProfiles,
     loading: servicesLoading,
-    currentProfile: savedProfiles[0] || null
+    currentProfile: savedProfiles[0] || null,
   };
 }
 
@@ -204,10 +234,10 @@ export function BrowseProfilesDialog({
   onSelectProfile,
   loading = false,
   open,
-  onOpenChange
+  onOpenChange,
 }: BrowseProfilesDialogProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedType, setSelectedType] = useState<string>("all");
 
   const filteredProfiles = useMemo(() => {
     let filtered = availableProfiles;
@@ -215,43 +245,46 @@ export function BrowseProfilesDialog({
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(profile =>
-        profile.name.toLowerCase().includes(query) ||
-        profile.profession?.toLowerCase().includes(query) ||
-        profile.location?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (profile) =>
+          profile.name.toLowerCase().includes(query) ||
+          (typeof profile.profession === "string" && profile.profession.toLowerCase().includes(query)) ||
+          profile.location?.toLowerCase().includes(query)
       );
     }
 
     // Filter by type
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(profile => profile.type === selectedType);
+    if (selectedType !== "all") {
+      filtered = filtered.filter((profile) => profile.type === selectedType);
     }
 
     return filtered;
   }, [availableProfiles, searchQuery, selectedType]);
 
   const profileTypes = useMemo(() => {
-    const types = new Set(availableProfiles.map(p => p.type).filter(Boolean));
+    const types = new Set(availableProfiles.map((p) => p.type).filter(Boolean));
     return Array.from(types);
   }, [availableProfiles]);
 
   // Reset search when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      setSearchQuery('');
-      setSelectedType('all');
+      setSearchQuery("");
+      setSelectedType("all");
     }
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-              <DialogContent className="sm:max-w-2xl w-full max-w-[95vw] h-[90vh] p-0 bg-white/5 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl overflow-hidden">
+      <DialogContent className="sm:max-w-2xl w-full max-w-[95vw] h-[90vh] p-0 bg-white/5 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/5 pointer-events-none" />
 
         {/* Fixed Header */}
         <div className="relative flex-shrink-0 p-6 border-b border-white/10">
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl font-bold text-black">Browse Profiles</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-black">
+              Browse Profiles
+            </DialogTitle>
           </DialogHeader>
 
           {/* Search and Filters */}
@@ -270,17 +303,17 @@ export function BrowseProfilesDialog({
             {profileTypes.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <Button
-                  variant={selectedType === 'all' ? 'default' : 'outline'}
+                  variant={selectedType === "all" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedType('all')}
+                  onClick={() => setSelectedType("all")}
                   className="whitespace-nowrap"
                 >
                   All
                 </Button>
-                {profileTypes.map(type => (
+                {profileTypes.map((type) => (
                   <Button
                     key={type}
-                    variant={selectedType === type ? 'default' : 'outline'}
+                    variant={selectedType === type ? "default" : "outline"}
                     size="sm"
                     onClick={() => setSelectedType(type)}
                     className="whitespace-nowrap capitalize"
@@ -307,10 +340,14 @@ export function BrowseProfilesDialog({
                     <User className="h-7 w-7 text-black/40" />
                   </div>
                   <p className="text-black/60 text-base font-semibold mb-2">
-                    {searchQuery ? 'No profiles found' : 'No available profiles'}
+                    {searchQuery
+                      ? "No profiles found"
+                      : "No available profiles"}
                   </p>
                   <p className="text-black/40 text-sm">
-                    {searchQuery ? 'Try adjusting your search terms' : 'All profiles have been added'}
+                    {searchQuery
+                      ? "Try adjusting your search terms"
+                      : "All profiles have been added"}
                   </p>
                 </div>
               ) : (
@@ -323,7 +360,9 @@ export function BrowseProfilesDialog({
                     >
                       <div className="flex items-center gap-4">
                         <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
-                          <AvatarImage src={profile.avatar || "/placeholder.svg"} />
+                          <AvatarImage
+                            src={profile.avatar || "/placeholder.svg"}
+                          />
                           <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
                             {profile.name.charAt(0)}
                           </AvatarFallback>
@@ -340,13 +379,13 @@ export function BrowseProfilesDialog({
                               </span>
                             )}
                           </div>
-                          
+
                           {profile.profession && (
                             <p className="text-sm text-black/70 truncate font-medium mb-1">
                               {profile.profession}
                             </p>
                           )}
-                          
+
                           <div className="flex items-center gap-4 text-xs text-black/50">
                             <span>{profile.email}</span>
                             {profile.location && (
@@ -391,19 +430,28 @@ export function ProfileSwitcher({
 }: ProfileSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showBrowse, setShowBrowse] = useState(false);
-const {firstProfileId}=useProfileUpdate(null)
+  const { firstProfileId } = useProfileUpdate(null);
+  const { isAuthenticated } = useAuth();
   const handleProfileSwitch = (profile: Profile) => {
     onProfileSwitch(profile);
     setIsOpen(false);
+    // when switching profiles, reload the page to apply changes
+    window.location.reload();
   };
 
   const handleAddProfile = async (profile: Profile) => {
     try {
       await onAddProfile(profile);
+      if (profile.id) {
+        localStorage.setItem("serviceId", profile.id);
+      }
       setShowBrowse(false);
       setIsOpen(false);
+      // when switching profiles, reload the page to apply changes
+      window.location.reload();
+     
     } catch (error) {
-      console.error('Failed to add profile:', error);
+      console.error("Failed to add profile:", error);
     }
   };
 
@@ -411,8 +459,10 @@ const {firstProfileId}=useProfileUpdate(null)
     e.stopPropagation(); // Prevent profile switch when clicking remove
     try {
       await onRemoveProfile(profile);
+    
+
     } catch (error) {
-      console.error('Failed to remove profile:', error);
+      console.error("Failed to remove profile:", error);
     }
   };
 
@@ -420,14 +470,16 @@ const {firstProfileId}=useProfileUpdate(null)
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="h-auto p-0 bg-transparent hover:bg-transparent group"
             disabled={loading}
           >
             <div className="flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-2xl hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-3xl hover:scale-[1.02]">
               <Avatar className="h-9 w-9 ring-2 ring-white/30 shadow-lg">
-                <AvatarImage src={currentProfile?.avatar || "/placeholder.svg"} />
+                <AvatarImage
+                  src={currentProfile?.avatar || "/placeholder.svg"}
+                />
                 <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white text-sm font-semibold border border-white/20">
                   {currentProfile?.name?.charAt(0) || "U"}
                 </AvatarFallback>
@@ -439,8 +491,8 @@ const {firstProfileId}=useProfileUpdate(null)
                     : currentProfile?.name
                     ? currentProfile.name
                     : firstProfileId === null
-                    ? "Add Profile"
-                    : "Switch Profile"}
+                    ? "Add Service"
+                    : "Switch Service"}
                 </span>
                 {currentProfile?.email && (
                   <span className="text-xs text-black/60 truncate font-medium">
@@ -485,10 +537,7 @@ const {firstProfileId}=useProfileUpdate(null)
 
                 <div className="space-y-3 pb-4">
                   {savedProfiles.map((profile) => (
-                    <div
-                      key={profile.id}
-                      className="relative group"
-                    >
+                    <div key={profile.id} className="relative group">
                       <button
                         onClick={() => handleProfileSwitch(profile)}
                         disabled={loading}
@@ -496,7 +545,9 @@ const {firstProfileId}=useProfileUpdate(null)
                       >
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
-                            <AvatarImage src={profile.avatar || "/placeholder.svg"} />
+                            <AvatarImage
+                              src={profile.avatar || "/placeholder.svg"}
+                            />
                             <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
                               {profile.name.charAt(0)}
                             </AvatarFallback>
@@ -523,7 +574,8 @@ const {firstProfileId}=useProfileUpdate(null)
                             )}
                             {profile.lastUsed && (
                               <p className="text-xs text-black/40 mt-2 font-medium">
-                                Last used {profile.lastUsed.toLocaleDateString()}
+                                Last used{" "}
+                                {profile.lastUsed.toLocaleDateString()}
                               </p>
                             )}
                           </div>
@@ -581,12 +633,27 @@ interface ProfileSwitcherContainerProps {
   initialProfileId?: string;
 }
 
-export function ProfileSwitcherContainer({ initialProfileId }: ProfileSwitcherContainerProps) {
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(initialProfileId || null);
-  
-  const { triggerUpdate, triggerRemove, profile: userProfileData, loading: profileLoading, error } = useProfileUpdate(selectedProfileId);
-  
-  const { savedProfiles, availableProfiles, loading: profilesLoading, currentProfile } = useProfiles(userProfileData);
+export function ProfileSwitcherContainer({
+  initialProfileId,
+}: ProfileSwitcherContainerProps) {
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    initialProfileId || null
+  );
+
+  const {
+    triggerUpdate,
+    triggerRemove,
+    profile: userProfileData,
+    loading: profileLoading,
+    error,
+  } = useProfileUpdate(selectedProfileId);
+
+  const {
+    savedProfiles,
+    availableProfiles,
+    loading: profilesLoading,
+    currentProfile,
+  } = useProfiles(userProfileData);
 
   const handleProfileSwitch = async (profile: Profile) => {
     setSelectedProfileId(profile.id);
@@ -602,25 +669,27 @@ export function ProfileSwitcherContainer({ initialProfileId }: ProfileSwitcherCo
     await triggerRemove(profile.id);
     // If we removed the current profile, update selectedProfileId to the new first profile
     if (profile.id === selectedProfileId) {
-      const remainingProfiles = savedProfiles.filter(p => p.id !== profile.id);
+      const remainingProfiles = savedProfiles.filter(
+        (p) => p.id !== profile.id
+      );
       const newCurrentProfile = remainingProfiles[0];
       setSelectedProfileId(newCurrentProfile?.id || null);
     }
   };
 
   if (error) {
-    console.error('Profile switcher error:', error);
+    console.error("Profile switcher error:", error);
   }
 
   return (
-   <ProfileSwitcher
-        currentProfile={currentProfile}
-        savedProfiles={savedProfiles}
-        availableProfiles={availableProfiles}
-        onProfileSwitch={handleProfileSwitch}
-        onAddProfile={handleAddProfile}
-        onRemoveProfile={handleRemoveProfile}
-        loading={profileLoading || profilesLoading}
-      />
+    <ProfileSwitcher
+      currentProfile={currentProfile}
+      savedProfiles={savedProfiles}
+      availableProfiles={availableProfiles}
+      onProfileSwitch={handleProfileSwitch}
+      onAddProfile={handleAddProfile}
+      onRemoveProfile={handleRemoveProfile}
+      loading={profileLoading || profilesLoading}
+    />
   );
 }

@@ -461,6 +461,11 @@ type ProductInputUpdate struct {
 	Description *string       `json:"description,omitempty"`
 }
 
+type ProfileInfor struct {
+	ID           *string `json:"id,omitempty"`
+	BusinessType *string `json:"businessType,omitempty"`
+}
+
 type Query struct {
 }
 

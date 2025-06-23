@@ -161,9 +161,10 @@ export default function ErrorLogin() {
   // Register options component for reuse
   const RegisterOptions = () => (
     <Tabs defaultValue="user" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-4">
-        <TabsTrigger value="user">User Account</TabsTrigger>
-        <TabsTrigger value="service">Service Provider</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsTrigger value="user">User </TabsTrigger>
+        <TabsTrigger value="service">Service</TabsTrigger>
+        <TabsTrigger value="rider">Rider</TabsTrigger>
       </TabsList>
       <TabsContent value="user" className="space-y-4">
         <div className="flex items-center justify-center h-24 bg-gray-100 rounded-md">
@@ -197,6 +198,24 @@ export default function ErrorLogin() {
           onClick={() => navigate("/provider/new")}
         >
           Create Service Account
+        </Button>
+      </TabsContent>
+       <TabsContent value="rider" className="space-y-4">
+        <div className="flex items-center justify-center h-24 bg-gray-100 rounded-md">
+          <Truck className="h-12 w-12 text-gray-400" />
+        </div>
+        <div className="text-center space-y-2">
+          <h3 className="font-medium">Register as Rider</h3>
+            <p className="text-sm text-gray-500">
+            Riders work under a service provider to deliver services.
+            </p>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => navigate("/rider/new")}
+        >
+          Create Rider Account
         </Button>
       </TabsContent>
     </Tabs>

@@ -55,7 +55,7 @@ const router = createBrowserRouter([
         element: <DeliveryZoneVisualizerVendor />,
       },
       // { path: "/delivery/:riderId/:bookId", element: <RiderZoneSetup /> },
-      // { path: "/delivery/:riderId/:bookId", element: <AutocompleteSearchMap /> },
+      { path: "/tutorial", element: <TutorialsPage /> },
       {
         path: "/delivery/:riderId/:bookId",
         element: <RiderBookingDeliveryRequest />,
@@ -64,8 +64,20 @@ const router = createBrowserRouter([
         path: "/multidelivery/:riderId/:bookId",
         element: <RiderBookingMultiDeliveryRequest />,
       },
+      {
+        path: "merge",
+        element: (
+          <ProtectedProfileBusinessTypeRoute
+            element={<CheckType />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.ECOMMERCE_STANDARD,
+              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+      // { path: "/merge/:serviceId", element: <CheckType /> },
 
-      { path: "/merge/:serviceId", element: <CheckType /> },
       { path: "view/:id", element: <FormPage /> },
       { path: "views", element: <SubmissionsViewer /> },
       { path: "pay", element: <PaystackPage /> },
@@ -75,7 +87,15 @@ const router = createBrowserRouter([
       { path: "/rider/new", element: <RiderRegistration /> },
       { path: "/vob", element: <CheckBookingOrderDelivery /> }, //view orders bookings
 
-      { path: "/dashboard", element: <Dashboard /> },
+      {
+        path: "/dashboard",
+        element: (
+          <ProtectedIsAuthRoute
+            expectedTypes={[ProtectType.Service]}
+            element={<Dashboard />}
+          />
+        ),
+      },
       { path: "/check", element: <Checkout /> },
       // { path: "/c/:userId", element: <ContactDetailPage /> },
       { path: "/reset", element: <PasswordReset /> },
@@ -96,20 +116,22 @@ const router = createBrowserRouter([
   // Routes with sidebar layout using Outlet
   {
     path: "/dbp/",
-    element: <SidebarLayoutProvider />,
+    element: (
+      <ProtectedIsAuthRoute
+        expectedTypes={[ProtectType.Service]}
+        element={<SidebarLayoutProvider />}
+      />
+    ),
     children: [
       { index: true, element: <Dashboard /> },
       { path: "upload", element: <CreateGalleryForm /> },
-      { path: "booktypes", element: <BookingTypes /> },
-      { path: "time", element: <AvailabilityPage /> },
+      // { path: "booktypes", element: <BookingTypes /> },
       { path: "contacts", element: <SearchData /> },
       { path: "favorites", element: <FavoritesPage /> },
 
       { path: "social", element: <SocialForm /> },
       { path: "c/:userId", element: <ContactDetailPage /> },
-      { path: "zone", element: <RiderZoneSetup /> },
       { path: "zonex", element: <ResultStepData /> },
-      { path: "builder", element: <FormAndRequestTabs /> },
 
       {
         path: "update",
@@ -126,13 +148,75 @@ const router = createBrowserRouter([
       { path: "orders", element: <OrderManagementSystem /> },
 
       ///for service Riders providers
-      { path: "livemap", element: <LiveMap /> },
-      { path: "live", element: <AllRoutesDisplay /> },
+      // { path: "livemap", element: <LiveMap /> },
+      {
+        path: "livemap",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={<LiveMap />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+      {
+        path: "vendors",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={<VendorsByDeliveryService />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+      {
+        path: "zone",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={<RiderZoneSetup />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+      {
+        path: "time",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={<AvailabilityPage />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+
+      {
+        path: "builder",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={<FormAndRequestTabs />}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      },
+
+      // { path: "live", element: <AllRoutesDisplay /> }, //work on it soon for rider location display
 
       { path: "analytics", element: <Analytics /> },
       { path: "history", element: <ServiceHistory /> },
       // { path: "request", element: <RiderRequests /> },
-      { path: "vendors", element: <VendorsByDeliveryService /> },
     ],
   },
 ]);
@@ -174,7 +258,10 @@ import { RiderRegistration } from "@/components/rider/create";
 import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 import { DeliveryZoneVisualizerVendor } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/deliveryZoneVisualizer";
 import CheckType from "@/components/user/Location/vendor/mapsWork/checkType";
-import { ProviderContextProvider } from "./context/businessType";
+import {
+  BusinessTypeEnum,
+  ProviderContextProvider,
+} from "./context/businessType";
 import LiveMap from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap";
 import Analytics from "@/components/serviceProviders/DELIVERY_ENTERPRISE/analytics";
 import History from "@/components/serviceProviders/DELIVERY_ENTERPRISE/history";
@@ -208,6 +295,9 @@ import RiderLiveMap from "@/components/rider/LiveMap";
 import CheckBookingOrderDelivery from "@/components/GlobalLogic/checkBookingOrderDelivery";
 import RiderHistory from "../components/rider/history";
 import ServiceHistory from "../components/custom/vendors/history";
+import TutorialsPage from "@/components/global/tutorials";
+import ProtectedIsAuthRouteBusinessType from "./protectedIsAuthBusinessType";
+import ProtectedProfileBusinessTypeRoute from "./protectedRouteBusinessTypeFromProfile";
 // import ServiceHistory from "../components/custom/vendors/history";
 // import ServiceHistory from "../components/custom/vendors/history";
 // import RiderHistory from "@/components/rider/history";
@@ -216,7 +306,7 @@ import ServiceHistory from "../components/custom/vendors/history";
 
 export function SidebarLayoutProvider() {
   const { user } = useAuth();
-  const { firstProfileId } = useProfileUpdate( null);
+  const { firstProfileId } = useProfileUpdate(null);
 
   const serviceId = firstProfileId;
   // const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
@@ -257,7 +347,9 @@ export function Layout() {
   // const serviceId = firstProfileId;
   const { firstProfileId } = useProfileUpdate(null);
 
-  const serviceId = firstProfileId ??updateServiceId;
+  const serviceId = firstProfileId ?? updateServiceId;
+  console.log("Service ID in Layout:", serviceId);
+  
   return (
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>

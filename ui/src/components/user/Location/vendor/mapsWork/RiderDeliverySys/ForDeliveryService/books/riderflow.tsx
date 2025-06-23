@@ -244,6 +244,7 @@ export function RiderZoneSetup() {
   );
  const GOOGLE_MAPS_CONFIG = {
   id: "google-map-script", // Keep this consistent
+  
   googleMapsApiKey: googleMapsApiKey,
   libraries: libraries,
 }
@@ -1591,7 +1592,7 @@ const handleCurrentLocation = useCallback(() => {
                             <div className="space-y-6">
                               <div className="text-center">
                                 <Label className="text-lg font-semibold text-gray-900">
-                                  Price: ${newZoneData.price.toFixed(2)}
+                                  Price: GH₵{newZoneData.price.toFixed(2)}
                                 </Label>
                               </div>
                               <div className="px-4">
@@ -1742,7 +1743,7 @@ const handleCurrentLocation = useCallback(() => {
                             </div>
                             <div>
                               <Label className="text-sm font-medium">
-                                Price ($)
+                                Price (GH₵)
                               </Label>
                               <Input
                                 type="number"
@@ -1947,7 +1948,7 @@ const handleCurrentLocation = useCallback(() => {
                       ></div>
                       <span className="text-gray-700 flex-1">
                         Zone {index + 1}: {zone.min}-{zone.max}{" "}
-                        {zoneMethod === "distance" ? "km" : "min"} ($
+                        {zoneMethod === "distance" ? "km" : "min"} (GH₵
                         {zone.price.toFixed(2)})
                       </span>
                       {zone.isLocal ? (

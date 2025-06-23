@@ -651,14 +651,18 @@ export function AllProducts() {
 
   const vendorId = firstProfileId ?? serviceId;
 
+
   // Sync vendorId to localStorage on mount or when vendorId changes
-  useEffect(() => {
-    if (!vendorId) return;
-    const storedId = localStorage.getItem("currentVendorId");
-    if (storedId !== vendorId) {
-      localStorage.setItem("currentVendorId", vendorId);
-    }
-  }, [vendorId]);
+  // useEffect(() => {
+  //   if (!vendorId) return;
+  //   const storedId = localStorage.getItem("currentVendorId");
+  //   if (storedId !== vendorId) {
+  //     localStorage.setItem("currentVendorId", vendorId);
+  //   }
+  // }, [vendorId]);
+
+console.log("Vendor ID:", vendorId);
+
   const [filter, setFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [offset, setOffset] = useState(0);

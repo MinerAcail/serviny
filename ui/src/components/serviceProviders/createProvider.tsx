@@ -58,6 +58,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 // Import country data
 // import { countries } from "./data/countries";
 import { useJsApiLoader, GoogleMap, type Libraries } from "@react-google-maps/api";
+import { useNavigate } from "react-router";
 
 // GraphQL Mutations
 const CREATE_SERVICE = gql`
@@ -670,7 +671,7 @@ export function ImprovedServiceProvider() {
   const [businessLabel, setBusinessLabel] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
-
+const navigate =useNavigate()
   // Google Maps and location states
   const [coordinates, setCoordinates] = useState<number[]>([]);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -1033,6 +1034,7 @@ export function ImprovedServiceProvider() {
           description: "Your email has been verified successfully",
         });
 
+
         // Submit the form data after successful verification
         if (formData && formData.password && formData.confirmPassword) {
           submitFormData(formData);
@@ -1041,6 +1043,7 @@ export function ImprovedServiceProvider() {
             description: "Password and Confirm Password are required.",
           });
         }
+        navigate(`login`)
       } else {
         toast.error("Verification Failed", {
           description:

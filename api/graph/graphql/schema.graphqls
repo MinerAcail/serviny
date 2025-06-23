@@ -30,7 +30,10 @@ type EventBookedData {
   bookTypePrice: String!
   booked: UserBookings!
 }
-
+type ProfileInfor {
+  id: String
+  businessType: String
+}
 extend type Query {
   getID: String
   # who: Returns
@@ -53,13 +56,20 @@ extend type Query {
   cheakType(serviceId: String!): String!
   getProfiles: Profiles
   getAProfileIdByUserId(userId: String): String
+  getAProfileBusinessTypeByUserId: ProfileInfor!
 
   # payment status
   getBookingOrderPaymentStatus(
-     entityId: String!
+    entityId: String!
     entityType: String!
     statusType: String!
-    ): String
+  ): String
+  getBookingOrderPaymentStatusByUser(
+    entityId: String!
+    entityType: String!
+  ): BookingOrderPaymentStatus
+
+  getstau:[BookingOrderPaymentStatus]
 }
 type UsersInfor {
   id: String!
@@ -97,7 +107,7 @@ extend type Mutation {
 
   ## payment status
 
-## for creating and updating booking order payment status
+  ## for creating and updating booking order payment status
   updateBookingOrderPaymentStatus(
     id: String!
     serviceId: String
@@ -108,7 +118,19 @@ extend type Mutation {
     entityType: String!
     statusType: String!
   ): String!
+  orderOrBookingPayment(
+    entityId: String!
+    entityType: String!
+    method: String!
+    reference: String!
+  ): BookingOrderPaymentStatus!
 
+  updateOrderBookStatus(
+      entityId: String!
+    entityType: String!
+    status: String!
+
+  ):String
   # deleteBookingOrderPaymentStatus(id: String!): Boolean
 }
 type Profiles {
@@ -151,6 +173,9 @@ type BookingOrderPaymentStatus {
   method: String!
   entityId: String!
   entityType: String!
+  reference: String
   createdAt: Time!
   updatedAt: Time!
 }
+
+

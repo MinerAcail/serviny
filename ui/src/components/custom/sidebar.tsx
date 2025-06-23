@@ -54,11 +54,11 @@ import NotificationCenter from "../user/notification-center";
 import { CartButton } from "./cart/cart-button";
 import ProfileDialog, { ProfileProviderDialog } from "./profile-dialog";
 import RiderRequest from "../serviceProviders/Riders/request";
-import { useProvider } from "@/middleware/context/businessType";
+import { BusinessTypeEnum, useProvider } from "@/middleware/context/businessType";
 
 const bottomNavigation = [
-  { name: "Settings", to: "/settings", icon: Settings },
-  { name: "Help", to: "/help", icon: HelpCircle },
+  // { name: "Settings", to: "/settings", icon: Settings },
+  { name: "Tutorials", to: "/tutorial", icon: HelpCircle },
 ];
 type NavItemProps = {
   item: {
@@ -71,11 +71,11 @@ type NavItemProps = {
   };
 };
 export function Sidebar() {
-  const { user, isAuthenticated, clearCache } = useAuth();
-  // const { isMatch } = useCheckAuthId(user?.id);
-  const { isMatch } = useCheckAuthId();
+  const { isAuthenticated, clearCache } = useAuth();
+
   const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
     useProvider();
+  
   useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
@@ -102,11 +102,6 @@ export function Sidebar() {
         ]
       : []),
 
-    // {
-    //   name: "Items",
-    //   to: `/providers/${user?.id}?lt`,
-    //   icon: AlignVerticalJustifyStart,
-    // },
     ...(isDeliveryStandardOrEnterprise
       ? [
           {
@@ -120,17 +115,13 @@ export function Sidebar() {
 
           // { name: "Request", to: `request`, icon: GitPullRequest },
           { name: "Vendors", to: `vendors`, icon: Building2 },
+          { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+          { name: "Schedule", to: `time`, icon: CalendarSync },
+          { name: "Upload", to: "upload", icon: HardDriveUpload },
         ]
       : []),
-    { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
 
-    { name: "Upload", to: "upload", icon: HardDriveUpload },
-    // { name: "Zone And Pricing", to: "setup", icon: Library },
-    { name: "Profile", to: "update", icon: Edit }, // absolute path outside
-    // { name: "Schedule", to: `time`, icon: CalendarSync },
-    // { name: "Social Media", to: `social`, icon: Waypoints },
-
-    // { name: "Profile", to: `/providers/${serviceId}`, icon: Home }, // this one still needs it
+    { name: "Profile", to: "update", icon: Edit },
   ];
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -294,6 +285,7 @@ export function Sidebar() {
 
 import { gql, useQuery } from "@apollo/client";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
+import { useCurrentUserHasAnyBusinessType, useCurrentUserProfileId } from "../GlobalLogic/checkBusinessType";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
     clearClientCache
@@ -311,10 +303,20 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const { isAuthenticated, user, clearCache } = useAuth();
   const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
     useProvider();
-
+    const hasEcommerceAccess = useCurrentUserHasAnyBusinessType([
+    BusinessTypeEnum.ECOMMERCE_STANDARD,
+    BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+    BusinessTypeEnum.PRE_ORDER,
+    BusinessTypeEnum.DROP_SHIPPING
+  ]);
+const profileId = useCurrentUserProfileId();
+     const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
+    BusinessTypeEnum.DELIVERY_STANDARD,
+    BusinessTypeEnum.DELIVERY_ENTERPRISE,
+  ]);
   const location = useLocation();
   const install = location.pathname === "/install";
-  const providers = location.pathname === "/providers";
+  // const providers = location.pathname === "/providers";
   const { data } = useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
@@ -338,31 +340,25 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       icon: Home,
     },
     { name: "Delivery", to: `/vob`, icon: PackageCheck }, // stays on /dbp/:serviceId
-          { name: "History", to: `history`, icon: History },
-
-    { name: "Download", to: "/install", icon: ArrowBigDownDash },
-    // { name: "Message", to: "/sms", icon: MessageSquare },
-    { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
-    
-    ...(isEcommerceStandardOrEnterprise
-      ? [{ name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge }]
-      : []),
-    // Conditionally include items
-    ...(isMatch || user?.type === "DELIVERY"
+    { name: "History", to: `history`, icon: History },
+    ...(user?.type === "SERVICE" || user?.type === "DELIVERY"
       ? [
           {
             name: "Dashboard",
             to: install ? `/dbp/${user?.id}` : `/dbp`,
             icon: LayoutDashboard,
           },
-          // {
-          //   name: "Schedule",
-          //   to: `/dbp/booktypes`,
-          //   icon: CalendarSync,
-          // },
+          ...(hasEcommerceAccess
+            ? [{ name: "Merge Maps", to: `/merge`, icon: Merge }]
+            : []),
           { name: "Edit", to: `/dbp/update`, icon: Edit },
         ]
       : []),
+    { name: "Download", to: "/install", icon: ArrowBigDownDash },
+    // { name: "Message", to: "/sms", icon: MessageSquare },
+    // { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
+
+    // Conditionally include items
   ];
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -474,7 +470,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 //   <SpectaclesLogo size={"sm"} variant="primary" />
                 // </Link>
 
-                <Link to={"/"} className="flex w-[50%] items-center">
+                <Link to={"/all"} className="flex w-[50%] items-center">
                   <img src="/winnefull.png" alt="Logo" className="h-4 w-full" />
                 </Link>
               )}
@@ -497,10 +493,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             </div>
           </div>
           <RegisterOptions isCollapsed={isCollapsed} />
-          {!isCollapsed && (
-
-          <ProfileSwitcherContainer  />
-          )}
+          {!isCollapsed && <ProfileSwitcherContainer />}
 
           <div className="flex-1 overflow-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">

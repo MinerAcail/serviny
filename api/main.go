@@ -58,6 +58,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.FormSubmission{},
 
 		&model.AppointmentBooking{},
+		&model.BookingCargo{},
+
 		&model.UserBookings{},
 		&model.Category{},
 		&model.InventoryItem{},

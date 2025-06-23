@@ -121,9 +121,9 @@ export function ServiceProvidersDirectory() {
     refetch({ search: value.trim() || null });
   }
 
-  if (dialogState) {
-    return <LandingPage  onClose={() => setDialogState(false)} />;
-  }
+  // if (dialogState) {
+  //   return <LandingPage  onClose={() => setDialogState(false)} />;
+  // }
 
   // if (loading && !data) return <SpectaclesLoading />;
 

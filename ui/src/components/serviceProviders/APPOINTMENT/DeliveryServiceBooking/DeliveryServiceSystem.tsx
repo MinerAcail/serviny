@@ -338,6 +338,7 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
   }
 );
 
+
   // Generate dates for the current view
   useEffect(() => {
     const newDates = [];

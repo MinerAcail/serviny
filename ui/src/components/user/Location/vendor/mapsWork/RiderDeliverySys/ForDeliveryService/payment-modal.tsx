@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { CreditCard, Smartphone, Copy, Check, Clock, Shield, AlertCircle, Banknote, QrCode, Phone } from "lucide-react"
 import { toast } from "sonner"
 import { useNavigate } from "react-router"
+import { gql, useMutation } from "@apollo/client"
 
 interface PaymentModalProps {
   open: boolean
@@ -23,6 +24,20 @@ interface PaymentModalProps {
   onPaymentComplete: (paymentData: PaymentResult) => void
 }
 
+// GraphQL Mutation for Bookings
+const ORDER_OR_BOOKING_PAYMENT = gql`
+  mutation OrderOrBookingPayment($entityId: String!, $entityType: String!, $method: String!, $reference: String!) {
+    orderOrBookingPayment(entityId: $entityId, entityType: $entityType, method: $method, reference: $reference) {
+      id
+      method
+      status
+      entityId
+      entityType
+      reference
+    }
+  }
+`
+
 interface PaymentResult {
   method: "cash" | "momo"
   referenceCode?: string
@@ -30,26 +45,53 @@ interface PaymentResult {
   amount: number
   orderId: string
   timestamp: string
+  paymentId?: string
+  status?: string
+}
+
+interface PaymentMutationResult {
+  id: string
+  method: string
+  status: string
+  entityId: string
+  entityType: string
+  reference?: string
 }
 
 type PaymentMethod = "cash" | "momo" | null
-///
+
 export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const [referenceCode, setReferenceCode] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [paymentStep, setPaymentStep] = useState<"select" | "details" | "processing" | "success" | "redirecting">("select")
+  const [paymentStep, setPaymentStep] = useState<"select" | "details" | "processing" | "success" | "error" | "redirecting">("select")
   const [copied, setCopied] = useState(false)
   const [redirectProgress, setRedirectProgress] = useState(0)
+  const [paymentError, setPaymentError] = useState<string>("")
   
   const navigate = useNavigate()
 
-  // Generate reference code for MoMo payments
+  // GraphQL Mutation Hook
+  const [processPayment, { loading: mutationLoading, error: mutationError }] = useMutation<
+    { orderOrBookingPayment: PaymentMutationResult },
+    { entityId: string; entityType: string; method: string; reference: string }
+  >(ORDER_OR_BOOKING_PAYMENT, {
+    onCompleted: (data) => {
+      console.log("Booking payment mutation completed:", data)
+      handlePaymentSuccess(data.orderOrBookingPayment)
+    },
+    onError: (error) => {
+      console.error("Booking payment mutation error:", error)
+      handlePaymentError(error.message)
+    }
+  })
+
+  // Generate reference code for payments
   const generateReferenceCode = () => {
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.random().toString(36).substring(2, 8).toUpperCase()
-    return `MOMO${timestamp}${random}`
+    return selectedMethod === "momo" ? `MOMO${timestamp}${random}` : `BOOKING${timestamp}${random}`
   }
 
   // Reset modal state when opened
@@ -62,6 +104,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
       setPaymentStep("select")
       setCopied(false)
       setRedirectProgress(0)
+      setPaymentError("")
     }
   }, [open])
 
@@ -104,6 +147,8 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
     setSelectedMethod(method)
     if (method === "momo") {
       setReferenceCode(generateReferenceCode())
+    } else if (method === "cash") {
+      setReferenceCode(generateReferenceCode())
     }
     setPaymentStep("details")
   }
@@ -117,40 +162,77 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
 
     setIsProcessing(true)
     setPaymentStep("processing")
+    setPaymentError("")
 
     try {
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      const paymentResult: PaymentResult = {
-        method: selectedMethod!,
-        referenceCode: selectedMethod === "momo" ? referenceCode : undefined,
-        phoneNumber: selectedMethod === "momo" ? phoneNumber : undefined,
-        amount: orderDetails.amount,
-        orderId: orderDetails.id,
-        timestamp: new Date().toISOString(),
+      // Prepare mutation variables with correct method values
+      const mutationVariables = {
+        entityId: orderDetails.id,
+        entityType: "BOOKING", // Always BOOKING for this component
+        method: selectedMethod!, // Pass "cash" or "momo" directly
+        reference: referenceCode
       }
 
-      // Complete payment callback first
-      onPaymentComplete(paymentResult)
+      console.log("Processing booking payment with variables:", mutationVariables)
 
-      // Show success state
-      setPaymentStep("success")
-      setIsProcessing(false)
-
-      // Wait 2 seconds to show success message, then start redirecting
-      setTimeout(() => {
-        console.log("Starting redirect state") // Debug log
-        setPaymentStep("redirecting")
-        setRedirectProgress(0)
-      }, 2000)
+      // Execute the mutation
+      await processPayment({
+        variables: mutationVariables
+      })
 
     } catch (error) {
-      console.error("Payment error:", error) // Debug log
-      setIsProcessing(false)
-      setPaymentStep("select")
-      toast.error("Payment failed. Please try again.")
+      console.error("Booking payment processing error:", error)
+      handlePaymentError("Payment processing failed. Please try again.")
     }
+  }
+
+  // Handle successful payment
+  const handlePaymentSuccess = (paymentData: PaymentMutationResult) => {
+    const paymentResult: PaymentResult = {
+      method: selectedMethod!,
+      referenceCode: referenceCode,
+      phoneNumber: selectedMethod === "momo" ? phoneNumber : undefined,
+      amount: orderDetails.amount,
+      orderId: orderDetails.id,
+      timestamp: new Date().toISOString(),
+      paymentId: paymentData.id,
+      status: paymentData.status
+    }
+
+    // Complete payment callback first
+    onPaymentComplete(paymentResult)
+
+    // Show success state
+    setPaymentStep("success")
+    setIsProcessing(false)
+
+    // Success toast
+    toast.success(
+      selectedMethod === "momo" 
+        ? "Mobile money payment processed successfully!" 
+        : "Cash on delivery booking confirmed!"
+    )
+
+    // Wait 2 seconds to show success message, then start redirecting
+    setTimeout(() => {
+      console.log("Starting redirect state") // Debug log
+      setPaymentStep("redirecting")
+      setRedirectProgress(0)
+    }, 2000)
+  }
+
+  // Handle payment error
+  const handlePaymentError = (errorMessage: string) => {
+    setPaymentError(errorMessage)
+    setIsProcessing(false)
+    setPaymentStep("error")
+    toast.error(errorMessage)
+  }
+
+  // Retry payment
+  const retryPayment = () => {
+    setPaymentError("")
+    setPaymentStep("details")
   }
 
   // Copy reference code to clipboard
@@ -281,6 +363,27 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                   <h3 className="font-semibold text-gray-900">Cash on Delivery</h3>
                 </div>
 
+                {/* Reference Code Display */}
+                <div className="backdrop-blur-2xl bg-blue-50/70 rounded-2xl p-4 border border-blue-200/50 shadow-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="font-medium text-blue-800">Booking Reference</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyReferenceCode}
+                      className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-xl backdrop-blur-xl"
+                    >
+                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-sm font-bold text-blue-800 bg-white/60 rounded-xl p-3 text-center backdrop-blur-xl border border-gray-200/40 shadow-inner">
+                    {referenceCode}
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2 text-center">
+                    Mention this reference during delivery
+                  </p>
+                </div>
+
                 <div className="backdrop-blur-2xl bg-green-50/70 rounded-2xl p-4 border border-green-200/50 shadow-lg">
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 bg-green-100/80 rounded-lg flex items-center justify-center mt-1">
@@ -293,6 +396,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                         <li>• Payment will be collected upon delivery</li>
                         <li>• Ensure someone is available to receive the booking</li>
                         <li>• You'll receive a receipt after payment</li>
+                        <li>• Booking reference: {referenceCode}</li>
                       </ul>
                     </div>
                   </div>
@@ -308,9 +412,10 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                   </Button>
                   <Button
                     onClick={handlePayment}
-                    className="flex-1 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg h-11 font-medium"
+                    disabled={isProcessing || mutationLoading}
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg h-11 font-medium disabled:opacity-50"
                   >
-                    Confirm Booking
+                    {isProcessing || mutationLoading ? "Processing..." : "Confirm Booking"}
                   </Button>
                 </div>
               </div>
@@ -394,10 +499,10 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                   </Button>
                   <Button
                     onClick={handlePayment}
-                    disabled={!phoneNumber || phoneNumber.length < 10}
+                    disabled={!phoneNumber || phoneNumber.length < 10 || isProcessing || mutationLoading}
                     className="flex-1 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg h-11 font-medium disabled:opacity-50"
                   >
-                    Process Payment
+                    {isProcessing || mutationLoading ? "Processing..." : "Process Payment"}
                   </Button>
                 </div>
               </div>
@@ -429,6 +534,34 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
               </div>
             )}
 
+            {/* Error State */}
+            {paymentStep === "error" && (
+              <div className="text-center py-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-red-200 rounded-3xl flex items-center justify-center mx-auto mb-4 backdrop-blur-xl border border-red-300/40 shadow-lg">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Payment Failed</h3>
+                <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+                  {paymentError || "Something went wrong during payment processing."}
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPaymentStep("select")}
+                    className="flex-1 rounded-2xl backdrop-blur-xl bg-white/60 border-gray-300/50 text-gray-700 hover:bg-white/80 h-11 font-medium"
+                  >
+                    Change Method
+                  </Button>
+                  <Button
+                    onClick={retryPayment}
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg h-11 font-medium"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Success State - Always visible once reached */}
             {(paymentStep === "success" || paymentStep === "redirecting") && (
               <div className="text-center py-6">
@@ -441,7 +574,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                     ? `Your mobile money payment has been confirmed.`
                     : "Your cash on delivery booking has been confirmed."}
                 </p>
-                {selectedMethod === "momo" && (
+                {referenceCode && (
                   <div className="backdrop-blur-2xl bg-green-50/70 rounded-2xl p-3 border border-green-200/50 shadow-lg mb-4">
                     <p className="text-green-700 text-xs">
                       Reference: <span className="font-mono font-bold">{referenceCode}</span>

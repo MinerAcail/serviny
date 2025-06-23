@@ -34,14 +34,27 @@ type AppointmentBooking struct {
 	PickupLocation        pq.Float64Array ` gorm:"type:float[]" json:"pickup_Location"`  // [lng, lat]
 	EstimatedDeliveryDate *string         `json:"estimatedDeliveryDate,omitempty"`
 	DeliveryAddress       string          `json:"deliveryAddress"`
-	PickUpAddress       *string          `json:"pickUpAddress,omitempty"`
-	UserID      string   `json:"userId"`
-	IsConfirmed *bool    `json:"isConfirmed,omitempty"`
-	UserType    UserType `json:"userType"`
-	MultiGroupID *string  `json:"multiGroupId,omitempty"`
-	Status 	string   `json:"status"`
+	PickUpAddress         *string         `json:"pickUpAddress,omitempty"`
+	UserID                string          `json:"userId"`
+	IsConfirmed           *bool           `json:"isConfirmed,omitempty"`
+	UserType              UserType        `json:"userType"`
+	MultiGroupID          *string         `json:"multiGroupId,omitempty"`
+	CargoID               *string         `json:"cargoId,omitempty"`
+
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+type BookingCargo struct {
+	ID            uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	ServiceID     *string   `json:"serviceId,omitempty"`
+	UserID        *string   `json:"userId,omitempty"`
+	RiderID       *string   `json:"riderId,omitempty"`
+	TransportType string    `json:"transportType"`
+	BookingID     *string   `json:"bookingId,omitempty"`
+	MultiGroupID  *string   `json:"multiGroupId,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 func (User) IsReturns()    {}

@@ -67,30 +67,28 @@ export const GET_PROVIDER = gql`
 //   }
 // `;
 export function ServiceProviderProfile() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const userId = user?.id;
-  let { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
-    const localServiceId = localStorage.getItem("serviceId");
-  // serviceId = serviceId || localServiceId || "";
+  let { serviceId } = useParams<{ serviceId: string }>();
+  const localServiceId = localStorage.getItem("serviceId");
   const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
   serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
   const location = useLocation();
-  // console.log(serviceId);
-  // const { setTheme } = useTheme();
-  // inside your component
-  // const navigate = useNavigate();
-  // Check if the query string contains ?lt
+
+  // Use consistent localStorage key for dialog state
+  const [dialogState, setDialogState] = useState(() => {
+    const savedState = localStorage.getItem("isDialogOpen");
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
+
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId: serviceId },
   });
-  console.log("data", data);
 
   const [isTabsFixed, setIsTabsFixed] = useState(false);
-
-  // Initialize activeTab from localStorage with serviceId-specific key
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
     return savedTab || "portfolio";
@@ -99,14 +97,9 @@ export function ServiceProviderProfile() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // const [isDialogOpen, setDialogOpen] = useState(false);
-  // const [isDialogAbout, setDialogAbout] = useState(false);
-  const [dialogState, setDialogState] = useState(() => {
-    const savedState = localStorage.getItem("isServiceDialogOpen");
-    return savedState !== null ? JSON.parse(savedState) : true;
-  });
 
-  // Function to handle tab change and save to localStorage
+  // Remove the separate dialogStateLandingPage state since we're using dialogState
+
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
     localStorage.setItem(`activeTab_${serviceId}`, newTab);
@@ -131,28 +124,45 @@ export function ServiceProviderProfile() {
     }
   }, [activeTab]);
 
-  // Update localStorage when serviceId changes
   useEffect(() => {
     if (serviceId) {
       const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
       if (savedTab) {
         setActiveTab(savedTab);
       } else {
-        // Reset to default if no saved tab for this service
         setActiveTab("portfolio");
       }
     }
   }, [serviceId]);
 
-  // if (loading) return <p>Loading...</p>;
-  // if (error) return <p>Error: {error.message}</p>;
-  // if () return <p>No provider found.</p>;
   useEffect(() => {
     if (serviceId) {
       localStorage.setItem("serviceId", serviceId);
     }
   }, [serviceId]);
-  // const provider = data?.getProvider;
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const currentState = localStorage.getItem("isDialogOpen");
+      if (currentState !== null) {
+        setDialogState(JSON.parse(currentState));
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+  // Show the toast only once per session
+  useEffect(() => {
+    if (!isAuthenticated ) {
+      toast.warning("You need to be logged in to save Service profile.");
+     
+    }
+  }, [isAuthenticated]);
+  // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
+  if (!isAuthenticated && !localServiceId && dialogState) {
+    return <LandingPage onClose={() => setDialogState(false)} />;
+  }
 
   const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
 
@@ -587,6 +597,8 @@ import ServiceLandingPage from "../landing/providerLandingPage";
 import ItemChatWidget from "../user/item-chat-widget";
 import { AllProducts } from "@/vendor/AllProducts";
 import Policies from "./pandp/policies";
+import LandingPage from "./page";
+import { toast } from "sonner";
 interface ContactInfoProps {
   provider?: {
     number?: string;

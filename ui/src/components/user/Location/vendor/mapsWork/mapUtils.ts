@@ -119,16 +119,16 @@ export const showPointInfoPopup = (
             <span class="text-[#86868B]">Estimated Time</span>
             <span class="font-medium">${info.estimatedTime}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-[#86868B]">Minimum Ordefdfdr</span>
-            <span class="font-medium">$${info.minimumOrder.toFixed(2)}</span>
-          </div>
+         
         </div>
         <p class="mt-3 text-[12px] text-[#86868B]">Extended delivery fees apply to this location</p>
       </div>
     `
   }
-
+ // <div class="flex justify-between">
+          //   <span class="text-[#86868B]">Minimum Orderr</span>
+          //   <span class="font-medium">$${info.minimumOrder.toFixed(2)}</span>
+          // </div>
   // Create and show popup with iOS-style design
   const popup = new maplibregl.Popup({
     closeButton: true,

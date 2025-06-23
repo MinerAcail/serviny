@@ -44,6 +44,7 @@ extend type Mutation {
   createMultipleBookings(
     input: [BookerInput!]!
     isMulti:Boolean
+    isCargo:Boolean
     serviceId: String!
   ): [AppointmentBooking!]!
   updateMultipleBookingsWithLocation(
@@ -99,6 +100,7 @@ type AppointmentBooking {
   isConfirmed: Boolean
   userType: UserType!
   multiGroupId: String
+  cargoId: String
   status: String!
   createdAt: Time!
   updatedAt: Time!
@@ -110,3 +112,14 @@ type UserAppointmentBookedData {
 }
 
 
+type BookingCargo  {
+  id: String!
+  serviceId: String
+  userId: String
+  riderId: String
+  transportType: String!
+  bookingId: String
+  multiGroupId: String
+  createdAt: Time!
+  updatedAt: Time!
+}

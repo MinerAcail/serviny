@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Calendar, Navigation, X, Compass, Map, User, DollarSign, Clock, MapPin } from "lucide-react"
+import { Calendar, Navigation, X, Compass, Map, User,  MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -343,13 +343,13 @@ function RidersList({
         {ridersToShow.map((rider, index) => {
           const isSelected = selectedRiderId === rider?.id
           
-          console.log(`Rendering rider ${rider?.name}:`, {
-            minPrice: rider?.minPrice,
-            maxPrice: rider?.maxPrice,
-            minDistance: rider?.minDistance,
-            maxDistance: rider?.maxDistance,
-            totalZones: rider?.totalZones
-          });
+          // console.log(`Rendering rider ${rider?.name}:`, {
+          //   minPrice: rider?.minPrice,
+          //   maxPrice: rider?.maxPrice,
+          //   minDistance: rider?.minDistance,
+          //   maxDistance: rider?.maxDistance,
+          //   totalZones: rider?.totalZones
+          // });
 
           return (
             <motion.button
@@ -401,9 +401,9 @@ function RidersList({
                   {/* Pricing and coverage info from metadata */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center text-[#86868B]">
-                      <DollarSign className="h-3 w-3 mr-1" />
+                      {/* <DollarSign className="h-3 w-3 mr-1" /> */}
                       <span>
-                        ${(rider?.minPrice || 0).toFixed(2)}
+                        GH₵{(rider?.minPrice || 0).toFixed(2)}
                         {(rider?.maxPrice || 0) > (rider?.minPrice || 0) ? ` - ${(rider?.maxPrice || 0).toFixed(2)}` : ''}
                       </span>
                     </div>
@@ -638,7 +638,7 @@ function ZoneCard({
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#86868B]">Delivery Fee</span>
             <span className={cn("text-lg font-semibold", zone.deliveryFee === 0 ? "text-[#34C759]" : "text-[#1D1D1F]")}>
-              {zone.deliveryFee === 0 ? "Free" : `$${zone.deliveryFee?.toFixed(2) || '0.00'}`}
+              {zone.deliveryFee === 0 ? "Free" : `GH₵${zone.deliveryFee?.toFixed(2) || '0.00'}`}
             </span>
           </div>
 

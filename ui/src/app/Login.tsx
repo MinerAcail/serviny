@@ -82,7 +82,7 @@ const Login = ({ children }: { children: ReactNode }) => {
       // Check if login was successful
       if (result?.data?.serviceLogin) {
         // Authenticate the user
-        // Auth(result.data.serviceLogin);
+        Auth(result.data.serviceLogin);
 
         // You can check the type to navigate to different routes if needed
         const userType = result.data.serviceLogin.type;

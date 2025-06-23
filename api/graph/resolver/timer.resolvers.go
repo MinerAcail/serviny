@@ -51,6 +51,12 @@ func (r *appointmentBookingResolver) PickupLocation(ctx context.Context, obj *mo
 	return result, nil
 }
 
+// ID is the resolver for the id field.
+func (r *bookingCargoResolver) ID(ctx context.Context, obj *model.BookingCargo) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
 // CreateUnavailablePeriod1 is the resolver for the createUnavailablePeriod1 field.
 func (r *mutationResolver) CreateUnavailablePeriod(ctx context.Context, input model.CreateUnavailablePeriodInput) (*model.UnavailablePeriod, error) {
 	ServiceIDStr, err := r.Query().GetID(ctx)
@@ -149,7 +155,7 @@ func (r *mutationResolver) GetGrowthData(ctx context.Context, id string) (*model
 }
 
 // CreateMultipleBookings is the resolver for the createMultipleBookings field.
-func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, serviceID string) ([]*model.AppointmentBooking, error) {
+func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string) ([]*model.AppointmentBooking, error) {
 	UserIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Service ID: %v", err)
@@ -187,6 +193,7 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 	}
 
 	bookings := make([]*model.AppointmentBooking, 0, len(input))
+	var cargo model.BookingCargo
 
 	for _, bookerInput := range input {
 		// Parse start time
@@ -486,7 +493,7 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
 		}
 	}
-
+	booking.Status = "PROCESSING" // Update booking status to PROCESSING
 	// Save the updated booking
 	if err := tx.Save(&booking).Error; err != nil {
 		tx.Rollback()
@@ -603,6 +610,8 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			}
 			return nil, fmt.Errorf("failed to fetch booking %s: %w", in.BookID, err)
 		}
+
+		booking.Status = "PROCESSING" // Update booking status to PROCESSING
 
 		log.Printf("Updating booking %s with location for user %s", bookingID, *userIDStr)
 
@@ -1298,10 +1307,14 @@ func (r *Resolver) AppointmentBooking() graph.AppointmentBookingResolver {
 	return &appointmentBookingResolver{r}
 }
 
+// BookingCargo returns graph.BookingCargoResolver implementation.
+func (r *Resolver) BookingCargo() graph.BookingCargoResolver { return &bookingCargoResolver{r} }
+
 // UnavailablePeriod returns graph.UnavailablePeriodResolver implementation.
 func (r *Resolver) UnavailablePeriod() graph.UnavailablePeriodResolver {
 	return &unavailablePeriodResolver{r}
 }
 
 type appointmentBookingResolver struct{ *Resolver }
+type bookingCargoResolver struct{ *Resolver }
 type unavailablePeriodResolver struct{ *Resolver }

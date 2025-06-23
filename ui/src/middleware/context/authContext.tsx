@@ -156,7 +156,17 @@ interface UserType {
   number: string;
 }
 // GraphQL query to clear the client cache
-
+export const GET_USER_INFO_FROM_CONTEXT = gql`
+  query GetUserInforFromContext {
+    getUserInforFromContext {
+      id
+      number
+      name
+      email
+      type
+    }
+  }
+`;
 // Create an authentication context
 const AuthContext = createContext<
   | {

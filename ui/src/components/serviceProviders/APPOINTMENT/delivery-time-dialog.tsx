@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 // import { format } from "date-fns"
-import { CalendarIcon, ClockIcon, Minus, Plus, Settings, X, Check, ChevronRight } from 'lucide-react'
+import { CalendarIcon, ClockIcon, Minus, Plus,  X, Check, ChevronRight } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent,  DialogTitle } from "@/components/ui/dialog"

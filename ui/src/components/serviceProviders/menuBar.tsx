@@ -43,58 +43,11 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
         {!isSearchExpanded && (
           <>
             {!Servicetabs && <RegisterOptions />}
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 text-sm px-3 py-1 md:px-4 md:py-2"
-            >
-              <Link to="/install" className="flex items-center gap-2 p-2">
-                <ArrowBigDownDash className="w-4 h-4" />
-
-                <span className="hidden sm:inline">Download</span>
-              </Link>
-            </Button>
+            
 
             {isAuthenticated ? (
               <>
-                {Servicetabs && (
-                  <NavigationMenu>
-                    <NavigationMenuList>
-                      {!isBookTypes ? (
-                        <Button className="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-md">
-                          <Link
-                            to="/booktypes"
-                            className="flex items-center gap-2 p-2"
-                          >
-                            <Library className="w-4 h-4" />
-                            <span>Types</span>
-                          </Link>
-                        </Button>
-                      ) : (
-                        <>
-                          <Button className="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-md">
-                            <Link
-                              to={`/providers/${user?.id}`}
-                              className="flex items-center gap-2 p-2"
-                            >
-                              <Library className="w-4 h-4" />
-                              <span>Profile</span>
-                            </Link>
-                          </Button>
-                          <Button className="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-md">
-                            <Link
-                              to={`/time/${user?.id}`}
-                              className="flex items-center gap-2 p-2"
-                            >
-                              <Library className="w-4 h-4" />
-                              <span>Booked</span>
-                            </Link>
-                          </Button>
-                        </>
-                      )}
-                    </NavigationMenuList>
-                  </NavigationMenu>
-                )}
+               
 
                 <Logout>
                   <Button
@@ -123,13 +76,11 @@ const MainNaveBar: React.FC<SelectCategoryFilterProps> = ({
             )}
           </>
         )}
-        {home && (
-          <Search
+         <Search
             isExpanded={isSearchExpanded}
             setIsExpanded={setIsSearchExpanded}
             onSearch={onSearch}
           />
-        )}
         {search && <SearchDropdown serviceId={serviceId ?? ""} />}
       </div>
     </nav>

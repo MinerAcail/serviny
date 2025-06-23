@@ -1624,6 +1624,7 @@ export function PinDropControlPanel({
 // import { gql, useMutation, useQuery } from "@apollo/client"
 
 // Updated mutation to match your backend
+//
 export const UPDATE_BOOKING_WITH_LOCATION = gql`
   mutation UpdateMultipleBookingsWithLocation($input: addBookCoordinateInput!) {
     updateMultipleBookingsWithLocation(input: $input) {
