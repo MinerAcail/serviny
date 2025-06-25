@@ -60,8 +60,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/minio": {
-        // target: "https://files.winnemart.com/",
-        target: 'http://localhost:9000', // Adjust if MinIO is not running on
+        target: "https://files.winnemart.com/",
+        // target: 'http://localhost:9000', // Adjust if MinIO is not running on
 
         
         changeOrigin: true,
