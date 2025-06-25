@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-import { NewCardForm, NewPolicyForm } from "./InvoiceForms";
+import { NewCardForm, NewPolicyForm } from "./invoiceForms";
 import {
   GET_PRICE_CARDS,
   GET_POLICY_INFORMATION,
