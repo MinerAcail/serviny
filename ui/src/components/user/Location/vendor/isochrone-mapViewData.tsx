@@ -1,4 +1,3 @@
-"use client"
 
 import { useEffect, useRef, useState } from "react"
 import maplibregl from "maplibre-gl"
@@ -17,10 +16,11 @@ type Location = {
 
 type TransportMode = "walking" | "bike" | "motorbike" | "car"
 type RangeType = "time" | "distance"
-
+// IsochroneZone
 interface IsochroneMapProps {
   vendorLocation: Location
-  isochrones: any[] // GeoJSON Feature[]
+  
+  isochrones: any[] // GeoJSON Feature[] 
   transportMode: TransportMode
   rangeType: RangeType
   ranges: number[] // in km or minutes
@@ -58,7 +58,7 @@ export function IsochroneMap({
   const [tempMarker, setTempMarker] = useState<maplibregl.Marker | null>(null)
   const [isGeneratingExtension, setIsGeneratingExtension] = useState(false)
   const [extendedZones, setExtendedZones] = useState<extendedUtils.IsochroneZone[]>([])
-  const [mergedCoverage, setMergedCoverage] = useState<any>(null)
+  // const [mergedCoverage, setMergedCoverage] = useState<any>(null)
   const [suggestedMarkers, setSuggestedMarkers] = useState<maplibregl.Marker[]>([])
   const [infoPopup, setInfoPopup] = useState<maplibregl.Popup | null>(null)
   const [savedFeaturePopups, setSavedFeaturePopups] = useState<{[key: string]: maplibregl.Popup}>({})
@@ -126,7 +126,7 @@ export function IsochroneMap({
       
       // Update state with new zones and merged coverage
       setExtendedZones(result.allZones);
-      setMergedCoverage(result.mergedCoverage);
+      // setMergedCoverage(result.mergedCoverage);
       
       // Call the callback if provided
       if (onExtendGenerated) {
@@ -198,7 +198,7 @@ export function IsochroneMap({
   };
 
   // Update map visualization with new data
-  const updateMapVisualization = (vizData: any) => {
+  const updateMapVisualization = (vizData: GeoJSON.FeatureCollection) => {
     if (!mapInstance.current) return;
     
     const map = mapInstance.current;
@@ -325,16 +325,14 @@ export function IsochroneMap({
       paint: {
         "fill-color": [
           "match",
-          ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-          // Map each group index to a color from our palette
-          // 0, ZONE_COLORS[0],
-          // 1, ZONE_COLORS[1],
-          // 2, ZONE_COLORS[2],
-          // 3, ZONE_COLORS[3],
-          // 4, ZONE_COLORS[4],
-          // 5, ZONE_COLORS[5],
-          // Default color if no match
-          // ZONE_COLORS[0]
+          ["to-number", ["get", "group_index"]],
+          0, ZONE_COLORS[0],
+          1, ZONE_COLORS[1],
+          2, ZONE_COLORS[2],
+          3, ZONE_COLORS[3],
+          4, ZONE_COLORS[4],
+          5, ZONE_COLORS[5],
+          ZONE_COLORS[0]
         ],
         "fill-opacity": 0.4,
         "fill-outline-color": "#ffffff"
@@ -350,16 +348,14 @@ export function IsochroneMap({
       paint: {
         "line-color": [
           "match",
-          ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-          // Map each group index to a color from our palette
-          // 0, ZONE_COLORS[0],
-          // 1, ZONE_COLORS[1],
-          // 2, ZONE_COLORS[2],
-          // 3, ZONE_COLORS[3],
-          // 4, ZONE_COLORS[4],
-          // 5, ZONE_COLORS[5],
-          // Default color if no match
-          // ZONE_COLORS[0]
+          ["to-number", ["get", "group_index"]],
+          0, ZONE_COLORS[0],
+          1, ZONE_COLORS[1],
+          2, ZONE_COLORS[2],
+          3, ZONE_COLORS[3],
+          4, ZONE_COLORS[4],
+          5, ZONE_COLORS[5],
+          ZONE_COLORS[0]
         ],
         "line-width": 2,
         "line-opacity": 0.8
@@ -436,7 +432,7 @@ export function IsochroneMap({
         }
         // For multipolygon support
         else if (feature.geometry.type === 'MultiPolygon') {
-          feature.geometry.coordinates.forEach((polygon: any) => {
+          feature.geometry.coordinates.forEach((polygon: number[][][]) => {
             polygon[0].forEach((coord: number[]) => {
               bounds.extend([coord[0], coord[1]]);
             });
@@ -691,7 +687,7 @@ export function IsochroneMap({
             
             // Update state with zones and coverage
             setExtendedZones([result.newZone]);
-            setMergedCoverage(result.mergedCoverage);
+            // setMergedCoverage(result.mergedCoverage);
             
             // Create visualization data
             const vizData = extendedUtils.createVisualizationData(
@@ -727,22 +723,15 @@ export function IsochroneMap({
             paint: {
               // Use the range index for color selection
               "fill-color": [
-                "case",
-                // For active zone index view, always use the specific color
-                ["==", ["literal", activeZoneIndex !== null], true],
-                // // ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
-                // Otherwise, determine by the isochrone order
-                ["match",
-                  ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-                  // Map each group index to a color from our palette
-                  // 0, ZONE_COLORS[0],
-                  // 1, ZONE_COLORS[1],
-                  // 2, ZONE_COLORS[2],
-                  // 3, ZONE_COLORS[3],
-                  // 4, ZONE_COLORS[4],
-                  // 5, ZONE_COLORS[5],
-                  // Default color if no match
-                  // ZONE_COLORS[0]]
+                "match",
+                ["to-number", ["get", "group_index"]],
+                0, ZONE_COLORS[0],
+                1, ZONE_COLORS[1],
+                2, ZONE_COLORS[2],
+                3, ZONE_COLORS[3],
+                4, ZONE_COLORS[4],
+                5, ZONE_COLORS[5],
+                ZONE_COLORS[0]
               ],
               "fill-opacity": [
                 "case",
@@ -763,22 +752,15 @@ export function IsochroneMap({
             layout: {},
             paint: {
               "line-color": [
-                "case",
-                // For active zone index view, always use the specific color
-                ["==", ["literal", activeZoneIndex !== null], true],
-                // // ZONE_COLORS[activeZoneIndex !== null ? activeZoneIndex % ZONE_COLORS.length : 0],
-                // Otherwise, determine by the isochrone order
-                ["match",
-                  ["to-number", ["get", "group_index"]], // Using group_index which should be 0, 1, 2, etc.
-                  // Map each group index to a color from our palette
-                  // 0, ZONE_COLORS[0],
-                  // 1, ZONE_COLORS[1],
-                  // 2, ZONE_COLORS[2],
-                  // 3, ZONE_COLORS[3],
-                  // 4, ZONE_COLORS[4],
-                  // 5, ZONE_COLORS[5],
-                  // Default color if no match
-                  // ZONE_COLORS[0]]
+                "match",
+                ["to-number", ["get", "group_index"]],
+                0, ZONE_COLORS[0],
+                1, ZONE_COLORS[1],
+                2, ZONE_COLORS[2],
+                3, ZONE_COLORS[3],
+                4, ZONE_COLORS[4],
+                5, ZONE_COLORS[5],
+                ZONE_COLORS[0] // Default color
               ],
               "line-width": [
                 "case",
@@ -843,10 +825,13 @@ export function IsochroneMap({
             }
             // For multipolygon support
             else if (feature.geometry.type === 'MultiPolygon') {
-              feature.geometry.coordinates.forEach((polygon: any) => {
-                polygon[0].forEach((coord: number[]) => {
-                  bounds.extend([coord[0], coord[1]])
-                })
+              feature.geometry.coordinates.forEach((polygon: number[][][]) => {
+                // polygon is an array of linear rings, where the first is the exterior ring
+                if (Array.isArray(polygon[0])) {
+                  polygon[0].forEach((coord: number[]) => {
+                    bounds.extend([coord[0], coord[1]])
+                  })
+                }
               })
             }
           }
@@ -1008,14 +993,14 @@ export function IsochroneMap({
               paint: {
                 "fill-color": [
                   "match",
-                  ["to-number", ["get", "group_index"]], 
-                  // 0, ZONE_COLORS[0],
-                  // 1, ZONE_COLORS[1],
-                  // 2, ZONE_COLORS[2],
-                  // 3, ZONE_COLORS[3],
-                  // 4, ZONE_COLORS[4],
-                  // 5, ZONE_COLORS[5],
-                  // ZONE_COLORS[0]
+                  ["to-number", ["get", "group_index"]],
+                  0, ZONE_COLORS[0],
+                  1, ZONE_COLORS[1],
+                  2, ZONE_COLORS[2],
+                  3, ZONE_COLORS[3],
+                  4, ZONE_COLORS[4],
+                  5, ZONE_COLORS[5],
+                  ZONE_COLORS[0] // default color
                 ],
                 "fill-opacity": 0.4
               },
@@ -1030,14 +1015,14 @@ export function IsochroneMap({
               paint: {
                 "line-color": [
                   "match",
-                  ["to-number", ["get", "group_index"]], 
-                  // 0, ZONE_COLORS[0],
-                  // 1, ZONE_COLORS[1],
-                  // 2, ZONE_COLORS[2],
-                  // 3, ZONE_COLORS[3],
-                  // 4, ZONE_COLORS[4],
-                  // 5, ZONE_COLORS[5],
-                  // ZONE_COLORS[0]
+                  ["to-number", ["get", "group_index"]],
+                  0, ZONE_COLORS[0],
+                  1, ZONE_COLORS[1],
+                  2, ZONE_COLORS[2],
+                  3, ZONE_COLORS[3],
+                  4, ZONE_COLORS[4],
+                  5, ZONE_COLORS[5],
+                  ZONE_COLORS[0] // default color
                 ],
                 "line-width": 2,
                 "line-opacity": 0.8

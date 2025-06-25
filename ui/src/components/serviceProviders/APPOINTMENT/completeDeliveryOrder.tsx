@@ -67,7 +67,11 @@ const CREATE_MULTIPLE_BOOKINGS = gql`
     $isMulti: Boolean
     $serviceId: String!
   ) {
-    createMultipleBookings(input: $input, isMulti: $isMulti, serviceId: $serviceId) {
+    createMultipleBookings(
+      input: $input
+      isMulti: $isMulti
+      serviceId: $serviceId
+    ) {
       id
       startTime
       endTime
@@ -155,9 +159,9 @@ const defaultTimeSlots: string[] = [
 
 // Generate a simple UUID
 const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 };
@@ -214,7 +218,7 @@ export const DeliveryServiceSystem = ({
   const { user } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
-  
+
   // States for the delivery system
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     null
@@ -230,7 +234,7 @@ export const DeliveryServiceSystem = ({
     notes: "",
     itemType: "",
   });
-  
+
   // Multi-location delivery states
   const [isMultiLocation, setIsMultiLocation] = useState<boolean>(false);
   const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([
@@ -239,10 +243,10 @@ export const DeliveryServiceSystem = ({
       itemDescription: "",
       deliveryAddress: "",
       dropoffLocation: [0, 0], // [lat, lng]
-      notes: ""
-    }
+      notes: "",
+    },
   ]);
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
   const [datesPerPage] = useState(7);
@@ -322,13 +326,13 @@ export const DeliveryServiceSystem = ({
           itemDescription: "",
           deliveryAddress: "",
           dropoffLocation: [0, 0] as [number, number],
-          notes: ""
+          notes: "",
         });
       }
-      setDeliveryItems(prev => [...prev, ...newItems]);
+      setDeliveryItems((prev) => [...prev, ...newItems]);
     } else if (orderSize < deliveryItems.length) {
       // Remove excess items
-      setDeliveryItems(prev => prev.slice(0, orderSize));
+      setDeliveryItems((prev) => prev.slice(0, orderSize));
     }
   }, [orderSize, deliveryItems.length]);
 
@@ -348,20 +352,21 @@ export const DeliveryServiceSystem = ({
 
         setSuccessMessage("Delivery order created successfully!");
         setTimeout(() => setSuccessMessage(""), 3000);
-        
+
         // Check if we have created bookings and get the first ID
         const createdBookings = data.createMultipleBookings || [];
-        const firstBookingId = createdBookings.length > 0 ? createdBookings[0].id : null;
-        
+        const firstBookingId =
+          createdBookings.length > 0 ? createdBookings[0].id : null;
+
         setDeliverySegments([]);
         setSelectedStartTime(null);
         setDeliveryDates([]);
         setDialogOpenMain(false);
-        
+
         // Navigate with the new booking ID if available
         if (firstBookingId) {
           navigate(`/delivery/${serviceId}/${firstBookingId}`, {
-            replace: true
+            replace: true,
           });
         } else {
           navigate(`/zonex/${serviceId}`);
@@ -582,12 +587,14 @@ export const DeliveryServiceSystem = ({
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDeliveryItemChange = (itemId: string, field: string, value: any): void => {
-    setDeliveryItems(prev => 
-      prev.map(item => 
-        item.id === itemId 
-          ? { ...item, [field]: value }
-          : item
+  const handleDeliveryItemChange = (
+    itemId: string,
+    field: string,
+    value: any
+  ): void => {
+    setDeliveryItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, [field]: value } : item
       )
     );
   };
@@ -622,12 +629,14 @@ export const DeliveryServiceSystem = ({
 
     // Validate multi-location items if enabled
     if (isMultiLocation) {
-      const invalidItems = deliveryItems.some(item => 
-        !item.itemDescription.trim() || !item.deliveryAddress.trim()
+      const invalidItems = deliveryItems.some(
+        (item) => !item.itemDescription.trim() || !item.deliveryAddress.trim()
       );
-      
+
       if (invalidItems) {
-        setErrorMessage("Please fill in all item descriptions and delivery addresses");
+        setErrorMessage(
+          "Please fill in all item descriptions and delivery addresses"
+        );
         setTimeout(() => setErrorMessage(""), 3000);
         return;
       }
@@ -635,33 +644,39 @@ export const DeliveryServiceSystem = ({
 
     // Prepare delivery inputs
     const multiGroupId = isMultiLocation ? generateUUID() : null;
-    
+
     let deliveryInputs;
-    
+
     if (isMultiLocation) {
       // Create separate booking for each item with unique locations
       deliveryInputs = deliveryItems.map((item) => ({
-        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-        notes: item.notes,
+        startTime: timeToISOString(
+          deliverySegments[0].startDate,
+          deliverySegments[0].startTime
+        ),
+        endTime: timeToISOString(
+          deliverySegments[0].endDate,
+          deliverySegments[0].endTime
+        ),
+        // notes: item.notes,
         tableSize: 1, // Each item is individual
-     
-      notes: userData.notes,
-      userId: userId,
-      userType: user.type,
-      item: userData.itemType,
+
+        notes: userData.notes,
+        userId: userId,
+        userType: user.type,
+        item: userData.itemType,
         multiGroupId: multiGroupId,
       }));
     } else {
       // Single delivery
-      deliveryInputs = deliverySegments.map(segment => ({
-         startTime: timeToISOString(segment.startDate, segment.startTime),
-      endTime: timeToISOString(segment.endDate, segment.endTime),
-      notes: userData.notes,
-      tableSize: orderSize, // Repurposed for order size
-      userId: userId,
-      userType: user.type,
-      item: userData.itemType,
+      deliveryInputs = deliverySegments.map((segment) => ({
+        startTime: timeToISOString(segment.startDate, segment.startTime),
+        endTime: timeToISOString(segment.endDate, segment.endTime),
+        notes: userData.notes,
+        tableSize: orderSize, // Repurposed for order size
+        userId: userId,
+        userType: user.type,
+        item: userData.itemType,
         multiGroupId: null,
       }));
     }
@@ -888,7 +903,7 @@ export const DeliveryServiceSystem = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <DeliveryTimeDialog
         decreaseWaitTime={decreaseWaitTime}
         increaseWaitTime={increaseWaitTime}
@@ -900,7 +915,7 @@ export const DeliveryServiceSystem = ({
         isOpen={isDialogOpenDeliverySetting}
         onContinue={proceedToDeliveryDetails}
       />
-      
+
       <CompleteDeliveryOrder
         isDialogOpen={isDialogOpen}
         setIsDialogOpen={setIsDialogOpen}
@@ -941,7 +956,7 @@ export const DeliveryServiceSystemNew = ({
   const { user } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
-  
+
   // States for the delivery system
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     null
@@ -957,7 +972,7 @@ export const DeliveryServiceSystemNew = ({
     notes: "",
     itemType: "",
   });
-  
+
   // Multi-location delivery states
   const [isMultiLocation, setIsMultiLocation] = useState<boolean>(false);
   const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([
@@ -966,10 +981,10 @@ export const DeliveryServiceSystemNew = ({
       itemDescription: "",
       deliveryAddress: "",
       dropoffLocation: [0, 0], // [lat, lng]
-      notes: ""
-    }
+      notes: "",
+    },
   ]);
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
   const [datesPerPage] = useState(7);
@@ -1049,13 +1064,13 @@ export const DeliveryServiceSystemNew = ({
           itemDescription: "",
           deliveryAddress: "",
           dropoffLocation: [0, 0] as [number, number],
-          notes: ""
+          notes: "",
         });
       }
-      setDeliveryItems(prev => [...prev, ...newItems]);
+      setDeliveryItems((prev) => [...prev, ...newItems]);
     } else if (orderSize < deliveryItems.length) {
       // Remove excess items
-      setDeliveryItems(prev => prev.slice(0, orderSize));
+      setDeliveryItems((prev) => prev.slice(0, orderSize));
     }
   }, [orderSize, deliveryItems.length]);
 
@@ -1075,22 +1090,23 @@ export const DeliveryServiceSystemNew = ({
 
         setSuccessMessage("Delivery order created successfully!");
         setTimeout(() => setSuccessMessage(""), 3000);
-        
+
         // Check if we have created bookings and get the first ID
         const createdBookings = data.createMultipleBookings || [];
-        const firstBookingId = createdBookings.length > 0 ? createdBookings[0].id : null;
-        
+        const firstBookingId =
+          createdBookings.length > 0 ? createdBookings[0].id : null;
+
         setDeliverySegments([]);
         setSelectedStartTime(null);
         setDeliveryDates([]);
         if (withDialog) {
           setDialogOpenMain(false);
         }
-        
+
         // Navigate with the new booking ID if available
         if (firstBookingId) {
           navigate(`/delivery/${serviceId}/${firstBookingId}`, {
-            replace: true
+            replace: true,
           });
         } else {
           navigate(`/zonex/${serviceId}`);
@@ -1311,12 +1327,14 @@ export const DeliveryServiceSystemNew = ({
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDeliveryItemChange = (itemId: string, field: string, value: any): void => {
-    setDeliveryItems(prev => 
-      prev.map(item => 
-        item.id === itemId 
-          ? { ...item, [field]: value }
-          : item
+  const handleDeliveryItemChange = (
+    itemId: string,
+    field: string,
+    value: any
+  ): void => {
+    setDeliveryItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, [field]: value } : item
       )
     );
   };
@@ -1351,12 +1369,14 @@ export const DeliveryServiceSystemNew = ({
 
     // Validate multi-location items if enabled
     if (isMultiLocation) {
-      const invalidItems = deliveryItems.some(item => 
-        !item.itemDescription.trim() || !item.deliveryAddress.trim()
+      const invalidItems = deliveryItems.some(
+        (item) => !item.itemDescription.trim() || !item.deliveryAddress.trim()
       );
-      
+
       if (invalidItems) {
-        setErrorMessage("Please fill in all item descriptions and delivery addresses");
+        setErrorMessage(
+          "Please fill in all item descriptions and delivery addresses"
+        );
         setTimeout(() => setErrorMessage(""), 3000);
         return;
       }
@@ -1364,14 +1384,20 @@ export const DeliveryServiceSystemNew = ({
 
     // Prepare delivery inputs
     const multiGroupId = isMultiLocation ? generateUUID() : null;
-    
+
     let deliveryInputs;
-    
+
     if (isMultiLocation) {
       // Create separate booking for each item with unique locations
       deliveryInputs = deliveryItems.map((item) => ({
-        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        startTime: timeToISOString(
+          deliverySegments[0].startDate,
+          deliverySegments[0].startTime
+        ),
+        endTime: timeToISOString(
+          deliverySegments[0].endDate,
+          deliverySegments[0].endTime
+        ),
         notes: item.notes,
         tableSize: 1, // Each item is individual
         userId: userId,
@@ -1383,7 +1409,7 @@ export const DeliveryServiceSystemNew = ({
       }));
     } else {
       // Single delivery
-      deliveryInputs = deliverySegments.map(segment => ({
+      deliveryInputs = deliverySegments.map((segment) => ({
         startTime: timeToISOString(segment.startDate, segment.startTime),
         endTime: timeToISOString(segment.endDate, segment.endTime),
         notes: userData.notes,
@@ -1508,9 +1534,7 @@ export const DeliveryServiceSystemNew = ({
                   {deliverySegments.length > 0 && (
                     <Button
                       onClick={() =>
-                        setDeliverySettingDialog(
-                          !isDialogOpenDeliverySetting
-                        )
+                        setDeliverySettingDialog(!isDialogOpenDeliverySetting)
                       }
                       variant="ghost"
                       size="icon"
@@ -1525,19 +1549,14 @@ export const DeliveryServiceSystemNew = ({
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {timeSlots.map((time) => {
                     const isPast = isSlotInPast(selectedDate, time);
-                    const isUnavailable = isSlotUnavailable(
-                      selectedDate,
-                      time
-                    );
+                    const isUnavailable = isSlotUnavailable(selectedDate, time);
                     const isSelected = selectedStartTime === time;
 
                     return (
                       <div
                         key={time}
                         onClick={() =>
-                          !isPast &&
-                          !isUnavailable &&
-                          handleTimeSlotClick(time)
+                          !isPast && !isUnavailable && handleTimeSlotClick(time)
                         }
                         className={cn(
                           "py-2 px-1 text-center rounded-xl text-sm transition-all duration-200 ease-in-out",
@@ -1561,10 +1580,7 @@ export const DeliveryServiceSystemNew = ({
 
                 {/* Display unavailability message */}
                 {unavailableMessage && (
-                  <Dialog
-                    open
-                    onOpenChange={() => setUnavailableMessage("")}
-                  >
+                  <Dialog open onOpenChange={() => setUnavailableMessage("")}>
                     <DialogContent className="sm:max-w-md rounded-2xl bg-white/95 backdrop-blur-sm">
                       <DialogHeader>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
@@ -1573,9 +1589,7 @@ export const DeliveryServiceSystemNew = ({
                       </DialogHeader>
                       <div className="py-4 flex items-center">
                         <AlertCircle className="h-6 w-6 text-red-500 mr-3" />
-                        <p className="text-gray-700">
-                          {unavailableMessage}
-                        </p>
+                        <p className="text-gray-700">{unavailableMessage}</p>
                       </div>
                       <DialogFooter>
                         <Button
@@ -1639,7 +1653,7 @@ export const DeliveryServiceSystemNew = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        
+
         <DeliveryTimeDialog
           decreaseWaitTime={decreaseWaitTime}
           increaseWaitTime={increaseWaitTime}
@@ -1651,7 +1665,7 @@ export const DeliveryServiceSystemNew = ({
           isOpen={isDialogOpenDeliverySetting}
           onContinue={proceedToDeliveryDetails}
         />
-        
+
         <CompleteDeliveryOrder
           isDialogOpen={isDialogOpen}
           setIsDialogOpen={setIsDialogOpen}
@@ -1679,7 +1693,7 @@ export const DeliveryServiceSystemNew = ({
   return (
     <div className="w-full max-w-lg mx-auto">
       {renderContent()}
-      
+
       <DeliveryTimeDialog
         decreaseWaitTime={decreaseWaitTime}
         increaseWaitTime={increaseWaitTime}
@@ -1691,7 +1705,7 @@ export const DeliveryServiceSystemNew = ({
         isOpen={isDialogOpenDeliverySetting}
         onContinue={proceedToDeliveryDetails}
       />
-      
+
       <CompleteDeliveryOrder
         isDialogOpen={isDialogOpen}
         setIsDialogOpen={setIsDialogOpen}
@@ -1789,22 +1803,21 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                   ))}
                 </SelectContent>
             </Select> */}
-     <Select
-                value={orderSize.toString()}
-                onValueChange={(value) => setOrderSize(parseInt(value))}
-              >
-                <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-gray-200">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size} {size === 1 ? "item" : "items"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-       
+            <Select
+              value={orderSize.toString()}
+              onValueChange={(value) => setOrderSize(parseInt(value))}
+            >
+              <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
+                <SelectValue placeholder="Select size" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-gray-200">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size} {size === 1 ? "item" : "items"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Multi-location toggle (only show if more than 1 item) */}
@@ -1831,9 +1844,11 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
           {/* Delivery Items */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-gray-900">
-              {isMultiLocation ? "Delivery Details (Per Item)" : "Delivery Details"}
+              {isMultiLocation
+                ? "Delivery Details (Per Item)"
+                : "Delivery Details"}
             </h3>
-            
+
             {isMultiLocation ? (
               // Multi-location: Show form for each item
               <div className="space-y-4">
@@ -1845,7 +1860,7 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                           Item {index + 1}
                         </h4>
                       </div>
-                      
+
                       <div className="space-y-3">
                         <div>
                           <Label className="text-xs font-medium text-gray-700">
@@ -1854,13 +1869,17 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                           <Input
                             placeholder="Describe this item..."
                             value={item.itemDescription}
-                            onChange={(e) => handleDeliveryItemChange(item.id, 'itemDescription', e.target.value)}
+                            onChange={(e) =>
+                              handleDeliveryItemChange(
+                                item.id,
+                                "itemDescription",
+                                e.target.value
+                              )
+                            }
                             className="mt-1"
                           />
                         </div>
-                        
-                       
-                        
+
                         <div>
                           <Label className="text-xs font-medium text-gray-700">
                             Special Instructions
@@ -1868,7 +1887,13 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                           <Textarea
                             placeholder="Any special delivery instructions for this item..."
                             value={item.notes}
-                            onChange={(e) => handleDeliveryItemChange(item.id, 'notes', e.target.value)}
+                            onChange={(e) =>
+                              handleDeliveryItemChange(
+                                item.id,
+                                "notes",
+                                e.target.value
+                              )
+                            }
                             className="mt-1 min-h-[60px] resize-none"
                           />
                         </div>
@@ -1881,7 +1906,10 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
               // Single location: Show unified form
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="itemType" className="block mb-2 text-sm font-medium text-gray-900">
+                  <Label
+                    htmlFor="itemType"
+                    className="block mb-2 text-sm font-medium text-gray-900"
+                  >
                     Item Description
                   </Label>
                   <Textarea
@@ -1893,11 +1921,12 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
                     className="w-full rounded-xl border-gray-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 min-h-[50px] resize-none"
                   />
                 </div>
-                
-               
-                
+
                 <div>
-                  <Label htmlFor="notes" className="block mb-2 text-sm font-medium text-gray-900">
+                  <Label
+                    htmlFor="notes"
+                    className="block mb-2 text-sm font-medium text-gray-900"
+                  >
                     Special Instructions
                   </Label>
                   <Textarea
@@ -1914,7 +1943,6 @@ const CompleteDeliveryOrder: React.FC<CompleteDeliveryOrderProps> = ({
           </div>
 
           {/* Wait Time Settings remove it no neeed for it here*/}
-         
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-3 mt-2">
