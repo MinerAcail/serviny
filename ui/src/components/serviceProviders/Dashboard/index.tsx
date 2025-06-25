@@ -70,11 +70,7 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-6 max-w-7xl">
-      {/* Compact Header */}
-      <div className="mb-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Dashboard</h1>
-        <p className="text-sm text-gray-600">Overview of your contact management</p>
-      </div>
+  
 
       {/* Search Component with dashboard data passed down */}
       <SearchDataDasBoard 

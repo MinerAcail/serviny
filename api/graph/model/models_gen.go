@@ -47,6 +47,8 @@ type AppointmentBookingData struct {
 	Status                *string     `json:"status,omitempty"`
 	PaymentStatus         *string     `json:"paymentStatus,omitempty"`
 	PaymentMethod         *string     `json:"paymentMethod,omitempty"`
+	TransportType         *string     `json:"transportType,omitempty"`
+	CargoID               *string     `json:"cargoId,omitempty"`
 	DeliveryFee           *string     `json:"deliveryFee,omitempty"`
 	Distance              *string     `json:"distance,omitempty"`
 	Duration              *string     `json:"duration,omitempty"`
@@ -61,13 +63,14 @@ type BookedData struct {
 }
 
 type BookerInput struct {
-	UserType  UserType `json:"userType"`
-	StartTime string   `json:"startTime"`
-	EndTime   *string  `json:"endTime,omitempty"`
-	Item      *string  `json:"item,omitempty"`
-	Notes     *string  `json:"notes,omitempty"`
-	TableSize int32    `json:"tableSize"`
-	UserID    string   `json:"userId"`
+	UserType      UserType `json:"userType"`
+	StartTime     string   `json:"startTime"`
+	EndTime       *string  `json:"endTime,omitempty"`
+	Item          *string  `json:"item,omitempty"`
+	Notes         *string  `json:"notes,omitempty"`
+	TableSize     int32    `json:"tableSize"`
+	UserID        string   `json:"userId"`
+	TransportType *string  `json:"transportType,omitempty"`
 }
 
 type BookersInput struct {
@@ -302,6 +305,13 @@ type InventoryItemInput struct {
 	Price       float64        `json:"price"`
 	Available   bool           `json:"available"`
 	File        graphql.Upload `json:"file"`
+}
+
+type InvoiceInput struct {
+	CargoID  *string `json:"cargoId,omitempty"`
+	Notes    *string `json:"notes,omitempty"`
+	PolicyID *string `json:"policyId,omitempty"`
+	PriceID  *string `json:"priceId,omitempty"`
 }
 
 type IsochroneInput struct {
@@ -747,6 +757,15 @@ type VerifyOtpInput struct {
 	Email string `json:"email"`
 	Otp   string `json:"otp"`
 	Type  string `json:"type"`
+}
+
+type ViewInvoice struct {
+	Policy    []*PolicyInformation  `json:"policy,omitempty"`
+	Price     []*FullCard           `json:"price,omitempty"`
+	ServiceID *Service              `json:"serviceId,omitempty"`
+	Customer  *UsersInfor           `json:"customer,omitempty"`
+	Cargo     *BookingCargo         `json:"cargo,omitempty"`
+	Booking   []*AppointmentBooking `json:"booking,omitempty"`
 }
 
 type ViewcategoryBox struct {

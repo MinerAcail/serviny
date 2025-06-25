@@ -336,7 +336,7 @@ export default function SearchDataDasBoard({
                       className="justify-start h-auto p-4 flex-col gap-2"
                       variant="outline"
                       onClick={() => {
-                        window.location.href = "/contacts";
+                        window.location.href = "/dbp/contacts";
                       }}
                     >
                       <Users className="h-5 w-5" />
@@ -385,8 +385,8 @@ export default function SearchDataDasBoard({
           ) : error ? (
             <div className="text-center py-12 px-4">
               <div className="bg-red-50 text-red-700 p-4 rounded-lg">
-                <p className="font-medium">Error loading contacts</p>
-                <p className="text-sm mt-1">{error.message}</p>
+                <p className="font-medium">No contacts found matching your search</p>
+                {/* <p className="text-sm mt-1">{error.message}</p> */}
               </div>
             </div>
           ) : contacts.length === 0 ? (
@@ -413,7 +413,7 @@ export default function SearchDataDasBoard({
                   className="flex items-center p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
                 >
                   <Link
-                    to={`/c/${contact.id}`}
+                    to={`/dbp/c/${contact.id}`}
                     className="flex items-center flex-1 min-w-0"
                   >
                     <div

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 
@@ -76,6 +76,8 @@ export function RiderBookingMultiDeliveryRequest() {
   const { riderId, bookId } = useParams<{ riderId: string; bookId: string }>();
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+  // const [searchParams] = useSearchParams()
+  // const isCargo = searchParams.get('cargo') === 'true'
 
   // ==========================================
   // 2. REFS
@@ -258,7 +260,8 @@ export function RiderBookingMultiDeliveryRequest() {
         const pickup: Location = {
           lng: firstBooking.pickupLocation[0], // Backend uses lng,lat
           lat: firstBooking.pickupLocation[1],
-          address: "Pickup Location (Zone Center)",
+          address:
+            firstBooking.pickupAddress || "Pickup Location (Zone Center)",
         };
         setPickupLocation(pickup);
         console.log("🏠 Set pickup location:", pickup);
@@ -266,16 +269,21 @@ export function RiderBookingMultiDeliveryRequest() {
 
       // Convert all bookings to delivery items
       const items = convertBookingsToDeliveryItems(multiGroupBookings);
+      console.log("📋 Converted delivery items:", items);
+
       setDeliveryItems(items);
       setHasLoadedFromBookings(true);
-      setDialogHasBeenCompleted(true);
+
+      // **KEY FIX**: Don't auto-complete the dialog, let user review the data
+      setDialogHasBeenCompleted(false);
+      setShowLocationDialog(true); // Ensure dialog opens to show existing data
 
       toast.success(`Loaded ${items.length} existing deliveries`, {
-        description: "Edit locations or proceed with current setup",
+        description: "Review locations and make changes or proceed",
+        duration: 5000,
       });
     }
   }, [multiGroupBookings, hasLoadedFromBookings]);
-
   // ==========================================
   // 13. GOOGLE PLACES INITIALIZATION EFFECT
   // ==========================================
@@ -492,7 +500,6 @@ export function RiderBookingMultiDeliveryRequest() {
     isCalculating,
     dialogHasBeenCompleted,
     calculateMultiDeliveryPricing,
-
   ]);
 
   // ==========================================
@@ -634,68 +641,73 @@ export function RiderBookingMultiDeliveryRequest() {
   // 22. MULTI-BOOKING HANDLER
   // ==========================================
 
-const handleMultiBooking = useCallback(async () => {
-  if (
-    !totalCalculations ||
-    !pickupLocation ||
-    !deliveryItems.length ||
-    !riderId ||
-    !bookId
-  ) {
-    toast.error("Missing required multi-delivery booking information");
-    return;
-  }
+  const handleMultiBooking = useCallback(async () => {
+    if (
+      !totalCalculations ||
+      !pickupLocation ||
+      !deliveryItems.length ||
+      !riderId ||
+      !bookId
+    ) {
+      toast.error("Missing required multi-delivery booking information");
+      return;
+    }
 
-  setIsBooking(true);
+    setIsBooking(true);
 
-  try {
-    console.log("📦 Updating existing multi-delivery bookings...");
+    try {
+      console.log("📦 Updating existing multi-delivery bookings...");
 
-    // Convert delivery items to update inputs
-    const updateInputs = convertDeliveryItemsToUpdateInputs(
-      deliveryItems,
-      pickupLocation,
-      riderId,
-      riderZones // Pass riderZones instead of undefined 'zones'
-    );
+      // Convert delivery items to update inputs
+      const updateInputs = convertDeliveryItemsToUpdateInputs(
+        deliveryItems,
+        pickupLocation,
+        riderId,
+        riderZones // Pass riderZones instead of undefined 'zones'
+      );
 
-    console.log("📝 Update inputs prepared:", updateInputs);
+      console.log("📝 Update inputs prepared:", updateInputs);
 
-    // Update existing bookings with location data
-    const updatedBookings = await updateBookingsWithLocations(updateInputs);
+      // Update existing bookings with location data
+      const updatedBookings = await updateBookingsWithLocations(updateInputs);
 
-    console.log("✅ Bookings updated successfully:", updatedBookings);
+      console.log("✅ Bookings updated successfully:", updatedBookings);
 
-    setBookingReference(bookId);
-    setBookingComplete(true);
-    setCurrentStep("complete");
+      setBookingReference(bookId);
+      setBookingComplete(true);
+      setCurrentStep("complete");
 
-    toast.success("Multi-delivery bookings updated!", {
-      description: `${
-        deliveryItems.length
-      } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
-      duration: 5000,
-    });
-  } catch (error: unknown) {
-    console.error("❌ Multi-delivery booking update failed:", error);
-    toast.error(
-      "Failed to update multi-delivery bookings. Please try again.",
-      {
+      toast.success("Multi-delivery bookings updated!", {
+        description: `${
+          deliveryItems.length
+        } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
         duration: 5000,
-      }
-    );
-  } finally {
-    setIsBooking(false);
-  }
-}, [
-  totalCalculations,
-  pickupLocation,
-  deliveryItems,
-  riderId,
-  bookId,
-  riderZones, // Add riderZones to dependency array
-  updateBookingsWithLocations,
-]);
+      });
+
+      //redirect
+      // setTimeout(() => {
+      //   window.location.href = `/vob`;
+      // },5000);
+    } catch (error: unknown) {
+      console.error("❌ Multi-delivery booking update failed:", error);
+      toast.error(
+        "Failed to update multi-delivery bookings. Please try again.",
+        {
+          duration: 5000,
+        }
+      );
+    } finally {
+      setIsBooking(false);
+    }
+  }, [
+    totalCalculations,
+    pickupLocation,
+    deliveryItems,
+    riderId,
+    bookId,
+    riderZones, // Add riderZones to dependency array
+    updateBookingsWithLocations,
+  ]);
 
   const resetBooking = useCallback(() => {
     setPickupLocation(null);
@@ -748,89 +760,93 @@ const handleMultiBooking = useCallback(async () => {
   }, [startPinDropMode]);
 
   const handlePinDropChoice = useCallback(
-  (mode: "pickup" | "dropoff", deliveryItemId?: string) => {
-    console.log("🎯 handlePinDropChoice called:", { mode, deliveryItemId });
-    handleDialogChoice(mode, deliveryItemId);
-  },
-  [handleDialogChoice]
-);
-const forceMapUpdate = useCallback(() => {
-  console.log("🔄 forceMapUpdate called");
-  
-  // Clear the last processed data to force a map update
-  lastProcessedDataRef.current = '';
-  isMapUpdatingRef.current = false;
-  
-  // Clear any pending timeouts
-  if (mapUpdateTimeoutRef.current) {
-    clearTimeout(mapUpdateTimeoutRef.current);
-  }
-  
-  // Force immediate update with the current state
-  setTimeout(() => {
-    if (!pickupLocation) {
-      console.log("❌ No pickup location for force update");
-      return;
+    (mode: "pickup" | "dropoff", deliveryItemId?: string) => {
+      console.log("🎯 handlePinDropChoice called:", { mode, deliveryItemId });
+      handleDialogChoice(mode, deliveryItemId);
+    },
+    [handleDialogChoice]
+  );
+  const forceMapUpdate = useCallback(() => {
+    console.log("🔄 forceMapUpdate called");
+
+    // Clear the last processed data to force a map update
+    lastProcessedDataRef.current = "";
+    isMapUpdatingRef.current = false;
+
+    // Clear any pending timeouts
+    if (mapUpdateTimeoutRef.current) {
+      clearTimeout(mapUpdateTimeoutRef.current);
     }
-    
-    // Get current delivery data
-    const currentCompletedItems = deliveryItems.filter(item => 
-      item.deliveryAddress && 
-      item.itemDescription &&
-      item.dropoffLocation[0] !== 0 && 
-      item.dropoffLocation[1] !== 0
-    );
 
-    const currentDeliveryLocations: Location[] = currentCompletedItems.map(item => ({
-      lng: item.dropoffLocation[1], // Convert from [lat, lng] to [lng, lat]
-      lat: item.dropoffLocation[0],
-      address: item.deliveryAddress
-    }));
+    // Force immediate update with the current state
+    setTimeout(() => {
+      if (!pickupLocation) {
+        console.log("❌ No pickup location for force update");
+        return;
+      }
 
-    const currentItemDescriptions = currentCompletedItems.map(item => item.itemDescription);
-    
-    console.log("🔄 Force updating map with:", {
-      pickup: pickupLocation.address,
-      deliveryCount: currentDeliveryLocations.length,
-      deliveries: currentDeliveryLocations.map(loc => loc.address)
-    });
-    
-    if (currentDeliveryLocations.length > 0) {
-      updateMultiDeliveryMarkers(
-        pickupLocation,
-        currentDeliveryLocations,
-        currentItemDescriptions
+      // Get current delivery data
+      const currentCompletedItems = deliveryItems.filter(
+        (item) =>
+          item.deliveryAddress &&
+          item.itemDescription &&
+          item.dropoffLocation[0] !== 0 &&
+          item.dropoffLocation[1] !== 0
       );
-      
-      if (riderZones.length > 0 && showZones) {
-        setTimeout(() => drawCoverageZones(pickupLocation, riderZones), 100);
-      }
-      
-      setTimeout(() => {
-        drawMultiDeliveryRoutes(pickupLocation, currentDeliveryLocations);
-        setTimeout(() => {
-          fitMapToAllLocations(pickupLocation, currentDeliveryLocations);
-        }, 200);
-      }, 200);
-    } else {
-      // Only pickup, no deliveries
-      updateMultiDeliveryMarkers(pickupLocation, [], []);
-      if (riderZones.length > 0 && showZones) {
-        drawCoverageZones(pickupLocation, riderZones);
-      }
-    }
-  }, 100);
-}, [
-  pickupLocation,
-  deliveryItems,
-  riderZones,
-  showZones,
-  updateMultiDeliveryMarkers,
-  drawCoverageZones,
-  drawMultiDeliveryRoutes,
-  fitMapToAllLocations
-]);
 
+      const currentDeliveryLocations: Location[] = currentCompletedItems.map(
+        (item) => ({
+          lng: item.dropoffLocation[1], // Convert from [lat, lng] to [lng, lat]
+          lat: item.dropoffLocation[0],
+          address: item.deliveryAddress,
+        })
+      );
+
+      const currentItemDescriptions = currentCompletedItems.map(
+        (item) => item.itemDescription
+      );
+
+      console.log("🔄 Force updating map with:", {
+        pickup: pickupLocation.address,
+        deliveryCount: currentDeliveryLocations.length,
+        deliveries: currentDeliveryLocations.map((loc) => loc.address),
+      });
+
+      if (currentDeliveryLocations.length > 0) {
+        updateMultiDeliveryMarkers(
+          pickupLocation,
+          currentDeliveryLocations,
+          currentItemDescriptions
+        );
+
+        if (riderZones.length > 0 && showZones) {
+          setTimeout(() => drawCoverageZones(pickupLocation, riderZones), 100);
+        }
+
+        setTimeout(() => {
+          drawMultiDeliveryRoutes(pickupLocation, currentDeliveryLocations);
+          setTimeout(() => {
+            fitMapToAllLocations(pickupLocation, currentDeliveryLocations);
+          }, 200);
+        }, 200);
+      } else {
+        // Only pickup, no deliveries
+        updateMultiDeliveryMarkers(pickupLocation, [], []);
+        if (riderZones.length > 0 && showZones) {
+          drawCoverageZones(pickupLocation, riderZones);
+        }
+      }
+    }, 100);
+  }, [
+    pickupLocation,
+    deliveryItems,
+    riderZones,
+    showZones,
+    updateMultiDeliveryMarkers,
+    drawCoverageZones,
+    drawMultiDeliveryRoutes,
+    fitMapToAllLocations,
+  ]);
 
   const handlePinDropConfirm = useCallback(() => {
     const result = confirmPinLocation();
@@ -896,10 +912,10 @@ const forceMapUpdate = useCallback(() => {
       // Reset performance refs to trigger map update
       lastProcessedDataRef.current = "";
       isMapUpdatingRef.current = false;
-       // FORCE map update after state change
-    setTimeout(() => {
-      forceMapUpdate();
-    }, 200);
+      // FORCE map update after state change
+      setTimeout(() => {
+        forceMapUpdate();
+      }, 200);
     }
 
     clearCalculations();
@@ -909,7 +925,7 @@ const forceMapUpdate = useCallback(() => {
     setDeliveryItems,
     deliveryItems,
     clearCalculations,
-    forceMapUpdate
+    forceMapUpdate,
   ]);
   const handlePinDropCancel = useCallback(() => {
     cancelPinDrop();
@@ -1078,6 +1094,7 @@ const forceMapUpdate = useCallback(() => {
       <div className="max-w-4xl h-full mx-auto space-y-6">
         {/* Multi-Location Input Dialog */}
         <MultiLocationInputDialog
+          key={`dialog-${hasLoadedFromBookings}-${deliveryItems.length}-${pickupLocation?.lat}-${pickupLocation?.lng}`}
           isOpen={showLocationDialog}
           onClose={handleDialogClose}
           onComplete={handleLocationsComplete}

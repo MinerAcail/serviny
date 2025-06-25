@@ -6,7 +6,7 @@
 
 import type React from "react";
 import type { RefObject } from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { 
   Loader2, 
   Target, 
@@ -15,22 +15,23 @@ import {
   Eye, 
   EyeOff, 
   ChevronDown, 
-  ChevronUp,
+  // ChevronUp,
   Package,
   MapPin,
-  DollarSign,
-  Clock,
+  // DollarSign,
+  // Clock,
   Navigation,
   Truck
 } from "lucide-react";
 import type maplibregl from "maplibre-gl";
-import { toast } from "sonner";
-
+// import { toast } from "sonner";
+// 
 // REUSE: Import existing types and hooks
 import type { Location, PricingZone } from "../riderBookingHooks";
 
 // Import the multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
+import { useSearchParams } from "react-router";
 
 interface MapAndMultiBookingProps {
   // Map refs
@@ -92,6 +93,8 @@ function MultiDeliverySummaryCard({
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showItemDetails, setShowItemDetails] = useState(false);
+  const [searchParams] = useSearchParams()
+  const isCargo = searchParams.get('cargo') === 'true'
 
   const completedItems = deliveryItems.filter(item => 
     item.deliveryAddress && item.itemDescription &&
@@ -117,10 +120,10 @@ function MultiDeliverySummaryCard({
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          {totalCalculations && (
+          {!isCargo && totalCalculations && (
             <div className="text-right">
               <div className="text-lg font-bold text-green-600">
-                ${totalCalculations.totalPrice.toFixed(2)}
+                GH₵{totalCalculations.totalPrice.toFixed(2)}
               </div>
               <div className="text-xs text-gray-500">Total</div>
             </div>
@@ -226,7 +229,10 @@ function MultiDeliverySummaryCard({
                         {calculation && (
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-500">{calculation.distance}km</span>
-                            <span className="font-medium text-green-600">${calculation.price.toFixed(2)}</span>
+                            {!isCargo && (
+                              <span className="font-medium text-green-600">GH₵{calculation.price.toFixed(2)}</span>
+
+                            )}
                           </div>
                         )}
                       </div>
@@ -251,6 +257,8 @@ function MultiDeliveryRouteCard({
   deliveryItems: MultiDeliveryItem[];
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [searchParams] = useSearchParams()
+  const isCargo = searchParams.get('cargo') === 'true'
 
   if (!totalCalculations) return null;
 
@@ -265,11 +273,14 @@ function MultiDeliveryRouteCard({
           <span className="font-medium text-sm text-gray-900">Route Overview</span>
         </div>
         <div className="flex items-center space-x-2">
+            {!isCargo && (
           <div className="text-right">
             <div className="text-sm font-bold text-blue-600">
-              ${totalCalculations.totalPrice.toFixed(2)}
+              GH₵{totalCalculations.totalPrice.toFixed(2)}
             </div>
           </div>
+                              
+                            )}
           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
       </div>

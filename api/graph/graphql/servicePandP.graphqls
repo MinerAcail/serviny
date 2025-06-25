@@ -4,6 +4,7 @@ type Policy {
   description: String!
   ServiceId: String
   detailsIds: [String!]!
+  isPublic: Boolean
   createdAt: Time!
   updatedAt: Time!
 }
@@ -57,6 +58,7 @@ type PriceCard {
   id: String!
   title: String!
   description: String!
+  isPublic: Boolean
   ServiceId: String
   createdAt: Time!
   updatedAt: Time!
@@ -105,6 +107,7 @@ input UpdatePriceCardInput {
 
 type Mutation {
   createPolicy(input: CreatePolicyInput!): Policy!
+  createCargoPolicy(input: CreatePolicyInput!, cargoId: String): Policy!
   addPolicyDetail(policyId: String!, input: PolicyDetailInput!): PolicyDetail!
   updatePolicy(
     policyId: String
@@ -115,6 +118,7 @@ type Mutation {
 
   # Create a new price card
   createPriceCard(input: PriceCardInput!): fullCard!
+  createCargoPriceCard(input: PriceCardInput!, cargoId: String): fullCard!
 
   # Update an existing price card
   updatePriceCard(input: UpdatePriceCardInput!, priceCardId: String): PriceCard!
@@ -143,13 +147,44 @@ type Mutation {
 
   # Remove an amenity from a price card
   removeAmenity(priceCardId: String!, amenityId: String!): Amenity!
-}
 
+  createInvoice(input: InvoiceInput): Invoice
+}
+input InvoiceInput {
+  cargoId: String
+  notes: String
+  policyId: String
+  priceId: String
+}
+type ViewInvoice {
+  policy: [PolicyInformation]
+  price: [fullCard]
+  serviceId: Service
+  customer:UsersInfor
+  cargo:BookingCargo
+  booking:[AppointmentBooking]
+}
+type Invoice {
+  id: String!
+  serviceId: String!
+  cargoId: String
+  userId: String
+  notes: String
+  policyId: String
+  priceId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
 type Query {
   getPolicies: [Policy!]!
   getPolicyById(policyId: String!): Policy
   getPolicyInformation(ServiceID: String!): [PolicyInformation]
+
   getPolicy(policyId: String!): PolicyInformation
+  getCargoPolicy(cargoId: String!): PolicyInformation
+  getInvoice(cargoId: String!): Invoice!
+  getCargoPriceCardById(cardId: String): fullCard
+
   globalSearch(
     query: String!
     limit: Int
@@ -158,6 +193,8 @@ type Query {
   ): SearchResults!
   getpriceCardsinformation(serviceId: String): [fullCard!]!
   getPriceCardById(id: String!): fullCard
+
+  getFullInvoice(cargoId:String!):ViewInvoice
 }
 
 type SearchResults {
@@ -170,9 +207,9 @@ type SearchResult {
   title: String!
   description: String
   modelType: String!
-  relationshipId:String
+  relationshipId: String
   additionalInfo: String
-  imageurl:String
+  imageurl: String
   score: Float
   createdAt: Time!
   updatedAt: Time!

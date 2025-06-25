@@ -180,12 +180,14 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 		}
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
+
 	// Generate multiGroupId if this is a multi-location delivery
 	var multiGroupId *string
 	if isMulti != nil && *isMulti {
 		groupId := uuid.New().String()
 		multiGroupId = &groupId
 	}
+
 	// Begin a transaction to ensure all bookings are created atomically
 	tx := r.DB.Begin()
 	if tx.Error != nil {
@@ -193,7 +195,7 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 	}
 
 	bookings := make([]*model.AppointmentBooking, 0, len(input))
-	var cargo model.BookingCargo
+	var cargoRecords []*model.BookingCargo
 
 	for _, bookerInput := range input {
 		// Parse start time
@@ -260,14 +262,41 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 			Item:         bookerInput.Item,
 			Notes:        bookerInput.Notes,
 			TableSize:    bookerInput.TableSize,
-			MultiGroupID: multiGroupId, // Set the generated UUID for multi-location bookings
+			MultiGroupID: multiGroupId,
 		}
 
-		// Save the booking to the database
+		// Save the booking to the database first
 		if err := tx.Create(booking).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to create booking for time %s-%s: %w",
 				bookerInput.StartTime, bookerInput.EndTime, err)
+		}
+
+		// If this is a cargo delivery, create cargo record
+		if isCargo != nil && *isCargo && bookerInput.TransportType != nil {
+			bookid := booking.ID.String()
+			cargoRecord := &model.BookingCargo{
+				ServiceID:     &serviceID,
+				UserID:        UserIDStr,
+				TransportType: *bookerInput.TransportType,
+				BookingID:     &bookid,
+				MultiGroupID:  multiGroupId,
+			}
+
+			// Save cargo record
+			if err := tx.Create(cargoRecord).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to create cargo record: %w", err)
+			}
+			cargoid := cargoRecord.ID.String()
+			// Update booking with cargo ID
+			booking.CargoID = &cargoid
+			if err := tx.Save(booking).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to update booking with cargo ID: %w", err)
+			}
+
+			cargoRecords = append(cargoRecords, cargoRecord)
 		}
 
 		bookings = append(bookings, booking)
@@ -283,7 +312,69 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 		return nil, fmt.Errorf("no bookings found")
 	}
 
+	// Log cargo creation for debugging
+	if len(cargoRecords) > 0 {
+		fmt.Printf("Created %d cargo records for delivery\n", len(cargoRecords))
+		for _, cargo := range cargoRecords {
+			fmt.Printf("Cargo ID: %s, Transport Type: %s, Booking ID: %s\n",
+				cargo.ID.String(), cargo.TransportType, *cargo.BookingID)
+		}
+	}
+
 	return bookings, nil
+}
+
+// UpdateCargoWithRider is the resolver for the updateCargoWithRider field.
+func (r *mutationResolver) UpdateCargoWithRider(ctx context.Context, riderID *string, cargoID *string) (*model.AppointmentBooking, error) {
+	if riderID == nil || *riderID == "" {
+		return nil, fmt.Errorf("riderID is required")
+	}
+	if cargoID == nil || *cargoID == "" {
+		return nil, fmt.Errorf("cargoID is required")
+	}
+
+	// Validate rider UUID
+	riderUUID, err := uuid.Parse(*riderID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid riderID format: %w", err)
+	}
+	// Validate cargo UUID
+	cargoUUID, err := uuid.Parse(*cargoID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cargoID format: %w", err)
+	}
+
+	// Find the cargo record
+	var cargo model.BookingCargo
+	if err := r.DB.Where("id = ?", cargoUUID).First(&cargo).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("cargo not found with ID: %s", *cargoID)
+		}
+		return nil, fmt.Errorf("failed to fetch cargo: %w", err)
+	}
+
+	// Find the related booking
+	if cargo.BookingID == nil || *cargo.BookingID == "" {
+		return nil, fmt.Errorf("cargo does not have a related booking")
+	}
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", *cargo.BookingID).First(&booking).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("booking not found for cargo with ID: %s", *cargo.BookingID)
+		}
+		return nil, fmt.Errorf("failed to fetch booking: %w", err)
+	}
+
+	// Assign the rider to the booking
+	booking.RiderID = riderUUID.String()
+	booking.Status = "PROCESSING"
+
+	// Save the updated booking
+	if err := r.DB.Save(&booking).Error; err != nil {
+		return nil, fmt.Errorf("failed to update booking with rider: %w", err)
+	}
+
+	return &booking, nil
 }
 
 // UpdateMultipleBookingsWithLocation is the resolver for the updateMultipleBookingsWithLocation field.
@@ -334,6 +425,8 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 		}
 		return nil, fmt.Errorf("failed to fetch booking: %w", err)
 	}
+	booking.Status = "PROCESSING" // Update booking status to PROCESSING
+
 	// Update delivery address if provided
 	if input.DeliveryAddress != nil && *input.DeliveryAddress != "" {
 
@@ -388,6 +481,7 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 
 	// Update rider ID if provided
 	// Update rider ID if provided
+	// Update rider ID if provided
 	if input.RidersID != nil && *input.RidersID != "" {
 		// Validate rider ID format
 		riderUUID, err := uuid.Parse(*input.RidersID)
@@ -402,54 +496,59 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			return nil, fmt.Errorf("booking must have a service assigned before assigning a rider")
 		}
 
-		// Ensure coordinates are available for validation
-		if input.PickupLocation == nil || len(input.PickupLocation) < 2 ||
-			input.DropoffLocation == nil || len(input.DropoffLocation) < 2 {
-			tx.Rollback()
-			return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider")
-		}
-
-		// Check if it's a service
-		var service model.Service
-		serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
-
-		if serviceErr == nil {
-			// It's a service - find the best rider for this service
-			validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), input.PickupLocation)
-			if err != nil {
+		// Check if booking has CargoID - if so, skip validation and assign rider directly
+		if booking.CargoID != nil && *booking.CargoID != "" {
+			booking.RiderID = *input.RidersID
+			log.Printf("Assigned rider %s directly to cargo booking %s (CargoID: %s)", *input.RidersID, input.BookID, *booking.CargoID)
+		} else {
+			// Ensure coordinates are available for validation (non-cargo bookings only)
+			if input.PickupLocation == nil || len(input.PickupLocation) < 2 ||
+				input.DropoffLocation == nil || len(input.DropoffLocation) < 2 {
 				tx.Rollback()
-				return nil, fmt.Errorf("failed to assign rider from service: %w", err)
+				return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider")
 			}
 
-			booking.RiderID = validRiderID
-			log.Printf("Assigned rider %s from service %s", validRiderID, riderUUID)
-		} else if serviceErr == gorm.ErrRecordNotFound {
-			// Check if it's a direct rider
-			var rider model.Rider
-			riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+			// Check if it's a service
+			var service model.Service
+			serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
 
-			if riderErr == nil {
-				// It's a direct rider - validate the relationship
-				validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), input.PickupLocation)
+			if serviceErr == nil {
+				// It's a service - find the best rider for this service
+				validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), input.PickupLocation)
 				if err != nil {
 					tx.Rollback()
-					return nil, fmt.Errorf("failed to assign rider: %w", err)
+					return nil, fmt.Errorf("failed to assign rider from service: %w", err)
 				}
+
 				booking.RiderID = validRiderID
-				log.Printf("Assigned direct rider %s", validRiderID)
-			} else if riderErr == gorm.ErrRecordNotFound {
-				tx.Rollback()
-				return nil, fmt.Errorf("no rider or service found with ID: %s", riderUUID)
+				log.Printf("Assigned rider %s from service %s", validRiderID, riderUUID)
+			} else if serviceErr == gorm.ErrRecordNotFound {
+				// Check if it's a direct rider
+				var rider model.Rider
+				riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+
+				if riderErr == nil {
+					// It's a direct rider - validate the relationship
+					validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), input.PickupLocation)
+					if err != nil {
+						tx.Rollback()
+						return nil, fmt.Errorf("failed to assign rider: %w", err)
+					}
+					booking.RiderID = validRiderID
+					log.Printf("Assigned direct rider %s", validRiderID)
+				} else if riderErr == gorm.ErrRecordNotFound {
+					tx.Rollback()
+					return nil, fmt.Errorf("no rider or service found with ID: %s", riderUUID)
+				} else {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to check rider: %w", riderErr)
+				}
 			} else {
 				tx.Rollback()
-				return nil, fmt.Errorf("failed to check rider: %w", riderErr)
+				return nil, fmt.Errorf("failed to check service: %w", serviceErr)
 			}
-		} else {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to check service: %w", serviceErr)
 		}
 	}
-
 	// Calculate delivery fee based on range if both pickup/dropoff locations and rider are available
 	if input.PickupLocation != nil && len(input.PickupLocation) >= 2 &&
 		input.DropoffLocation != nil && len(input.DropoffLocation) >= 2 &&
@@ -493,7 +592,6 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
 		}
 	}
-	booking.Status = "PROCESSING" // Update booking status to PROCESSING
 	// Save the updated booking
 	if err := tx.Save(&booking).Error; err != nil {
 		tx.Rollback()
@@ -559,7 +657,7 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 	if len(input) == 0 {
 		return nil, fmt.Errorf("input cannot be empty")
 	}
-
+	//note the rider in the input is a service input.rider is a service
 	// Get user ID from context for authorization
 	userIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
@@ -611,8 +709,6 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			return nil, fmt.Errorf("failed to fetch booking %s: %w", in.BookID, err)
 		}
 
-		booking.Status = "PROCESSING" // Update booking status to PROCESSING
-
 		log.Printf("Updating booking %s with location for user %s", bookingID, *userIDStr)
 
 		// Update delivery address if provided
@@ -620,10 +716,10 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			booking.DeliveryAddress = *in.DeliveryAddress
 			log.Printf("Delivery address provided for booking %s: %s", in.BookID, *in.DeliveryAddress)
 		}
-		// Update delivery address if provided
+		// Update pickup address if provided
 		if in.PickUpAddress != nil && *in.PickUpAddress != "" {
 			booking.PickUpAddress = in.PickUpAddress
-			log.Printf("Delivery address provided for booking %s: %s", in.BookID, *in.PickUpAddress)
+			log.Printf("Pickup address provided for booking %s: %s", in.BookID, *in.PickUpAddress)
 		}
 		// Update dropoff location if provided
 		if in.DropoffLocation != nil && len(in.DropoffLocation) >= 2 {
@@ -680,51 +776,57 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 				return nil, fmt.Errorf("booking %s must have a service assigned before assigning a rider", in.BookID)
 			}
 
-			// Ensure coordinates are available for validation
-			if in.PickupLocation == nil || len(in.PickupLocation) < 2 ||
-				in.DropoffLocation == nil || len(in.DropoffLocation) < 2 {
-				tx.Rollback()
-				return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider for booking %s", in.BookID)
-			}
-
-			// Check if it's a service
-			var service model.Service
-			serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
-
-			if serviceErr == nil {
-				// It's a service - find the best rider for this service
-				validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), in.PickupLocation)
-				if err != nil {
+			// Check if booking has CargoID - if so, skip validation and assign rider directly
+			if booking.CargoID != nil && *booking.CargoID != "" {
+				booking.RiderID = *in.RidersID
+				log.Printf("Assigned rider %s directly to cargo booking %s (CargoID: %s)", *in.RidersID, in.BookID, *booking.CargoID)
+			} else {
+				// Ensure coordinates are available for validation (non-cargo bookings only)
+				if in.PickupLocation == nil || len(in.PickupLocation) < 2 ||
+					in.DropoffLocation == nil || len(in.DropoffLocation) < 2 {
 					tx.Rollback()
-					return nil, fmt.Errorf("failed to assign rider from service for booking %s: %w", in.BookID, err)
+					return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider for booking %s", in.BookID)
 				}
 
-				booking.RiderID = validRiderID
-				log.Printf("Assigned rider %s from service %s for booking %s", validRiderID, riderUUID, in.BookID)
-			} else if serviceErr == gorm.ErrRecordNotFound {
-				// Check if it's a direct rider
-				var rider model.Rider
-				riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+				// Check if it's a service
+				var service model.Service
+				serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
 
-				if riderErr == nil {
-					// It's a direct rider - validate the relationship
-					validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), in.PickupLocation)
+				if serviceErr == nil {
+					// It's a service - find the best rider for this service
+					validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), in.PickupLocation)
 					if err != nil {
 						tx.Rollback()
-						return nil, fmt.Errorf("failed to assign rider for booking %s: %w", in.BookID, err)
+						return nil, fmt.Errorf("failed to assign rider from service for booking %s: %w", in.BookID, err)
 					}
+
 					booking.RiderID = validRiderID
-					log.Printf("Assigned direct rider %s for booking %s", validRiderID, in.BookID)
-				} else if riderErr == gorm.ErrRecordNotFound {
-					tx.Rollback()
-					return nil, fmt.Errorf("no rider or service found with ID %s for booking %s", riderUUID, in.BookID)
+					log.Printf("Assigned rider %s from service %s for booking %s", validRiderID, riderUUID, in.BookID)
+				} else if serviceErr == gorm.ErrRecordNotFound {
+					// Check if it's a direct rider
+					var rider model.Rider
+					riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+
+					if riderErr == nil {
+						// It's a direct rider - validate the relationship
+						validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), in.PickupLocation)
+						if err != nil {
+							tx.Rollback()
+							return nil, fmt.Errorf("failed to assign rider for booking %s: %w", in.BookID, err)
+						}
+						booking.RiderID = validRiderID
+						log.Printf("Assigned direct rider %s for booking %s", validRiderID, in.BookID)
+					} else if riderErr == gorm.ErrRecordNotFound {
+						tx.Rollback()
+						return nil, fmt.Errorf("no rider or service found with ID %s for booking %s", riderUUID, in.BookID)
+					} else {
+						tx.Rollback()
+						return nil, fmt.Errorf("failed to check rider for booking %s: %w", in.BookID, riderErr)
+					}
 				} else {
 					tx.Rollback()
-					return nil, fmt.Errorf("failed to check rider for booking %s: %w", in.BookID, riderErr)
+					return nil, fmt.Errorf("failed to check service for booking %s: %w", in.BookID, serviceErr)
 				}
-			} else {
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to check service for booking %s: %w", in.BookID, serviceErr)
 			}
 		}
 
@@ -772,14 +874,24 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			}
 		}
 
+		// IMPORTANT: Set status to PROCESSING right before saving
+		booking.Status = "PROCESSING"
+		log.Printf("Setting booking %s status to PROCESSING", in.BookID)
+
 		// Save the updated booking
 		if err := tx.Save(&booking).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to update booking %s: %w", in.BookID, err)
 		}
 
+		// Verify the status was saved by re-checking
+		var verifyBooking model.AppointmentBooking
+		if err := tx.Where("id = ?", bookingID).First(&verifyBooking).Error; err == nil {
+			log.Printf("Verified booking %s status after save: %s", in.BookID, verifyBooking.Status)
+		}
+
 		updatedBookings = append(updatedBookings, &booking)
-		log.Printf("Booking %s updated successfully", booking.ID)
+		log.Printf("Booking %s updated successfully with status: %s", booking.ID, booking.Status)
 	}
 
 	// Commit the transaction
@@ -1294,6 +1406,16 @@ func (r *queryResolver) GetMultiGroupedAppointmentBookingBybookID(ctx context.Co
 	}
 
 	return bookings, nil
+}
+
+// GetCargoByBookingID is the resolver for the getCargoByBookingID field.
+func (r *queryResolver) GetCargoByBookingID(ctx context.Context, bookingID string) (*model.BookingCargo, error) {
+	panic(fmt.Errorf("not implemented: GetCargoByBookingID - getCargoByBookingID"))
+}
+
+// GetCargoByMultiGroupID is the resolver for the getCargoByMultiGroupId field.
+func (r *queryResolver) GetCargoByMultiGroupID(ctx context.Context, multiGroupID string) ([]*model.BookingCargo, error) {
+	panic(fmt.Errorf("not implemented: GetCargoByMultiGroupID - getCargoByMultiGroupId"))
 }
 
 // ID is the resolver for the id field.

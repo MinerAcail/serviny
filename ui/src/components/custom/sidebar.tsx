@@ -174,7 +174,7 @@ export function Sidebar() {
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="">
-        <div className="lg:hidden  fixed flex w-full justify-between sm:top-4  p-2 ">
+        <div className="lg:hidden fixed flex w-full justify-between sm:top-4 p-2 z-[9999]">
           <Link to={"/"} className="flex  items-center">
             {/* <SpectaclesLogo size={"sm"} variant="primary" /> */}
           </Link>
@@ -436,7 +436,7 @@ const profileId = useCurrentUserProfileId();
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
-        <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
+        <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md z-[9999]">
           <CartButton />
           {/* <NotificationCenter /> */}
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}

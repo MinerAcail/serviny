@@ -9,7 +9,7 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
       serviceId
       type
       createdAt
-      
+
       rider {
         id
         name
@@ -17,20 +17,20 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
         location
         coordinates
       }
-      
+
       customer {
         name
         dpfile
         number
       }
-      
+
       vendor {
         id
         name
         location
         coordinates
       }
-      
+
       # Order-specific data (only populated when type = ORDER)
       orderData {
         orderId
@@ -81,7 +81,7 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
           }
         }
       }
-      
+
       # Booking-specific data (only populated when type = BOOKING)
       bookingData {
         bookingId
@@ -92,6 +92,9 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
         tableSize
         userType
         isConfirmed
+        status
+        transportType
+        cargoId
         pickupLocation
         dropoffLocation
         deliveryAddress
@@ -246,6 +249,9 @@ export interface AppointmentBookingData {
   pickUpAddress?: string;
   multiGroupId?: string;
   deliveryFee?: string;
+  status?: string;
+  transportType?: string;
+  cargoId?: string;
   distance?: string;
   duration?: string;
   estimatedDeliveryDate?: string;
@@ -257,7 +263,7 @@ export interface AppointmentBookingData {
 export interface ServiceData {
   id: string;
   serviceId: string;
-  type: 'ORDER' | 'BOOKING';
+  type: "ORDER" | "BOOKING";
   rider?: UsersInfor;
   customer: UsersInfor;
   vendor: Service;
@@ -337,7 +343,14 @@ export interface SearchSuggestion {
 
 // Entity selection types
 export interface SelectedEntity {
-  type: "rider" | "customer" | "order" | "booking" | "vendor" | "multigroup" | null;
+  type:
+    | "rider"
+    | "customer"
+    | "order"
+    | "booking"
+    | "vendor"
+    | "multigroup"
+    | null;
   value: string;
   relatedData: {
     riders: ProcessedRider[];
@@ -354,9 +367,9 @@ export type VehicleFilter = "all" | "Motorcycle" | "Bicycle";
 export type TypeFilter = "all" | "ORDER" | "BOOKING";
 
 // Component prop types
-export interface LiveMapProps {
-  // No props needed for main component
-}
+// export interface LiveMapProps {
+//   // No props needed for main component
+// }
 
 export interface SearchAndFiltersProps {
   serviceData: ServiceData[];
@@ -456,7 +469,7 @@ export interface ApiError {
 }
 
 export interface MapError extends Error {
-  type: 'initialization' | 'rendering' | 'data' | 'network';
+  type: "initialization" | "rendering" | "data" | "network";
   recoverable: boolean;
 }
 
@@ -503,37 +516,47 @@ export const MAP_CONFIG = {
 } as const;
 
 export const ROUTE_COLORS = {
-  ACTIVE: '#3B82F6',
-  AVAILABLE: '#10B981',
-  ON_BREAK: '#F59E0B',
-  DEFAULT: '#6B7280',
+  ACTIVE: "#3B82F6",
+  AVAILABLE: "#10B981",
+  ON_BREAK: "#F59E0B",
+  DEFAULT: "#6B7280",
 } as const;
 
 export const STATUS_COLORS = {
-  Available: '#10B981',
-  'On Delivery': '#3B82F6',
-  'On Break': '#F59E0B',
+  Available: "#10B981",
+  "On Delivery": "#3B82F6",
+  "On Break": "#F59E0B",
 } as const;
 
 // Type guards
-export const isOrder = (service: ServiceData): service is ServiceData & { orderData: CartItemOrder } => {
-  return service.type === 'ORDER' && !!service.orderData;
+export const isOrder = (
+  service: ServiceData
+): service is ServiceData & { orderData: CartItemOrder } => {
+  return service.type === "ORDER" && !!service.orderData;
 };
 
-export const isBooking = (service: ServiceData): service is ServiceData & { bookingData: AppointmentBookingData } => {
-  return service.type === 'BOOKING' && !!service.bookingData;
+export const isBooking = (
+  service: ServiceData
+): service is ServiceData & { bookingData: AppointmentBookingData } => {
+  return service.type === "BOOKING" && !!service.bookingData;
 };
 
-export const hasCoordinates = (coordinates: any): coordinates is [number, number] => {
-  return Array.isArray(coordinates) && 
-         coordinates.length === 2 && 
-         typeof coordinates[0] === 'number' && 
-         typeof coordinates[1] === 'number';
+export const hasCoordinates = (
+  coordinates: any
+): coordinates is [number, number] => {
+  return (
+    Array.isArray(coordinates) &&
+    coordinates.length === 2 &&
+    typeof coordinates[0] === "number" &&
+    typeof coordinates[1] === "number"
+  );
 };
 
 export const isValidRoute = (route: any): route is RouteData => {
-  return route && 
-         Array.isArray(route.coordinates) && 
-         typeof route.distance === 'number' && 
-         typeof route.duration === 'number';
+  return (
+    route &&
+    Array.isArray(route.coordinates) &&
+    typeof route.distance === "number" &&
+    typeof route.duration === "number"
+  );
 };

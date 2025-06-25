@@ -70,3 +70,17 @@ type BookingOrderPaymentStatus struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
+
+
+type Invoice struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+
+	ServiceID string    `json:"serviceId"`
+	CargoID   *string   `json:"cargoId,omitempty"`
+	UserID    *string   `json:"userId,omitempty"`
+	Notes     *string   `json:"notes,omitempty"`
+	PolicyID  *string   `json:"policyId,omitempty"`
+	PriceID   *string   `json:"priceId,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}

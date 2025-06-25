@@ -58,6 +58,7 @@ type ResolverRoot interface {
 	FormSubmission() FormSubmissionResolver
 	GalleryProfession() GalleryProfessionResolver
 	InventoryItem() InventoryItemResolver
+	Invoice() InvoiceResolver
 	IsochroneResult() IsochroneResultResolver
 	Mutation() MutationResolver
 	Order() OrderResolver
@@ -144,6 +145,7 @@ type ComplexityRoot struct {
 
 	AppointmentBookingData struct {
 		BookingID             func(childComplexity int) int
+		CargoID               func(childComplexity int) int
 		Day                   func(childComplexity int) int
 		DeliveryAddress       func(childComplexity int) int
 		DeliveryFee           func(childComplexity int) int
@@ -165,6 +167,7 @@ type ComplexityRoot struct {
 		StartTime             func(childComplexity int) int
 		Status                func(childComplexity int) int
 		TableSize             func(childComplexity int) int
+		TransportType         func(childComplexity int) int
 		UserType              func(childComplexity int) int
 	}
 
@@ -186,6 +189,7 @@ type ComplexityRoot struct {
 		BookingID     func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
 		ID            func(childComplexity int) int
+		MultiGroupID  func(childComplexity int) int
 		RiderID       func(childComplexity int) int
 		ServiceID     func(childComplexity int) int
 		TransportType func(childComplexity int) int
@@ -415,6 +419,18 @@ type ComplexityRoot struct {
 		UpdatedAt   func(childComplexity int) int
 	}
 
+	Invoice struct {
+		CargoID   func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Notes     func(childComplexity int) int
+		PolicyID  func(childComplexity int) int
+		PriceID   func(childComplexity int) int
+		ServiceID func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+		UserID    func(childComplexity int) int
+	}
+
 	IsochroneResult struct {
 		Address       func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
@@ -458,12 +474,15 @@ type ComplexityRoot struct {
 		CraeteRider                                  func(childComplexity int, dpfile *graphql.Upload, idCardfiles []*graphql.Upload, input *model.RiderInput) int
 		CreateAdmin                                  func(childComplexity int, input model.CreateAdminInput) int
 		CreateBooker                                 func(childComplexity int, input model.BookersInput, serviceID string) int
+		CreateCargoPolicy                            func(childComplexity int, input model.CreatePolicyInput, cargoID *string) int
+		CreateCargoPriceCard                         func(childComplexity int, input model.PriceCardInput, cargoID *string) int
 		CreateCategory                               func(childComplexity int, input model.CategoryInput) int
 		CreateCategoryBox                            func(childComplexity int, name *string) int
 		CreateEvent                                  func(childComplexity int, input model.EventInput) int
 		CreateFavorite                               func(childComplexity int, input *model.CreateFavoriteInput) int
 		CreateForm                                   func(childComplexity int, input model.CreateFormInput) int
 		CreateGallery                                func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput) int
+		CreateInvoice                                func(childComplexity int, input *model.InvoiceInput) int
 		CreateMultipleBookings                       func(childComplexity int, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string) int
 		CreateOrderItems                             func(childComplexity int, input []*model.OrderInput) int
 		CreatePolicy                                 func(childComplexity int, input model.CreatePolicyInput) int
@@ -517,6 +536,7 @@ type ComplexityRoot struct {
 		MarkMessagesAsRead                           func(childComplexity int, sender model.SenderType) int
 		OrderOrBookingPayment                        func(childComplexity int, entityID string, entityType string, method string, reference string) int
 		Profiles                                     func(childComplexity int, profileID string, removeProfileID *string) int
+		ReAssignRider                                func(childComplexity int, entityID *string, entityType *string, riderID *string) int
 		ReSetPasswordORUpdateOtp                     func(childComplexity int, input model.RequestOtpInput) int
 		RemoveAmenity                                func(childComplexity int, priceCardID string, amenityID string) int
 		RemovePrice                                  func(childComplexity int, priceCardID string, id string) int
@@ -540,6 +560,7 @@ type ComplexityRoot struct {
 		UpdateBooker                                 func(childComplexity int, id string, input model.BookersInput) int
 		UpdateBookingOrderPaymentStatus              func(childComplexity int, id string, serviceID *string, userID *string, riderID *string, status string, entityID string, entityType string, statusType string) int
 		UpdateBookingType                            func(childComplexity int, typeArg model.BookingType) int
+		UpdateCargoWithRider                         func(childComplexity int, riderID *string, cargoID *string) int
 		UpdateCategory                               func(childComplexity int, id string, input model.CategoryInput) int
 		UpdateEvent                                  func(childComplexity int, input model.UpdateEventInput, eventID string) int
 		UpdateForm                                   func(childComplexity int, input model.UpdateFormInput) int
@@ -687,6 +708,7 @@ type ComplexityRoot struct {
 		Description func(childComplexity int) int
 		DetailsIds  func(childComplexity int) int
 		ID          func(childComplexity int) int
+		IsPublic    func(childComplexity int) int
 		Name        func(childComplexity int) int
 		ServiceID   func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
@@ -720,6 +742,7 @@ type ComplexityRoot struct {
 		CreatedAt   func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
+		IsPublic    func(childComplexity int) int
 		ServiceID   func(childComplexity int) int
 		Title       func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
@@ -826,6 +849,7 @@ type ComplexityRoot struct {
 		GetAllRidersServiceData                       func(childComplexity int) int
 		GetAllRidersStatusState                       func(childComplexity int, status model.RiderStatus) int
 		GetAllRouteData                               func(childComplexity int) int
+		GetAllServiceRiders                           func(childComplexity int) int
 		GetAllSession                                 func(childComplexity int) int
 		GetAllSystemInfo                              func(childComplexity int) int
 		GetAllUnavailablePeriods                      func(childComplexity int) int
@@ -843,8 +867,13 @@ type ComplexityRoot struct {
 		GetBookingOrderPaymentStatus                  func(childComplexity int, entityID string, entityType string, statusType string) int
 		GetBookingOrderPaymentStatusByUser            func(childComplexity int, entityID string, entityType string) int
 		GetBookingServiceData                         func(childComplexity int) int
+		GetBookingServiceDataByBookingID              func(childComplexity int, bookingID string) int
 		GetBookingServiceDataByUserID                 func(childComplexity int) int
 		GetBookingType                                func(childComplexity int, serviceID string) int
+		GetCargoByBookingID                           func(childComplexity int, bookingID string) int
+		GetCargoByMultiGroupID                        func(childComplexity int, multiGroupID string) int
+		GetCargoPolicy                                func(childComplexity int, cargoID string) int
+		GetCargoPriceCardByID                         func(childComplexity int, cardID *string) int
 		GetCategoryBox                                func(childComplexity int, categoryID string) int
 		GetClosestIsochroneForLocation                func(childComplexity int, riderID string, location []float64) int
 		GetConfirmedBookings                          func(childComplexity int, id string) int
@@ -852,9 +881,11 @@ type ComplexityRoot struct {
 		GetDashboardData                              func(childComplexity int) int
 		GetFavorites                                  func(childComplexity int) int
 		GetForms                                      func(childComplexity int, serviceID string) int
+		GetFullInvoice                                func(childComplexity int, cargoID string) int
 		GetGallery                                    func(childComplexity int, galleryID string) int
 		GetGrowthData                                 func(childComplexity int, id string) int
 		GetID                                         func(childComplexity int) int
+		GetInvoice                                    func(childComplexity int, cargoID string) int
 		GetIsochroneByID                              func(childComplexity int, id string) int
 		GetIsochroneResult                            func(childComplexity int, location []float64, uuid string) int
 		GetIsochronesByRider                          func(childComplexity int, riderID string) int
@@ -897,6 +928,7 @@ type ComplexityRoot struct {
 		GetUserByID                                   func(childComplexity int, id string) int
 		GetUserInfor                                  func(childComplexity int, userID string) int
 		GetUserInforFromContext                       func(childComplexity int) int
+		GetUserInforFromContextForAuthClient          func(childComplexity int) int
 		GetVendorFromIsochroneResultByServiceProdiver func(childComplexity int, vendorID string) int
 		GetVendorsFromIsochroneResult                 func(childComplexity int) int
 		GetjobResponse                                func(childComplexity int, serviceID string) int
@@ -1224,6 +1256,15 @@ type ComplexityRoot struct {
 		Vendor  func(childComplexity int) int
 	}
 
+	ViewInvoice struct {
+		Booking   func(childComplexity int) int
+		Cargo     func(childComplexity int) int
+		Customer  func(childComplexity int) int
+		Policy    func(childComplexity int) int
+		Price     func(childComplexity int) int
+		ServiceID func(childComplexity int) int
+	}
+
 	ViewcategoryBox struct {
 		CategoryBox func(childComplexity int) int
 		Products    func(childComplexity int) int
@@ -1327,6 +1368,9 @@ type GalleryProfessionResolver interface {
 type InventoryItemResolver interface {
 	ID(ctx context.Context, obj *model.InventoryItem) (string, error)
 }
+type InvoiceResolver interface {
+	ID(ctx context.Context, obj *model.Invoice) (string, error)
+}
 type IsochroneResultResolver interface {
 	ID(ctx context.Context, obj *model.IsochroneResult) (string, error)
 	Geojson(ctx context.Context, obj *model.IsochroneResult) (string, error)
@@ -1336,10 +1380,12 @@ type IsochroneResultResolver interface {
 }
 type MutationResolver interface {
 	CreatePolicy(ctx context.Context, input model.CreatePolicyInput) (*model.Policy, error)
+	CreateCargoPolicy(ctx context.Context, input model.CreatePolicyInput, cargoID *string) (*model.Policy, error)
 	AddPolicyDetail(ctx context.Context, policyID string, input model.PolicyDetailInput) (*model.PolicyDetail, error)
 	UpdatePolicy(ctx context.Context, policyID *string, detailID *string, input *model.UpdatePolicyInput) (*model.Policy, error)
 	DeletePolicy(ctx context.Context, policyID string) (bool, error)
 	CreatePriceCard(ctx context.Context, input model.PriceCardInput) (*model.FullCard, error)
+	CreateCargoPriceCard(ctx context.Context, input model.PriceCardInput, cargoID *string) (*model.FullCard, error)
 	UpdatePriceCard(ctx context.Context, input model.UpdatePriceCardInput, priceCardID *string) (*model.PriceCard, error)
 	DeletePriceCard(ctx context.Context, priceCardID string) (bool, error)
 	AddPrice(ctx context.Context, priceCardID string, price model.PriceInput) (*model.Price, error)
@@ -1348,6 +1394,7 @@ type MutationResolver interface {
 	AddAmenity(ctx context.Context, priceCardID string, amenity model.AmenityInput) (*model.Amenity, error)
 	UpdateAmenity(ctx context.Context, priceCardID string, amenityID string, text string) (*model.Amenity, error)
 	RemoveAmenity(ctx context.Context, priceCardID string, amenityID string) (*model.Amenity, error)
+	CreateInvoice(ctx context.Context, input *model.InvoiceInput) (*model.Invoice, error)
 	CreateAdmin(ctx context.Context, input model.CreateAdminInput) (*model.Admin, error)
 	UpdateAdminStatus(ctx context.Context, id string, status string) (*model.Admin, error)
 	UpdateAdmin(ctx context.Context, id string, input model.UpdateAdminInput) (*model.Admin, error)
@@ -1456,10 +1503,12 @@ type MutationResolver interface {
 	DeleteGallery(ctx context.Context, id string) (*bool, error)
 	CreateFavorite(ctx context.Context, input *model.CreateFavoriteInput) (*model.Favorite, error)
 	CreateSocialMedia(ctx context.Context, input *model.SocialMediaInput) (*model.SocialMedia, error)
+	ReAssignRider(ctx context.Context, entityID *string, entityType *string, riderID *string) (*model.UsersInfor, error)
 	CreateUnavailablePeriod(ctx context.Context, input model.CreateUnavailablePeriodInput) (*model.UnavailablePeriod, error)
 	DeleteUnavailablePeriod(ctx context.Context, id string) (*bool, error)
 	GetGrowthData(ctx context.Context, id string) (*model.GrowthData, error)
 	CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string) ([]*model.AppointmentBooking, error)
+	UpdateCargoWithRider(ctx context.Context, riderID *string, cargoID *string) (*model.AppointmentBooking, error)
 	UpdateMultipleBookingsWithLocation(ctx context.Context, input model.AddBookCoordinateInput) (*model.AppointmentBooking, error)
 	UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error)
 	ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error)
@@ -1517,9 +1566,13 @@ type QueryResolver interface {
 	GetPolicyByID(ctx context.Context, policyID string) (*model.Policy, error)
 	GetPolicyInformation(ctx context.Context, serviceID string) ([]*model.PolicyInformation, error)
 	GetPolicy(ctx context.Context, policyID string) (*model.PolicyInformation, error)
+	GetCargoPolicy(ctx context.Context, cargoID string) (*model.PolicyInformation, error)
+	GetInvoice(ctx context.Context, cargoID string) (*model.Invoice, error)
+	GetCargoPriceCardByID(ctx context.Context, cardID *string) (*model.FullCard, error)
 	GlobalSearch(ctx context.Context, query string, limit *int32, offset *int32, serviceID string) (*model.SearchResults, error)
 	GetpriceCardsinformation(ctx context.Context, serviceID *string) ([]*model.FullCard, error)
 	GetPriceCardByID(ctx context.Context, id string) (*model.FullCard, error)
+	GetFullInvoice(ctx context.Context, cargoID string) (*model.ViewInvoice, error)
 	GetAllSession(ctx context.Context) ([]*model.Session, error)
 	GetAdmin(ctx context.Context, id string) (*model.Admin, error)
 	GetGrowthData(ctx context.Context, id string) (*model.GrowthData, error)
@@ -1608,6 +1661,7 @@ type QueryResolver interface {
 	NearbyRiders(ctx context.Context, location []float64, radius int32) ([]*model.Rider, error)
 	TestNearbyRiders(ctx context.Context, center model.CoordinateInput, riders []*model.CoordinateInput) ([]*model.NearbyRider, error)
 	GetjobResponse(ctx context.Context, serviceID string) (*model.RidersRequest, error)
+	GetAllServiceRiders(ctx context.Context) ([]*model.Rider, error)
 	GetAllRidersResponseInfor(ctx context.Context) ([]*model.RiderRequestInfor, error)
 	GetRidersLocations(ctx context.Context) (*model.Rider, error)
 	RiderCurrentLocation(ctx context.Context, riderID string) ([]float64, error)
@@ -1621,6 +1675,7 @@ type QueryResolver interface {
 	GetUserBookings(ctx context.Context, bookTypeID string, userID string) (*model.UserBookings, error)
 	GetUserInfor(ctx context.Context, userID string) (*model.UsersInfor, error)
 	GetUserInforFromContext(ctx context.Context) (*model.UsersInfor, error)
+	GetUserInforFromContextForAuthClient(ctx context.Context) (*model.UsersInfor, error)
 	ClearClientCache(ctx context.Context) (bool, error)
 	CheakType(ctx context.Context, serviceID string) (string, error)
 	GetProfiles(ctx context.Context) (*model.Profiles, error)
@@ -1649,6 +1704,7 @@ type QueryResolver interface {
 	GetOrderServiceData(ctx context.Context) ([]*model.ServiceData, error)
 	GetAllUserServiceData(ctx context.Context) ([]*model.ServiceData, error)
 	GetBookingServiceDataByUserID(ctx context.Context) ([]*model.ServiceData, error)
+	GetBookingServiceDataByBookingID(ctx context.Context, bookingID string) (*model.AppointmentBookingData, error)
 	GetOrderServiceDataByUserID(ctx context.Context) ([]*model.ServiceData, error)
 	GetUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error)
 	GetConfirmedBookingsAsUnavailable(ctx context.Context) ([]*model.AppointmentBooking, error)
@@ -1662,6 +1718,8 @@ type QueryResolver interface {
 	GetAppointmentBooking(ctx context.Context, bookID *string) (*model.AppointmentBooking, error)
 	GetAppointmentBookingByMultiGroupID(ctx context.Context, multiGroupID *string) ([]*model.AppointmentBooking, error)
 	GetMultiGroupedAppointmentBookingBybookID(ctx context.Context, bookID *string) ([]*model.AppointmentBooking, error)
+	GetCargoByBookingID(ctx context.Context, bookingID string) (*model.BookingCargo, error)
+	GetCargoByMultiGroupID(ctx context.Context, multiGroupID string) ([]*model.BookingCargo, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, error)
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
 }
@@ -2028,6 +2086,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.AppointmentBookingData.BookingID(childComplexity), true
 
+	case "AppointmentBookingData.cargoId":
+		if e.complexity.AppointmentBookingData.CargoID == nil {
+			break
+		}
+
+		return e.complexity.AppointmentBookingData.CargoID(childComplexity), true
+
 	case "AppointmentBookingData.day":
 		if e.complexity.AppointmentBookingData.Day == nil {
 			break
@@ -2175,6 +2240,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.AppointmentBookingData.TableSize(childComplexity), true
 
+	case "AppointmentBookingData.transportType":
+		if e.complexity.AppointmentBookingData.TransportType == nil {
+			break
+		}
+
+		return e.complexity.AppointmentBookingData.TransportType(childComplexity), true
+
 	case "AppointmentBookingData.userType":
 		if e.complexity.AppointmentBookingData.UserType == nil {
 			break
@@ -2258,6 +2330,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.BookingCargo.ID(childComplexity), true
+
+	case "BookingCargo.multiGroupId":
+		if e.complexity.BookingCargo.MultiGroupID == nil {
+			break
+		}
+
+		return e.complexity.BookingCargo.MultiGroupID(childComplexity), true
 
 	case "BookingCargo.riderId":
 		if e.complexity.BookingCargo.RiderID == nil {
@@ -3407,6 +3486,69 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.InventoryItem.UpdatedAt(childComplexity), true
 
+	case "Invoice.cargoId":
+		if e.complexity.Invoice.CargoID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.CargoID(childComplexity), true
+
+	case "Invoice.createdAt":
+		if e.complexity.Invoice.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Invoice.CreatedAt(childComplexity), true
+
+	case "Invoice.id":
+		if e.complexity.Invoice.ID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.ID(childComplexity), true
+
+	case "Invoice.notes":
+		if e.complexity.Invoice.Notes == nil {
+			break
+		}
+
+		return e.complexity.Invoice.Notes(childComplexity), true
+
+	case "Invoice.policyId":
+		if e.complexity.Invoice.PolicyID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.PolicyID(childComplexity), true
+
+	case "Invoice.priceId":
+		if e.complexity.Invoice.PriceID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.PriceID(childComplexity), true
+
+	case "Invoice.serviceId":
+		if e.complexity.Invoice.ServiceID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.ServiceID(childComplexity), true
+
+	case "Invoice.updatedAt":
+		if e.complexity.Invoice.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Invoice.UpdatedAt(childComplexity), true
+
+	case "Invoice.userId":
+		if e.complexity.Invoice.UserID == nil {
+			break
+		}
+
+		return e.complexity.Invoice.UserID(childComplexity), true
+
 	case "IsochroneResult.address":
 		if e.complexity.IsochroneResult.Address == nil {
 			break
@@ -3739,6 +3881,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateBooker(childComplexity, args["input"].(model.BookersInput), args["serviceId"].(string)), true
 
+	case "Mutation.createCargoPolicy":
+		if e.complexity.Mutation.CreateCargoPolicy == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createCargoPolicy_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateCargoPolicy(childComplexity, args["input"].(model.CreatePolicyInput), args["cargoId"].(*string)), true
+
+	case "Mutation.createCargoPriceCard":
+		if e.complexity.Mutation.CreateCargoPriceCard == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createCargoPriceCard_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateCargoPriceCard(childComplexity, args["input"].(model.PriceCardInput), args["cargoId"].(*string)), true
+
 	case "Mutation.createCategory":
 		if e.complexity.Mutation.CreateCategory == nil {
 			break
@@ -3810,6 +3976,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateGallery(childComplexity, args["files"].([]*graphql.Upload), args["input"].(model.GalleryProfessionInput)), true
+
+	case "Mutation.createInvoice":
+		if e.complexity.Mutation.CreateInvoice == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createInvoice_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateInvoice(childComplexity, args["input"].(*model.InvoiceInput)), true
 
 	case "Mutation.createMultipleBookings":
 		if e.complexity.Mutation.CreateMultipleBookings == nil {
@@ -4422,6 +4600,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.Profiles(childComplexity, args["profileId"].(string), args["removeProfileId"].(*string)), true
 
+	case "Mutation.reAssignRider":
+		if e.complexity.Mutation.ReAssignRider == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_reAssignRider_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ReAssignRider(childComplexity, args["entityId"].(*string), args["entityType"].(*string), args["riderId"].(*string)), true
+
 	case "Mutation.reSetPasswordORUpdateOTP":
 		if e.complexity.Mutation.ReSetPasswordORUpdateOtp == nil {
 			break
@@ -4687,6 +4877,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateBookingType(childComplexity, args["type"].(model.BookingType)), true
+
+	case "Mutation.updateCargoWithRider":
+		if e.complexity.Mutation.UpdateCargoWithRider == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCargoWithRider_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateCargoWithRider(childComplexity, args["riderId"].(*string), args["cargoId"].(*string)), true
 
 	case "Mutation.updateCategory":
 		if e.complexity.Mutation.UpdateCategory == nil {
@@ -5646,6 +5848,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Policy.ID(childComplexity), true
 
+	case "Policy.isPublic":
+		if e.complexity.Policy.IsPublic == nil {
+			break
+		}
+
+		return e.complexity.Policy.IsPublic(childComplexity), true
+
 	case "Policy.name":
 		if e.complexity.Policy.Name == nil {
 			break
@@ -5792,6 +6001,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.PriceCard.ID(childComplexity), true
+
+	case "PriceCard.isPublic":
+		if e.complexity.PriceCard.IsPublic == nil {
+			break
+		}
+
+		return e.complexity.PriceCard.IsPublic(childComplexity), true
 
 	case "PriceCard.ServiceId":
 		if e.complexity.PriceCard.ServiceID == nil {
@@ -6563,6 +6779,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllRouteData(childComplexity), true
 
+	case "Query.getAllServiceRiders":
+		if e.complexity.Query.GetAllServiceRiders == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllServiceRiders(childComplexity), true
+
 	case "Query.getAllSession":
 		if e.complexity.Query.GetAllSession == nil {
 			break
@@ -6722,6 +6945,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetBookingServiceData(childComplexity), true
 
+	case "Query.getBookingServiceDataByBookingId":
+		if e.complexity.Query.GetBookingServiceDataByBookingID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getBookingServiceDataByBookingId_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetBookingServiceDataByBookingID(childComplexity, args["bookingId"].(string)), true
+
 	case "Query.getBookingServiceDataByUserId":
 		if e.complexity.Query.GetBookingServiceDataByUserID == nil {
 			break
@@ -6740,6 +6975,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetBookingType(childComplexity, args["serviceId"].(string)), true
+
+	case "Query.getCargoByBookingID":
+		if e.complexity.Query.GetCargoByBookingID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getCargoByBookingID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetCargoByBookingID(childComplexity, args["bookingId"].(string)), true
+
+	case "Query.getCargoByMultiGroupId":
+		if e.complexity.Query.GetCargoByMultiGroupID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getCargoByMultiGroupId_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetCargoByMultiGroupID(childComplexity, args["multiGroupId"].(string)), true
+
+	case "Query.getCargoPolicy":
+		if e.complexity.Query.GetCargoPolicy == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getCargoPolicy_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetCargoPolicy(childComplexity, args["cargoId"].(string)), true
+
+	case "Query.getCargoPriceCardById":
+		if e.complexity.Query.GetCargoPriceCardByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getCargoPriceCardById_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetCargoPriceCardByID(childComplexity, args["cardId"].(*string)), true
 
 	case "Query.getCategoryBox":
 		if e.complexity.Query.GetCategoryBox == nil {
@@ -6810,6 +7093,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetForms(childComplexity, args["serviceId"].(string)), true
 
+	case "Query.getFullInvoice":
+		if e.complexity.Query.GetFullInvoice == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getFullInvoice_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetFullInvoice(childComplexity, args["cargoId"].(string)), true
+
 	case "Query.getGallery":
 		if e.complexity.Query.GetGallery == nil {
 			break
@@ -6840,6 +7135,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetID(childComplexity), true
+
+	case "Query.getInvoice":
+		if e.complexity.Query.GetInvoice == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getInvoice_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetInvoice(childComplexity, args["cargoId"].(string)), true
 
 	case "Query.getIsochroneById":
 		if e.complexity.Query.GetIsochroneByID == nil {
@@ -7289,6 +7596,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetUserInforFromContext(childComplexity), true
+
+	case "Query.getUserInforFromContextForAuthClient":
+		if e.complexity.Query.GetUserInforFromContextForAuthClient == nil {
+			break
+		}
+
+		return e.complexity.Query.GetUserInforFromContextForAuthClient(childComplexity), true
 
 	case "Query.getVendorFromIsochroneResultByServiceProdiver":
 		if e.complexity.Query.GetVendorFromIsochroneResultByServiceProdiver == nil {
@@ -9044,6 +9358,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VendorsMapData.Vendor(childComplexity), true
 
+	case "ViewInvoice.booking":
+		if e.complexity.ViewInvoice.Booking == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.Booking(childComplexity), true
+
+	case "ViewInvoice.cargo":
+		if e.complexity.ViewInvoice.Cargo == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.Cargo(childComplexity), true
+
+	case "ViewInvoice.customer":
+		if e.complexity.ViewInvoice.Customer == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.Customer(childComplexity), true
+
+	case "ViewInvoice.policy":
+		if e.complexity.ViewInvoice.Policy == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.Policy(childComplexity), true
+
+	case "ViewInvoice.price":
+		if e.complexity.ViewInvoice.Price == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.Price(childComplexity), true
+
+	case "ViewInvoice.serviceId":
+		if e.complexity.ViewInvoice.ServiceID == nil {
+			break
+		}
+
+		return e.complexity.ViewInvoice.ServiceID(childComplexity), true
+
 	case "ViewcategoryBox.categoryBox":
 		if e.complexity.ViewcategoryBox.CategoryBox == nil {
 			break
@@ -9237,6 +9593,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFormsFilter,
 		ec.unmarshalInputGalleryProfessionInput,
 		ec.unmarshalInputInventoryItemInput,
+		ec.unmarshalInputInvoiceInput,
 		ec.unmarshalInputIsochroneInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputNewRiderRangeInput,
@@ -10071,6 +10428,88 @@ func (ec *executionContext) field_Mutation_createBooker_argsServiceID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_createCargoPolicy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createCargoPolicy_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := ec.field_Mutation_createCargoPolicy_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createCargoPolicy_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.CreatePolicyInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNCreatePolicyInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCreatePolicyInput(ctx, tmp)
+	}
+
+	var zeroVal model.CreatePolicyInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createCargoPolicy_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createCargoPriceCard_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createCargoPriceCard_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := ec.field_Mutation_createCargoPriceCard_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createCargoPriceCard_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.PriceCardInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNPriceCardInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPriceCardInput(ctx, tmp)
+	}
+
+	var zeroVal model.PriceCardInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createCargoPriceCard_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_createCategoryBox_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -10224,6 +10663,29 @@ func (ec *executionContext) field_Mutation_createGallery_argsInput(
 	}
 
 	var zeroVal model.GalleryProfessionInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createInvoice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createInvoice_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createInvoice_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.InvoiceInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalOInvoiceInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoiceInput(ctx, tmp)
+	}
+
+	var zeroVal *model.InvoiceInput
 	return zeroVal, nil
 }
 
@@ -11547,6 +12009,65 @@ func (ec *executionContext) field_Mutation_profiles_argsRemoveProfileID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_reAssignRider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_reAssignRider_argsEntityID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["entityId"] = arg0
+	arg1, err := ec.field_Mutation_reAssignRider_argsEntityType(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["entityType"] = arg1
+	arg2, err := ec.field_Mutation_reAssignRider_argsRiderID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["riderId"] = arg2
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_reAssignRider_argsEntityID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
+	if tmp, ok := rawArgs["entityId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_reAssignRider_argsEntityType(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("entityType"))
+	if tmp, ok := rawArgs["entityType"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_reAssignRider_argsRiderID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("riderId"))
+	if tmp, ok := rawArgs["riderId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_reSetPasswordORUpdateOTP_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -12351,6 +12872,47 @@ func (ec *executionContext) field_Mutation_updateBookingType_argsType(
 	}
 
 	var zeroVal model.BookingType
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCargoWithRider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateCargoWithRider_argsRiderID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["riderId"] = arg0
+	arg1, err := ec.field_Mutation_updateCargoWithRider_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateCargoWithRider_argsRiderID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("riderId"))
+	if tmp, ok := rawArgs["riderId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCargoWithRider_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -14866,6 +15428,29 @@ func (ec *executionContext) field_Query_getBookingOrderPaymentStatus_argsStatusT
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_getBookingServiceDataByBookingId_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getBookingServiceDataByBookingId_argsBookingID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["bookingId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getBookingServiceDataByBookingId_argsBookingID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("bookingId"))
+	if tmp, ok := rawArgs["bookingId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_getBookingType_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -14886,6 +15471,98 @@ func (ec *executionContext) field_Query_getBookingType_argsServiceID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getCargoByBookingID_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getCargoByBookingID_argsBookingID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["bookingId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getCargoByBookingID_argsBookingID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("bookingId"))
+	if tmp, ok := rawArgs["bookingId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getCargoByMultiGroupId_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getCargoByMultiGroupId_argsMultiGroupID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["multiGroupId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getCargoByMultiGroupId_argsMultiGroupID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("multiGroupId"))
+	if tmp, ok := rawArgs["multiGroupId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getCargoPolicy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getCargoPolicy_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getCargoPolicy_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getCargoPriceCardById_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getCargoPriceCardById_argsCardID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cardId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getCargoPriceCardById_argsCardID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cardId"))
+	if tmp, ok := rawArgs["cardId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -14999,6 +15676,29 @@ func (ec *executionContext) field_Query_getForms_argsServiceID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_getFullInvoice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getFullInvoice_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getFullInvoice_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_getGallery_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -15038,6 +15738,29 @@ func (ec *executionContext) field_Query_getGrowthData_argsID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getInvoice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getInvoice_argsCargoID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["cargoId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getInvoice_argsCargoID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+	if tmp, ok := rawArgs["cargoId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -19287,6 +20010,88 @@ func (ec *executionContext) fieldContext_AppointmentBookingData_paymentMethod(_ 
 	return fc, nil
 }
 
+func (ec *executionContext) _AppointmentBookingData_transportType(ctx context.Context, field graphql.CollectedField, obj *model.AppointmentBookingData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AppointmentBookingData_transportType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TransportType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AppointmentBookingData_transportType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AppointmentBookingData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AppointmentBookingData_cargoId(ctx context.Context, field graphql.CollectedField, obj *model.AppointmentBookingData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AppointmentBookingData_cargoId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CargoID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AppointmentBookingData_cargoId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AppointmentBookingData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AppointmentBookingData_deliveryFee(ctx context.Context, field graphql.CollectedField, obj *model.AppointmentBookingData) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_AppointmentBookingData_deliveryFee(ctx, field)
 	if err != nil {
@@ -20189,17 +20994,55 @@ func (ec *executionContext) _BookingCargo_bookingId(ctx context.Context, field g
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_BookingCargo_bookingId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BookingCargo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BookingCargo_multiGroupId(ctx context.Context, field graphql.CollectedField, obj *model.BookingCargo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BookingCargo_multiGroupId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MultiGroupID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BookingCargo_multiGroupId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "BookingCargo",
 		Field:      field,
@@ -27387,6 +28230,387 @@ func (ec *executionContext) fieldContext_InventoryItem_createdAt(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Invoice_id(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Invoice().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_serviceId(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_serviceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ServiceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_serviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_cargoId(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_cargoId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CargoID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_cargoId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_userId(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_userId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_notes(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_notes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Notes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_notes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_policyId(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_policyId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PolicyID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_policyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_priceId(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_priceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PriceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_priceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Invoice_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Invoice_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Invoice_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Invoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IsochroneResult_id(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_IsochroneResult_id(ctx, field)
 	if err != nil {
@@ -28257,6 +29481,8 @@ func (ec *executionContext) fieldContext_Mutation_createPolicy(ctx context.Conte
 				return ec.fieldContext_Policy_ServiceId(ctx, field)
 			case "detailsIds":
 				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Policy_createdAt(ctx, field)
 			case "updatedAt":
@@ -28273,6 +29499,79 @@ func (ec *executionContext) fieldContext_Mutation_createPolicy(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createPolicy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createCargoPolicy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createCargoPolicy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateCargoPolicy(rctx, fc.Args["input"].(model.CreatePolicyInput), fc.Args["cargoId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Policy)
+	fc.Result = res
+	return ec.marshalNPolicy2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPolicy(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createCargoPolicy(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Policy_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Policy_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Policy_description(ctx, field)
+			case "ServiceId":
+				return ec.fieldContext_Policy_ServiceId(ctx, field)
+			case "detailsIds":
+				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Policy_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Policy_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Policy", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCargoPolicy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -28399,6 +29698,8 @@ func (ec *executionContext) fieldContext_Mutation_updatePolicy(ctx context.Conte
 				return ec.fieldContext_Policy_ServiceId(ctx, field)
 			case "detailsIds":
 				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Policy_createdAt(ctx, field)
 			case "updatedAt":
@@ -28539,6 +29840,69 @@ func (ec *executionContext) fieldContext_Mutation_createPriceCard(ctx context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createCargoPriceCard(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createCargoPriceCard(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateCargoPriceCard(rctx, fc.Args["input"].(model.PriceCardInput), fc.Args["cargoId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FullCard)
+	fc.Result = res
+	return ec.marshalNfullCard2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createCargoPriceCard(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "card":
+				return ec.fieldContext_fullCard_card(ctx, field)
+			case "prices":
+				return ec.fieldContext_fullCard_prices(ctx, field)
+			case "amenities":
+				return ec.fieldContext_fullCard_amenities(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type fullCard", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCargoPriceCard_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updatePriceCard(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_updatePriceCard(ctx, field)
 	if err != nil {
@@ -28584,6 +29948,8 @@ func (ec *executionContext) fieldContext_Mutation_updatePriceCard(ctx context.Co
 				return ec.fieldContext_PriceCard_title(ctx, field)
 			case "description":
 				return ec.fieldContext_PriceCard_description(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_PriceCard_isPublic(ctx, field)
 			case "ServiceId":
 				return ec.fieldContext_PriceCard_ServiceId(ctx, field)
 			case "createdAt":
@@ -29065,6 +30431,78 @@ func (ec *executionContext) fieldContext_Mutation_removeAmenity(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_removeAmenity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createInvoice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createInvoice(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateInvoice(rctx, fc.Args["input"].(*model.InvoiceInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Invoice)
+	fc.Result = res
+	return ec.marshalOInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoice(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createInvoice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Invoice_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Invoice_serviceId(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_Invoice_cargoId(ctx, field)
+			case "userId":
+				return ec.fieldContext_Invoice_userId(ctx, field)
+			case "notes":
+				return ec.fieldContext_Invoice_notes(ctx, field)
+			case "policyId":
+				return ec.fieldContext_Invoice_policyId(ctx, field)
+			case "priceId":
+				return ec.fieldContext_Invoice_priceId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Invoice_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Invoice_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Invoice", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createInvoice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -36205,6 +37643,76 @@ func (ec *executionContext) fieldContext_Mutation_createSocialMedia(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_reAssignRider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_reAssignRider(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ReAssignRider(rctx, fc.Args["entityId"].(*string), fc.Args["entityType"].(*string), fc.Args["riderId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.UsersInfor)
+	fc.Result = res
+	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_reAssignRider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UsersInfor_id(ctx, field)
+			case "name":
+				return ec.fieldContext_UsersInfor_name(ctx, field)
+			case "type":
+				return ec.fieldContext_UsersInfor_type(ctx, field)
+			case "number":
+				return ec.fieldContext_UsersInfor_number(ctx, field)
+			case "email":
+				return ec.fieldContext_UsersInfor_email(ctx, field)
+			case "location":
+				return ec.fieldContext_UsersInfor_location(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_reAssignRider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createUnavailablePeriod(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createUnavailablePeriod(ctx, field)
 	if err != nil {
@@ -36486,6 +37994,110 @@ func (ec *executionContext) fieldContext_Mutation_createMultipleBookings(ctx con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createMultipleBookings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCargoWithRider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateCargoWithRider(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateCargoWithRider(rctx, fc.Args["riderId"].(*string), fc.Args["cargoId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.AppointmentBooking)
+	fc.Result = res
+	return ec.marshalOAppointmentBooking2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCargoWithRider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AppointmentBooking_id(ctx, field)
+			case "startTime":
+				return ec.fieldContext_AppointmentBooking_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_AppointmentBooking_endTime(ctx, field)
+			case "day":
+				return ec.fieldContext_AppointmentBooking_day(ctx, field)
+			case "item":
+				return ec.fieldContext_AppointmentBooking_item(ctx, field)
+			case "notes":
+				return ec.fieldContext_AppointmentBooking_notes(ctx, field)
+			case "tableSize":
+				return ec.fieldContext_AppointmentBooking_tableSize(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_AppointmentBooking_serviceId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_AppointmentBooking_riderId(ctx, field)
+			case "duration":
+				return ec.fieldContext_AppointmentBooking_duration(ctx, field)
+			case "distance":
+				return ec.fieldContext_AppointmentBooking_distance(ctx, field)
+			case "deliveryFee":
+				return ec.fieldContext_AppointmentBooking_deliveryFee(ctx, field)
+			case "dropoffLocation":
+				return ec.fieldContext_AppointmentBooking_dropoffLocation(ctx, field)
+			case "pickupLocation":
+				return ec.fieldContext_AppointmentBooking_pickupLocation(ctx, field)
+			case "estimatedDeliveryDate":
+				return ec.fieldContext_AppointmentBooking_estimatedDeliveryDate(ctx, field)
+			case "deliveryAddress":
+				return ec.fieldContext_AppointmentBooking_deliveryAddress(ctx, field)
+			case "pickUpAddress":
+				return ec.fieldContext_AppointmentBooking_pickUpAddress(ctx, field)
+			case "userId":
+				return ec.fieldContext_AppointmentBooking_userId(ctx, field)
+			case "isConfirmed":
+				return ec.fieldContext_AppointmentBooking_isConfirmed(ctx, field)
+			case "userType":
+				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
+			case "status":
+				return ec.fieldContext_AppointmentBooking_status(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AppointmentBooking_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AppointmentBooking_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AppointmentBooking", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCargoWithRider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -40745,6 +42357,47 @@ func (ec *executionContext) fieldContext_Policy_detailsIds(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Policy_isPublic(ctx context.Context, field graphql.CollectedField, obj *model.Policy) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Policy_isPublic(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsPublic, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Policy_isPublic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Policy",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Policy_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Policy) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Policy_createdAt(ctx, field)
 	if err != nil {
@@ -41187,6 +42840,8 @@ func (ec *executionContext) fieldContext_PolicyInformation_policy(_ context.Cont
 				return ec.fieldContext_Policy_ServiceId(ctx, field)
 			case "detailsIds":
 				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Policy_createdAt(ctx, field)
 			case "updatedAt":
@@ -41646,6 +43301,47 @@ func (ec *executionContext) fieldContext_PriceCard_description(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PriceCard_isPublic(ctx context.Context, field graphql.CollectedField, obj *model.PriceCard) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PriceCard_isPublic(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsPublic, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PriceCard_isPublic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PriceCard",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -43178,6 +44874,8 @@ func (ec *executionContext) fieldContext_Query_getPolicies(_ context.Context, fi
 				return ec.fieldContext_Policy_ServiceId(ctx, field)
 			case "detailsIds":
 				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Policy_createdAt(ctx, field)
 			case "updatedAt":
@@ -43235,6 +44933,8 @@ func (ec *executionContext) fieldContext_Query_getPolicyById(ctx context.Context
 				return ec.fieldContext_Policy_ServiceId(ctx, field)
 			case "detailsIds":
 				return ec.fieldContext_Policy_detailsIds(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Policy_isPublic(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Policy_createdAt(ctx, field)
 			case "updatedAt":
@@ -43367,6 +45067,199 @@ func (ec *executionContext) fieldContext_Query_getPolicy(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPolicy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getCargoPolicy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getCargoPolicy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCargoPolicy(rctx, fc.Args["cargoId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PolicyInformation)
+	fc.Result = res
+	return ec.marshalOPolicyInformation2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPolicyInformation(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getCargoPolicy(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "policy":
+				return ec.fieldContext_PolicyInformation_policy(ctx, field)
+			case "policyDetails":
+				return ec.fieldContext_PolicyInformation_policyDetails(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PolicyInformation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getCargoPolicy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getInvoice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getInvoice(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetInvoice(rctx, fc.Args["cargoId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Invoice)
+	fc.Result = res
+	return ec.marshalNInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoice(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getInvoice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Invoice_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_Invoice_serviceId(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_Invoice_cargoId(ctx, field)
+			case "userId":
+				return ec.fieldContext_Invoice_userId(ctx, field)
+			case "notes":
+				return ec.fieldContext_Invoice_notes(ctx, field)
+			case "policyId":
+				return ec.fieldContext_Invoice_policyId(ctx, field)
+			case "priceId":
+				return ec.fieldContext_Invoice_priceId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Invoice_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Invoice_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Invoice", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getInvoice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getCargoPriceCardById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getCargoPriceCardById(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCargoPriceCardByID(rctx, fc.Args["cardId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.FullCard)
+	fc.Result = res
+	return ec.marshalOfullCard2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getCargoPriceCardById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "card":
+				return ec.fieldContext_fullCard_card(ctx, field)
+			case "prices":
+				return ec.fieldContext_fullCard_prices(ctx, field)
+			case "amenities":
+				return ec.fieldContext_fullCard_amenities(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type fullCard", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getCargoPriceCardById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -43551,6 +45444,72 @@ func (ec *executionContext) fieldContext_Query_getPriceCardById(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPriceCardById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getFullInvoice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getFullInvoice(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetFullInvoice(rctx, fc.Args["cargoId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.ViewInvoice)
+	fc.Result = res
+	return ec.marshalOViewInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐViewInvoice(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getFullInvoice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "policy":
+				return ec.fieldContext_ViewInvoice_policy(ctx, field)
+			case "price":
+				return ec.fieldContext_ViewInvoice_price(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_ViewInvoice_serviceId(ctx, field)
+			case "customer":
+				return ec.fieldContext_ViewInvoice_customer(ctx, field)
+			case "cargo":
+				return ec.fieldContext_ViewInvoice_cargo(ctx, field)
+			case "booking":
+				return ec.fieldContext_ViewInvoice_booking(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ViewInvoice", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getFullInvoice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -50000,6 +51959,88 @@ func (ec *executionContext) fieldContext_Query_getjobResponse(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getAllServiceRiders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllServiceRiders(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllServiceRiders(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Rider)
+	fc.Result = res
+	return ec.marshalNRider2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRiderᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllServiceRiders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Rider_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Rider_name(ctx, field)
+			case "email":
+				return ec.fieldContext_Rider_email(ctx, field)
+			case "type":
+				return ec.fieldContext_Rider_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Rider_number(ctx, field)
+			case "state":
+				return ec.fieldContext_Rider_state(ctx, field)
+			case "password":
+				return ec.fieldContext_Rider_password(ctx, field)
+			case "availability":
+				return ec.fieldContext_Rider_availability(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Rider_dpfile(ctx, field)
+			case "idCard":
+				return ec.fieldContext_Rider_idCard(ctx, field)
+			case "location":
+				return ec.fieldContext_Rider_location(ctx, field)
+			case "IsochroneID":
+				return ec.fieldContext_Rider_IsochroneID(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Rider_coordinates(ctx, field)
+			case "isTracking":
+				return ec.fieldContext_Rider_isTracking(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Rider_h3Indexes(ctx, field)
+			case "experience":
+				return ec.fieldContext_Rider_experience(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Rider_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Rider_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Rider", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getAllRidersResponseInfor(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getAllRidersResponseInfor(ctx, field)
 	if err != nil {
@@ -50829,6 +52870,65 @@ func (ec *executionContext) _Query_getUserInforFromContext(ctx context.Context, 
 }
 
 func (ec *executionContext) fieldContext_Query_getUserInforFromContext(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UsersInfor_id(ctx, field)
+			case "name":
+				return ec.fieldContext_UsersInfor_name(ctx, field)
+			case "type":
+				return ec.fieldContext_UsersInfor_type(ctx, field)
+			case "number":
+				return ec.fieldContext_UsersInfor_number(ctx, field)
+			case "email":
+				return ec.fieldContext_UsersInfor_email(ctx, field)
+			case "location":
+				return ec.fieldContext_UsersInfor_location(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUserInforFromContextForAuthClient(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserInforFromContextForAuthClient(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserInforFromContextForAuthClient(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.UsersInfor)
+	fc.Result = res
+	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserInforFromContextForAuthClient(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -52696,6 +54796,113 @@ func (ec *executionContext) fieldContext_Query_getBookingServiceDataByUserId(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getBookingServiceDataByBookingId(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getBookingServiceDataByBookingId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetBookingServiceDataByBookingID(rctx, fc.Args["bookingId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.AppointmentBookingData)
+	fc.Result = res
+	return ec.marshalNAppointmentBookingData2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingData(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getBookingServiceDataByBookingId(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "bookingId":
+				return ec.fieldContext_AppointmentBookingData_bookingId(ctx, field)
+			case "startTime":
+				return ec.fieldContext_AppointmentBookingData_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_AppointmentBookingData_endTime(ctx, field)
+			case "day":
+				return ec.fieldContext_AppointmentBookingData_day(ctx, field)
+			case "notes":
+				return ec.fieldContext_AppointmentBookingData_notes(ctx, field)
+			case "item":
+				return ec.fieldContext_AppointmentBookingData_item(ctx, field)
+			case "tableSize":
+				return ec.fieldContext_AppointmentBookingData_tableSize(ctx, field)
+			case "userType":
+				return ec.fieldContext_AppointmentBookingData_userType(ctx, field)
+			case "isConfirmed":
+				return ec.fieldContext_AppointmentBookingData_isConfirmed(ctx, field)
+			case "pickupLocation":
+				return ec.fieldContext_AppointmentBookingData_pickupLocation(ctx, field)
+			case "dropoffLocation":
+				return ec.fieldContext_AppointmentBookingData_dropoffLocation(ctx, field)
+			case "deliveryAddress":
+				return ec.fieldContext_AppointmentBookingData_deliveryAddress(ctx, field)
+			case "pickUpAddress":
+				return ec.fieldContext_AppointmentBookingData_pickUpAddress(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_AppointmentBookingData_multiGroupId(ctx, field)
+			case "status":
+				return ec.fieldContext_AppointmentBookingData_status(ctx, field)
+			case "paymentStatus":
+				return ec.fieldContext_AppointmentBookingData_paymentStatus(ctx, field)
+			case "paymentMethod":
+				return ec.fieldContext_AppointmentBookingData_paymentMethod(ctx, field)
+			case "transportType":
+				return ec.fieldContext_AppointmentBookingData_transportType(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_AppointmentBookingData_cargoId(ctx, field)
+			case "deliveryFee":
+				return ec.fieldContext_AppointmentBookingData_deliveryFee(ctx, field)
+			case "distance":
+				return ec.fieldContext_AppointmentBookingData_distance(ctx, field)
+			case "duration":
+				return ec.fieldContext_AppointmentBookingData_duration(ctx, field)
+			case "estimatedDeliveryDate":
+				return ec.fieldContext_AppointmentBookingData_estimatedDeliveryDate(ctx, field)
+			case "routeData":
+				return ec.fieldContext_AppointmentBookingData_routeData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_AppointmentBookingData_rangeMetaData(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AppointmentBookingData", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getBookingServiceDataByBookingId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getOrderServiceDataByUserId(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getOrderServiceDataByUserId(ctx, field)
 	if err != nil {
@@ -53778,6 +55985,150 @@ func (ec *executionContext) fieldContext_Query_getMultiGroupedAppointmentBooking
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getMultiGroupedAppointmentBookingBybookId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getCargoByBookingID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getCargoByBookingID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCargoByBookingID(rctx, fc.Args["bookingId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.BookingCargo)
+	fc.Result = res
+	return ec.marshalOBookingCargo2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getCargoByBookingID(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_BookingCargo_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_BookingCargo_serviceId(ctx, field)
+			case "userId":
+				return ec.fieldContext_BookingCargo_userId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_BookingCargo_riderId(ctx, field)
+			case "transportType":
+				return ec.fieldContext_BookingCargo_transportType(ctx, field)
+			case "bookingId":
+				return ec.fieldContext_BookingCargo_bookingId(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_BookingCargo_multiGroupId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_BookingCargo_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_BookingCargo_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BookingCargo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getCargoByBookingID_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getCargoByMultiGroupId(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getCargoByMultiGroupId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCargoByMultiGroupID(rctx, fc.Args["multiGroupId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.BookingCargo)
+	fc.Result = res
+	return ec.marshalOBookingCargo2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getCargoByMultiGroupId(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_BookingCargo_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_BookingCargo_serviceId(ctx, field)
+			case "userId":
+				return ec.fieldContext_BookingCargo_userId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_BookingCargo_riderId(ctx, field)
+			case "transportType":
+				return ec.fieldContext_BookingCargo_transportType(ctx, field)
+			case "bookingId":
+				return ec.fieldContext_BookingCargo_bookingId(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_BookingCargo_multiGroupId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_BookingCargo_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_BookingCargo_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BookingCargo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getCargoByMultiGroupId_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -59896,6 +62247,10 @@ func (ec *executionContext) fieldContext_ServiceData_bookingData(_ context.Conte
 				return ec.fieldContext_AppointmentBookingData_paymentStatus(ctx, field)
 			case "paymentMethod":
 				return ec.fieldContext_AppointmentBookingData_paymentMethod(ctx, field)
+			case "transportType":
+				return ec.fieldContext_AppointmentBookingData_transportType(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_AppointmentBookingData_cargoId(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_AppointmentBookingData_deliveryFee(ctx, field)
 			case "distance":
@@ -63359,6 +65714,402 @@ func (ec *executionContext) fieldContext_VendorsMapData_mapData(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ViewInvoice_policy(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_policy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Policy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PolicyInformation)
+	fc.Result = res
+	return ec.marshalOPolicyInformation2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPolicyInformation(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_policy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "policy":
+				return ec.fieldContext_PolicyInformation_policy(ctx, field)
+			case "policyDetails":
+				return ec.fieldContext_PolicyInformation_policyDetails(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PolicyInformation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ViewInvoice_price(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_price(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Price, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.FullCard)
+	fc.Result = res
+	return ec.marshalOfullCard2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_price(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "card":
+				return ec.fieldContext_fullCard_card(ctx, field)
+			case "prices":
+				return ec.fieldContext_fullCard_prices(ctx, field)
+			case "amenities":
+				return ec.fieldContext_fullCard_amenities(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type fullCard", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ViewInvoice_serviceId(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_serviceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ServiceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_serviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ViewInvoice_customer(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_customer(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Customer, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.UsersInfor)
+	fc.Result = res
+	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_customer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UsersInfor_id(ctx, field)
+			case "name":
+				return ec.fieldContext_UsersInfor_name(ctx, field)
+			case "type":
+				return ec.fieldContext_UsersInfor_type(ctx, field)
+			case "number":
+				return ec.fieldContext_UsersInfor_number(ctx, field)
+			case "email":
+				return ec.fieldContext_UsersInfor_email(ctx, field)
+			case "location":
+				return ec.fieldContext_UsersInfor_location(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ViewInvoice_cargo(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_cargo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cargo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.BookingCargo)
+	fc.Result = res
+	return ec.marshalOBookingCargo2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_cargo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_BookingCargo_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_BookingCargo_serviceId(ctx, field)
+			case "userId":
+				return ec.fieldContext_BookingCargo_userId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_BookingCargo_riderId(ctx, field)
+			case "transportType":
+				return ec.fieldContext_BookingCargo_transportType(ctx, field)
+			case "bookingId":
+				return ec.fieldContext_BookingCargo_bookingId(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_BookingCargo_multiGroupId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_BookingCargo_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_BookingCargo_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BookingCargo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ViewInvoice_booking(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ViewInvoice_booking(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Booking, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AppointmentBooking)
+	fc.Result = res
+	return ec.marshalOAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ViewInvoice_booking(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewInvoice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AppointmentBooking_id(ctx, field)
+			case "startTime":
+				return ec.fieldContext_AppointmentBooking_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_AppointmentBooking_endTime(ctx, field)
+			case "day":
+				return ec.fieldContext_AppointmentBooking_day(ctx, field)
+			case "item":
+				return ec.fieldContext_AppointmentBooking_item(ctx, field)
+			case "notes":
+				return ec.fieldContext_AppointmentBooking_notes(ctx, field)
+			case "tableSize":
+				return ec.fieldContext_AppointmentBooking_tableSize(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_AppointmentBooking_serviceId(ctx, field)
+			case "riderId":
+				return ec.fieldContext_AppointmentBooking_riderId(ctx, field)
+			case "duration":
+				return ec.fieldContext_AppointmentBooking_duration(ctx, field)
+			case "distance":
+				return ec.fieldContext_AppointmentBooking_distance(ctx, field)
+			case "deliveryFee":
+				return ec.fieldContext_AppointmentBooking_deliveryFee(ctx, field)
+			case "dropoffLocation":
+				return ec.fieldContext_AppointmentBooking_dropoffLocation(ctx, field)
+			case "pickupLocation":
+				return ec.fieldContext_AppointmentBooking_pickupLocation(ctx, field)
+			case "estimatedDeliveryDate":
+				return ec.fieldContext_AppointmentBooking_estimatedDeliveryDate(ctx, field)
+			case "deliveryAddress":
+				return ec.fieldContext_AppointmentBooking_deliveryAddress(ctx, field)
+			case "pickUpAddress":
+				return ec.fieldContext_AppointmentBooking_pickUpAddress(ctx, field)
+			case "userId":
+				return ec.fieldContext_AppointmentBooking_userId(ctx, field)
+			case "isConfirmed":
+				return ec.fieldContext_AppointmentBooking_isConfirmed(ctx, field)
+			case "userType":
+				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
+			case "multiGroupId":
+				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "cargoId":
+				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
+			case "status":
+				return ec.fieldContext_AppointmentBooking_status(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AppointmentBooking_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AppointmentBooking_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AppointmentBooking", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ViewcategoryBox_categoryBox(ctx context.Context, field graphql.CollectedField, obj *model.ViewcategoryBox) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ViewcategoryBox_categoryBox(ctx, field)
 	if err != nil {
@@ -66071,6 +68822,8 @@ func (ec *executionContext) fieldContext_fullCard_card(_ context.Context, field 
 				return ec.fieldContext_PriceCard_title(ctx, field)
 			case "description":
 				return ec.fieldContext_PriceCard_description(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_PriceCard_isPublic(ctx, field)
 			case "ServiceId":
 				return ec.fieldContext_PriceCard_ServiceId(ctx, field)
 			case "createdAt":
@@ -66526,7 +69279,7 @@ func (ec *executionContext) unmarshalInputBookerInput(ctx context.Context, obj a
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userType", "startTime", "endTime", "item", "notes", "tableSize", "userId"}
+	fieldsInOrder := [...]string{"userType", "startTime", "endTime", "item", "notes", "tableSize", "userId", "transportType"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -66582,6 +69335,13 @@ func (ec *executionContext) unmarshalInputBookerInput(ctx context.Context, obj a
 				return it, err
 			}
 			it.UserID = data
+		case "transportType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transportType"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TransportType = data
 		}
 	}
 
@@ -67660,6 +70420,54 @@ func (ec *executionContext) unmarshalInputInventoryItemInput(ctx context.Context
 				return it, err
 			}
 			it.File = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputInvoiceInput(ctx context.Context, obj any) (model.InvoiceInput, error) {
+	var it model.InvoiceInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"cargoId", "notes", "policyId", "priceId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "cargoId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cargoId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CargoID = data
+		case "notes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("notes"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Notes = data
+		case "policyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("policyId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PolicyID = data
+		case "priceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priceId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PriceID = data
 		}
 	}
 
@@ -70251,6 +73059,10 @@ func (ec *executionContext) _AppointmentBookingData(ctx context.Context, sel ast
 			out.Values[i] = ec._AppointmentBookingData_paymentStatus(ctx, field, obj)
 		case "paymentMethod":
 			out.Values[i] = ec._AppointmentBookingData_paymentMethod(ctx, field, obj)
+		case "transportType":
+			out.Values[i] = ec._AppointmentBookingData_transportType(ctx, field, obj)
+		case "cargoId":
+			out.Values[i] = ec._AppointmentBookingData_cargoId(ctx, field, obj)
 		case "deliveryFee":
 			out.Values[i] = ec._AppointmentBookingData_deliveryFee(ctx, field, obj)
 		case "distance":
@@ -70485,9 +73297,8 @@ func (ec *executionContext) _BookingCargo(ctx context.Context, sel ast.Selection
 			}
 		case "bookingId":
 			out.Values[i] = ec._BookingCargo_bookingId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
+		case "multiGroupId":
+			out.Values[i] = ec._BookingCargo_multiGroupId(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._BookingCargo_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -72379,6 +75190,101 @@ func (ec *executionContext) _InventoryItem(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var invoiceImplementors = []string{"Invoice"}
+
+func (ec *executionContext) _Invoice(ctx context.Context, sel ast.SelectionSet, obj *model.Invoice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, invoiceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Invoice")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Invoice_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "serviceId":
+			out.Values[i] = ec._Invoice_serviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "cargoId":
+			out.Values[i] = ec._Invoice_cargoId(ctx, field, obj)
+		case "userId":
+			out.Values[i] = ec._Invoice_userId(ctx, field, obj)
+		case "notes":
+			out.Values[i] = ec._Invoice_notes(ctx, field, obj)
+		case "policyId":
+			out.Values[i] = ec._Invoice_policyId(ctx, field, obj)
+		case "priceId":
+			out.Values[i] = ec._Invoice_priceId(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Invoice_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Invoice_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var isochroneResultImplementors = []string{"IsochroneResult"}
 
 func (ec *executionContext) _IsochroneResult(ctx context.Context, sel ast.SelectionSet, obj *model.IsochroneResult) graphql.Marshaler {
@@ -72696,6 +75602,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createCargoPolicy":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createCargoPolicy(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "addPolicyDetail":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addPolicyDetail(ctx, field)
@@ -72720,6 +75633,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createPriceCard":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createPriceCard(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createCargoPriceCard":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createCargoPriceCard(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -72780,6 +75700,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createInvoice":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createInvoice(ctx, field)
+			})
 		case "createAdmin":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createAdmin(ctx, field)
@@ -73389,6 +76313,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createSocialMedia(ctx, field)
 			})
+		case "reAssignRider":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_reAssignRider(ctx, field)
+			})
 		case "createUnavailablePeriod":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createUnavailablePeriod(ctx, field)
@@ -73408,6 +76336,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateCargoWithRider":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCargoWithRider(ctx, field)
+			})
 		case "updateMultipleBookingsWithLocation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateMultipleBookingsWithLocation(ctx, field)
@@ -74337,6 +77269,8 @@ func (ec *executionContext) _Policy(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "isPublic":
+			out.Values[i] = ec._Policy_isPublic(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Policy_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -74691,6 +77625,8 @@ func (ec *executionContext) _PriceCard(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "isPublic":
+			out.Values[i] = ec._PriceCard_isPublic(ctx, field, obj)
 		case "ServiceId":
 			out.Values[i] = ec._PriceCard_ServiceId(ctx, field, obj)
 		case "createdAt":
@@ -75380,6 +78316,66 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getCargoPolicy":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCargoPolicy(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getInvoice":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getInvoice(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getCargoPriceCardById":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCargoPriceCardById(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "globalSearch":
 			field := field
 
@@ -75434,6 +78430,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getPriceCardById(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getFullInvoice":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getFullInvoice(ctx, field)
 				return res
 			}
 
@@ -77262,6 +80277,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllServiceRiders":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllServiceRiders(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getAllRidersResponseInfor":
 			field := field
 
@@ -77521,6 +80558,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getUserInforFromContext(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserInforFromContextForAuthClient":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserInforFromContextForAuthClient(ctx, field)
 				return res
 			}
 
@@ -78098,6 +81154,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getBookingServiceDataByBookingId":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getBookingServiceDataByBookingId(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getOrderServiceDataByUserId":
 			field := field
 
@@ -78375,6 +81453,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getCargoByBookingID":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCargoByBookingID(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getCargoByMultiGroupId":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCargoByMultiGroupId(ctx, field)
 				return res
 			}
 
@@ -80966,6 +84082,52 @@ func (ec *executionContext) _VendorsMapData(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var viewInvoiceImplementors = []string{"ViewInvoice"}
+
+func (ec *executionContext) _ViewInvoice(ctx context.Context, sel ast.SelectionSet, obj *model.ViewInvoice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, viewInvoiceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ViewInvoice")
+		case "policy":
+			out.Values[i] = ec._ViewInvoice_policy(ctx, field, obj)
+		case "price":
+			out.Values[i] = ec._ViewInvoice_price(ctx, field, obj)
+		case "serviceId":
+			out.Values[i] = ec._ViewInvoice_serviceId(ctx, field, obj)
+		case "customer":
+			out.Values[i] = ec._ViewInvoice_customer(ctx, field, obj)
+		case "cargo":
+			out.Values[i] = ec._ViewInvoice_cargo(ctx, field, obj)
+		case "booking":
+			out.Values[i] = ec._ViewInvoice_booking(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var viewcategoryBoxImplementors = []string{"ViewcategoryBox"}
 
 func (ec *executionContext) _ViewcategoryBox(ctx context.Context, sel ast.SelectionSet, obj *model.ViewcategoryBox) graphql.Marshaler {
@@ -81945,6 +85107,20 @@ func (ec *executionContext) marshalNAppointmentBooking2ᚖgithubᚗcomᚋlehxees
 		return graphql.Null
 	}
 	return ec._AppointmentBooking(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAppointmentBookingData2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingData(ctx context.Context, sel ast.SelectionSet, v model.AppointmentBookingData) graphql.Marshaler {
+	return ec._AppointmentBookingData(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAppointmentBookingData2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBookingData(ctx context.Context, sel ast.SelectionSet, v *model.AppointmentBookingData) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AppointmentBookingData(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNBooker2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBooker(ctx context.Context, sel ast.SelectionSet, v model.Booker) graphql.Marshaler {
@@ -83157,6 +86333,20 @@ func (ec *executionContext) marshalNInventoryItem2ᚖgithubᚗcomᚋlehxeesᚋse
 func (ec *executionContext) unmarshalNInventoryItemInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInventoryItemInput(ctx context.Context, v any) (model.InventoryItemInput, error) {
 	res, err := ec.unmarshalInputInventoryItemInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInvoice2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoice(ctx context.Context, sel ast.SelectionSet, v model.Invoice) graphql.Marshaler {
+	return ec._Invoice(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoice(ctx context.Context, sel ast.SelectionSet, v *model.Invoice) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Invoice(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNIsochroneInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneInput(ctx context.Context, v any) (model.IsochroneInput, error) {
@@ -86092,6 +89282,47 @@ func (ec *executionContext) unmarshalOAmountRange2ᚖgithubᚗcomᚋlehxeesᚋse
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOAppointmentBooking2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx context.Context, sel ast.SelectionSet, v []*model.AppointmentBooking) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOAppointmentBooking2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
 func (ec *executionContext) marshalOAppointmentBooking2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAppointmentBooking(ctx context.Context, sel ast.SelectionSet, v *model.AppointmentBooking) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -86159,6 +89390,54 @@ func (ec *executionContext) marshalOBooker2ᚖgithubᚗcomᚋlehxeesᚋserviny�
 		return graphql.Null
 	}
 	return ec._Booker(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOBookingCargo2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx context.Context, sel ast.SelectionSet, v []*model.BookingCargo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOBookingCargo2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOBookingCargo2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingCargo(ctx context.Context, sel ast.SelectionSet, v *model.BookingCargo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._BookingCargo(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOBookingOrderPaymentStatus2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingOrderPaymentStatus(ctx context.Context, sel ast.SelectionSet, v []*model.BookingOrderPaymentStatus) graphql.Marshaler {
@@ -86761,6 +90040,21 @@ func (ec *executionContext) unmarshalOInventoryItemInput2ᚖgithubᚗcomᚋlehxe
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputInventoryItemInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoice(ctx context.Context, sel ast.SelectionSet, v *model.Invoice) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Invoice(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOInvoiceInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐInvoiceInput(ctx context.Context, v any) (*model.InvoiceInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputInvoiceInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -87696,6 +90990,13 @@ func (ec *executionContext) marshalOVendorMapData2ᚕᚖgithubᚗcomᚋlehxees�
 	return ret
 }
 
+func (ec *executionContext) marshalOViewInvoice2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐViewInvoice(ctx context.Context, sel ast.SelectionSet, v *model.ViewInvoice) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ViewInvoice(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOZoneMetaData2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐZoneMetaData(ctx context.Context, sel ast.SelectionSet, v *model.ZoneMetaData) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -87967,6 +91268,47 @@ func (ec *executionContext) marshalOcategoryBox2ᚖgithubᚗcomᚋlehxeesᚋserv
 		return graphql.Null
 	}
 	return ec._categoryBox(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOfullCard2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx context.Context, sel ast.SelectionSet, v []*model.FullCard) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOfullCard2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
 }
 
 func (ec *executionContext) marshalOfullCard2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFullCard(ctx context.Context, sel ast.SelectionSet, v *model.FullCard) graphql.Marshaler {

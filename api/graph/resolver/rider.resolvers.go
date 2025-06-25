@@ -585,6 +585,11 @@ func (r *queryResolver) GetjobResponse(ctx context.Context, serviceID string) (*
 	return &req, nil
 }
 
+// GetAllServiceRiders is the resolver for the getAllServiceRiders field.
+func (r *queryResolver) GetAllServiceRiders(ctx context.Context) ([]*model.Rider, error) {
+	panic(fmt.Errorf("not implemented: GetAllServiceRiders - getAllServiceRiders"))
+}
+
 // GetAllRidersResponseInfor is the resolver for the getAllRidersResponseInfor field.
 func (r *queryResolver) GetAllRidersResponseInfor(ctx context.Context) ([]*model.RiderRequestInfor, error) {
 	serviceId, err := r.Query().GetID(ctx)

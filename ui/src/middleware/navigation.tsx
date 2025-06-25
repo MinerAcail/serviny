@@ -108,6 +108,7 @@ const router = createBrowserRouter([
       { path: "/install", element: <InstallPage /> },
 
       { path: "/login", element: <ErrorLogin /> },
+      { path: "/invoice/:cargoId", element: <FullInvoiceDocument /> },
 
       { path: "*", element: <ErrorPage /> },
       { path: "1", element: <RiderLiveMap /> },
@@ -298,6 +299,7 @@ import ServiceHistory from "../components/custom/vendors/history";
 import TutorialsPage from "@/components/global/tutorials";
 import ProtectedIsAuthRouteBusinessType from "./protectedIsAuthBusinessType";
 import ProtectedProfileBusinessTypeRoute from "./protectedRouteBusinessTypeFromProfile";
+import { FullInvoiceDocument } from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/invoice/view";
 // import ServiceHistory from "../components/custom/vendors/history";
 // import ServiceHistory from "../components/custom/vendors/history";
 // import RiderHistory from "@/components/rider/history";

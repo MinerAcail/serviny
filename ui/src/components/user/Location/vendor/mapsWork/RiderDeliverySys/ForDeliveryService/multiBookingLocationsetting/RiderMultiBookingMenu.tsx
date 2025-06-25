@@ -1,5 +1,5 @@
 // ==========================================
-// Updated RiderMultiBookingMenu with Payment Integration
+// RiderMultiBookingMenu - Main Component
 // ==========================================
 
 "use client";
@@ -8,43 +8,47 @@ import { useRef, useEffect, useState } from "react";
 import {
   Navigation,
   X,
-  MapPin,
-  CheckCircle,
   Package,
-  Star,
-  Phone,
   Loader2,
   Pin,
   Search,
   Route,
   StopCircle,
-  Plus,
   Truck,
   DollarSign,
-  Clock,
-  Users,
+  FileText,
+  CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { useAuth } from "@/middleware/context/authContext";
+
+// Import simplified cargo hook
+import { useCargoData, getCargoTypeLabel, useCargoParams } from "../cargoDataQuery";
+
+// Import sub-components
+import {
+  RiderProfileCard,
+  PricingZonesCard,
+  CargoInformationCard,
+  MultiLocationStep,
+  MultiReviewStep,
+  MultiCompleteStep,
+  MultiStepNavigation,
+} from "./RiderMultiBookingMenuComponents";
 
 // REUSE: Import existing types
 import type {
   RiderProfile,
   PricingZone,
 } from "../riderBookingHooks";
-import { ZONE_COLORS } from "@/components/config/map";
 
 // Import multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
 import PaymentModal from "../payment-modal";
 
-// NEW: Payment modal import
-// import PaymentModal from "./payment-modal"; // Ensure this path is correct for your project
 interface RiderMultiBookingMenuProps {
   // Rider data
   riderProfile: RiderProfile | undefined;
@@ -110,8 +114,27 @@ export function RiderMultiBookingMenu({
   bookId,
 }: RiderMultiBookingMenuProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   
-  // NEW: Payment modal state
+  // Get cargo parameters from URL
+  const { isCargo, cargoType: urlCargoType, splitCargo, isMultiLocation } = useCargoParams();
+  
+  // Fetch actual cargo data from database
+  const { 
+    cargoData, 
+    isLoading: cargoLoading, 
+    error: cargoError,
+    primaryTransportType,
+    allTransportTypes,
+    hasMultipleVehicleTypes,
+    totalCargoCount 
+  } = useCargoData(bookId);
+  
+  // Use database cargo type if available, otherwise fall back to URL parameter
+  const actualCargoType = primaryTransportType || urlCargoType;
+  console.log("Actual Cargo Type:", actualCargoType);
+  
+  // Payment modal state - but don't show for cargo
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
 
@@ -140,25 +163,43 @@ export function RiderMultiBookingMenu({
     }
   }, [currentStep]);
 
+  // Helper functions
+  const getCargoTypeLabelForDisplay = (type: string): string => {
+    return getCargoTypeLabel(type);
+  };
+
   const getStepTitle = () => {
-    switch (currentStep) {
-      case "locations":
-        return "Setup Multi-Delivery";
-      case "review":
-        return "Review Multi-Delivery";
-      case "complete":
-        return "Multi-Delivery Complete";
-      default:
-        return "Multi-Delivery Booking";
+    if (isCargo) {
+      switch (currentStep) {
+        case "locations":
+          return "Setup Cargo Delivery";
+        case "review":
+          return "Review Cargo Delivery";
+        case "complete":
+          return "Cargo Delivery Complete";
+        default:
+          return "Cargo Delivery Booking";
+      }
+    } else {
+      switch (currentStep) {
+        case "locations":
+          return "Setup Multi-Delivery";
+        case "review":
+          return "Review Multi-Delivery";
+        case "complete":
+          return "Multi-Delivery Complete";
+        default:
+          return "Multi-Delivery Booking";
+      }
     }
   };
 
   const getButtonText = () => {
     if (!riderProfile) return "Select Area";
-    if (currentStep === "locations") return "Setup Deliveries";
+    if (currentStep === "locations") return isCargo ? "Setup Cargo" : "Setup Deliveries";
     if (currentStep === "review") return "Continue";
     if (currentStep === "complete") return "Booking Complete";
-    return "Book Multi-Delivery";
+    return isCargo ? "Book Cargo Delivery" : "Book Multi-Delivery";
   };
 
   // Calculate completed items for display
@@ -167,7 +208,7 @@ export function RiderMultiBookingMenu({
     item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
   );
 
-  // NEW: Handle payment completion
+  // Handle payment completion (for non-cargo only)
   const handlePaymentComplete = (paymentData: any) => {
     setPaymentCompleted(true);
     setShowPaymentModal(false);
@@ -182,17 +223,22 @@ export function RiderMultiBookingMenu({
     }, 500);
   };
 
-  // NEW: Handle confirm multi-booking - show payment modal first
-  const handleConfirmMultiBooking = () => {
+  // Handle confirm booking - different flow for cargo vs regular
+  const handleConfirmBooking = () => {
     if (!totalCalculations) return;
     
-    // Show payment modal first
-    setShowPaymentModal(true);
+    if (isCargo) {
+      // For cargo deliveries, proceed directly without payment
+      onBooking();
+    } else {
+      // For regular deliveries, show payment modal first
+      setShowPaymentModal(true);
+    }
   };
 
-  // NEW: Create order details for payment modal
+  // Create order details for payment modal (non-cargo only)
   const createOrderDetails = () => {
-    if (!totalCalculations || !riderProfile || !bookId) return null;
+    if (isCargo || !totalCalculations || !riderProfile || !bookId) return null;
 
     const firstItem = completedItems[0];
     const description = completedItems.length === 1 
@@ -209,7 +255,7 @@ export function RiderMultiBookingMenu({
 
   return (
     <div className="relative w-full h-full">
-      {/* Floating toggle buttons - Enhanced for multi-delivery */}
+      {/* Floating toggle buttons - Enhanced for cargo deliveries */}
       <AnimatePresence mode="wait">
         {!isOpen && (
           <motion.div
@@ -224,11 +270,19 @@ export function RiderMultiBookingMenu({
                 onClick={() => setIsOpen(true)}
                 className="flex items-center gap-2 text-[12px] font-medium text-gray-800"
               >
-                <Package className="h-4 w-4 text-blue-600" />
+                {isCargo ? (
+                  <Truck className="h-4 w-4 text-orange-600" />
+                ) : (
+                  <Package className="h-4 w-4 text-blue-600" />
+                )}
                 <span>{getButtonText()}</span>
                 {/* Show item count if applicable */}
                 {deliveryItems.length > 0 && (
-                  <div className="bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <div className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    isCargo 
+                      ? "bg-orange-100 text-orange-800" 
+                      : "bg-blue-100 text-blue-800"
+                  }`}>
                     {completedItems.length}/{deliveryItems.length}
                   </div>
                 )}
@@ -297,13 +351,38 @@ export function RiderMultiBookingMenu({
                 <span>Edit</span>
               </button>
 
-              {/* NEW: Total price indicator */}
-              {totalCalculations && (
+              {/* Price indicator - only for non-cargo */}
+              {!isCargo && totalCalculations && (
                 <>
                   <div className="h-5 w-px bg-gray-200 mx-1" />
                   <div className="flex items-center gap-1 text-[12px] font-medium text-green-700">
                     <DollarSign className="h-4 w-4" />
                     <span>GH₵{totalCalculations.totalPrice.toFixed(0)}</span>
+                  </div>
+                </>
+              )}
+
+              {/* Cargo indicator */}
+              {/* {isCargo && actualCargoType && (
+                <>
+                  <div className="h-5 w-px bg-gray-200 mx-1" />
+                  <div className="flex items-center gap-1 text-[12px] font-medium text-orange-700">
+                    <FileText className="h-4 w-4" />
+                    <span>{getCargoTypeLabelForDisplay(actualCargoType)}</span>
+                    {cargoLoading && (
+                      <Loader2 className="h-3 w-3 animate-spin ml-1" />
+                    )}
+                  </div>
+                </>
+              )} */}
+
+              {/* Show loading state for cargo data */}
+              {isCargo && cargoLoading && !actualCargoType && (
+                <>
+                  <div className="h-5 w-px bg-gray-200 mx-1" />
+                  <div className="flex items-center gap-1 text-[12px] font-medium text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading...</span>
                   </div>
                 </>
               )}
@@ -325,11 +404,23 @@ export function RiderMultiBookingMenu({
             className="absolute right-[-10px] transform -translate-x-1/2 bottom-4 sm:left-4 sm:transform-none sm:translate-x-0 z-20 w-[380px] max-w-[90vw] h-[85vh] flex flex-col rounded-2xl shadow-xl bg-white/95 backdrop-blur-md border-0 ring-1 ring-black/5"
           >
             <div className="flex flex-col h-full min-h-0">
-              {/* Enhanced Header with multi-delivery info */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+              {/* Enhanced Header with cargo info */}
+              <div className={`flex items-center justify-between p-4 border-b border-gray-100 ${
+                isCargo 
+                  ? "bg-gradient-to-r from-orange-50 to-amber-50" 
+                  : "bg-gradient-to-r from-blue-50 to-indigo-50"
+              }`}>
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Package className="h-4 w-4 text-blue-600" />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    isCargo 
+                      ? "bg-orange-100" 
+                      : "bg-blue-100"
+                  }`}>
+                    {isCargo ? (
+                      <Truck className="h-4 w-4 text-orange-600" />
+                    ) : (
+                      <Package className="h-4 w-4 text-blue-600" />
+                    )}
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
@@ -338,6 +429,8 @@ export function RiderMultiBookingMenu({
                     {deliveryItems.length > 0 && (
                       <p className="text-sm text-gray-600">
                         {completedItems.length}/{deliveryItems.length} destinations ready
+                        {isCargo && actualCargoType && ` • ${getCargoTypeLabelForDisplay(actualCargoType)}`}
+                        {isCargo && hasMultipleVehicleTypes && ` • ${allTransportTypes.length} vehicle types`}
                       </p>
                     )}
                   </div>
@@ -349,8 +442,15 @@ export function RiderMultiBookingMenu({
                       Tracking
                     </Badge>
                   )}
-                  {/* NEW: Payment status indicator */}
-                  {paymentCompleted && currentStep === "review" && (
+                  {/* Cargo delivery indicator */}
+                  {isCargo && (
+                    <Badge variant="default" className="bg-orange-100 text-orange-800 border-orange-200">
+                      <Truck className="w-3 h-3 mr-1" />
+                      Cargo
+                    </Badge>
+                  )}
+                  {/* Payment status indicator (non-cargo only) */}
+                  {!isCargo && paymentCompleted && currentStep === "review" && (
                     <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Paid
@@ -377,7 +477,7 @@ export function RiderMultiBookingMenu({
                 {/* Rider Profile Section - Always visible */}
                 {riderProfile && (
                   <div className="mb-6">
-                    <RiderProfileCard riderProfile={riderProfile} />
+                    <RiderProfileCard riderProfile={riderProfile} isCargo={isCargo} />
                   </div>
                 )}
 
@@ -392,11 +492,11 @@ export function RiderMultiBookingMenu({
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <MultiLocationStep />
+                        <MultiLocationStep isCargo={isCargo} cargoType={actualCargoType} />
                       </motion.div>
                     )}
 
-                    {currentStep === "review" && totalCalculations && (
+                    {currentStep === "review" && (
                       <motion.div
                         key="step-review"
                         initial={{ opacity: 0, y: 10 }}
@@ -408,9 +508,16 @@ export function RiderMultiBookingMenu({
                           totalCalculations={totalCalculations}
                           deliveryItems={deliveryItems}
                           isBooking={isBooking}
-                          onBooking={handleConfirmMultiBooking} // NEW: Changed to handle payment first
+                          onBooking={handleConfirmBooking}
                           onBack={() => setCurrentStep("locations")}
-                          paymentCompleted={paymentCompleted} // NEW: Pass payment status
+                          paymentCompleted={paymentCompleted}
+                          isCargo={isCargo}
+                          cargoType={actualCargoType}
+                          splitCargo={splitCargo}
+                          userPhone={user?.number || ""}
+                          cargoLoading={cargoLoading}
+                          hasMultipleVehicleTypes={hasMultipleVehicleTypes}
+                          allTransportTypes={allTransportTypes}
                         />
                       </motion.div>
                     )}
@@ -434,16 +541,32 @@ export function RiderMultiBookingMenu({
                           onStartTracking={onStartTracking}
                           onStopTracking={onStopTracking}
                           isLoadingRoute={isLoadingRoute}
+                          isCargo={isCargo}
+                          cargoType={actualCargoType}
                         />
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* Pricing Zones - Always visible */}
-                {riderZones.length > 0 && (
+                {/* Pricing Zones - Only for non-cargo */}
+                {!isCargo && riderZones.length > 0 && (
                   <div className="mb-6">
                     <PricingZonesCard zones={riderZones} />
+                  </div>
+                )}
+
+                {/* Cargo Information Card - Only for cargo */}
+                {isCargo && (
+                  <div className="mb-6">
+                    <CargoInformationCard 
+                      cargoType={actualCargoType} 
+                      splitCargo={splitCargo} 
+                      cargoLoading={cargoLoading}
+                      hasMultipleVehicleTypes={hasMultipleVehicleTypes}
+                      allTransportTypes={allTransportTypes}
+                      cargoError={cargoError}
+                    />
                   </div>
                 )}
               </div>
@@ -455,6 +578,7 @@ export function RiderMultiBookingMenu({
                   setCurrentStep={setCurrentStep}
                   hasCalculations={!!totalCalculations}
                   isBookingComplete={bookingComplete}
+                  isCargo={isCargo}
                 />
               </div>
             </div>
@@ -462,8 +586,8 @@ export function RiderMultiBookingMenu({
         )}
       </AnimatePresence>
 
-      {/* NEW: Payment Modal for multi-delivery */}
-      {totalCalculations && createOrderDetails() && (
+      {/* Payment Modal for non-cargo deliveries only */}
+      {!isCargo && totalCalculations && createOrderDetails() && (
         <PaymentModal
           open={showPaymentModal}
           onOpenChange={setShowPaymentModal}
@@ -471,628 +595,6 @@ export function RiderMultiBookingMenu({
           onPaymentComplete={handlePaymentComplete}
         />
       )}
-    </div>
-  );
-}
-
-// REUSE: Enhanced Rider Profile Card
-function RiderProfileCard({ riderProfile }: { riderProfile: RiderProfile }) {
-  return (
-    <Card className="border-0 bg-gradient-to-r from-blue-50 to-indigo-50">
-      <CardContent className="p-4">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-            <AvatarImage
-              src={riderProfile.dpfile || "/placeholder.svg"}
-              alt={riderProfile.name}
-            />
-            <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
-              {riderProfile.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-1">
-              <h3 className="font-semibold text-gray-900 truncate">
-                {riderProfile.name}
-              </h3>
-              <Badge
-                variant="default"
-                className="text-xs px-2 py-0 bg-green-100 text-green-800 border-green-200"
-              >
-                Available
-              </Badge>
-            </div>
-
-            <div className="flex items-center space-x-3 text-sm text-gray-600">
-              <div className="flex items-center">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
-                <span>4.8</span>
-              </div>
-              <span>Motorcycle</span>
-              <span className="text-blue-600 font-medium">Multi-Delivery</span>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-1">Specializes in multi-point deliveries</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// REUSE: Enhanced Pricing Zones Card
-function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
-  return (
-    <Card className="border-0">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-gray-900 flex items-center">
-          <MapPin className="h-4 w-4 mr-2 text-blue-600" />
-          Pricing Zones (Per Delivery)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="grid grid-cols-2 gap-3">
-          {zones.map((zone, index) => (
-            <div
-              key={zone.id}
-              className="grid items-center justify-center p-3 rounded-lg bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{
-                    backgroundColor: ZONE_COLORS[index % ZONE_COLORS.length],
-                  }}
-                />
-                <span className="text-[11px] font-medium">
-                  {zone.startKm}km - {zone.endKm}km
-                </span>
-              </div>
-              <span className="font-semibold text-[13px] text-center text-gray-900">
-                GH₵{zone.price.toFixed(2)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-          <p className="text-xs text-blue-700">
-            Each delivery destination is priced separately based on distance from pickup center.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// NEW: Multi-Location Setup Step
-function MultiLocationStep() {
-  return (
-    <Card className="border-0">
-      <CardContent className="p-4">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-            <Truck className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              Setup Multi-Delivery
-            </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Configure one pickup location and multiple delivery destinations for efficient multi-point delivery.
-            </p>
-            <div className="bg-blue-50 rounded-lg p-3 text-left">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Perfect for:</h4>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Multiple packages to different addresses</li>
-                <li>• Restaurant orders to various locations</li>
-                <li>• Business deliveries across the city</li>
-                <li>• Any multi-destination delivery needs</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// NEW: Multi-Delivery Review Step with Payment Integration
-function MultiReviewStep({
-  totalCalculations,
-  deliveryItems,
-  isBooking,
-  onBooking,
-  onBack,
-  paymentCompleted = false, // NEW: Payment status prop
-}: {
-  totalCalculations: any;
-  deliveryItems: MultiDeliveryItem[];
-  isBooking: boolean;
-  onBooking: () => void;
-  onBack: () => void;
-  paymentCompleted?: boolean; // NEW: Optional payment status
-}) {
-  const [showItemDetails, setShowItemDetails] = useState(false);
-
-  const completedItems = deliveryItems.filter(item => 
-    item.deliveryAddress && item.itemDescription &&
-    item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
-  );
-
-  return (
-    <div className="space-y-4">
-      {/* Multi-Delivery Summary */}
-      <Card className="border-0">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-gray-900 flex items-center">
-            <Package className="h-4 w-4 mr-2 text-blue-600" />
-            Multi-Delivery Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-4">
-          {/* Total Metrics */}
-          <div className="grid grid-cols-3 gap-3 text-center bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3">
-            <div>
-              <div className="text-lg font-semibold text-blue-900">
-                {completedItems.length}
-              </div>
-              <div className="text-xs text-blue-700">Deliveries</div>
-            </div>
-            <div>
-              <div className="text-lg font-semibold text-blue-900">
-                {totalCalculations.totalDistance}km
-              </div>
-              <div className="text-xs text-blue-700">Total Distance</div>
-            </div>
-            <div>
-              <div className="text-lg font-semibold text-green-600">
-                GH₵{totalCalculations.totalPrice.toFixed(2)}
-              </div>
-              <div className="text-xs text-blue-700">Total Price</div>
-            </div>
-          </div>
-
-          {/* Estimated Duration */}
-          <div className="flex items-center justify-center space-x-2 p-3 bg-gray-50 rounded-lg">
-            <Clock className="h-4 w-4 text-gray-600" />
-            <span className="text-sm text-gray-700">
-              Estimated completion: {totalCalculations.averageDuration}
-            </span>
-          </div>
-
-          {/* Delivery Items Toggle */}
-          <button
-            onClick={() => setShowItemDetails(!showItemDetails)}
-            className="w-full flex items-center justify-between p-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
-          >
-            <span className="font-medium">View Delivery Details ({completedItems.length})</span>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="text-xs">
-                GH₵{totalCalculations.totalPrice.toFixed(2)}
-              </Badge>
-              <motion.div
-                animate={{ rotate: showItemDetails ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Package className="h-4 w-4" />
-              </motion.div>
-            </div>
-          </button>
-
-          {/* Expandable Item Details */}
-          <AnimatePresence>
-            {showItemDetails && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-3 overflow-hidden"
-              >
-                {completedItems.map((item, index) => {
-                  const calculation = totalCalculations.itemCalculations.find(calc => calc.id === item.id);
-                  
-                  return (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-white">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs font-medium text-red-600 flex-shrink-0 mt-1">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 text-sm mb-1">
-                            {item.itemDescription}
-                          </h4>
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                            {item.deliveryAddress}
-                          </p>
-                          {calculation && (
-                            <div className="flex items-center justify-between text-xs">
-                              <div className="flex items-center space-x-3 text-gray-500">
-                                <span>{calculation.distance}km</span>
-                                <span>{calculation.duration}</span>
-                              </div>
-                              <span className="font-medium text-green-600">
-                                GH₵{calculation.price.toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                          {item.notes && (
-                            <p className="text-xs text-gray-500 mt-1 italic">
-                              Note: {item.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* NEW: Payment Status */}
-          {paymentCompleted && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-900">
-                  Payment Completed
-                </span>
-              </div>
-              <p className="text-xs text-green-800 mt-1">
-                Ready to confirm your multi-delivery booking
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="flex-1"
-          disabled={isBooking}
-        >
-          Back
-        </Button>
-        <Button 
-          onClick={onBooking} 
-          disabled={isBooking || completedItems.length === 0} 
-          className="flex-1"
-        >
-          {isBooking ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {paymentCompleted ? "Confirming..." : "Processing..."}
-            </>
-          ) : (
-            <>
-              <Truck className="w-4 h-4 mr-2" />
-              {paymentCompleted ? "Confirm Multi-Delivery" : "Choose Payment Method"}
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// NEW: Multi-Delivery Complete Step
-function MultiCompleteStep({
-  bookingReference,
-  totalCalculations,
-  deliveryItems,
-  riderProfile,
-  onReset,
-  bookId,
-  isTrackingActive,
-  onStartTracking,
-  onStopTracking,
-  isLoadingRoute,
-}: {
-  bookingReference: string | null;
-  totalCalculations: any;
-  deliveryItems: MultiDeliveryItem[];
-  riderProfile: any;
-  onReset: () => void;
-  bookId?: string;
-  isTrackingActive?: boolean;
-  onStartTracking?: () => void;
-  onStopTracking?: () => void;
-  isLoadingRoute?: boolean;
-}) {
-  const completedItems = deliveryItems.filter(item => 
-    item.deliveryAddress && item.itemDescription &&
-    item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
-  );
-
-  return (
-    <div className="space-y-4">
-      {/* Success Message */}
-      <Card className="border-0 bg-gradient-to-r from-green-50 to-emerald-50">
-        <CardContent className="p-4 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-          </div>
-          <h3 className="font-semibold text-green-900 mb-1">
-            Multi-Delivery Confirmed!
-          </h3>
-          <p className="text-sm text-green-700">
-            Your {completedItems.length} delivery requests have been sent to {riderProfile?.name}.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Booking Reference */}
-      {bookingReference && (
-        <Card className="border-0">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-xs text-gray-500 mb-1">Booking Reference</p>
-              <p className="font-mono text-lg font-semibold text-gray-900">
-                {bookingReference.slice(0, 8)}...
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tracking Status */}
-      {isTrackingActive && (
-        <Card className="border-0 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Route className="h-6 w-6 text-blue-600" />
-              </div>
-              <h4 className="font-semibold text-blue-900 mb-1">Multi-Route Active</h4>
-              <p className="text-sm text-blue-700">
-                All delivery routes are being tracked on the map.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Multi-Delivery Summary */}
-      {totalCalculations && (
-        <Card className="border-0">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-900 flex items-center">
-              <Package className="h-4 w-4 mr-2 text-blue-600" />
-              Multi-Delivery Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-lg font-bold text-blue-900">
-                  {completedItems.length}
-                </div>
-                <div className="text-xs text-blue-700">Deliveries</div>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-lg font-bold text-green-900">
-                  {totalCalculations.totalDistance}km
-                </div>
-                <div className="text-xs text-green-700">Total Distance</div>
-              </div>
-            </div>
-            
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Estimated Time</span>
-              <span className="font-medium">{totalCalculations.averageDuration}</span>
-            </div>
-            
-            <Separator />
-            
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-900">Total Price</span>
-              <span className="font-semibold text-lg text-green-600">
-                GH₵{totalCalculations.totalPrice.toFixed(2)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Delivery Items List */}
-      <Card className="border-0">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-gray-900 flex items-center">
-            <Truck className="h-4 w-4 mr-2 text-blue-600" />
-            Delivery Destinations ({completedItems.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {completedItems.map((item, index) => {
-              const calculation = totalCalculations?.itemCalculations.find(calc => calc.id === item.id);
-              
-              return (
-                <div key={item.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                  <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs font-medium text-red-600 flex-shrink-0">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {item.itemDescription}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {item.deliveryAddress.split(',')[0]}
-                    </p>
-                  </div>
-                  {calculation && (
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-green-600">
-                        GH₵{calculation.price.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {calculation.distance}km
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact Info */}
-      {riderProfile && (
-        <Card className="border-0">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={riderProfile.dpfile || "/placeholder.svg"}
-                    alt={riderProfile.name}
-                  />
-                  <AvatarFallback className="bg-blue-600 text-white text-xs">
-                    {riderProfile.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {riderProfile.name}
-                  </p>
-                  <p className="text-xs text-gray-500">Multi-delivery specialist</p>
-                </div>
-              </div>
-              {riderProfile.phone && (
-                <Button size="sm" variant="outline">
-                  <Phone className="h-3 w-3 mr-1" />
-                  Call
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <Button onClick={onReset} className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
-          Book Another Multi-Delivery
-        </Button>
-        
-        {/* Tracking Button */}
-        {bookId && onStartTracking && onStopTracking && (
-          <Button 
-            variant={isTrackingActive ? "destructive" : "outline"} 
-            className="w-full"
-            onClick={isTrackingActive ? onStopTracking : onStartTracking}
-            disabled={isLoadingRoute}
-          >
-            {isLoadingRoute ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Loading Routes...
-              </>
-            ) : isTrackingActive ? (
-              <>
-                <StopCircle className="w-4 h-4 mr-2" />
-                Stop Multi-Route Tracking
-              </>
-            ) : (
-              <>
-                <Navigation className="w-4 h-4 mr-2" />
-                Track All Deliveries
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// NEW: Multi-Delivery Step Navigation
-function MultiStepNavigation({
-  currentStep,
-  setCurrentStep,
-  hasCalculations,
-  isBookingComplete,
-}: {
-  currentStep: "locations" | "review" | "complete";
-  setCurrentStep: (step: "locations" | "review" | "complete") => void;
-  hasCalculations: boolean;
-  isBookingComplete: boolean;
-}) {
-  const steps = [
-    { id: "locations", label: "Setup", icon: MapPin },
-    { id: "review", label: "Review", icon: CheckCircle },
-    { id: "complete", label: "Complete", icon: Package },
-  ] as const;
-
-  return (
-    <div className="space-y-3">
-      {/* Step Indicators */}
-      <div className="flex items-center justify-center space-x-2">
-        {steps.map((step, index) => {
-          const isActive = currentStep === step.id;
-          const isCompleted =
-            (step.id === "locations" && hasCalculations) ||
-            (step.id === "review" && isBookingComplete) ||
-            (step.id === "complete" && isBookingComplete);
-          const isAccessible =
-            step.id === "locations" ||
-            (step.id === "review" && hasCalculations) ||
-            (step.id === "complete" && isBookingComplete);
-
-          return (
-            <div key={step.id} className="flex items-center">
-              <button
-                onClick={() => isAccessible && setCurrentStep(step.id)}
-                disabled={!isAccessible}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-                  isActive
-                    ? "bg-blue-600 text-white"
-                    : isCompleted
-                    ? "bg-green-500 text-white"
-                    : isAccessible
-                    ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                {isCompleted ? (
-                  <CheckCircle className="h-4 w-4" />
-                ) : (
-                  <span>{index + 1}</span>
-                )}
-              </button>
-              {index < steps.length - 1 && (
-                <div
-                  className={`w-8 h-0.5 mx-1 ${
-                    isCompleted ? "bg-green-500" : "bg-gray-200"
-                  }`}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Step Labels */}
-      <div className="flex justify-center">
-        <span className="text-sm font-medium text-gray-700">
-          {steps.find((step) => step.id === currentStep)?.label}
-        </span>
-      </div>
     </div>
   );
 }

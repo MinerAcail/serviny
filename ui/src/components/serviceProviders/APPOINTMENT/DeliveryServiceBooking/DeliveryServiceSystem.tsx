@@ -47,21 +47,25 @@ const GET_ALL_UNAVAILABLE_PERIODS = gql`
   }
 `;
 
+// Updated mutation to include cargo parameters
 const CREATE_MULTIPLE_BOOKINGS = gql`
   mutation CreateMultipleBookings(
     $input: [BookerInput!]!
     $isMulti: Boolean
+    $isCargo: Boolean
     $serviceId: String!
   ) {
     createMultipleBookings(
       input: $input
       isMulti: $isMulti
+      isCargo: $isCargo
       serviceId: $serviceId
     ) {
       id
       startTime
       endTime
       multiGroupId
+      cargoId
     }
   }
 `;
@@ -77,6 +81,7 @@ interface DeliveryItem {
   deliveryAddress: string;
   dropoffLocation: [number, number]; // [lat, lng]
   notes: string;
+  customCargoType?: string; // New field for individual cargo vehicle selection
 }
 
 interface UnavailablePeriod {
@@ -211,6 +216,11 @@ export const DeliveryServiceSystem = ({
     },
   ]);
 
+  // Cargo delivery states
+  const [isCargo, setIsCargo] = useState<boolean>(false);
+  const [cargoType, setCargoType] = useState<string>("");
+  const [splitCargo, setSplitCargo] = useState<boolean>(false);
+
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [visibleDates, setVisibleDates] = useState<Date[]>([]);
   const [datesPerPage] = useState(7);
@@ -290,54 +300,81 @@ export const DeliveryServiceSystem = ({
     }
   }, [orderSize]);
 
+  // Reset cargo split when not multi-location or not cargo
+  useEffect(() => {
+    if (!isMultiLocation || !isCargo) {
+      setSplitCargo(false);
+    }
+  }, [isMultiLocation, isCargo]);
+
   // Create delivery orders mutation
-// Create delivery orders mutation
-const [createMultipleBookings, { loading: orderLoading }] = useMutation(
-  CREATE_MULTIPLE_BOOKINGS,
-  {
-    onCompleted: (data) => {
-      toast.success("Delivery order created successfully!");
-      setSuccessMessage("Delivery order created successfully!");
-      setTimeout(() => setSuccessMessage(""), 3000);
+  const [createMultipleBookings, { loading: orderLoading }] = useMutation(
+    CREATE_MULTIPLE_BOOKINGS,
+    {
+      onCompleted: (data) => {
+        toast.success("Delivery order created successfully!");
+        setSuccessMessage("Delivery order created successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
 
-      const createdBookings = data.createMultipleBookings || [];
-      const firstBookingId =
-        createdBookings.length > 0 ? createdBookings[0].id : null;
+        const createdBookings = data.createMultipleBookings || [];
+        const firstBookingId =
+          createdBookings.length > 0 ? createdBookings[0].id : null;
 
-      setDeliverySegments([]);
-      setSelectedStartTime(null);
-      setDeliveryDates([]);
-      setDialogOpenMain(false);
+        // Reset form state
+        setDeliverySegments([]);
+        setSelectedStartTime(null);
+        setDeliveryDates([]);
+        setDialogOpenMain(false);
+        
+        // Reset cargo state
+        setIsCargo(false);
+        setCargoType("");
+        setSplitCargo(false);
 
-      if (firstBookingId) {
-        // Build URL with conditional isMultiLocation parameter
-        let navigationUrl;
-        if (createdBookings.length === 1) {
-          navigationUrl = `/delivery/${serviceId}/${firstBookingId}`;
+        if (firstBookingId) {
+          // Build URL with conditional parameters
+          let navigationUrl;
+          if (createdBookings.length === 1) {
+            
+            navigationUrl = `/delivery/${serviceId}/${firstBookingId}`;
+          } else {
+            
+            navigationUrl = `/multidelivery/${serviceId}/${firstBookingId}`;
+          }
+          
+          // Add URL parameters for special delivery types
+          const params = new URLSearchParams();
+          if (isMultiLocation) {
+            params.append('isMultiLocation', 'true');
+          }
+          if (isCargo) {
+            params.append('cargo', 'true');
+            if (cargoType) {
+              params.append('cargoType', cargoType);
+            }
+            if (isMultiLocation && splitCargo) {
+              params.append('splitCargo', 'true');
+            }
+          }
+          
+          if (params.toString()) {
+            navigationUrl += `?${params.toString()}`;
+          }
+          
+          navigate(navigationUrl, {
+            replace: true,
+          });
         } else {
-          navigationUrl = `/multidelivery/${serviceId}/${firstBookingId}`;
+          navigate(`/zonex/${serviceId}`);
         }
-        
-        // Add isMultiLocation parameter only if it's true
-        if (isMultiLocation) {
-          navigationUrl += `?isMultiLocation=true`;
-        }
-        
-        navigate(navigationUrl, {
-          replace: true,
-        });
-      } else {
-        navigate(`/zonex/${serviceId}`);
-      }
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-      setErrorMessage(`Error: ${error.message}`);
-      setTimeout(() => setErrorMessage(""), 5000);
-    },
-  }
-);
-
+      },
+      onError: (error) => {
+        toast.error(`Error: ${error.message}`);
+        setErrorMessage(`Error: ${error.message}`);
+        setTimeout(() => setErrorMessage(""), 5000);
+      },
+    }
+  );
 
   // Generate dates for the current view
   useEffect(() => {
@@ -532,98 +569,100 @@ const [createMultipleBookings, { loading: orderLoading }] = useMutation(
     setIsDialogOpen(true);
   };
 
-const confirmDelivery = (): void => {
-  if (deliverySegments.length === 0) {
-    setErrorMessage("Please select an order time");
-    setTimeout(() => setErrorMessage(""), 3000);
-    return;
-  }
-
-  if (!userId || !user?.type) {
-    setErrorMessage("User information is missing. Please log in again.");
-    setTimeout(() => setErrorMessage(""), 3000);
-    return;
-  }
-
-  if (!serviceId) {
-    setErrorMessage("Service ID is missing. Please try again.");
-    setTimeout(() => setErrorMessage(""), 3000);
-    return;
-  }
-
-  // Validate multi-location items if enabled
-  if (isMultiLocation) {
-    const invalidItems = deliveryItems.some(
-      (item) => !item.itemDescription.trim()
-    );
-
-    if (invalidItems) {
-      setErrorMessage("Please fill in all item descriptions");
+  const confirmDelivery = (): void => {
+    if (deliverySegments.length === 0) {
+      setErrorMessage("Please select an order time");
       setTimeout(() => setErrorMessage(""), 3000);
       return;
     }
-  }
 
-  // Generate UUID ONLY for multi-location deliveries (different addresses)
+    if (!userId || !user?.type) {
+      setErrorMessage("User information is missing. Please log in again.");
+      setTimeout(() => setErrorMessage(""), 3000);
+      return;
+    }
 
-  let deliveryInputs;
+    if (!serviceId) {
+      setErrorMessage("Service ID is missing. Please try again.");
+      setTimeout(() => setErrorMessage(""), 3000);
+      return;
+    }
 
-  if (isMultiLocation && orderSize > 1) {
-    // Multi-location: Create separate booking for each item with different addresses
-    deliveryInputs = deliveryItems.slice(0, orderSize).map((item) => ({
-      startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-      endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-      notes: item.notes || userData.notes,
-      tableSize: 1, // Each item is individual
-      userId: userId,
-      userType: user.type,
-      item: item.itemDescription || userData.itemType,
-    //   multiGroupId: multiGroupId, // Same group ID for different locations
-    }));
-  } else if (orderSize > 1) {
-    // Multiple items, same location: Create multiple bookings with same details, NO multiGroupId
-    deliveryInputs = Array.from({ length: orderSize }, (_, index) => ({
-      startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-      endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-      notes: userData.notes,
-      tableSize: 1, // Each booking represents 1 item
-      userId: userId,
-      userType: user.type,
-      item: userData.itemType,
-    //   multiGroupId: null, // No grouping needed - same location
-    }));
-  } else {
-    // Single item: One booking
-    deliveryInputs = [{
-      startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-      endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-      notes: userData.notes,
-      tableSize: orderSize, // Total quantity in single booking
-      userId: userId,
-      userType: user.type,
-      item: userData.itemType,
-    //   multiGroupId: null, // No grouping needed for single item
-    }];
-  }
+    // Validate multi-location items if enabled
+    if (isMultiLocation) {
+      const invalidItems = deliveryItems.some(
+        (item) => !item.itemDescription.trim()
+      );
 
-//   console.log("variables", {
-//     input: deliveryInputs,
-//     isMulti: isMultiLocation,
-//     serviceId: serviceId,
-//     multiGroupId: multiGroupId, // Will be null unless multi-location
-//   });
+      if (invalidItems) {
+        setErrorMessage("Please fill in all item descriptions");
+        setTimeout(() => setErrorMessage(""), 3000);
+        return;
+      }
+    }
 
-  // Uncomment when ready to call the mutation
-  createMultipleBookings({
-    variables: {
-      input: deliveryInputs,
-      isMulti: isMultiLocation,
-      serviceId: serviceId,
-    },
-  });
+    // Validate cargo settings if enabled
+    if (isCargo && !cargoType) {
+      setErrorMessage("Please select a cargo vehicle type");
+      setTimeout(() => setErrorMessage(""), 3000);
+      return;
+    }
 
-  setIsDialogOpen(false);
-};
+    let deliveryInputs;
+
+    if (isMultiLocation && orderSize > 1) {
+      // Multi-location: Create separate booking for each item with different addresses
+      deliveryInputs = deliveryItems.slice(0, orderSize).map((item) => ({
+        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
+        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        notes: item.notes || userData.notes,
+        tableSize: 1, // Each item is individual
+        userId: userId,
+        userType: user.type,
+        item: item.itemDescription || userData.itemType,
+        // Add cargo-specific fields - use individual cargo type if set, otherwise use default
+        transportType: isCargo ? (item.customCargoType || cargoType) : undefined,
+      }));
+    } else if (orderSize > 1) {
+      // Multiple items, same location: Create multiple bookings with same details
+      deliveryInputs = Array.from({ length: orderSize }, (_, index) => ({
+        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
+        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        notes: userData.notes,
+        tableSize: 1, // Each booking represents 1 item
+        userId: userId,
+        userType: user.type,
+        item: userData.itemType,
+        // Add cargo-specific fields
+        transportType: isCargo ? cargoType : undefined,
+      }));
+    } else {
+      // Single item: One booking
+      deliveryInputs = [{
+        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
+        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        notes: userData.notes,
+        tableSize: orderSize, // Total quantity in single booking
+        userId: userId,
+        userType: user.type,
+        item: userData.itemType,
+        // Add cargo-specific fields
+        transportType: isCargo ? cargoType : undefined,
+      }];
+    }
+
+    // Call the mutation with cargo parameters
+    createMultipleBookings({
+      variables: {
+        input: deliveryInputs,
+        isMulti: isMultiLocation,
+        isCargo: isCargo,
+        serviceId: serviceId,
+      },
+    });
+
+    setIsDialogOpen(false);
+  };
 
   return (
     <>
@@ -864,6 +903,13 @@ const confirmDelivery = (): void => {
         increaseWaitTime={increaseWaitTime}
         decreaseWaitTime={decreaseWaitTime}
         maxDeliveryWaitTime={maxDeliveryWaitTime}
+        // New cargo-related props
+        isCargo={isCargo}
+        setIsCargo={setIsCargo}
+        cargoType={cargoType}
+        setCargoType={setCargoType}
+        splitCargo={splitCargo}
+        setSplitCargo={setSplitCargo}
       />
     </>
   );

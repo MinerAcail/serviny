@@ -676,7 +676,9 @@ export default function UserServiceViewer() {
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-gray-400" />
                     <span className="text-sm text-gray-600">
-                      {selectedItem.vendor.location}
+                      {selectedItem.type === "ORDER"
+                        ? selectedItem.vendor.location
+                        : selectedItem.bookingData?.pickUpAddress ?? "ere"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -712,7 +714,9 @@ export default function UserServiceViewer() {
 
                
                 <PaymentStatusSection
-                  paymentStatus={paymentStatus}
+                
+                  // paymentStatus={paymentStatus}
+                  selectedItem={selectedItem}
                   onPayNow={() => {}}
                 />
                 {paymentLoading && (
@@ -1069,6 +1073,7 @@ export default function UserServiceViewer() {
 import { AlertCircle, CreditCard, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { PaymentStatusSection } from "./PaymentStatusSection";
 
 interface PaymentStatus {
   method: string;
@@ -1083,7 +1088,7 @@ interface PaymentStatusProps {
   onPayNow?: () => void;
 }
 
-export function PaymentStatusSection({
+export function PaymentStatusSection1({
   paymentStatus,
   onPayNow,
 }: PaymentStatusProps) {

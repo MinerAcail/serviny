@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/google/uuid"
@@ -20,6 +21,12 @@ import (
 
 // ID is the resolver for the id field.
 func (r *amenityResolver) ID(ctx context.Context, obj *model.Amenity) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
+func (r *invoiceResolver) ID(ctx context.Context, obj *model.Invoice) (string, error) {
 	id := obj.ID.String()
 	return id, nil
 }
@@ -38,6 +45,78 @@ func (r *mutationResolver) CreatePolicy(ctx context.Context, input model.CreateP
 		Description: input.Description,
 		ServiceID:   serviceIDStr,
 		DetailsIds:  pq.StringArray{},
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Save the policy to database
+	if err := tx.Create(&policy).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create policy: %w", err)
+	}
+
+	// Create policy details
+	for _, detailInput := range input.Details {
+		var listItems pq.StringArray
+		if detailInput.ListItems != nil {
+			listItems = pq.StringArray(detailInput.ListItems)
+		}
+
+		policyID := policy.ID.String()
+		detail := model.PolicyDetail{
+			Title:     detailInput.Title,
+			Content:   detailInput.Content,
+			ListItems: listItems,
+			PolicyID:  &policyID,
+		}
+
+		if err := tx.Create(&detail).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create policy detail: %w", err)
+		}
+
+		// Add detail ID to policy's details IDs
+		policy.DetailsIds = append(policy.DetailsIds, detail.ID.String())
+	}
+
+	// Update policy with detail IDs
+	if err := tx.Save(&policy).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update policy with detail IDs: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &policy, nil
+}
+
+// CreateCargoPolicy is the resolver for the createCargoPolicy field.
+func (r *mutationResolver) CreateCargoPolicy(ctx context.Context, input model.CreatePolicyInput, cargoID *string) (*model.Policy, error) {
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	if cargoID == nil {
+		return nil, fmt.Errorf("cargoID is required")
+	}
+	not := false
+	// Create a new policy instance
+	policy := model.Policy{
+		Name:        input.Name,
+		Description: input.Description,
+		ServiceID:   serviceIDStr,
+		DetailsIds:  pq.StringArray{},
+		CargoID:     cargoID,
+		IsPublic:    &not,
 	}
 
 	// Start a transaction
@@ -356,6 +435,78 @@ func (r *mutationResolver) CreatePriceCard(ctx context.Context, input model.Pric
 	return fullCard, nil
 }
 
+// CreateCargoPriceCard is the resolver for the createCargoPriceCard field.
+func (r *mutationResolver) CreateCargoPriceCard(ctx context.Context, input model.PriceCardInput, cargoID *string) (*model.FullCard, error) {
+	if cargoID == nil {
+		return nil, fmt.Errorf("cargoID is required")
+	}
+
+	// Retrieve the service ID from the context
+	serviceID, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID from context: %w", err)
+	}
+	not := false
+
+	// Create the PriceCard with CargoID
+	priceCard := model.PriceCard{
+		Title:       input.Title,
+		Description: input.Description,
+		ServiceID:   serviceID,
+		CargoID:     cargoID,
+		IsPublic:    &not,
+	}
+
+	// Start a transaction
+	tx := r.DB.Begin()
+	if err := tx.Create(&priceCard).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create PriceCard: %w", err)
+	}
+
+	id := priceCard.ID.String()
+
+	var prices []*model.Price
+	for _, p := range input.Prices {
+		price := &model.Price{
+			Label:       p.Label,
+			Value:       p.Value,
+			PriceCardID: &id,
+		}
+		if err := tx.Create(price).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create Price: %w", err)
+		}
+		prices = append(prices, price)
+	}
+
+	var amenities []*model.Amenity
+	for _, a := range input.Amenities {
+		amenity := &model.Amenity{
+			Text:        a.Text,
+			PriceCardID: &id,
+		}
+		if err := tx.Create(amenity).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create Amenity: %w", err)
+		}
+		amenities = append(amenities, amenity)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	fullCard := &model.FullCard{
+		Card:      &priceCard,
+		Prices:    prices,
+		Amenities: amenities,
+	}
+
+	return fullCard, nil
+}
+
 // UpdatePriceCard is the resolver for the updatePriceCard field.
 func (r *mutationResolver) UpdatePriceCard(ctx context.Context, input model.UpdatePriceCardInput, priceCardID *string) (*model.PriceCard, error) {
 	if priceCardID == nil {
@@ -541,6 +692,34 @@ func (r *mutationResolver) RemoveAmenity(ctx context.Context, priceCardID string
 	return &amenity, nil
 }
 
+// CreateInvoice is the resolver for the createInvoice field.
+func (r *mutationResolver) CreateInvoice(ctx context.Context, input *model.InvoiceInput) (*model.Invoice, error) {
+	if input == nil {
+		return nil, fmt.Errorf("input cannot be nil")
+	}
+
+	invoice := model.Invoice{}
+
+	if input.CargoID != nil {
+		invoice.CargoID = input.CargoID
+	}
+	if input.Notes != nil {
+		invoice.Notes = input.Notes
+	}
+	if input.PolicyID != nil {
+		invoice.PolicyID = input.PolicyID
+	}
+	if input.PriceID != nil {
+		invoice.PriceID = input.PriceID
+	}
+
+	if err := r.DB.Create(&invoice).Error; err != nil {
+		return nil, fmt.Errorf("failed to create invoice: %w", err)
+	}
+
+	return &invoice, nil
+}
+
 // ID is the resolver for the id field.
 func (r *policyResolver) ID(ctx context.Context, obj *model.Policy) (string, error) {
 	id := obj.ID.String()
@@ -616,7 +795,7 @@ func (r *queryResolver) GetPolicyByID(ctx context.Context, policyID string) (*mo
 func (r *queryResolver) GetPolicyInformation(ctx context.Context, serviceID string) ([]*model.PolicyInformation, error) {
 	// Find all policies for the given service ID
 	var policies []*model.Policy
-	if err := r.DB.Where("service_id = ?", serviceID).Find(&policies).Error; err != nil {
+	if err := r.DB.Where("service_id = ? AND (is_public IS NULL OR is_public = ?)", serviceID, true).Find(&policies).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch policies for service ID %s: %w", serviceID, err)
 	}
 
@@ -679,6 +858,70 @@ func (r *queryResolver) GetPolicy(ctx context.Context, policyID string) (*model.
 	}, nil
 }
 
+// GetCargoPolicy is the resolver for the getCargoPolicy field.
+func (r *queryResolver) GetCargoPolicy(ctx context.Context, cargoID string) (*model.PolicyInformation, error) {
+	var policy model.Policy
+	if err := r.DB.Where("cargo_id = ?", cargoID).First(&policy).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Not found, return nil
+		}
+		return nil, fmt.Errorf("failed to fetch cargo policy: %w", err)
+	}
+
+	var policyDetails []*model.PolicyDetail
+	if err := r.DB.Where("policy_id = ?", policy.ID.String()).Find(&policyDetails).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch policy details for cargo policy: %w", err)
+	}
+
+	return &model.PolicyInformation{
+		Policy:        &policy,
+		PolicyDetails: policyDetails,
+	}, nil
+}
+
+// GetInvoice is the resolver for the getInvoice field.
+func (r *queryResolver) GetInvoice(ctx context.Context, cargoID string) (*model.Invoice, error) {
+	var invoice model.Invoice
+	if err := r.DB.Where("cargo_id = ?", cargoID).First(&invoice).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Not found, return nil
+		}
+		return nil, fmt.Errorf("failed to fetch invoice: %w", err)
+	}
+	return &invoice, nil
+}
+
+// GetCargoPriceCardByID is the resolver for the getCargoPriceCardById field.
+func (r *queryResolver) GetCargoPriceCardByID(ctx context.Context, cardID *string) (*model.FullCard, error) {
+	if cardID == nil {
+		return nil, fmt.Errorf("cardID is required")
+	}
+
+	var priceCard model.PriceCard
+	if err := r.DB.Where("id = ?", *cardID).First(&priceCard).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Not found, return nil
+		}
+		return nil, fmt.Errorf("failed to fetch cargo price card: %w", err)
+	}
+
+	var prices []*model.Price
+	if err := r.DB.Where("price_card_id = ?", *cardID).Find(&prices).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch prices for cargo price card: %w", err)
+	}
+
+	var amenities []*model.Amenity
+	if err := r.DB.Where("price_card_id = ?", *cardID).Find(&amenities).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch amenities for cargo price card: %w", err)
+	}
+
+	return &model.FullCard{
+		Card:      &priceCard,
+		Prices:    prices,
+		Amenities: amenities,
+	}, nil
+}
+
 // GlobalSearch is the resolver for the globalSearch field.
 func (r *queryResolver) GlobalSearch(ctx context.Context, query string, limit *int32, offset *int32, serviceID string) (*model.SearchResults, error) {
 	limitVal := 10 // Default limit
@@ -709,9 +952,9 @@ func (r *queryResolver) GetpriceCardsinformation(ctx context.Context, serviceID 
 		return []*model.FullCard{}, nil
 	}
 
-	// Fetch all price cards associated with the given serviceID
+	// Fetch all price cards associated with the given serviceID where is_public is NULL or TRUE
 	var priceCards []model.PriceCard
-	if err := r.DB.Where("service_id = ?", *serviceID).Find(&priceCards).Error; err != nil {
+	if err := r.DB.Where("service_id = ? AND (is_public IS NULL OR is_public = ?)", *serviceID, true).Find(&priceCards).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch price cards for service ID %s: %w", *serviceID, err)
 	}
 
@@ -780,8 +1023,104 @@ func (r *queryResolver) GetPriceCardByID(ctx context.Context, id string) (*model
 	}, nil
 }
 
+// GetFullInvoice is the resolver for the getFullInvoice field.
+func (r *queryResolver) GetFullInvoice(ctx context.Context, cargoID string) (*model.ViewInvoice, error) {
+	// Validate cargoID
+	if cargoID == "" {
+		return nil, fmt.Errorf("cargoID is required")
+	}
+
+	// Initialize the ViewInvoice struct
+	viewInvoice := &model.ViewInvoice{}
+
+	// Get the invoice by cargoID
+	var invoice model.Invoice
+	if err := r.DB.Where("cargo_id = ?", cargoID).First(&invoice).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("invoice not found for cargoID: %s", cargoID)
+		}
+		return nil, fmt.Errorf("failed to fetch invoice: %w", err)
+	}
+
+	// Get booking cargo information
+	var bookingCargo model.BookingCargo
+	if err := r.DB.Where("id = ?", cargoID).First(&bookingCargo).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("booking cargo not found for cargoID: %s", cargoID)
+		}
+		return nil, fmt.Errorf("failed to fetch booking cargo: %w", err)
+	}
+
+	// Set the cargo information to viewInvoice
+	viewInvoice.Cargo = &bookingCargo
+
+	// Get all bookings that have this CargoID
+	var bookings []model.AppointmentBooking
+	if err := r.DB.Where("cargo_id = ?", cargoID).Find(&bookings).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch bookings for cargoID %s: %w", cargoID, err)
+	}
+
+	// Set all bookings to viewInvoice
+	if len(bookings) > 0 {
+		bookingPointers := make([]*model.AppointmentBooking, len(bookings))
+		for i := range bookings {
+			bookingPointers[i] = &bookings[i]
+		}
+		viewInvoice.Booking = bookingPointers
+
+		// Get customer information from the first booking (assuming same customer for all bookings with same cargoID)
+		if bookings[0].UserID != "" {
+			customer, err := r.Query().GetUserInfor(ctx, bookings[0].UserID)
+			if err != nil {
+				log.Printf("Warning: failed to get customer info for booking %s: %v", bookings[0].ID, err)
+			} else {
+				viewInvoice.Customer = customer
+			}
+		}
+	}
+
+	// Get policy information if policyId exists
+	if invoice.PolicyID != nil && *invoice.PolicyID != "" {
+		policyInfo, err := r.Query().GetPolicy(ctx, *invoice.PolicyID)
+		if err != nil {
+			log.Printf("Warning: failed to fetch policy information: %v", err)
+		} else if policyInfo != nil {
+			viewInvoice.Policy = []*model.PolicyInformation{policyInfo}
+		}
+	}
+
+	// Get price card information if priceId exists
+	if invoice.PriceID != nil && *invoice.PriceID != "" {
+		priceCard, err := r.Query().GetCargoPriceCardByID(ctx, invoice.PriceID)
+		if err != nil {
+			log.Printf("Warning: failed to fetch price card: %v", err)
+		} else if priceCard != nil {
+			viewInvoice.Price = []*model.FullCard{priceCard}
+		}
+	}
+
+	// Get service information
+	if invoice.ServiceID != "" {
+		var service model.Service
+		if err := r.DB.Where("id = ?", invoice.ServiceID).First(&service).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				log.Printf("Warning: failed to fetch service: %v", err)
+			} else {
+				log.Printf("Warning: service not found for ID %s", invoice.ServiceID)
+			}
+		} else {
+			viewInvoice.ServiceID = &service
+		}
+	}
+
+	return viewInvoice, nil
+}
+
 // Amenity returns graph.AmenityResolver implementation.
 func (r *Resolver) Amenity() graph.AmenityResolver { return &amenityResolver{r} }
+
+// Invoice returns graph.InvoiceResolver implementation.
+func (r *Resolver) Invoice() graph.InvoiceResolver { return &invoiceResolver{r} }
 
 // Mutation returns graph.MutationResolver implementation.
 func (r *Resolver) Mutation() graph.MutationResolver { return &mutationResolver{r} }
@@ -802,6 +1141,7 @@ func (r *Resolver) PriceCard() graph.PriceCardResolver { return &priceCardResolv
 func (r *Resolver) Query() graph.QueryResolver { return &queryResolver{r} }
 
 type amenityResolver struct{ *Resolver }
+type invoiceResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type policyResolver struct{ *Resolver }
 type policyDetailResolver struct{ *Resolver }

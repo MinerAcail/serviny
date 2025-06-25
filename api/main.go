@@ -80,6 +80,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.BookingOrderPaymentStatus{},
 		
 		&model.Profiles{},
+		&model.Invoice{},
+
 
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)

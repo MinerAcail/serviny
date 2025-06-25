@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Loader2,
   Package,
@@ -16,52 +16,52 @@ import {
   Filter,
   ChevronUp,
   X,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
-import moment from 'moment'
-import { ServiceData } from "./types"
-import { PaymentStatusSection } from "./viewService"
-
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import moment from "moment";
+import { ServiceData } from "./types";
+import { PaymentStatusSection } from "./PaymentStatusSection";
+// import { PaymentStatusSection } from "./viewService"
 interface ServiceStats {
-  totalOrders: number
-  totalBookings: number
-  activeOrders: number
-  confirmedBookings: number
+  totalOrders: number;
+  totalBookings: number;
+  activeOrders: number;
+  confirmedBookings: number;
 }
 
-type ActiveTab = "all" | "orders" | "bookings"
-type SortBy = "date" | "status" | "type"
+type ActiveTab = "all" | "orders" | "bookings";
+type SortBy = "date" | "status" | "type";
 
 interface ServiceListDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  searchQuery: string
-  setSearchQuery: (query: string) => void
-  statusFilter: string
-  setStatusFilter: (filter: string) => void
-  sortBy: SortBy
-  setSortBy: (sort: SortBy) => void
-  activeTab: ActiveTab
-  setActiveTab: (tab: ActiveTab) => void
-  serviceData: ServiceData[]
-  stats: ServiceStats
-  handleViewAll: () => void
-  handleRefresh: () => void
-  loading: boolean
-  error: any
-  filteredData: ServiceData[]
-  selectedItem: ServiceData | null
-  handleItemClick: (item: ServiceData) => void
-  handleJustPaymentItemClick?: (item: ServiceData) => void
-  getStatusBadge: (item: ServiceData) => React.ReactNode
-  handleUpdateStatus: (status: string) => Promise<void>
-  isUpdatingStatus: boolean
-  paymentStatus: any
-  paymentLoading: boolean
-  handleOpenStatusDialog: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  statusFilter: string;
+  setStatusFilter: (filter: string) => void;
+  sortBy: SortBy;
+  setSortBy: (sort: SortBy) => void;
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
+  serviceData: ServiceData[];
+  stats: ServiceStats;
+  handleViewAll: () => void;
+  handleRefresh: () => void;
+  loading: boolean;
+  error: any;
+  filteredData: ServiceData[];
+  selectedItem: ServiceData | null;
+  handleItemClick: (item: ServiceData) => void;
+  handleJustPaymentItemClick?: (item: ServiceData) => void;
+  getStatusBadge: (item: ServiceData) => React.ReactNode;
+  handleUpdateStatus: (status: string) => Promise<void>;
+  isUpdatingStatus: boolean;
+  paymentStatus: any;
+  paymentLoading: boolean;
+  handleOpenStatusDialog: () => void;
 }
 
 // Enhanced ServiceCard component
@@ -76,69 +76,71 @@ function ServiceCard({
   paymentLoading,
   handleJustPaymentItemClick,
 }: {
-  item: ServiceData
-  onClick: () => void
-  isSelected: boolean
-  getStatusBadge: (item: ServiceData) => React.ReactNode
-  handleOpenStatusDialog?: () => void
-  isUpdatingStatus?: boolean
-  paymentStatus?: any
-  paymentLoading?: boolean
-  handleJustPaymentItemClick?: (item: ServiceData) => void
+  item: ServiceData;
+  onClick: () => void;
+  isSelected: boolean;
+  getStatusBadge: (item: ServiceData) => React.ReactNode;
+  handleOpenStatusDialog?: () => void;
+  isUpdatingStatus?: boolean;
+  paymentStatus?: any;
+  paymentLoading?: boolean;
+  handleJustPaymentItemClick?: (item: ServiceData) => void;
 }) {
-  const [IsExpandable, setIsExpandable] = useState(isSelected)
+  const [IsExpandable, setIsExpandable] = useState(isSelected);
 
   useEffect(() => {
-    setIsExpandable(isSelected)
-  }, [isSelected])
+    setIsExpandable(isSelected);
+  }, [isSelected]);
 
   // Helper function to format date and time
   const formatDateTime = (dateString: string) => {
-    const date = moment(dateString)
-    return date.isValid() ? date.format('MMM D, h:mm A') : 'Invalid Date'
-  }
+    const date = moment(dateString);
+    return date.isValid() ? date.format("MMM D, h:mm A") : "Invalid Date";
+  };
 
   // Helper function to format time only
   const formatTime = (dateString: string) => {
-    const date = moment(dateString)
-    return date.isValid() ? date.format('h:mm A') : 'N/A'
-  }
+    const date = moment(dateString);
+    return date.isValid() ? date.format("h:mm A") : "N/A";
+  };
 
   // Helper function to format date only
   const formatDate = (dateString: string) => {
-    const date = moment(dateString)
-    return date.isValid() ? date.format('dddd, MMMM D, YYYY') : 'N/A'
-  }
+    const date = moment(dateString);
+    return date.isValid() ? date.format("dddd, MMMM D, YYYY") : "N/A";
+  };
 
   // Helper function to format date and time range
   const formatDateTimeRange = (startTime: string, endTime: string) => {
-    const startMoment = moment(startTime)
-    const endMoment = moment(endTime)
-    
+    const startMoment = moment(startTime);
+    const endMoment = moment(endTime);
+
     if (!startMoment.isValid() || !endMoment.isValid()) {
       return {
         date: "N/A",
-        time: "N/A"
-      }
+        time: "N/A",
+      };
     }
-    
+
     // Check if they're on the same day
-    const isSameDay = startMoment.isSame(endMoment, 'day')
-    
+    const isSameDay = startMoment.isSame(endMoment, "day");
+
     if (isSameDay) {
       // Same day: show date once, then time range
       return {
-        date: startMoment.format('ddd, MMM D'),
-        time: `${startMoment.format('h:mm A')} - ${endMoment.format('h:mm A')}`
-      }
+        date: startMoment.format("ddd, MMM D"),
+        time: `${startMoment.format("h:mm A")} - ${endMoment.format("h:mm A")}`,
+      };
     } else {
       // Different days: show full date-time for both
       return {
         date: "Multi-day booking",
-        time: `${startMoment.format('ddd, MMM D, h:mm A')} - ${endMoment.format('ddd, MMM D, h:mm A')}`
-      }
+        time: `${startMoment.format("ddd, MMM D, h:mm A")} - ${endMoment.format(
+          "ddd, MMM D, h:mm A"
+        )}`,
+      };
     }
-  }
+  };
 
   return (
     <div
@@ -148,9 +150,8 @@ function ServiceCard({
           : "border-white/40 hover:border-white/60"
       }`}
       onClick={() => {
-        onClick()
-        setIsExpandable(!IsExpandable)
-        
+        onClick();
+        setIsExpandable(!IsExpandable);
       }}
     >
       <div className="p-4 sm:p-5">
@@ -175,22 +176,26 @@ function ServiceCard({
                   ? item.orderData?.orderId?.slice(-6) || "N/A"
                   : item.bookingData?.bookingId?.slice(-6) || "N/A"}
               </h3>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">{item.vendor.name}</p>
+              <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">
+                {item.vendor.name}
+              </p>
             </div>
           </div>
           <div
             onClick={(e) => {
-              e.stopPropagation()
-              setIsExpandable(!IsExpandable)
+              e.stopPropagation();
+              setIsExpandable(!IsExpandable);
               if (handleJustPaymentItemClick) {
-                handleJustPaymentItemClick(item)
+                handleJustPaymentItemClick(item);
               }
             }}
             className="flex items-center gap-2 flex-shrink-0 cursor-pointer"
           >
             {getStatusBadge(item)}
             <ChevronRight
-              className={`h-4 w-4 transition-transform duration-200 ${IsExpandable ? "rotate-90" : ""} text-gray-400`}
+              className={`h-4 w-4 transition-transform duration-200 ${
+                IsExpandable ? "rotate-90" : ""
+              } text-gray-400`}
             />
           </div>
         </div>
@@ -199,7 +204,9 @@ function ServiceCard({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
           <div className="flex items-center gap-2">
             <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-            <span className="text-xs sm:text-sm text-gray-600 truncate">{item.vendor.location}</span>
+            <span className="text-xs sm:text-sm text-gray-600 truncate">
+              {item.bookingData?.deliveryAddress}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
@@ -215,12 +222,16 @@ function ServiceCard({
             {/* Order specific details */}
             {item.type === "ORDER" && item.orderData && (
               <div className="backdrop-blur-xl bg-orange-50/60 rounded-xl p-3 border border-orange-200/40">
-                <h4 className="font-medium text-gray-900 mb-2 text-sm">Order Details</h4>
+                <h4 className="font-medium text-gray-900 mb-2 text-sm">
+                  Order Details
+                </h4>
                 <div className="text-xs sm:text-sm space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Status:</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium capitalize">{item.orderData.status || "N/A"}</span>
+                      <span className="font-medium capitalize">
+                        {item.orderData.status || "N/A"}
+                      </span>
                       {handleOpenStatusDialog && isSelected && (
                         <Button
                           variant="outline"
@@ -243,16 +254,22 @@ function ServiceCard({
                   </div>
                   <p>
                     <span className="text-gray-500">To:</span>{" "}
-                    <span className="font-medium">{item.orderData.deliveryAddress || "N/A"}</span>
+                    <span className="font-medium">
+                      {item.orderData.deliveryAddress || "N/A"}
+                    </span>
                   </p>
                   <p>
                     <span className="text-gray-500">Fee:</span>{" "}
-                    <span className="font-medium text-green-600">GH₵{item.orderData.serviceFee || "0"}</span>
+                    <span className="font-medium text-green-600">
+                      GH₵{item.orderData.serviceFee || "0"}
+                    </span>
                   </p>
                   {item.orderData.order?.distance && (
                     <p>
                       <span className="text-gray-500">Distance:</span>{" "}
-                      <span className="font-medium">{item.orderData.order.distance}</span>
+                      <span className="font-medium">
+                        {item.orderData.order.distance}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -262,12 +279,16 @@ function ServiceCard({
             {/* Booking specific details */}
             {item.type === "BOOKING" && item.bookingData && (
               <div className="backdrop-blur-xl bg-purple-50/60 rounded-xl p-3 border border-purple-200/40">
-                <h4 className="font-medium text-gray-900 mb-2 text-sm">Booking Details</h4>
+                <h4 className="font-medium text-gray-900 mb-2 text-sm">
+                  Booking Details
+                </h4>
                 <div className="text-xs sm:text-sm space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Status:</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium capitalize">{item.bookingData.status || "N/A"}</span>
+                      <span className="font-medium capitalize">
+                        {item.bookingData.status || "N/A"}
+                      </span>
                       {handleOpenStatusDialog && isSelected && (
                         <Button
                           variant="outline"
@@ -288,34 +309,43 @@ function ServiceCard({
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Item/Service */}
                   {item.bookingData.item && (
                     <p>
                       <span className="text-gray-500">Service:</span>{" "}
-                      <span className="font-medium">{item.bookingData.item}</span>
+                      <span className="font-medium">
+                        {item.bookingData.item}
+                      </span>
                     </p>
                   )}
-                  
+
                   {/* Location Information */}
                   {item.bookingData.pickUpAddress && (
                     <p>
                       <span className="text-gray-500">Pick-up Location:</span>{" "}
-                      <span className="font-medium">{item.bookingData.pickUpAddress}</span>
+                      <span className="font-medium">
+                        {item.bookingData.pickUpAddress}
+                      </span>
                     </p>
                   )}
-                  
+
                   {item.bookingData.deliveryAddress && (
                     <p>
                       <span className="text-gray-500">Delivery Address:</span>{" "}
-                      <span className="font-medium">{item.bookingData.deliveryAddress}</span>
+                      <span className="font-medium">
+                        {item.bookingData.deliveryAddress}
+                      </span>
                     </p>
                   )}
 
                   {item.bookingData.startTime && item.bookingData.endTime ? (
                     // Use the new date-time range formatter
                     (() => {
-                      const { date, time } = formatDateTimeRange(item.bookingData.startTime, item.bookingData.endTime)
+                      const { date, time } = formatDateTimeRange(
+                        item.bookingData.startTime,
+                        item.bookingData.endTime
+                      );
                       return (
                         <>
                           <p>
@@ -327,7 +357,7 @@ function ServiceCard({
                             <span className="font-medium">{time}</span>
                           </p>
                         </>
-                      )
+                      );
                     })()
                   ) : (
                     // Fallback to individual date/time if available
@@ -335,73 +365,61 @@ function ServiceCard({
                       <p>
                         <span className="text-gray-500">Date:</span>{" "}
                         <span className="font-medium">
-                          {item.bookingData.day ? formatDate(item.bookingData.day) : "N/A"}
+                          {item.bookingData.day
+                            ? formatDate(item.bookingData.day)
+                            : "N/A"}
                         </span>
                       </p>
                       <p>
                         <span className="text-gray-500">Time:</span>{" "}
                         <span className="font-medium">
-                          {item.bookingData.startTime ? formatTime(item.bookingData.startTime) : "N/A"} - {item.bookingData.endTime ? formatTime(item.bookingData.endTime) : "N/A"}
+                          {item.bookingData.startTime
+                            ? formatTime(item.bookingData.startTime)
+                            : "N/A"}{" "}
+                          -{" "}
+                          {item.bookingData.endTime
+                            ? formatTime(item.bookingData.endTime)
+                            : "N/A"}
                         </span>
                       </p>
                     </>
                   )}
-                  
+
                   {item.bookingData.tableSize && (
                     <p>
-                      <span className="text-gray-500">Guests:</span>{" "}
-                      <span className="font-medium">{item.bookingData.tableSize} people</span>
+                      <span className="text-gray-500">Items:</span>{" "}
+                      <span className="font-medium">
+                        {item.bookingData.tableSize}
+                      </span>
                     </p>
                   )}
-                  
-                  <p>
-                    <span className="text-gray-500">Fee:</span>{" "}
-                    <span className="font-medium text-green-600">GH₵{item.bookingData.deliveryFee || "0"}</span>
-                  </p>
-                  
+                  {!item.bookingData.cargoId && (
+                    <p>
+                      <span className="text-gray-500">Fee:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        GH₵{item.bookingData.deliveryFee || "0"}
+                      </span>
+                    </p>
+                  )}
+
                   {/* Notes */}
                   {item.bookingData.notes && (
                     <div className="mt-2 pt-2 border-t border-purple-200/30">
                       <p className="text-gray-500 text-xs">Notes:</p>
-                      <p className="font-medium text-xs">{item.bookingData.notes}</p>
+                      <p className="font-medium text-xs">
+                        {item.bookingData.notes}
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Payment Status Section */}
-            {isSelected && paymentStatus && (
-              <div className="backdrop-blur-xl bg-green-50/60 rounded-xl p-3 border border-green-200/40">
-                <h4 className="font-medium text-gray-900 mb-2 text-sm">Payment Information</h4>
-                <div className="text-xs sm:text-sm space-y-1">
-                  <p>
-                    <span className="text-gray-500">Method:</span>{" "}
-                    <span className="font-medium">{paymentStatus.method}</span>
-                  </p>
-                  <p>
-                    <span className="text-gray-500">Status:</span>{" "}
-                    <span className={`font-medium ${
-                      paymentStatus.status === "COMPLETED" 
-                        ? "text-green-600" 
-                        : paymentStatus.status === "FAILED" 
-                        ? "text-red-600" 
-                        : "text-yellow-600"
-                    }`}>
-                      {paymentStatus.status}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-gray-500">Reference:</span>{" "}
-                    <span className="font-medium">{paymentStatus.reference}</span>
-                  </p>
-                </div>
-              </div>
-            )}
- <PaymentStatusSection
-                  paymentStatus={paymentStatus}
-                  onPayNow={() => {}}
-                />
+            <PaymentStatusSection
+              selectedItem={item}
+              // paymentStatus={paymentStatus}
+              onPayNow={() => {}}
+            />
             {/* Payment Loading State */}
             {isSelected && paymentLoading && (
               <div className="backdrop-blur-xl bg-blue-50/60 rounded-xl p-3 border border-blue-200/40">
@@ -417,14 +435,16 @@ function ServiceCard({
               <div className="backdrop-blur-xl bg-blue-50/60 rounded-xl p-3 border border-blue-200/40">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate">{item.rider.name}</p>
+                    <p className="font-medium text-gray-900 text-sm truncate">
+                      {item.rider.name}
+                    </p>
                     <p className="text-xs text-gray-600">{item.rider.number}</p>
                   </div>
                   <Button
                     size="sm"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      window.open(`tel:${item.rider?.number}`, "_self")
+                      e.stopPropagation();
+                      window.open(`tel:${item.rider?.number}`, "_self");
                     }}
                     className="backdrop-blur-xl bg-blue-500/80 hover:bg-blue-600/80 text-white border-0 h-8 px-3 text-xs"
                   >
@@ -448,7 +468,7 @@ function ServiceCard({
         </Collapsible>
       </div>
     </div>
-  )
+  );
 }
 
 // Main ServiceListDialog component
@@ -480,36 +500,39 @@ export default function ServiceListDialog({
   paymentLoading,
   handleOpenStatusDialog,
 }: ServiceListDialogProps) {
-  const [scrollY, setScrollY] = useState(0)
-  const [isScrollingDown, setIsScrollingDown] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const lastScrollY = useRef(0)
+  const [scrollY, setScrollY] = useState(0);
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
 
   // Handle scroll behavior
   useEffect(() => {
     const handleScroll = () => {
-      if (!scrollContainerRef.current) return
+      if (!scrollContainerRef.current) return;
 
-      const currentScrollY = scrollContainerRef.current.scrollTop
-      const scrollingDown = currentScrollY > lastScrollY.current && currentScrollY > 50
+      const currentScrollY = scrollContainerRef.current.scrollTop;
+      const scrollingDown =
+        currentScrollY > lastScrollY.current && currentScrollY > 50;
 
-      setScrollY(currentScrollY)
-      setIsScrollingDown(scrollingDown)
-      lastScrollY.current = currentScrollY
+      setScrollY(currentScrollY);
+      setIsScrollingDown(scrollingDown);
+      lastScrollY.current = currentScrollY;
 
       // Auto-hide filters when scrolling down
       if (scrollingDown && showFilters) {
-        setShowFilters(false)
+        setShowFilters(false);
       }
-    }
+    };
 
-    const scrollContainer = scrollContainerRef.current
+    const scrollContainer = scrollContainerRef.current;
     if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", handleScroll, { passive: true })
-      return () => scrollContainer.removeEventListener("scroll", handleScroll)
+      scrollContainer.addEventListener("scroll", handleScroll, {
+        passive: true,
+      });
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
     }
-  }, [showFilters])
+  }, [showFilters]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -535,7 +558,9 @@ export default function ServiceListDialog({
                 size="sm"
                 onClick={() => setShowFilters(!showFilters)}
                 className={`backdrop-blur-xl border-white/40 h-10 sm:h-11 px-3 sm:px-4 transition-all duration-200 ${
-                  showFilters ? "bg-blue-50/60 border-blue-300/50" : "bg-white/60"
+                  showFilters
+                    ? "bg-blue-50/60 border-blue-300/50"
+                    : "bg-white/60"
                 }`}
               >
                 <Filter className="h-4 w-4" />
@@ -554,7 +579,9 @@ export default function ServiceListDialog({
                   disabled={loading}
                   className="backdrop-blur-xl bg-white/60 border-white/40 h-10 sm:h-11 px-2 sm:px-3"
                 >
-                  <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  />
                 </Button>
                 <Button
                   variant="outline"
@@ -647,14 +674,16 @@ export default function ServiceListDialog({
                   </div>
 
                   {/* Clear filters */}
-                  {(searchQuery || statusFilter !== "all" || activeTab !== "all") && (
+                  {(searchQuery ||
+                    statusFilter !== "all" ||
+                    activeTab !== "all") && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setSearchQuery("")
-                        setStatusFilter("all")
-                        setActiveTab("all")
+                        setSearchQuery("");
+                        setStatusFilter("all");
+                        setActiveTab("all");
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
@@ -673,13 +702,17 @@ export default function ServiceListDialog({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-                <p className="text-gray-600">Loading your orders and bookings...</p>
+                <p className="text-gray-600">
+                  Loading your orders and bookings...
+                </p>
               </div>
             </div>
           ) : error && !serviceData.length ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <p className="text-red-600 mb-4">Failed to load data: {error.message}</p>
+                <p className="text-red-600 mb-4">
+                  Failed to load data: {error.message}
+                </p>
                 <Button onClick={handleRefresh} className="rounded-xl">
                   Try Again
                 </Button>
@@ -693,19 +726,25 @@ export default function ServiceListDialog({
                     <div className="w-16 h-16 bg-gray-100/60 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-xl">
                       <Package className="h-8 w-8 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No items found
+                    </h3>
                     <p className="text-gray-500 mb-4 text-sm sm:text-base">
-                      {searchQuery || statusFilter !== "all" || activeTab !== "all"
+                      {searchQuery ||
+                      statusFilter !== "all" ||
+                      activeTab !== "all"
                         ? "Try adjusting your search or filters"
                         : "You don't have any orders or bookings yet"}
                     </p>
-                    {(searchQuery || statusFilter !== "all" || activeTab !== "all") && (
+                    {(searchQuery ||
+                      statusFilter !== "all" ||
+                      activeTab !== "all") && (
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setSearchQuery("")
-                          setStatusFilter("all")
-                          setActiveTab("all")
+                          setSearchQuery("");
+                          setStatusFilter("all");
+                          setActiveTab("all");
                         }}
                         className="rounded-xl"
                       >
@@ -718,7 +757,8 @@ export default function ServiceListDialog({
                     {/* Results summary */}
                     <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-4 px-1">
                       <span>
-                        Showing {filteredData.length} of {serviceData.length} items
+                        Showing {filteredData.length} of {serviceData.length}{" "}
+                        items
                       </span>
                       {loading && (
                         <span className="inline-flex items-center">
@@ -739,8 +779,12 @@ export default function ServiceListDialog({
                         getStatusBadge={getStatusBadge}
                         handleOpenStatusDialog={handleOpenStatusDialog}
                         isUpdatingStatus={isUpdatingStatus}
-                        paymentStatus={selectedItem?.id === item.id ? paymentStatus : null}
-                        paymentLoading={selectedItem?.id === item.id ? paymentLoading : false}
+                        paymentStatus={
+                          selectedItem?.id === item.id ? paymentStatus : null
+                        }
+                        paymentLoading={
+                          selectedItem?.id === item.id ? paymentLoading : false
+                        }
                       />
                     ))}
 
@@ -757,7 +801,10 @@ export default function ServiceListDialog({
         {scrollY > 200 && (
           <Button
             onClick={() => {
-              scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+              scrollContainerRef.current?.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
             }}
             className="fixed bottom-4 right-4 z-20 rounded-full w-12 h-12 backdrop-blur-xl bg-blue-500/80 hover:bg-blue-600/80 text-white shadow-lg border-0"
             size="icon"
@@ -767,5 +814,5 @@ export default function ServiceListDialog({
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }

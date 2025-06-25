@@ -29,15 +29,15 @@ type Service struct {
 	IsAuth       *IsAuth        `json:"is_auth,omitempty"`
 	SubDomain    *string        `gorm:"unique" json:"sub_domain,omitempty"`
 	UseTheme     *string        `json:"use_theme,omitempty"`
-	
+
 	// Coordinates []float64 `json:"coordinates" gorm:"type:float[]"`  // [lng, lat]
 	//   H3Indexes   []string  `json:"h3Indexes" gorm:"type:text[]"` // Multiple resolutions
-	  Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]
-	
+	Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]
+
 	// H3Indexes    []*string  `json:"h3Indexes,omitempty"`
-	H3Indexes    pq.StringArray `gorm:"type:text[]" json:"h3Indexes,omitempty"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	H3Indexes pq.StringArray `gorm:"type:text[]" json:"h3Indexes,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 type GalleryProfession struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
@@ -51,9 +51,12 @@ type GalleryProfession struct {
 }
 
 type Policy struct {
-	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	Name        string         `json:"name"`
-	ServiceID   *string        `gorm:"column:service_id" json:"ServiceId,omitempty"`
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	Name      string    `json:"name"`
+	ServiceID *string   `gorm:"column:service_id" json:"ServiceId,omitempty"`
+	CargoID   *string   `json:"cargoId,omitempty"`
+	IsPublic    *bool     `json:"isPublic,omitempty"`
+
 	Description string         `json:"description"`
 	DetailsIds  pq.StringArray `gorm:"type:text[]" json:"detailsIds,omitempty"`
 	CreatedAt   time.Time      `json:"createdAt"`
@@ -81,8 +84,9 @@ type Price struct {
 }
 
 type PriceCard struct {
-	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-
+	ID          uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	CargoID     *string   `json:"cargoId,omitempty"`
+	IsPublic    *bool     `json:"isPublic,omitempty"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	ServiceID   *string   `json:"ServiceId,omitempty"`

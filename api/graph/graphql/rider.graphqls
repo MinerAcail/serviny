@@ -70,20 +70,16 @@ extend type Query {
   ): [NearbyRider!]!
 
   getjobResponse(serviceId: String!): RidersRequest
+  getAllServiceRiders: [Rider!]!
+
   getAllRidersResponseInfor: [riderRequestInfor!]!
   getRidersLocations: Rider!
   riderCurrentLocation(riderId: String!): [Float!]!
   getAllRidersStatusState(status: RiderStatus!): [Rider!]!
 
-
-  getAllRidersBookingAndOrdersAssignedData:[ServiceData]
-  getRiderAssignedOrders(
-    riderId: String!
-  ): [ServiceData]
-  getRiderAssignedBookings(
-    riderId: String!
-  ): [ServiceData]
-  
+  getAllRidersBookingAndOrdersAssignedData: [ServiceData]
+  getRiderAssignedOrders(riderId: String!): [ServiceData]
+  getRiderAssignedBookings(riderId: String!): [ServiceData]
 }
 
 extend type Mutation {
@@ -91,7 +87,6 @@ extend type Mutation {
   updateRiderStatus(id: String!, status: String!): Rider
   updateRider(id: String!, input: RiderUpateInput!): Rider
   deleteRider(id: String!): Boolean
-
   useGetRiderTracking: Rider
   updateRiderOnlineStatus(status: RiderStatus!): Rider
   updateRiderLocation(coordinates: [Float!]!): Rider

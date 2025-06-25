@@ -1683,7 +1683,7 @@ export const GET_APPOINTMENT_BOOKING = gql`
 export interface AddBookCoordinateInput {
   bookId: string;
   deliveryAddress?: string;
-  pickUpAddress?: string
+  pickUpAddress?: string;
 
   dropoffLocation?: number[]; // [lng, lat]
   pickupLocation?: number[]; // [lng, lat]
@@ -2732,24 +2732,74 @@ export function useMultiGroupBookingManagement(bookId?: string) {
 export function convertBookingsToDeliveryItems(
   bookings: MultiGroupBooking[]
 ): MultiDeliveryItem[] {
-  return bookings.map((booking, index) => ({
-    id: booking.id,
-    itemDescription: booking.item || `Item ${index + 1}`,
-    deliveryAddress: booking.deliveryAddress || "",
-    dropoffLocation: booking.dropoffLocation
-      ? [booking.dropoffLocation[1], booking.dropoffLocation[0]] // Convert lng,lat to lat,lng
-      : ([0, 0] as [number, number]),
-    notes: booking.notes || "",
-    // Add calculated data if available
-    calculated:
-      booking.distance && booking.deliveryFee
-        ? {
-            distance: parseFloat(booking.distance),
-            duration: booking.duration || "Unknown",
-            price: parseFloat(booking.deliveryFee),
-          }
-        : undefined,
-  }));
+  console.log("🔄 Converting bookings to delivery items:", {
+    bookingsCount: bookings.length,
+    bookings: bookings,
+  });
+
+  return bookings.map((booking, index) => {
+    // Debug each booking conversion
+    console.log(`📦 Converting booking ${index}:`, {
+      id: booking.id,
+      item: booking.item,
+      deliveryAddress: booking.deliveryAddress,
+      dropoffLocation: booking.dropoffLocation,
+      notes: booking.notes,
+      distance: booking.distance,
+      deliveryFee: booking.deliveryFee,
+      duration: booking.duration,
+    });
+
+    // Validate dropoffLocation
+    let dropoffLocation: [number, number] = [0, 0];
+    if (booking.dropoffLocation && Array.isArray(booking.dropoffLocation)) {
+      if (booking.dropoffLocation.length >= 2) {
+        const [lng, lat] = booking.dropoffLocation;
+        dropoffLocation = [lat, lng]; // Convert lng,lat to lat,lng
+        console.log(`📍 Converted coordinates for booking ${index}:`, {
+          original: booking.dropoffLocation,
+          converted: dropoffLocation,
+        });
+      } else {
+        console.warn(
+          `⚠️ Invalid dropoffLocation for booking ${index}:`,
+          booking.dropoffLocation
+        );
+      }
+    } else {
+      console.warn(`⚠️ No dropoffLocation for booking ${index}`);
+    }
+
+    // Validate deliveryAddress
+    if (!booking.deliveryAddress || booking.deliveryAddress.trim() === "") {
+      console.warn(`⚠️ Empty deliveryAddress for booking ${index}`);
+    }
+
+    // Validate item description
+    if (!booking.item || booking.item.trim() === "") {
+      console.warn(`⚠️ Empty item description for booking ${index}`);
+    }
+
+    const convertedItem: MultiDeliveryItem = {
+      id: booking.id,
+      itemDescription: booking.item || `Item ${index + 1}`,
+      deliveryAddress: booking.deliveryAddress || "",
+      dropoffLocation,
+      notes: booking.notes || "",
+      // Add calculated data if available
+      calculated:
+        booking.distance && booking.deliveryFee
+          ? {
+              distance: parseFloat(booking.distance),
+              duration: booking.duration || "Unknown",
+              price: parseFloat(booking.deliveryFee),
+            }
+          : undefined,
+    };
+
+    console.log(`✅ Converted booking ${index} result:`, convertedItem);
+    return convertedItem;
+  });
 }
 
 // ==========================================
@@ -2763,16 +2813,17 @@ export function convertDeliveryItemsToUpdateInputs(
 ): UpdateBookingLocationInput[] {
   return deliveryItems.map((item) => {
     let rangeMetaId: string | undefined;
-    
+
     // Calculate rangeMetaId for this specific item if zones are provided
     if (zones && zones.length > 0) {
       // Use existing calculated data if available
       if (item.calculated && item.calculated.distance) {
         const distance = item.calculated.distance;
-        const matchedZone = zones.find(
-          (zone) => distance >= zone.startKm && distance < zone.endKm
-        ) || zones[zones.length - 1];
-        
+        const matchedZone =
+          zones.find(
+            (zone) => distance >= zone.startKm && distance < zone.endKm
+          ) || zones[zones.length - 1];
+
         rangeMetaId = matchedZone?.id;
       } else {
         // Calculate distance and find zone
@@ -2787,10 +2838,11 @@ export function convertDeliveryItemsToUpdateInputs(
         const to = turf.point([dropoffLocation.lng, dropoffLocation.lat]);
         const distance = turf.distance(from, to, { units: "kilometers" });
 
-        const matchedZone = zones.find(
-          (zone) => distance >= zone.startKm && distance < zone.endKm
-        ) || zones[zones.length - 1];
-        
+        const matchedZone =
+          zones.find(
+            (zone) => distance >= zone.startKm && distance < zone.endKm
+          ) || zones[zones.length - 1];
+
         rangeMetaId = matchedZone?.id;
       }
     }
@@ -2798,6 +2850,7 @@ export function convertDeliveryItemsToUpdateInputs(
     return {
       bookId: item.id,
       deliveryAddress: item.deliveryAddress,
+      pickUpAddress: pickupLocation.address,
       dropoffLocation: [item.dropoffLocation[1], item.dropoffLocation[0]], // Convert lat,lng to lng,lat
       pickupLocation: [pickupLocation.lng, pickupLocation.lat],
       ...(riderId && { ridersId: riderId }),

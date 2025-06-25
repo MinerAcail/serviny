@@ -25,6 +25,8 @@ extend type Query {
   getAppointmentBooking(bookId:String):AppointmentBooking!
   getAppointmentBookingByMultiGroupId(multiGroupId:String):[AppointmentBooking!]!
   getMultiGroupedAppointmentBookingBybookId(bookId:String):[AppointmentBooking!]!
+  getCargoByBookingID(bookingId:String!): BookingCargo
+  getCargoByMultiGroupId(multiGroupId:String!): [BookingCargo]
 }
 input addBookCoordinateInput {
   bookId: String!
@@ -47,12 +49,14 @@ extend type Mutation {
     isCargo:Boolean
     serviceId: String!
   ): [AppointmentBooking!]!
+  updateCargoWithRider(riderId:String,cargoId:String):AppointmentBooking
   updateMultipleBookingsWithLocation(
     input: addBookCoordinateInput!
   ): AppointmentBooking!
   updateMultiGroupBookingsWithLocationBybookId(
     input: [addBookCoordinateInput]!
   ): [AppointmentBooking]!
+
   confirmBooking(id: String!): AppointmentBooking!
 
   deleteBooking(id: String!): Boolean
@@ -72,6 +76,7 @@ input BookerInput {
   notes: String
   tableSize: Int!
   userId: String!
+  transportType: String
 }
 
 type AppointmentBookedData {

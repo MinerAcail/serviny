@@ -98,6 +98,7 @@ export const GET_ALL_USER_SERVICE_DATA = gql`
         duration
         estimatedDeliveryDate
         notes
+        cargoId
         rangeMetaData {
           id
           riderId
@@ -224,6 +225,7 @@ export interface ServiceData {
     dropoffLocation?: string
     deliveryAddress?: string
     pickUpAddress?: string
+    cargoId?:string
     deliveryFee?: number
     distance?: string
     duration?: string

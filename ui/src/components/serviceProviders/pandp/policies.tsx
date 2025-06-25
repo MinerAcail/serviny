@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Info, Plus, Trash, Save, Edit } from "lucide-react";
+import { Info, Plus, Trash, Save, Edit, Share2 } from "lucide-react";
 import {
   Card,
   CardHeader,

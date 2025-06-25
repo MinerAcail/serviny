@@ -1,10 +1,10 @@
-import { gql, useApolloClient, useMutation, useQuery } from "@apollo/client";
+import { gql, useApolloClient, useLazyQuery, useMutation, useQuery } from "@apollo/client";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-// import jwtDecode, { JwtPayload } from "jwt-decode";
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
+
 export const PROFILES_MUTATION = gql`
   mutation Profiles($profileId: String!) {
     profiles(profileId: $profileId) {
@@ -14,7 +14,7 @@ export const PROFILES_MUTATION = gql`
     }
   }
 `;
-// Query: Get the current user's profile
+
 export const GET_PROFILES_QUERY = gql`
   query GetProfiles {
     getProfiles {
@@ -24,11 +24,13 @@ export const GET_PROFILES_QUERY = gql`
     }
   }
 `;
+
 export const GET__A_PROFILEID_QUERY = gql`
-query GetAProfileIDByUserID($userId:String){
-  getAProfileIdByUserId(userId:$userId)
-}
+  query GetAProfileIDByUserID($userId: String) {
+    getAProfileIdByUserId(userId: $userId)
+  }
 `;
+
 export function useProfileUpdate(profileId: string | null | undefined, userId: string | null | undefined = null) {
   const client = useApolloClient();
   const [updateProfileMutation, { loading: updating, error: updateError }] = useMutation(PROFILES_MUTATION);
@@ -40,14 +42,13 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
     refetch,
   } = useQuery(GET_PROFILES_QUERY);
 
-  // Only query for profile ID if userId is provided
   const {
     data: AprofileIdData,
     loading: profileIdLoading,
     error: profileIdError
   } = useQuery(GET__A_PROFILEID_QUERY, {
     variables: { userId },
-    skip: !userId, // Skip query if no userId provided
+    skip: !userId,
     fetchPolicy: 'cache-and-network'
   });
 
@@ -57,17 +58,15 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
   const firstProfileId = profile?.profileIds?.[0] ?? null;
   const userProfileId = AprofileIdData?.getAProfileIdByUserId ?? null;
 
-  // Track the last profileId we triggered
   const lastTriggeredIdRef = useRef<string | null>(null);
 
-  // Trigger mutation
   const triggerUpdate = useCallback(
     async (newProfileId: string) => {
       try {
         const res = await updateProfileMutation({ variables: { profileId: newProfileId } });
         await refetch();
         lastTriggeredIdRef.current = newProfileId;
-        return newProfileId; // Return the profileId instead of the full response
+        return newProfileId;
       } catch (err) {
         console.error("Profile update failed:", err);
         return null;
@@ -76,7 +75,6 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
     [updateProfileMutation, refetch]
   );
 
-  // New function to trigger update with firstProfileId
   const triggerUpdateWithFirstProfile = useCallback(async () => {
     if (firstProfileId) {
       return await triggerUpdate(firstProfileId);
@@ -86,14 +84,12 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
     }
   }, [firstProfileId, triggerUpdate]);
 
-  // Function to get profile ID by user ID and then trigger update
   const triggerUpdateByUserId = useCallback(async (targetUserId: string) => {
     try {
-      // Use Apollo client to execute the query for fresh data
       const { data } = await client.query({
         query: GET__A_PROFILEID_QUERY,
         variables: { userId: targetUserId },
-        fetchPolicy: 'network-only', // Ensure fresh data
+        fetchPolicy: 'network-only',
       });
 
       const profileIdFromUser = data?.getAProfileIdByUserId;
@@ -111,7 +107,6 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
     }
   }, [triggerUpdate, client]);
 
-  // Function to trigger update with the userId profile ID (from hook parameter)
   const triggerUpdateWithUserProfile = useCallback(async () => {
     if (userProfileId) {
       const result = await triggerUpdate(userProfileId);
@@ -122,7 +117,6 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
     }
   }, [userProfileId, triggerUpdate]);
 
-  // Automatically trigger if firstProfileId !== profileId
   useEffect(() => {
     if (
       profileId &&
@@ -147,18 +141,17 @@ export function useProfileUpdate(profileId: string | null | undefined, userId: s
   };
 }
 
-
 interface UserType {
   id: string;
   name: string;
   email: string;
-  type: string; // Changed to an array of strings for multiple types
+  type: string;
   number: string;
 }
-// GraphQL query to clear the client cache
+
 export const GET_USER_INFO_FROM_CONTEXT = gql`
-  query GetUserInforFromContext {
-    getUserInforFromContext {
+  query GetUserInforFromContextForAuthClient {
+    getUserInforFromContextForAuthClient {
       id
       number
       name
@@ -167,7 +160,7 @@ export const GET_USER_INFO_FROM_CONTEXT = gql`
     }
   }
 `;
-// Create an authentication context
+
 const AuthContext = createContext<
   | {
       isAuthenticated: boolean;
@@ -176,6 +169,7 @@ const AuthContext = createContext<
       logout: () => void;
       isLoading: boolean;
       clearCache: () => void;
+      syncWithServer: () => void;
     }
   | undefined
 >(undefined);
@@ -183,53 +177,85 @@ const AuthContext = createContext<
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<UserType | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // New loading state
-  // Hook to execute the clear cache query
-  //   const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
-  //     onCompleted: (data) => {
-  //       if (data.clearClientCache) {
-  //         // Clear localStorage when server confirms
-  //         clearLocalStorage();
-  //       }
-  //     },
-  //     onError: (error) => {
-  //       console.error("Error clearing client cache:", error);
-  //       // Still clear localStorage even if server call fails
-  //       clearLocalStorage();
-  //     }
-  //   });
-  // console.log("clearClientCache initialized",data);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Function to clear localStorage
-  const clearLocalStorage = () => {
-    try {
-      localStorage.removeItem("userData");
-      // Or clear everything: localStorage.clear();
-    } catch (error) {
-      console.error("Error clearing localStorage:", error);
+  // Use lazy query for getUserInforFromContextForAuthClient
+  const [getUserInfo, { data: userContextData, loading: userContextLoading, error: userContextError }] = useLazyQuery(
+    GET_USER_INFO_FROM_CONTEXT,
+    {
+      fetchPolicy: 'network-only', // Always fetch from server
+      onCompleted: (data) => {
+        if (data?.getUserInforFromContextForAuthClient) {
+          const serverUser = data.getUserInforFromContextForAuthClient;
+          
+          // Update local state and localStorage with server data
+          setUser(serverUser);
+          setIsAuthenticated(true);
+          
+          try {
+            localStorage.setItem("userData", JSON.stringify(serverUser));
+          } catch (error) {
+            console.error("Error saving server user data to localStorage:", error);
+          }
+        } else {
+          // No user found on server, clear local data
+          handleNoServerUser();
+        }
+        setIsLoading(false);
+      },
+      onError: (error) => {
+        console.error("Error fetching user info from server:", error);
+        // On error, check localStorage as fallback
+        checkLocalStorageOnly();
+        setIsLoading(false);
+      }
     }
+  );
+
+  const handleNoServerUser = () => {
+    // Clear local storage if server has no user data
+    clearLocalStorage();
+    setIsAuthenticated(false);
+    setUser(null);
   };
-  useEffect(() => {
-    // Check if there is user data in localStorage when the component mounts
+
+  const checkLocalStorageOnly = () => {
+    // Fallback to localStorage when server query fails
     try {
       const storedUserData = localStorage.getItem("userData");
       if (storedUserData) {
-        // Parse and set the user data from localStorage
         const parsedUser = JSON.parse(storedUserData);
         setUser(parsedUser);
         setIsAuthenticated(true);
       }
     } catch (error) {
       console.error("Error accessing localStorage:", error);
-    } finally {
-      setIsLoading(false); // Set loading to false after check
     }
-  }, []);
+  };
 
-  // Function to handle login
+  const clearLocalStorage = () => {
+    try {
+      localStorage.removeItem("userData");
+    } catch (error) {
+      console.error("Error clearing localStorage:", error);
+    }
+  };
+
+  // Function to manually sync with server
+  const syncWithServer = useCallback(() => {
+    if (!userContextLoading) {
+      getUserInfo();
+    }
+  }, [getUserInfo, userContextLoading]);
+
+  useEffect(() => {
+    // On mount, try to get user info from server first
+    getUserInfo();
+  }, [getUserInfo]);
+
   const login = (userData: UserType) => {
     try {
-      localStorage.setItem("userData", JSON.stringify(userData)); // Store user data
+      localStorage.setItem("userData", JSON.stringify(userData));
       setUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
@@ -237,28 +263,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Function to handle logout
   const logout = () => {
-    // Trigger the GraphQL query to clear cache
     clearLocalStorage();
     setIsAuthenticated(false);
     setUser(null);
-    // localStorage.removeItem("userData"); // Remove user data from storage
   };
-  // Function to manually clear cache (if needed elsewhere)
+
   const clearCache = () => {
     clearLocalStorage();
   };
+
+  // Combine loading states
+  const totalLoading = isLoading || userContextLoading;
+
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, login, logout, isLoading, clearCache }}
+      value={{ 
+        isAuthenticated, 
+        user, 
+        login, 
+        logout, 
+        isLoading: totalLoading, 
+        clearCache,
+        syncWithServer
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to access the authentication context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

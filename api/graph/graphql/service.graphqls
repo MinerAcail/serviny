@@ -88,15 +88,14 @@ extend type Query {
 
   getSocialMedia(serviceId: String!): SocialMedia
 
-  getAllRidersServiceData:[ServiceData!]!
-  getBookingServiceData:[ServiceData!]!
-  getOrderServiceData:[ServiceData!]!
+  getAllRidersServiceData: [ServiceData!]!
+  getBookingServiceData: [ServiceData!]!
+  getOrderServiceData: [ServiceData!]!
 
-  
-  getAllUserServiceData:[ServiceData!]!
-  getBookingServiceDataByUserId:[ServiceData!]!
-  getOrderServiceDataByUserId:[ServiceData!]!
-
+  getAllUserServiceData: [ServiceData!]!
+  getBookingServiceDataByUserId: [ServiceData!]!
+  getBookingServiceDataByBookingId(bookingId:String!): AppointmentBookingData!
+  getOrderServiceDataByUserId: [ServiceData!]!
 }
 
 extend type Mutation {
@@ -127,6 +126,10 @@ extend type Mutation {
   deleteGallery(id: String!): Boolean
   createFavorite(input: CreateFavoriteInput): Favorite
   createSocialMedia(input: SocialMediaInput): SocialMedia
+
+
+  reAssignRider(entityId: String,entityType:String,riderId:String): UsersInfor 
+
 }
 
 input CreateServiceInput {
@@ -191,7 +194,6 @@ input SocialMediaInput {
   link: String!
 }
 
-
 type ServiceData {
   id: String!
   serviceId: String!
@@ -200,7 +202,7 @@ type ServiceData {
   customer: UsersInfor!
   vendor: Service!
   createdAt: Time!
-  
+
   # Union-like approach - only one will be populated based on type
   orderData: CartItemOrder
   bookingData: AppointmentBookingData
@@ -224,6 +226,8 @@ type AppointmentBookingData {
   status: String
   paymentStatus: String
   paymentMethod: String
+  transportType: String
+  cargoId: String
   # Booking-specific pricing/route metadata
   deliveryFee: String
   distance: String
