@@ -63,6 +63,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { gql } from "@apollo/client";
 import { ZONE_COLORS } from "@/components/config/map";
+import { GOOGLE_MAPS_CONFIG } from "@/components/global/formatPrice";
 // import { GOOGLE_MAPS_CONFIG } from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap";
 
 // GraphQL Operations (keeping your original schema)
@@ -196,9 +197,9 @@ const convertRiderRangeToZone = (
   };
 };
 
-export function RiderZoneSetup() {
+export default function RiderZoneSetup() {
   // Environment and API Keys
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
   // GraphQL hooks
@@ -242,12 +243,7 @@ export function RiderZoneSetup() {
       },
     }
   );
- const GOOGLE_MAPS_CONFIG = {
-  id: "google-map-script", // Keep this consistent
-  
-  googleMapsApiKey: googleMapsApiKey,
-  libraries: libraries,
-}
+
   // Google Maps API Loading
   const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_CONFIG);
 

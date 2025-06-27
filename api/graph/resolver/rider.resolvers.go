@@ -1028,6 +1028,18 @@ func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID st
 		} else {
 			paymentMethodValue = "Pending"
 		}
+		var cargoData *model.BookingCargo
+		var transportType *string
+		if booking.CargoID != nil && *booking.CargoID != "" {
+			if err := r.DB.Where("booking_id = ?", booking.ID).First(&cargoData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get cargo data for booking %s: %v", booking.ID, err)
+				}
+			}
+			if cargoData != nil {
+				transportType = &cargoData.TransportType
+			}
+		}
 		// Create ServiceData for booking
 		serviceData := &model.ServiceData{
 			ID:        booking.ID.String(),
@@ -1062,6 +1074,8 @@ func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID st
 				Status:                &booking.Status,
 				PaymentStatus:         &paymentStatusValue,
 				PaymentMethod:         &paymentMethodValue,
+				CargoID: booking.CargoID,
+				TransportType: transportType,
 			},
 			OrderData: nil,
 		}

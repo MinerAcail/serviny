@@ -28,5 +28,5 @@
       ]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../winne/src/components/PROVIDER/HOME/pandp/FormsPagePolicies.tsx"]
 }

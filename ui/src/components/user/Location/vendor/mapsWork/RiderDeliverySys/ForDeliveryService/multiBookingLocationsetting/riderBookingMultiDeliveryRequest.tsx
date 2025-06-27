@@ -69,7 +69,7 @@ const libraries: Libraries = ["places"];
 // MAIN COMPONENT
 // ==========================================
 
-export function RiderBookingMultiDeliveryRequest() {
+export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
   // 1. ROUTER & ENV SETUP
   // ==========================================

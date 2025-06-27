@@ -48,7 +48,7 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  Menu,
+  // Menu,
   Info,
   BarChart3,
 } from "lucide-react";
@@ -73,6 +73,7 @@ import {
 import { ActiveRiders } from "./active-riders";
 import { RiderDetails } from "./rider-details";
 import { ServiceManagement } from "./service-management";
+import { GOOGLE_MAPS_CONFIG } from "@/components/global/formatPrice";
 
 // Separate query for route data
 export const GET_ROUTE_DATA_FOR_EACH_ORDER = gql`
@@ -88,15 +89,11 @@ export const GET_ROUTE_DATA_FOR_EACH_ORDER = gql`
 `;
 
 const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
-const googleMapsApiKey = import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY;
+// const googleMapsApiKey = import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-const libraries: Libraries = ["places"];
+// const libraries: Libraries = ["places"];
 //
-export const GOOGLE_MAPS_CONFIG = {
-  id: "google-map-script",
-  googleMapsApiKey: googleMapsApiKey,
-  libraries: libraries,
-};
+
 
 const popupStyles = `
   .enhanced-popup .maplibregl-popup-content {
@@ -2048,13 +2045,14 @@ const LiveMap: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // setShowFilterPanel(false); // Close the panel
+                  // setShowFilterPanel(!showFilterPanel)
+                  setShowFilterPanel(false); // Close the panel
                   // clearEntityFilter(); // Clear the entity filter
                 }}
                 className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-white/10 hover:bg-white/20 border-white/20 rounded-full"
               >
                 <XCircle className="h-3 w-3 mr-1" />
-                {isMobile ? "" : "Close"}
+                {isMobile ? "" : "Clodse"}
               </Button>
             </div>
           </div>

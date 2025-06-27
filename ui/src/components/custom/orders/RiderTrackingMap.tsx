@@ -239,7 +239,7 @@ export function RiderTrackingMap({ order, maptilerApiKey }: RiderTrackingMapProp
             // Add route line if rider is available
             if (order.rider?.coordinates) {
               try {
-                const turf = await import("@turf/turf")
+                // const turf = await import("@turf/turf")
 
                 // Create route from vendor to rider to customer
                 const routeCoordinates = [order.vendor.coordinates, order.rider.coordinates, order.order.coordinates]
@@ -303,7 +303,7 @@ export function RiderTrackingMap({ order, maptilerApiKey }: RiderTrackingMapProp
                     clearInterval(routeAnimation)
                   }
                 }
-              } catch (turfError) {
+              } catch  {
                 console.warn("Turf.js not available, skipping route visualization")
               }
             }

@@ -38,6 +38,7 @@ import {
   getPaymentMethodIcon,
 } from "./riderEntityUtils";
 import { StatusManagementDialog } from "./statusManager";
+import { PaymentStatusSection } from "../custom/USER_MAP_WORK/PaymentStatusSection";
 
 interface RiderServiceManagementProps {
   serviceData: RiderServiceData[];
@@ -49,6 +50,8 @@ interface RiderServiceManagementProps {
     entityId: string,
     entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
   ) => void;
+  setshowInfor: (show: boolean) => void;
+  showInfor: boolean;
 }
 
 const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
@@ -58,6 +61,8 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
   onContactCustomer,
   onNavigateToLocation,
   onViewOnLiveMap,
+  showInfor,
+  setshowInfor,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -100,24 +105,41 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
       // Payment status filter
       let matchesPaymentStatus = true;
       if (paymentStatusFilter !== "all") {
-        const paymentStatus = service.type === "ORDER" 
-          ? service.orderData?.paymentStatus
-          : service.bookingData?.paymentStatus;
-        matchesPaymentStatus = paymentStatus?.toUpperCase() === paymentStatusFilter.toUpperCase();
+        const paymentStatus =
+          service.type === "ORDER"
+            ? service.orderData?.paymentStatus
+            : service.bookingData?.paymentStatus;
+        matchesPaymentStatus =
+          paymentStatus?.toUpperCase() === paymentStatusFilter.toUpperCase();
       }
 
       // Payment method filter
       let matchesPaymentMethod = true;
       if (paymentMethodFilter !== "all") {
-        const paymentMethod = service.type === "ORDER" 
-          ? service.orderData?.paymentMethod
-          : service.bookingData?.paymentMethod;
-        matchesPaymentMethod = paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
+        const paymentMethod =
+          service.type === "ORDER"
+            ? service.orderData?.paymentMethod
+            : service.bookingData?.paymentMethod;
+        matchesPaymentMethod =
+          paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase();
       }
 
-      return matchesSearch && matchesType && matchesStatus && matchesPaymentStatus && matchesPaymentMethod;
+      return (
+        matchesSearch &&
+        matchesType &&
+        matchesStatus &&
+        matchesPaymentStatus &&
+        matchesPaymentMethod
+      );
     });
-  }, [serviceData, searchQuery, statusFilter, typeFilter, paymentStatusFilter, paymentMethodFilter]);
+  }, [
+    serviceData,
+    searchQuery,
+    statusFilter,
+    typeFilter,
+    paymentStatusFilter,
+    paymentMethodFilter,
+  ]);
 
   // Separate orders and bookings
   const orders = filteredServices.filter((s) => s.type === "ORDER");
@@ -155,11 +177,15 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
       return sum;
     }, 0);
 
-    const paidServices = serviceData.filter(service => {
-      const paymentStatus = service.type === "ORDER" 
-        ? service.orderData?.paymentStatus 
-        : service.bookingData?.paymentStatus;
-      return paymentStatus?.toUpperCase() === "PAID" || paymentStatus?.toUpperCase() === "COMPLETED";
+    const paidServices = serviceData.filter((service) => {
+      const paymentStatus =
+        service.type === "ORDER"
+          ? service.orderData?.paymentStatus
+          : service.bookingData?.paymentStatus;
+      return (
+        paymentStatus?.toUpperCase() === "PAID" ||
+        paymentStatus?.toUpperCase() === "COMPLETED"
+      );
     });
 
     const paidEarnings = paidServices.reduce((sum, service) => {
@@ -175,15 +201,19 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
     return {
       totalOrders: orders.length,
       totalBookings: bookings.length,
-      confirmedOrders: orders.filter((o) => o.orderData?.status === "CONFIRMED").length,
-      confirmedBookings: bookings.filter((b) => b.bookingData?.status === "CONFIRMED").length,
+      confirmedOrders: orders.filter((o) => o.orderData?.status === "CONFIRMED")
+        .length,
+      confirmedBookings: bookings.filter(
+        (b) => b.bookingData?.status === "CONFIRMED"
+      ).length,
       totalEarnings,
       paidEarnings,
       paidServices: paidServices.length,
-      pendingPayments: serviceData.filter(service => {
-        const paymentStatus = service.type === "ORDER" 
-          ? service.orderData?.paymentStatus 
-          : service.bookingData?.paymentStatus;
+      pendingPayments: serviceData.filter((service) => {
+        const paymentStatus =
+          service.type === "ORDER"
+            ? service.orderData?.paymentStatus
+            : service.bookingData?.paymentStatus;
         return paymentStatus?.toUpperCase() === "PENDING";
       }).length,
       multiGroups: groupedBookings.groups.size,
@@ -193,10 +223,11 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
   // Get unique payment methods and statuses for filters
   const paymentMethods = useMemo(() => {
     const methods = new Set<string>();
-    serviceData.forEach(service => {
-      const method = service.type === "ORDER" 
-        ? service.orderData?.paymentMethod 
-        : service.bookingData?.paymentMethod;
+    serviceData.forEach((service) => {
+      const method =
+        service.type === "ORDER"
+          ? service.orderData?.paymentMethod
+          : service.bookingData?.paymentMethod;
       if (method) methods.add(method);
     });
     return Array.from(methods);
@@ -204,10 +235,11 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
 
   const paymentStatuses = useMemo(() => {
     const statuses = new Set<string>();
-    serviceData.forEach(service => {
-      const status = service.type === "ORDER" 
-        ? service.orderData?.paymentStatus 
-        : service.bookingData?.paymentStatus;
+    serviceData.forEach((service) => {
+      const status =
+        service.type === "ORDER"
+          ? service.orderData?.paymentStatus
+          : service.bookingData?.paymentStatus;
       if (status) statuses.add(status);
     });
     return Array.from(statuses);
@@ -255,13 +287,13 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
   }> = ({ service, isGrouped = false, groupIndex }) => {
     const isOrder = service.type === "ORDER";
     const statusColor = getServiceStatusColor(service);
-    
+
     // Payment information
-    const paymentStatus = isOrder 
-      ? service.orderData?.paymentStatus 
+    const paymentStatus = isOrder
+      ? service.orderData?.paymentStatus
       : service.bookingData?.paymentStatus;
-    const paymentMethod = isOrder 
-      ? service.orderData?.paymentMethod 
+    const paymentMethod = isOrder
+      ? service.orderData?.paymentMethod
       : service.bookingData?.paymentMethod;
     const paymentStatusColorClass = getPaymentStatusColor(paymentStatus || "");
     const paymentMethodIcon = getPaymentMethodIcon(paymentMethod || "");
@@ -300,15 +332,29 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-green-600">
-              {isOrder
-                ? `GH₵${service.orderData?.deliveryMetaData?.price || 0}`
-                : `GH₵${service.bookingData?.deliveryFee || 0}`}
-            </span>
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: statusColor }}
-            />
+            {service.bookingData?.cargoId ? (
+              <Badge
+                // variant={isOrder ? "default" : "secondary"}
+                className="text-xs"
+              >
+                <>
+                  <Package className="h-3 w-3 mr-1" />
+                  CARGO
+                </>
+              </Badge>
+            ) : (
+              <>
+                <span className="text-sm font-bold text-green-600">
+                  {isOrder
+                    ? `GH₵${service.orderData?.deliveryMetaData?.price || 0}`
+                    : `GH₵${service.bookingData?.deliveryFee || 0}`}
+                </span>
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: statusColor }}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -334,19 +380,32 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
           </div>
 
           {/* Payment Information Section */}
-          <div className="bg-gray-50/50 rounded-lg p-2 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{paymentMethodIcon}</span>
-                <span className="text-xs font-medium text-gray-700">
-                  {paymentMethod || "Unknown Method"}
-                </span>
+          {service.bookingData?.cargoId
+            ?(
+              <PaymentStatusSection
+                            selectedItem={service}
+                            // paymentStatus={paymentStatus}
+                            onPayNow={() => {}}
+                          />
+            ):(
+
+              <div className="bg-gray-50/50 rounded-lg p-2 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{paymentMethodIcon}</span>
+                    <span className="text-xs font-medium text-gray-700">
+                      {paymentMethod || "Unknown Method"}
+                    </span>
+                  </div>
+                  <div
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${paymentStatusColorClass}`}
+                  >
+                    {paymentStatus || "Unknown"}
+                  </div>
+                </div>
               </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${paymentStatusColorClass}`}>
-                {paymentStatus || "Unknown"}
-              </div>
-            </div>
-          </div>
+            )
+          }
 
           <div className="flex items-center gap-2">
             <div
@@ -552,8 +611,15 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
             onClick={() => {
               handleViewOnMap(service);
               handleViewOnLiveMap(
-                (service.bookingData?.bookingId || service.orderData?.orderId) ?? "",
-                service?.type?.toLowerCase() as "order" | "booking" | "multigroup" | "customer" | "vendor"
+                (service.bookingData?.bookingId ||
+                  service.orderData?.orderId) ??
+                  "",
+                service?.type?.toLowerCase() as
+                  | "order"
+                  | "booking"
+                  | "multigroup"
+                  | "customer"
+                  | "vendor"
               );
             }}
             className="flex-1 text-xs"
@@ -574,27 +640,32 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const shortGroupId = groupId.slice(-6);
     const uniqueCustomers = [...new Set(bookings.map((b) => b.customer.name))];
-    
+
     const totalFee = bookings.reduce(
       (sum, b) => sum + parseFloat(b.bookingData?.deliveryFee || "0"),
       0
     );
-    
+
     const confirmedCount = bookings.filter(
       (b) => b.bookingData?.status === "CONFIRMED"
     ).length;
 
     const paidCount = bookings.filter(
-      (b) => b.bookingData?.paymentStatus?.toUpperCase() === "PAID" ||
-           b.bookingData?.paymentStatus?.toUpperCase() === "COMPLETED"
+      (b) =>
+        b.bookingData?.paymentStatus?.toUpperCase() === "PAID" ||
+        b.bookingData?.paymentStatus?.toUpperCase() === "COMPLETED"
     ).length;
 
     const paidAmount = bookings
-      .filter(b => 
-        b.bookingData?.paymentStatus?.toUpperCase() === "PAID" ||
-        b.bookingData?.paymentStatus?.toUpperCase() === "COMPLETED"
+      .filter(
+        (b) =>
+          b.bookingData?.paymentStatus?.toUpperCase() === "PAID" ||
+          b.bookingData?.paymentStatus?.toUpperCase() === "COMPLETED"
       )
-      .reduce((sum, b) => sum + parseFloat(b.bookingData?.deliveryFee || "0"), 0);
+      .reduce(
+        (sum, b) => sum + parseFloat(b.bookingData?.deliveryFee || "0"),
+        0
+      );
 
     return (
       <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-4 border border-purple-200">
@@ -653,18 +724,27 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
               </div>
               <div className="text-center">
                 <div className="font-bold text-yellow-600">
-                  {bookings.filter(b => 
-                    b.bookingData?.paymentStatus?.toUpperCase() === "PENDING"
-                  ).length}
+                  {
+                    bookings.filter(
+                      (b) =>
+                        b.bookingData?.paymentStatus?.toUpperCase() ===
+                        "PENDING"
+                    ).length
+                  }
                 </div>
                 <div className="text-gray-600">Pending</div>
               </div>
               <div className="text-center">
                 <div className="font-bold text-red-600">
-                  {bookings.filter(b => 
-                    b.bookingData?.paymentStatus?.toUpperCase() === "FAILED" ||
-                    b.bookingData?.paymentStatus?.toUpperCase() === "DECLINED"
-                  ).length}
+                  {
+                    bookings.filter(
+                      (b) =>
+                        b.bookingData?.paymentStatus?.toUpperCase() ===
+                          "FAILED" ||
+                        b.bookingData?.paymentStatus?.toUpperCase() ===
+                          "DECLINED"
+                    ).length
+                  }
                 </div>
                 <div className="text-gray-600">Failed</div>
               </div>
@@ -714,79 +794,165 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Enhanced header with payment stats */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">
-              {stats.totalOrders}
+      {showInfor && (
+        <div className="p-4 border-b border-gray-200">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {stats.totalOrders}
+              </div>
+              <div className="text-xs text-gray-600">Orders</div>
             </div>
-            <div className="text-xs text-gray-600">Orders</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.totalBookings}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {stats.totalBookings}
+              </div>
+              <div className="text-xs text-gray-600">Bookings</div>
             </div>
-            <div className="text-xs text-gray-600">Bookings</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.multiGroups}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.multiGroups}
+              </div>
+              <div className="text-xs text-gray-600">Multi-Groups</div>
             </div>
-            <div className="text-xs text-gray-600">Multi-Groups</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              GH₵{stats.totalEarnings.toFixed(2)}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                GH₵{stats.totalEarnings.toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-600">Total Earnings</div>
             </div>
-            <div className="text-xs text-gray-600">Total Earnings</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600">
-              GH₵{stats.paidEarnings.toFixed(2)}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-emerald-600">
+                GH₵{stats.paidEarnings.toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-600">Paid Earnings</div>
             </div>
-            <div className="text-xs text-gray-600">Paid Earnings</div>
           </div>
-        </div>
 
-        {/* Payment Summary Cards */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <div>
-                <div className="text-lg font-bold text-green-700">
-                  {stats.paidServices}
+          {/* Payment Summary Cards */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <div>
+                  <div className="text-lg font-bold text-green-700">
+                    {stats.paidServices}
+                  </div>
+                  <div className="text-xs text-green-600">Paid Services</div>
                 </div>
-                <div className="text-xs text-green-600">Paid Services</div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-yellow-600" />
+                <div>
+                  <div className="text-lg font-bold text-yellow-700">
+                    {stats.pendingPayments}
+                  </div>
+                  <div className="text-xs text-yellow-600">
+                    Pending Payments
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-lg font-bold text-blue-700">
+                    {stats.confirmedOrders + stats.confirmedBookings}
+                  </div>
+                  <div className="text-xs text-blue-600">Confirmed</div>
+                </div>
               </div>
             </div>
           </div>
-          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-600" />
-              <div>
-                <div className="text-lg font-bold text-yellow-700">
-                  {stats.pendingPayments}
-                </div>
-                <div className="text-xs text-yellow-600">Pending Payments</div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-              <div>
-                <div className="text-lg font-bold text-blue-700">
-                  {stats.confirmedOrders + stats.confirmedBookings}
-                </div>
-                <div className="text-xs text-blue-600">Confirmed</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Enhanced search and filters */}
-        <div className="space-y-3">
+          {/* Enhanced search and filters */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="ORDER">Orders</option>
+                <option value="BOOKING">Bookings</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="all">All Status</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="PREPARING">Preparing</option>
+                <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                <option value="PENDING">Pending</option>
+              </select>
+
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="all">Payment Status</option>
+                {paymentStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={paymentMethodFilter}
+                onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="all">Payment Method</option>
+                {paymentMethods.map((method) => (
+                  <option key={method} value={method}>
+                    {method}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {(searchQuery ||
+            statusFilter !== "all" ||
+            typeFilter !== "all" ||
+            paymentStatusFilter !== "all" ||
+            paymentMethodFilter !== "all") && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-gray-600">
+                Found {filteredServices.length} result
+                {filteredServices.length !== 1 ? "s" : ""}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                  setPaymentStatusFilter("all");
+                  setPaymentMethodFilter("all");
+                }}
+                className="h-6 px-2"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear Filters
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -798,85 +964,6 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
               />
             </div>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="all">All Types</option>
-              <option value="ORDER">Orders</option>
-              <option value="BOOKING">Bookings</option>
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="all">All Status</option>
-              <option value="CONFIRMED">Confirmed</option>
-              <option value="PREPARING">Preparing</option>
-              <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
-              <option value="PENDING">Pending</option>
-            </select>
-
-            <select
-              value={paymentStatusFilter}
-              onChange={(e) => setPaymentStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="all">Payment Status</option>
-              {paymentStatuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-
-            <select
-              value={paymentMethodFilter}
-              onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="all">Payment Method</option>
-              {paymentMethods.map(method => (
-                <option key={method} value={method}>
-                  {getPaymentMethodIcon(method)} {method}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {(searchQuery || statusFilter !== "all" || typeFilter !== "all" || 
-          paymentStatusFilter !== "all" || paymentMethodFilter !== "all") && (
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-sm text-gray-600">
-              Found {filteredServices.length} result
-              {filteredServices.length !== 1 ? "s" : ""}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery("");
-                setStatusFilter("all");
-                setTypeFilter("all");
-                setPaymentStatusFilter("all");
-                setPaymentMethodFilter("all");
-              }}
-              className="h-6 px-2"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Clear Filters
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-4">
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all">
@@ -949,7 +1036,9 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
               {groupedBookings.groups.size === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">No multi-group bookings found</p>
+                  <p className="text-gray-600 mb-2">
+                    No multi-group bookings found
+                  </p>
                   <p className="text-xs text-gray-500">
                     Try adjusting your search or filter criteria
                   </p>

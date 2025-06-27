@@ -179,6 +179,7 @@ type Query {
   getPolicies: [Policy!]!
   getPolicyById(policyId: String!): Policy
   getPolicyInformation(ServiceID: String!): [PolicyInformation]
+  getPolicyInformationByService(ServiceID: String!): [PolicyInformation]
 
   getPolicy(policyId: String!): PolicyInformation
   getCargoPolicy(cargoId: String!): PolicyInformation
@@ -192,6 +193,7 @@ type Query {
     ServiceID: String!
   ): SearchResults!
   getpriceCardsinformation(serviceId: String): [fullCard!]!
+  getpriceCardsinformationByService(serviceId: String): [fullCard!]!
   getPriceCardById(id: String!): fullCard
 
   getFullInvoice(cargoId:String!):ViewInvoice

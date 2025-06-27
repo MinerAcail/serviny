@@ -1,9 +1,6 @@
 import { useAuth } from "./context/authContext";
 
-// interface User {
-//   type: string[]; // Ensure it's an array of strings
-//   // Other user properties
-// }
+
 
 const useProtect = (expectedTypes?: string[]) => {
   const { isAuthenticated, user } = useAuth();

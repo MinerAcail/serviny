@@ -1,38 +1,171 @@
-import { ApolloProvider, useLazyQuery } from "@apollo/client";
+import { ApolloProvider } from "@apollo/client";
 import { createBrowserRouter, RouterProvider, useParams } from "react-router";
+import React, { Suspense } from "react";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
-import ErrorPage from "./routError";
-import { AuthProvider, useAuth, useProfileUpdate } from "./context/authContext";
-import ErrorLogin from "./routErrorLogin";
-// import { SidebarProvider } from "@/components/ui/sidebar";
-// import { AppSidebar } from "./bar";
-// import { CartProvider } from "@/hooks/CartContext";
-import { UpdatEvent } from "@/app/vendors";
-import ProtectedIsAuthRoute from "./protectedIsAuth";
+import { AuthProvider, useProfileUpdate } from "./context/authContext";
 import { OrderTrackingProvider } from "@/hooks/orderTrackingContext";
 import { ProtectType } from "./useProtect";
-// import HeartbeatUpdater from "@/components/custom/nav/cheackActive";
-
-import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
-import ProfileService from "@/components/serviceProviders/updateProfile";
-import { CreateGalleryForm } from "@/components/serviceProviders/upload/create";
-// import { CreateServiceProvider } from "@/components/serviceProviders/createProvider";
-import BookingTypes from "@/components/serviceProviders/bookingType";
-import LucideIconSelector from "@/app/vendors/icons";
-import Dashboard from "@/components/serviceProviders/Dashboard";
-import FavoritesPage from "@/components/serviceProviders/Dashboard/favorites";
-import ContactDetailPage from "@/components/serviceProviders/Dashboard/UserData";
-import SearchData from "@/components/serviceProviders/Dashboard/searchInfor";
-import { PasswordReset } from "@/app/resetPassWord";
 import { ThemeProvider } from "./context/theme-provider";
 import { SpectaclesLoading } from "@/components/custom/loading";
-import { ServiceProviderProfile } from "@/components/serviceProviders/profile";
-import { SocialForm } from "@/components/custom/Socials/forms";
-import { InstallPage } from "@/components/custom/downloads/install-page";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { Outlet } from "react-router";
+import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
+import { CartProvider } from "@/components/custom/cart/cart-context";
+import { CartDrawer } from "@/components/custom/cart/cart-drawer";
+import {
+  BusinessTypeEnum,
+  ProviderContextProvider,
+} from "./context/businessType";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { PasswordReset } from "@/app/resetPassWord";
+import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
+import { SocialForm } from "@/components/custom/Socials/forms";
+// import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
+
+// Lazy-loaded components - Pages & Large Components
+// const ServiceProvidersDirectory = React.lazy(() => import("@/components/serviceProviders/allProviders"));
+const ServiceProviderProfile = React.lazy(
+  () => import("@/components/serviceProviders/profile")
+);
+// const VendorChatSystem = React.lazy(() => import("@/components/chatsSys/vendor/VendorChatSystem"));
+// const DeliveryTrackingMap = React.lazy(() => import("@/components/rider/getLocation"));
+const TutorialsPage = React.lazy(() => import("@/components/global/tutorials"));
+const OrderManagementSystem = React.lazy(
+  () => import("@/components/custom/orders/order-management-system")
+);
+const FormPage = React.lazy(
+  () => import("@/components/user/formBuilder/FormPage")
+);
+const SubmissionsViewer = React.lazy(
+  () => import("@/components/user/formBuilder/submissionsViewer")
+);
+const FormAndRequestTabs = React.lazy(
+  () => import("@/components/user/formBuilder/tabbed-forms")
+);
+const Dashboard = React.lazy(
+  () => import("@/components/serviceProviders/Dashboard")
+);
+const SearchData = React.lazy(
+  () => import("@/components/serviceProviders/Dashboard/searchInfor")
+);
+const FavoritesPage = React.lazy(
+  () => import("@/components/serviceProviders/Dashboard/favorites")
+);
+const ContactDetailPage = React.lazy(
+  () => import("@/components/serviceProviders/Dashboard/UserData")
+);
+const CreateGalleryForm = React.lazy(
+  () => import("@/components/serviceProviders/upload/create")
+);
+const ProfileService = React.lazy(
+  () => import("@/components/serviceProviders/updateProfile")
+);
+const ImprovedServiceProvider = React.lazy(
+  () => import("@/components/serviceProviders/createProvider")
+);
+const BusinessTypeSelector = React.lazy(
+  () =>
+    import(
+      "@/components/serviceProviders/createProvider/business-type-selector"
+    )
+);
+
+// Delivery Enterprise Components
+const LiveMap = React.lazy(
+  () =>
+    import("@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap")
+);
+// const Analytics = React.lazy(() => import("@/components/serviceProviders/DELIVERY_ENTERPRISE/analytics"));
+const VendorsByDeliveryService = React.lazy(
+  () =>
+    import("@/components/serviceProviders/DELIVERY_ENTERPRISE/vendors/vendors")
+);
+const FullInvoiceDocument = React.lazy(
+  () =>
+    import(
+      "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/invoice/view"
+    )
+);
+
+// Vendor & Cart Components
+// const Checkout = React.lazy(() => import("@/components/custom/orders/check"));
+const ProductForm = React.lazy(() => import("@/vendor/ProductForm"));
+const ServiceHistory = React.lazy(
+  () => import("../components/custom/vendors/history")
+);
+
+// Rider & Maps Components
+const RiderLiveMap = React.lazy(() => import("@/components/rider/LiveMap"));
+const RiderHistory = React.lazy(() => import("../components/rider/history"));
+const RiderRegistration = React.lazy(() => import("@/components/rider/create"));
+const MainDeliveryZoneCreator = React.lazy(
+  () =>
+    import("@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create")
+);
+const RiderBookingDeliveryRequest = React.lazy(
+  () =>
+    import(
+      "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService"
+    )
+);
+const RiderBookingMultiDeliveryRequest = React.lazy(
+  () =>
+    import(
+      "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/multiBookingLocationsetting/riderBookingMultiDeliveryRequest"
+    )
+);
+const RiderZoneSetup = React.lazy(
+  () =>
+    import(
+      "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/books/riderflow"
+    )
+);
+const DeliveryZoneVisualizerVendor = React.lazy(
+  () =>
+    import(
+      "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/deliveryZoneVisualizer"
+    )
+);
+const ResultStepData = React.lazy(
+  () => import("@/components/user/Location/vendor/resultData")
+);
+
+// Auth & Business Logic Components
+const ErrorPage = React.lazy(() => import("./routError"));
+const ErrorLogin = React.lazy(() => import("./routErrorLogin"));
+const ProtectedIsAuthRoute = React.lazy(() => import("./protectedIsAuth"));
+const ProtectedIsAuthRouteBusinessType = React.lazy(
+  () => import("./protectedIsAuthBusinessType")
+);
+const ProtectedProfileBusinessTypeRoute = React.lazy(
+  () => import("./protectedRouteBusinessTypeFromProfile")
+);
+// const PasswordReset = React.lazy(() => import("@/app/resetPassWord"));
+// const UpdatEvent = React.lazy(() => import("@/app/vendors").then(module => ({ default: module.UpdatEvent })));
+const AvailabilityPage = React.lazy(() => import("@/app/vendors/available"));
+
+// Other Components
+// const SocialForm = React.lazy(() => import("@/components/custom/Socials/forms"));
+const InstallPage = React.lazy(
+  () => import("@/components/custom/downloads/install-page")
+);
+const CheckBookingOrderDelivery = React.lazy(
+  () => import("@/components/GlobalLogic/checkBookingOrderDelivery")
+);
+
+// Loading component wrapper
+const LoadingWrapper: React.FC<
+  React.PropsWithChildren<{ fallback?: React.ReactNode }>
+> = ({ children, fallback = <SpectaclesLoading /> }) => (
+  <Suspense fallback={fallback}>{children}</Suspense>
+);
+
 const router = createBrowserRouter([
-  { path: "/all", element: <ServiceProvidersDirectory /> },
+  {
+    path: "/all",
+    element: <ServiceProvidersDirectory />,
+  },
 
   {
     path: "/",
@@ -41,77 +174,206 @@ const router = createBrowserRouter([
       {
         index: true,
         path: "/",
-        element: <ServiceProviderProfile />,
+        element: (
+          <LoadingWrapper>
+            <ServiceProviderProfile />
+          </LoadingWrapper>
+        ),
       },
       {
         index: true,
         path: "/providers/:serviceId",
-        element: <ServiceProviderProfile />,
+        element: (
+          <LoadingWrapper>
+            <ServiceProviderProfile />
+          </LoadingWrapper>
+        ),
       },
-      { path: "/sms", element: <VendorChatSystem /> },
-      { path: "/mamp", element: <DeliveryTrackingMap /> },
+      // {
+      //   path: "/sms",
+      //   element: (
+      //     <LoadingWrapper>
+      //       <VendorChatSystem />
+      //     </LoadingWrapper>
+      //   )
+      // },
+      // {
+      //   path: "/mamp",
+      //   element: (
+      //     <LoadingWrapper>
+      //       <DeliveryTrackingMap />
+      //     </LoadingWrapper>
+      //   )
+      // },
       {
         path: "/zonex/:vendorId/:orderId",
-        element: <DeliveryZoneVisualizerVendor />,
+        element: (
+          <LoadingWrapper>
+            <DeliveryZoneVisualizerVendor />
+          </LoadingWrapper>
+        ),
       },
-      // { path: "/delivery/:riderId/:bookId", element: <RiderZoneSetup /> },
-      { path: "/tutorial", element: <TutorialsPage /> },
+      {
+        path: "/tutorial",
+        element: (
+          <LoadingWrapper>
+            <TutorialsPage />
+          </LoadingWrapper>
+        ),
+      },
       {
         path: "/delivery/:riderId/:bookId",
-        element: <RiderBookingDeliveryRequest />,
+        element: (
+          <LoadingWrapper>
+            <RiderBookingDeliveryRequest />
+          </LoadingWrapper>
+        ),
       },
       {
         path: "/multidelivery/:riderId/:bookId",
-        element: <RiderBookingMultiDeliveryRequest />,
+        element: (
+          <LoadingWrapper>
+            <RiderBookingMultiDeliveryRequest />
+          </LoadingWrapper>
+        ),
       },
       {
         path: "merge",
         element: (
           <ProtectedProfileBusinessTypeRoute
-            element={<CheckType />}
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.ECOMMERCE_STANDARD,
-              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-            ]}
-          />
+          element={
+            
+            <LoadingWrapper>
+              <MainDeliveryZoneCreator />
+
+              </LoadingWrapper>
+              }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.ECOMMERCE_STANDARD,
+                BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+              ]}
+            />
         ),
       },
-      // { path: "/merge/:serviceId", element: <CheckType /> },
+      {
+        path: "view/:id",
+        element: (
+          <LoadingWrapper>
+            <FormPage />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "views",
+        element: (
+          <LoadingWrapper>
+            <SubmissionsViewer />
+          </LoadingWrapper>
+        ),
+      },
 
-      { path: "view/:id", element: <FormPage /> },
-      { path: "views", element: <SubmissionsViewer /> },
-      { path: "pay", element: <PaystackPage /> },
-
-      { path: "/icons", element: <LucideIconSelector /> },
-      { path: "/provider/new", element: <ImprovedServiceProvider /> },
-      { path: "/rider/new", element: <RiderRegistration /> },
-      { path: "/vob", element: <CheckBookingOrderDelivery /> }, //view orders bookings
-
+      {
+        path: "/provider/new",
+        element: (
+          <LoadingWrapper>
+            <ImprovedServiceProvider />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/rider/new",
+        element: (
+          <LoadingWrapper>
+            <RiderRegistration />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/vob",
+        element: (
+          <LoadingWrapper>
+            <CheckBookingOrderDelivery />
+          </LoadingWrapper>
+        ),
+      },
       {
         path: "/dashboard",
         element: (
           <ProtectedIsAuthRoute
-            expectedTypes={[ProtectType.Service]}
-            element={<Dashboard />}
-          />
+          expectedTypes={[ProtectType.Service]}
+          element={
+                <LoadingWrapper>
+            
+                <Dashboard />
+          </LoadingWrapper>
+            
+            }
+            />
         ),
       },
-      { path: "/check", element: <Checkout /> },
-      // { path: "/c/:userId", element: <ContactDetailPage /> },
-      { path: "/reset", element: <PasswordReset /> },
-      { path: "/red", element: <SpectaclesLoading /> },
-      { path: "/type", element: <BusinessTypeSelector /> },
-      { path: "/history", element: <RiderHistory /> },
 
-      { path: "/event/:eventId", element: <UpdatEvent /> },
+      {
+        path: "/reset",
+        element: <PasswordReset />,
+      },
+      // { path: "/red", element: <SpectaclesLoading /> },
+      {
+        path: "/type",
+        element: (
+          <LoadingWrapper>
+            <BusinessTypeSelector />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/history",
+        element: (
+          <LoadingWrapper>
+            <RiderHistory />
+          </LoadingWrapper>
+        ),
+      },
 
-      { path: "/install", element: <InstallPage /> },
-
-      { path: "/login", element: <ErrorLogin /> },
-      { path: "/invoice/:cargoId", element: <FullInvoiceDocument /> },
-
-      { path: "*", element: <ErrorPage /> },
-      { path: "1", element: <RiderLiveMap /> },
+      {
+        path: "/install",
+        element: (
+          <LoadingWrapper>
+            <InstallPage />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/login",
+        element: (
+          <LoadingWrapper>
+            <ErrorLogin />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/invoice/:cargoId",
+        element: (
+          <LoadingWrapper>
+            <FullInvoiceDocument />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "*",
+        element: (
+          <LoadingWrapper>
+            <ErrorPage />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "/rider",
+        element: (
+          <LoadingWrapper>
+            <RiderLiveMap />
+          </LoadingWrapper>
+        ),
+      },
     ],
   },
   // Routes with sidebar layout using Outlet
@@ -119,66 +381,143 @@ const router = createBrowserRouter([
     path: "/dbp/",
     element: (
       <ProtectedIsAuthRoute
-        expectedTypes={[ProtectType.Service]}
-        element={<SidebarLayoutProvider />}
-      />
+      expectedTypes={[ProtectType.Service]}
+      element={
+            <LoadingWrapper>
+
+          <SidebarLayoutProvider />
+      </LoadingWrapper>
+        }
+        />
     ),
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: "upload", element: <CreateGalleryForm /> },
-      // { path: "booktypes", element: <BookingTypes /> },
-      { path: "contacts", element: <SearchData /> },
-      { path: "favorites", element: <FavoritesPage /> },
-
-      { path: "social", element: <SocialForm /> },
-      { path: "c/:userId", element: <ContactDetailPage /> },
-      { path: "zonex", element: <ResultStepData /> },
-
       {
-        path: "update",
-
+        index: true,
         element: (
-          <ProtectedIsAuthRoute
-            expectedTypes={[ProtectType.Service]}
-            element={<ProfileService />}
-          />
+          <LoadingWrapper>
+            <Dashboard />
+          </LoadingWrapper>
         ),
       },
-
-      { path: "new", element: <ProductForm /> },
-      { path: "orders", element: <OrderManagementSystem /> },
-
-      ///for service Riders providers
-      // { path: "livemap", element: <LiveMap /> },
+      {
+        path: "upload",
+        element: (
+          <LoadingWrapper>
+            <CreateGalleryForm />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "contacts",
+        element: (
+          <LoadingWrapper>
+            <SearchData />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "favorites",
+        element: (
+          <LoadingWrapper>
+            <FavoritesPage />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "social",
+        element: <SocialForm />,
+      },
+      {
+        path: "c/:userId",
+        element: (
+          <LoadingWrapper>
+            <ContactDetailPage />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "zonex",
+        element: (
+          <LoadingWrapper>
+            <ResultStepData />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "update",
+        element: (
+          <ProtectedIsAuthRoute
+          expectedTypes={[ProtectType.Service]}
+          element={
+                <LoadingWrapper>
+              
+              <ProfileService />
+            
+              </LoadingWrapper>
+            }
+            />
+        ),
+      },
+      {
+        path: "new",
+        element: (
+          <LoadingWrapper>
+            <ProductForm />
+          </LoadingWrapper>
+        ),
+      },
+      {
+        path: "orders",
+        element: (
+          <LoadingWrapper>
+            <OrderManagementSystem />
+          </LoadingWrapper>
+        ),
+      },
       {
         path: "livemap",
         element: (
           <ProtectedIsAuthRouteBusinessType
-            element={<LiveMap />}
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-            ]}
-          />
+          element={
+            
+            <LoadingWrapper>
+              <LiveMap />
+            
+            </LoadingWrapper>
+            }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
         ),
       },
       {
         path: "vendors",
         element: (
           <ProtectedIsAuthRouteBusinessType
-            element={<VendorsByDeliveryService />}
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-            ]}
-          />
+          element={
+                <LoadingWrapper>
+              <VendorsByDeliveryService />
+            
+              </LoadingWrapper>
+            }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
         ),
       },
       {
         path: "zone",
         element: (
           <ProtectedIsAuthRouteBusinessType
-            element={<RiderZoneSetup />}
+            element={
+              <LoadingWrapper>
+                <RiderZoneSetup />
+              </LoadingWrapper>
+            }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
               BusinessTypeEnum?.DELIVERY_ENTERPRISE,
@@ -189,35 +528,52 @@ const router = createBrowserRouter([
       {
         path: "time",
         element: (
-          <ProtectedIsAuthRouteBusinessType
-            element={<AvailabilityPage />}
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-            ]}
-          />
+          <LoadingWrapper>
+            <ProtectedIsAuthRouteBusinessType
+              element={<AvailabilityPage />}
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
+          </LoadingWrapper>
         ),
       },
-
       {
         path: "builder",
         element: (
           <ProtectedIsAuthRouteBusinessType
-            element={<FormAndRequestTabs />}
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-            ]}
-          />
+          element={
+                <LoadingWrapper>
+              
+              <FormAndRequestTabs />
+            
+            
+              </LoadingWrapper>
+            }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
         ),
       },
-
-      // { path: "live", element: <AllRoutesDisplay /> }, //work on it soon for rider location display
-
-      { path: "analytics", element: <Analytics /> },
-      { path: "history", element: <ServiceHistory /> },
-      // { path: "request", element: <RiderRequests /> },
+      // {
+      //   path: "analytics",
+      //   element: (
+      //     <LoadingWrapper>
+      //       <Analytics />
+      //     </LoadingWrapper>
+      //   )
+      // },
+      {
+        path: "history",
+        element: (
+          <LoadingWrapper>
+            <ServiceHistory />
+          </LoadingWrapper>
+        ),
+      },
     ],
   },
 ]);
@@ -228,12 +584,9 @@ export function Navigation() {
       <ThemeProvider>
         <SidebarProvider>
           <OrderTrackingProvider>
-            {/* <AppSidebar /> */}
             <AuthProvider>
-              {/* <CartProvider> */}
               <RouterProvider router={router} />
               <Toaster />
-              {/* </CartProvider> */}
             </AuthProvider>
           </OrderTrackingProvider>
         </SidebarProvider>
@@ -242,98 +595,16 @@ export function Navigation() {
   );
 }
 
-import { Outlet } from "react-router";
-
-import AvailabilityPage from "@/app/vendors/available";
-import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
-import ProductForm from "@/vendor/ProductForm";
-import ChatSystem from "@/components/user/chat-system";
-import { VendorProcessFlow } from "@/components/user/Location/vendor";
-import { DeliveryZoneVisualizer } from "@/components/user/Location/vendor/mapsWork/visualize";
-import { ResultStepData } from "@/components/user/Location/vendor/resultData";
-import { CartProvider } from "@/components/custom/cart/cart-context";
-import { CartDrawer } from "@/components/custom/cart/cart-drawer";
-import BusinessType from "@/components/serviceProviders/createProvider/business-type-selector-app";
-import { ImprovedServiceProvider } from "@/components/serviceProviders/createProvider";
-import { RiderRegistration } from "@/components/rider/create";
-import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
-import { DeliveryZoneVisualizerVendor } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/deliveryZoneVisualizer";
-import CheckType from "@/components/user/Location/vendor/mapsWork/checkType";
-import {
-  BusinessTypeEnum,
-  ProviderContextProvider,
-} from "./context/businessType";
-import LiveMap from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/liveMap";
-import Analytics from "@/components/serviceProviders/DELIVERY_ENTERPRISE/analytics";
-import History from "@/components/serviceProviders/DELIVERY_ENTERPRISE/history";
-import RiderRequests from "@/components/serviceProviders/DELIVERY_ENTERPRISE/riderRequests";
-import VendorsByDeliveryService from "@/components/serviceProviders/DELIVERY_ENTERPRISE/vendors/vendors";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import Checkout from "@/components/custom/orders/check";
-import SingleRiderTrackingMap from "@/components/rider/getLocation";
-import DeliveryTrackingMap from "@/components/rider/getLocation";
-import VendorOrder from "@/components/custom/orders";
-import AllRoutesDisplay from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/hooks/getAllRouteData";
-import {
-  DeliveryZoneVisualizerDeliveryService,
-  RiderBookingDeliveryRequest,
-} from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService";
-import RiderBookingComponent from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/booking";
-import { RiderZoneSetup } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/books/riderflow";
-import AutocompleteSearchMap from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/try";
-import FormBuilder from "@/components/user/formBuilder/FormBuilder";
-import FormsPage from "@/components/user/formBuilder/FormsPage";
-import FormPage from "@/components/user/formBuilder/FormPage";
-import VendorChatSystem from "@/components/chatsSys/vendor/VendorChatSystem";
-import OrderManagementSystem from "@/components/custom/orders/order-management-system";
-import SubmissionsViewer from "@/components/user/formBuilder/submissionsViewer";
-import FormAndRequestTabs from "@/components/user/formBuilder/tabbed-forms";
-import BusinessTypeSelector from "@/components/serviceProviders/createProvider/business-type-selector";
-import UserServiceViewer from "@/components/custom/USER_MAP_WORK/viewService";
-import PaystackPage from "@/components/PAYMENT/Paystack";
-import { RiderBookingMultiDeliveryRequest } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/ForDeliveryService/multiBookingLocationsetting/riderBookingMultiDeliveryRequest";
-import RiderLiveMap from "@/components/rider/LiveMap";
-import CheckBookingOrderDelivery from "@/components/GlobalLogic/checkBookingOrderDelivery";
-import RiderHistory from "../components/rider/history";
-import ServiceHistory from "../components/custom/vendors/history";
-import TutorialsPage from "@/components/global/tutorials";
-import ProtectedIsAuthRouteBusinessType from "./protectedIsAuthBusinessType";
-import ProtectedProfileBusinessTypeRoute from "./protectedRouteBusinessTypeFromProfile";
-import { FullInvoiceDocument } from "@/components/serviceProviders/DELIVERY_ENTERPRISE/liveMap/invoice/view";
-// import ServiceHistory from "../components/custom/vendors/history";
-// import ServiceHistory from "../components/custom/vendors/history";
-// import RiderHistory from "@/components/rider/history";
-// import IsochroneComparison from "@/components/user/Location/vendor/visualize";
-// import DeliveryZoneVisualizer from "@/components/user/Location/vendor/visualize";
-
 export function SidebarLayoutProvider() {
-  const { user } = useAuth();
   const { firstProfileId } = useProfileUpdate(null);
-
   const serviceId = firstProfileId;
-  // const [clearClientCache,{data}] = useLazyQuery(CLEAR_CLIENT_CACHE, {
-  //   onCompleted: (data) => {
-  //     if (data.clearClientCache) {
-  //       // Clear localStorage when server confirms
-  //       clearCache();
-  //     }
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error clearing client cache:", error);
-  //     // Still clear localStorage even if server call fails
-  //     clearCache();
-  //   }
-  // });
-  // console.log("clearClientCache initialized",data);
+
   return (
     <div className="flex w-full h-screen overflow-hidden">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
-        {/* Sidebar Scrollable */}
-        <ScrollArea className="h-full  border-r">
+        <ScrollArea className="h-full border-r">
           <Sidebar />
         </ScrollArea>
-
-        {/* Outlet Scrollable */}
         <ScrollArea className="flex-1 p-4">
           <Outlet />
         </ScrollArea>
@@ -343,25 +614,19 @@ export function SidebarLayoutProvider() {
 }
 
 export function Layout() {
-  // const { serviceId } = useParams();
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
-  // const { firstProfileId } = useProfileUpdate(updateServiceId);
-  // const serviceId = firstProfileId;
   const { firstProfileId } = useProfileUpdate(null);
-
   const serviceId = firstProfileId ?? updateServiceId;
+
   console.log("Service ID in Layout:", serviceId);
-  
+
   return (
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
         <CartProvider>
-          {/* Sidebar with scroll */}
           <ScrollArea className="h-full border-r">
             <SidebarMain serviceId={serviceId} />
           </ScrollArea>
-
-          {/* Main content with scroll */}
           <ScrollArea className="flex-1 p-4">
             <CartDrawer />
             <Outlet />

@@ -4,7 +4,7 @@ import { gql } from "@apollo/client"
 
 export const GET_PRICE_CARDS = gql`
   query GetPriceCards($serviceId: String) {
-    getpriceCardsinformation(serviceId: $serviceId) {
+    getpriceCardsinformationByService(serviceId: $serviceId) {
       card {
         id
         title
@@ -25,7 +25,7 @@ export const GET_PRICE_CARDS = gql`
 
 export const GET_POLICY_INFORMATION = gql`
   query GetPolicyInformation($ServiceID: String!) {
-    getPolicyInformation(ServiceID: $ServiceID) {
+    getPolicyInformationByService(ServiceID: $ServiceID) {
       policy {
         id
         name

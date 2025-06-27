@@ -436,7 +436,7 @@ const profileId = useCurrentUserProfileId();
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
-        <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md z-[9999]">
+        <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
           <CartButton />
           {/* <NotificationCenter /> */}
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}

@@ -154,6 +154,7 @@ function LocationStatusCard({
 }
 
 export function MapAndBooking({
+  
   mapRef,
   pickupLocation,
   dropoffLocation,

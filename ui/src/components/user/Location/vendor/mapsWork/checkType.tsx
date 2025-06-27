@@ -19,12 +19,18 @@ const profileId = useCurrentUserProfileId();
     //type of user
   return (
     <>
-             <MainDeliveryZoneCreator serviceId={serviceId ?? profileId ?? ""} />
+             {/* <MainDeliveryZoneCreator serviceId={serviceId ?? profileId ?? ""} /> */}
 
     </>
   )
     
   
 }
+
+// {type === "SERVICE" ? (
+//         <RiderZoneSetup  serviceId={serviceId ??""}/>
+//       ) : (
+//         <MainDeliveryZoneCreator serviceId={serviceId ??""} />
+//       )}
 
 export default CheckType

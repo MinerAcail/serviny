@@ -2,12 +2,14 @@ import path from "path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 // import { VitePWA } from "vite-plugin-pwa";
-
+// import { visualizer } from 'rollup-plugin-visualizer';
 export const production = true;
 
 export default defineConfig({
   plugins: [
     react(),
+    // visualizer({ open: true, filename: 'dist/stats.html' })
+    
     // VitePWA({
     //   registerType: "autoUpdate",
     //   includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],

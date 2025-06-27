@@ -66,7 +66,7 @@ export const GET_PROVIDER = gql`
 //     getUseTheme(ServiceId: $serviceId)
 //   }
 // `;
-export function ServiceProviderProfile() {
+export default  function ServiceProviderProfile() {
   const { user, isAuthenticated } = useAuth();
   const userId = user?.id;
   let { serviceId } = useParams<{ serviceId: string }>();
@@ -608,7 +608,7 @@ interface ContactInfoProps {
   className?: string;
 }
 
-export default function ContactInfo({ provider, className }: ContactInfoProps) {
+export  function ContactInfo({ provider, className }: ContactInfoProps) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, type: string) => {

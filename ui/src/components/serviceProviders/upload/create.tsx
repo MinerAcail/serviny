@@ -73,7 +73,7 @@ const availableCategories: Category[] = [
 /**
  * Create Gallery Component with shadcn/ui components
  */
-export const CreateGalleryForm: React.FC = () => {
+ const CreateGalleryForm: React.FC = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -414,3 +414,5 @@ export const CreateGalleryForm: React.FC = () => {
     </div>
   );
 };
+
+export default CreateGalleryForm

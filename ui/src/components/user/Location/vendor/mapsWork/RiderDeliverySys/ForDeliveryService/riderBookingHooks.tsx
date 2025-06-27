@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, gql } from "@apollo/client";
 import { toast } from "sonner";
-import * as turf from "@turf/turf";
+import { circle, difference, distance, point } from "@turf/turf";
 import maplibregl from "maplibre-gl";
 import { ZONE_COLORS } from "@/components/config/map";
 import "./mapstyle.css";
@@ -218,12 +218,12 @@ export function useDeliveryCalculation() {
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         // Calculate distance FROM pickup location (zone center) TO dropoff location
-        const from = turf.point([pickup.lng, pickup.lat]); // Pickup is the center
-        const to = turf.point([dropoff.lng, dropoff.lat]); // Dropoff is the destination
-        const distance = turf.distance(from, to, { units: "kilometers" });
+        const from = point([pickup.lng, pickup.lat]); // Pickup is the center
+        const to = point([dropoff.lng, dropoff.lat]); // Dropoff is the destination
+        const distance_ = distance(from, to, { units: "kilometers" });
 
         console.log(
-          `💰 Calculating delivery: ${distance.toFixed(
+          `💰 Calculating delivery: ${distance_.toFixed(
             2
           )}km from pickup (zone center) to dropoff`
         );
@@ -231,7 +231,7 @@ export function useDeliveryCalculation() {
         // Find matching pricing zone based on distance from pickup
         const matchedZone =
           zones.find(
-            (zone) => distance >= zone.startKm && distance < zone.endKm
+            (zone) => distance_ >= zone.startKm && distance_ < zone.endKm
           ) || zones[zones.length - 1];
 
         if (!matchedZone) {
@@ -241,14 +241,14 @@ export function useDeliveryCalculation() {
 
         // Calculate duration
         const averageSpeed = 25; // km/h
-        const durationMinutes = Math.round((distance / averageSpeed) * 60);
+        const durationMinutes = Math.round((distance_ / averageSpeed) * 60);
         const duration =
           durationMinutes < 60
             ? `${durationMinutes} min`
             : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
 
         const result: DeliveryCalculation = {
-          distance: Number(distance.toFixed(2)),
+          distance: Number(distance_.toFixed(2)),
           duration,
           matchedZone,
           totalPrice: matchedZone.price,
@@ -801,25 +801,34 @@ export function useSimpleMapManagerWithCenteredPinDrop() {
 
         sortedZones.forEach((zone, index) => {
           try {
-            const outerCircle = turf.circle(centerPoint, zone.endKm, {
+            const outerCircle = circle(centerPoint, zone.endKm, {
               units: "kilometers",
               steps: 64,
             });
+  // Start with the outer circle as the base polygon
+            let zonePolygon: import("geojson").Feature<import("geojson").Polygon | import("geojson").MultiPolygon> = outerCircle;
 
-            let zonePolygon = outerCircle;
+            // let zonePolygon = outerCircle;
 
             if (zone.startKm > 0) {
-              const innerCircle = turf.circle(centerPoint, zone.startKm, {
+              const innerCircle = circle(centerPoint, zone.startKm, {
                 units: "kilometers",
                 steps: 64,
               });
 
               try {
-                const difference = turf.difference(
-                  turf.feature(outerCircle.geometry),
-                  turf.feature(innerCircle.geometry)
-                );
-                if (difference) zonePolygon = difference;
+                
+                  // Use the difference function correctly - it only takes one argument (a FeatureCollection)
+                const difference_ = difference({
+                  type: "FeatureCollection",
+                  features: [outerCircle, innerCircle]
+                });
+                
+                if (difference_) {
+                  zonePolygon = difference_;
+                }
+                
+              
               } catch {
                 // Use full circle if difference fails
               }
@@ -2834,13 +2843,13 @@ export function convertDeliveryItemsToUpdateInputs(
         };
 
         // Calculate distance using turf (you'll need to import turf)
-        const from = turf.point([pickupLocation.lng, pickupLocation.lat]);
-        const to = turf.point([dropoffLocation.lng, dropoffLocation.lat]);
-        const distance = turf.distance(from, to, { units: "kilometers" });
+        const from = point([pickupLocation.lng, pickupLocation.lat]);
+        const to = point([dropoffLocation.lng, dropoffLocation.lat]);
+        const distance_ = distance(from, to, { units: "kilometers" });
 
         const matchedZone =
           zones.find(
-            (zone) => distance >= zone.startKm && distance < zone.endKm
+            (zone) => distance_ >= zone.startKm && distance_ < zone.endKm
           ) || zones[zones.length - 1];
 
         rangeMetaId = matchedZone?.id;
@@ -2925,20 +2934,20 @@ export function useMultiDeliveryCalculation() {
             };
 
             // Use turf for distance calculation
-            const from = turf.point([pickup.lng, pickup.lat]);
-            const to = turf.point([dropoffLocation.lng, dropoffLocation.lat]);
-            const distance = turf.distance(from, to, { units: "kilometers" });
+            const from = point([pickup.lng, pickup.lat]);
+            const to = point([dropoffLocation.lng, dropoffLocation.lat]);
+            const distance_ = distance(from, to, { units: "kilometers" });
 
             // Find matching pricing zone
             const matchedZone =
               zones.find(
-                (zone) => distance >= zone.startKm && distance < zone.endKm
+                (zone) => distance_ >= zone.startKm && distance_ < zone.endKm
               ) || zones[zones.length - 1];
 
             if (matchedZone) {
               const averageSpeed = 25; // km/h
               const durationMinutes = Math.round(
-                (distance / averageSpeed) * 60
+                (distance_ / averageSpeed) * 60
               );
               const duration =
                 durationMinutes < 60
@@ -2949,7 +2958,7 @@ export function useMultiDeliveryCalculation() {
 
               const itemCalc = {
                 id: item.id,
-                distance: Number(distance.toFixed(2)),
+                distance: Number(distance_.toFixed(2)),
                 duration,
                 price: matchedZone.price,
               };
@@ -3623,25 +3632,31 @@ export function useMultiDeliveryMapManager() {
 
         sortedZones.forEach((zone, index) => {
           try {
-            const outerCircle = turf.circle(centerPoint, zone.endKm, {
+            const outerCircle = circle(centerPoint, zone.endKm, {
               units: "kilometers",
               steps: 64,
             });
 
-            let zonePolygon = outerCircle;
+            // let zonePolygon = outerCircle;
+            let zonePolygon: import("geojson").Feature<import("geojson").Polygon | import("geojson").MultiPolygon> = outerCircle;
 
             if (zone.startKm > 0) {
-              const innerCircle = turf.circle(centerPoint, zone.startKm, {
+              const innerCircle = circle(centerPoint, zone.startKm, {
                 units: "kilometers",
                 steps: 64,
               });
 
               try {
-                const difference = turf.difference(
-                  turf.feature(outerCircle.geometry),
-                  turf.feature(innerCircle.geometry)
-                );
-                if (difference) zonePolygon = difference;
+
+                  // Use the difference function correctly - it only takes one argument (a FeatureCollection)
+                const difference_ = difference({
+                  type: "FeatureCollection",
+                  features: [outerCircle, innerCircle]
+                });
+                
+                if (difference_) {
+                  zonePolygon = difference_;
+                }
               } catch {
                 // Use full circle if difference fails
               }

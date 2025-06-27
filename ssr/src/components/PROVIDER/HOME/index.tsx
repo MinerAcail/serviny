@@ -1,0 +1,408 @@
+import { useEffect, useRef, useState } from "react";
+import {  useQuery } from "@apollo/client";
+import { useLocation, useParams } from "react-router";
+import {
+  Mail,
+  MapPin,
+  Phone,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router";
+import Price from "./pandp/Price";
+import { useAuth } from "@/middleware/context/authContext";
+import { Check, Copy } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import Policies from "./pandp/policies";
+import { toast } from "sonner";
+import {
+  SpectaclesError,
+  SpectaclesLoading,
+} from "@/components/GLOBAL/loading";
+import { WorkGallery } from "./Gallery/gallery";
+import { useProfileUpdate } from "@/middleware/hooks/useProfileUpdate";
+
+import { GET_PROVIDER } from "./typesAndgql";
+import LandingPage from "../landingPage";
+import { AllProducts } from "@/components/VENDOR/AllProducts";
+import { BusinessTypeEnum } from "@/components/GLOBAL/PROTECTION/BusinessTypeEnum";
+import ServiceLandingPage from "../APPOINTMENT/providerLandingPage";
+
+
+export function ServiceProviderProfile() {
+  const { user, isAuthenticated } = useAuth();
+  const userId = user?.id;
+  let { serviceId } = useParams<{ serviceId: string }>();
+  const localServiceId = localStorage.getItem("serviceId");
+  const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
+  serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
+  const location = useLocation();
+
+  // Use consistent localStorage key for dialog state
+  const [dialogState, setDialogState] = useState(() => {
+    const savedState = localStorage.getItem("isDialogOpen");
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
+
+  const isLtPresent = new URLSearchParams(location.search).has("lt");
+  const isOpPresent = new URLSearchParams(location.search).has("lo");
+
+  const { data, loading, error } = useQuery(GET_PROVIDER, {
+    variables: { serviceId: serviceId },
+  });
+
+  const [isTabsFixed, setIsTabsFixed] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+    return savedTab || "portfolio";
+  });
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Remove the separate dialogStateLandingPage state since we're using dialogState
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    localStorage.setItem(`activeTab_${serviceId}`, newTab);
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (tabsRef.current && tabsPlaceholderRef.current) {
+        const tabsPosition =
+          tabsPlaceholderRef.current.getBoundingClientRect().top;
+        setIsTabsFixed(tabsPosition <= 0);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (serviceId) {
+      const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+      if (savedTab) {
+        setActiveTab(savedTab);
+      } else {
+        setActiveTab("portfolio");
+      }
+    }
+  }, [serviceId]);
+
+  useEffect(() => {
+    if (serviceId) {
+      localStorage.setItem("serviceId", serviceId);
+    }
+  }, [serviceId]);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const currentState = localStorage.getItem("isDialogOpen");
+      if (currentState !== null) {
+        setDialogState(JSON.parse(currentState));
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+  // Show the toast only once per session
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.warning("You need to be logged in to save Service profile.");
+    }
+  }, [isAuthenticated]);
+  // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
+  if (!isAuthenticated && !localServiceId && dialogState) {
+    return <LandingPage onClose={() => setDialogState(false)} />;
+  }
+
+  const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
+
+  if (showLandingPage) {
+    return (
+      <ServiceLandingPage
+        serviceId={serviceId ?? ""}
+        businessType={data?.getProvider?.businessType}
+        onClose={() => {
+          setDialogState(false);
+          localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
+
+          const params = new URLSearchParams(location.search);
+          params.delete("lo");
+
+          const newUrl = `${location.pathname}?${params.toString()}`;
+          window.location.href = newUrl; // Triggers full page reload
+        }}
+      />
+    );
+  }
+
+  return (
+    // <div className="flex py-8 w-full">
+
+    <div className="px-4 lg:flex gap-4  py-12 mx-auto ">
+      {loading && !data?.getProvider ? (
+        <SpectaclesLoading />
+      ) : (
+        <>
+          {error ? (
+            <SpectaclesError />
+          ) : (
+           <div className="col-span-8   w-full">
+                <div ref={tabsPlaceholderRef}></div>
+
+                <div
+                  className={`${
+                    isTabsFixed
+                      ? "fixed top-0 left-0 right-0 bg-background/95  backdrop-blur-sm shadow-md z-50 py-2"
+                      : ""
+                  }`}
+                >
+                  <div
+                    className={`${
+                      isTabsFixed ? "container mx-auto px-4 " : ""
+                    }`}
+                  >
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={handleTabChange}
+                      className="w-full"
+                      ref={tabsRef}
+                    >
+                      {data?.getProvider?.businessType ===
+                        BusinessTypeEnum.PRE_ORDER ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.DROP_SHIPPING ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                        <></>
+                      ) : (
+                        <>
+                          <TabsList className="grid w-full  grid-cols-3 rounded-full bg-primary/20    p-1">
+                            <TabsTrigger
+                              value="portfolio"
+                              className="rounded-full"
+                            >
+                              Portfolio
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="policies"
+                              className="rounded-full"
+                            >
+                              Policies
+                            </TabsTrigger>
+                            <TabsTrigger value="price" className="rounded-full">
+                              Price
+                            </TabsTrigger>
+                          </TabsList>
+                        </>
+                      )}
+                    </Tabs>
+                  </div>
+                </div>
+
+                <div
+                  ref={contentRef}
+                  className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
+                >
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={handleTabChange}
+                    className="w-full "
+                  >
+                    <TabsContent value="portfolio">
+                      {data?.getProvider?.businessType ===
+                        BusinessTypeEnum.PRE_ORDER ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.DROP_SHIPPING ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                      data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
+                        <AllProducts />
+                      ) : (
+                        <WorkGallery />
+                      )}
+                    </TabsContent>
+                    <TabsContent value="price">
+                      <Price />
+                    </TabsContent>
+                    <TabsContent value="policies">
+                      <Policies />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </div>
+          )}
+        </>
+      )}
+
+      {/* <ItemChatWidget
+        itemId="product-123"
+        itemName="Wireless Headphones"
+        itemImage="/placeholder.svg?height=40&width=40"
+        sellerName="John Smith"
+      /> */}
+    </div>
+  );
+}
+
+
+
+
+interface ContactInfoProps {
+  provider?: {
+    number?: string;
+    email?: string;
+    location?: string;
+  };
+  className?: string;
+}
+
+export default function ContactInfo({ provider, className }: ContactInfoProps) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  // Format location for Google Maps URL
+  const getGoogleMapsUrl = (location: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location
+    )}`;
+  };
+
+  if (!provider) return null;
+
+  return (
+    <TooltipProvider>
+      <div
+        className={cn(
+          "flex flex-col space-y-3 w-fit text-white md:flex-row md:space-y-0 md:space-x-3",
+          className
+        )}
+      >
+        {provider.number && (
+          <div className="flex w-fit items-center rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <Phone className="mr-2 h-4 w-4  text-white text-muted-foreground" />
+            <Link
+              to={`tel:${provider.number.replace(/\s+/g, "")}`}
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.number}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => copyToClipboard(provider.number!, "number")}
+                >
+                  {copied === "number" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4  text-white/70" />
+                  )}
+                  <span className="sr-only">Copy phone number</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "number" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {provider.email && (
+          <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <Mail className="mr-2 h-4 w-4  text-white text-muted-foreground" />
+            <Link
+              to={`mailto:${provider.email}`}
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.email.slice(0, 16)}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => copyToClipboard(provider.email!, "email")}
+                >
+                  {copied === "email" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4  text-white/70" />
+                  )}
+                  <span className="sr-only">Copy email address</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "email" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {provider.location && (
+          <div className="flex items-center w-fit rounded-md border p-2 transition-colors hover:bg-muted/50">
+            <MapPin className="mr-2 h-4 w-4  text-white text-muted-foreground" />
+            <Link
+              to={getGoogleMapsUrl(provider.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mr-2 text-sm hover:underline"
+            >
+              {provider.location}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() =>
+                    copyToClipboard(provider.location!, "location")
+                  }
+                >
+                  {copied === "location" ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4  text-white/70" />
+                  )}
+                  <span className="sr-only">Copy address</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied === "location" ? "Copied!" : "Copy to clipboard"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}

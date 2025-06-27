@@ -51,7 +51,7 @@ interface SavedIsochrone {
   address: string;
 }
 
-export function ResultStepData() {
+export default function ResultStepData() {
   const { user } = useAuth();
   const riderId = user?.id || null;
 

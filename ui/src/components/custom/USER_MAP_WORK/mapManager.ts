@@ -1,6 +1,6 @@
 // mapManager.ts - Functional Implementation with Better Error Handling
 import maplibregl from "maplibre-gl"
-import * as turf from "@turf/turf"
+import { along, area, bearing, length, lineString, polygon, simplify } from "@turf/turf"
 import type { ServiceData, ViewMode } from "./types"
 
 // Your predefined zone colors
@@ -179,7 +179,7 @@ export function updateMapData(
       // Add markers
       addServiceMarkers(state, item, isSelected, bounds)
 
-      // Process routes with Turf.js
+      // Process routes with js
       processRouteData(item, isSelected, routeFeatures)
 
       // Process isochrones
@@ -261,9 +261,9 @@ function processRouteData(item: ServiceData, isSelected: boolean, routeFeatures:
           routeDuration = parsedRoute.metadata.duration || "0 min"
         }
 
-        const routeLine = turf.lineString(coordinates)
-        routeLength = turf.length(routeLine, { units: "kilometers" })
-        const simplifiedRoute = turf.simplify(routeLine, { tolerance: 0.0001, highQuality: true })
+        const routeLine = lineString(coordinates)
+        routeLength = length(routeLine, { units: "kilometers" })
+        const simplifiedRoute = simplify(routeLine, { tolerance: 0.0001, highQuality: true })
 
         // Generate unique color for each route using zone colors
         const routeColor = getRouteColor(item)
@@ -290,7 +290,7 @@ function processRouteData(item: ServiceData, isSelected: boolean, routeFeatures:
         // Add direction arrows with the same color as the route
         if (isSelected && directionPoints.length > 0) {
           // Instead of arrows, create a dashed direction line
-          const directionLine = turf.lineString(coordinates)
+          const directionLine = lineString(coordinates)
           
           routeFeatures.push({
             type: "Feature",
@@ -325,7 +325,7 @@ function processRouteData(item: ServiceData, isSelected: boolean, routeFeatures:
 function generateDirectionArrows(routeLine: any): any[] {
   try {
     const arrows: any[] = []
-    const lineLength = turf.length(routeLine, { units: "kilometers" })
+    const lineLength = length(routeLine, { units: "kilometers" })
 
     // More arrows for longer routes, fewer for shorter ones
     const arrowCount = Math.min(Math.max(Math.floor(lineLength / 3), 3), 12)
@@ -333,16 +333,16 @@ function generateDirectionArrows(routeLine: any): any[] {
 
     for (let i = 1; i <= arrowCount; i++) {
       const distance = arrowInterval * i
-      const point = turf.along(routeLine, distance, { units: "kilometers" })
+      const point = along(routeLine, distance, { units: "kilometers" })
       const nextDistance = Math.min(distance + 0.1, lineLength)
-      const nextPoint = turf.along(routeLine, nextDistance, { units: "kilometers" })
+      const nextPoint = along(routeLine, nextDistance, { units: "kilometers" })
 
       // Calculate bearing for arrow direction
-      const bearing = turf.bearing(point, nextPoint)
+      const arrowBearing = bearing(point, nextPoint)
 
       arrows.push({
         type: "Feature",
-        properties: { bearing },
+        properties: { bearing: arrowBearing },
         geometry: point.geometry,
       })
     }
@@ -363,8 +363,8 @@ function processIsochroneData(item: ServiceData, isSelected: boolean, isochroneF
       if (isochroneData.features) {
         isochroneData.features.forEach((feature: any) => {
           // Use Turf.js to enhance isochrone
-          const polygon = turf.polygon(feature.geometry.coordinates)
-          const area = turf.area(polygon) / 1000000 // Convert to km²
+          const polygon_ = polygon(feature.geometry.coordinates)
+          const area_ = area(polygon_) / 1000000 // Convert to km²
 
           isochroneFeatures.push({
             ...feature,
@@ -374,7 +374,7 @@ function processIsochroneData(item: ServiceData, isSelected: boolean, isochroneF
               zone: item.orderData.deliveryMetaData.zone,
               price: item.orderData.deliveryMetaData.price,
               vendorName: item.vendor.name,
-              area: area.toFixed(2),
+              area: area_.toFixed(2),
               color: `hsl(${(item.orderData.deliveryMetaData.zone * 60) % 360}, 70%, 60%)`,
               opacity: isSelected ? 0.4 : 0.2,
             },

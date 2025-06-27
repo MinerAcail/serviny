@@ -657,7 +657,7 @@ const availableCategories: Categories[] = [
 ];
 
 // Main Component
-export function ImprovedServiceProvider() {
+export default function ImprovedServiceProvider() {
   const [activeTab, setActiveTab] = useState("personal");
   const [profilePic, setProfilePic] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);

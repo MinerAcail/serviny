@@ -5,9 +5,10 @@ import { MapPin, Plus, Minus, X, Trash2, ChevronDown, ChevronLeft, Edit3, Share,
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import { gql, useQuery, useMutation } from "@apollo/client"
-import { useParams } from "react-router"
+// import { useParams } from "react-router"
 import { useAuth } from "@/middleware/context/authContext"
 import { cn } from "@/lib/utils"
+import { useCurrentUserProfileId } from "@/components/GlobalLogic/checkBusinessType"
 
 export const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -314,13 +315,15 @@ function destroyMap(state: MapState): void {
 }
 
 //
-export function MainDeliveryZoneCreator({serviceId}: {serviceId: string}) {
+export default function MainDeliveryZoneCreator() {
   const { user } = useAuth()
   const riderId = user?.id
+    //  const { serviceId } = useParams<{ serviceId: string }>()
+  const profileId = useCurrentUserProfileId();
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
-    variables: { serviceId },
+    variables: { serviceId:profileId  },
   })
 
   if (loading)

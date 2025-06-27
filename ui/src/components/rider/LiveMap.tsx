@@ -77,6 +77,7 @@ import {
 // Import the enhanced components
 import { FilterControlPanel } from "./FilterControlPanel";
 import RiderServiceManagement from "./RiderServiceManagement";
+import { Badge } from "../ui/badge";
 
 // GraphQL Query for rider's assigned data
 // Updated GraphQL Query with payment fields
@@ -173,6 +174,8 @@ const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
         estimatedDeliveryDate
         paymentStatus    # Added payment status field
         paymentMethod    # Added payment method field
+            
+        cargoId
         rangeMetaData {
           id
           riderId
@@ -218,6 +221,7 @@ const RiderLiveMap: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showInfor, setshowInfor] = useState(false);
 
   // Refs
   const mapRef = useRef<HTMLDivElement | null>(null);
@@ -830,13 +834,21 @@ const RiderLiveMap: React.FC = () => {
                         {(suggestion as any).status}
                       </span>
                     )}
+                    {('bookingData' in suggestion && suggestion.bookingData?.cargoId) ? (
+  <Badge className="text-xs">
+    <Package className="h-3 w-3 mr-1" />
+    CARGO
+  </Badge>
+) : (
+  <>
+    {(suggestion as any).amount && (
+      <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+        💰 {(suggestion as any).amount}
+      </span>
+    )}
+  </>
+)}
                     
-                    {/* Amount badge */}
-                    {(suggestion as any).amount && (
-                      <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        💰 {(suggestion as any).amount}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -932,96 +944,7 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
-        {/* Enhanced Mobile Header */}
-        {isMobile && (
-          <div className="bg-white/95 backdrop-blur-3xl border-b border-white/20 relative z-50 shadow-xl">
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold text-black flex items-center gap-2 truncate tracking-tight">
-                    My Deliveries
-                    {loading && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
-                  </h1>
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <span className="flex items-center gap-1 text-xs text-orange-600 font-semibold">
-                      <Package className="w-3 h-3" />
-                      {stats.totalOrders}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-purple-600 font-semibold">
-                      <Calendar className="w-3 h-3" />
-                      {stats.totalBookings}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 font-semibold">
-                      <DollarSign className="w-3 h-3" />
-                      GH₵{stats.totalEarnings.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => setShowMobileMenu(!showMobileMenu)}
-                  variant="outline"
-                  className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Mobile Menu Dropdown */}
-              {showMobileMenu && (
-                <div className="mt-4 p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-xl">
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-green-50/50 p-3 rounded-2xl border border-green-200/50">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                        <div>
-                          <p className="text-xs text-green-600 font-semibold">Confirmed</p>
-                          <p className="text-lg font-bold text-green-700">
-                            {stats.confirmedOrders + stats.confirmedBookings}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-200/50">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-600" />
-                        <div>
-                          <p className="text-xs text-blue-600 font-semibold">Status</p>
-                          <p className="text-lg font-bold text-blue-700">
-                            {riderData?.status || "Available"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => refetch()}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
-                      disabled={loading}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                      Refresh
-                    </Button>
-
-                    <Button
-                      onClick={() => setShowMobileMenu(false)}
-                      variant="outline"
-                      size="sm"
-                      className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+       
 
         {/* Desktop Header */}
         {!isMobile && (
@@ -1148,7 +1071,7 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
 
           {/* Enhanced Map Controls */}
           <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-10">
-            <div className="flex gap-2">
+            <div className="flex pt-10 gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-black/40" />
                 <Input
@@ -1188,7 +1111,7 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
           />
 
           {/* Enhanced Floating Action Buttons */}
-          <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
+          <div className="absolute bottom-32 right-6 z-20 flex flex-col gap-3">
             {/* Filter Panel Toggle - Show when entity is selected */}
             {selectedEntity && (
               <Tooltip>
@@ -1254,40 +1177,29 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
               </TooltipContent>
             </Tooltip>
 
-            {/* Clear Filter Button - Show when filtered */}
-            {showOnlyRelevant && selectedEntity && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={clearEntityFilter}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-full shadow-3xl h-10 w-10 sm:h-12 sm:w-12 transition-all duration-300 hover:scale-110"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Clear filter and show all services</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+        
           </div>
         </div>
 
         {/* Service Management Sheet */}
         <Sheet open={showServiceManagement} onOpenChange={setShowServiceManagement}>
           <SheetContent side="bottom" className="h-[95vh] rounded-t-2xl">
-            <SheetHeader>
+            <SheetHeader className="mb-5">
               <SheetTitle className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-orange-500" />
                   <Calendar className="h-5 w-5 text-purple-500" />
-                  <Users className="h-5 w-5 text-blue-500" />
+                  {/* <Users className="h-5 w-5 text-blue-500" /> */}
                 </div>
                 My Service Management
               </SheetTitle>
-              <SheetDescription>
-                Manage your assigned orders, bookings, and vendor relationships
-              </SheetDescription>
+          <Button
+                  onClick={() => setshowInfor(!showInfor)}
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
             </SheetHeader>
 
             <RiderServiceManagement
@@ -1297,6 +1209,7 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
               onContactCustomer={handleContactCustomer}
               onNavigateToLocation={handleNavigateToLocation}
               onViewOnLiveMap={handleViewOnLiveMap}
+              showInfor={showInfor} setshowInfor={setshowInfor}
             />
           </SheetContent>
         </Sheet>

@@ -50,7 +50,7 @@ interface AddBookCoordinateInput {
   ridersId?: string;
 }
 
-export function RiderBookingDeliveryRequest() {
+export default function RiderBookingDeliveryRequest() {
   const { riderId, bookId } = useParams<{ riderId: string; bookId: string }>();
 
   // ==========================================
@@ -99,6 +99,7 @@ export function RiderBookingDeliveryRequest() {
     riderProfile,
     isLoading: zonesLoading,
     error: zonesError,
+    
   } = useRiderZones(riderId);
 
   // Simple location state management

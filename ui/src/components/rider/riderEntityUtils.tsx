@@ -88,6 +88,7 @@ export interface RiderServiceData {
     estimatedDeliveryDate?: string;
     paymentStatus: string; // Added payment status
     paymentMethod: string; // Added payment method
+        cargoId?:string;
     rangeMetaData?: {
       id: string;
       riderId: string;
@@ -153,6 +154,7 @@ export const getPaymentMethodIcon = (paymentMethod: string): string => {
 };
 
 // Updated search suggestions generator with payment info
+// Updated search suggestions generator with payment info and cargoId support
 export const generateRiderSearchSuggestions = (
   searchQuery: string, 
   serviceData: RiderServiceData[]
@@ -219,7 +221,7 @@ export const generateRiderSearchSuggestions = (
           : undefined,
       }));
 
-    // Booking search with payment info
+    // Booking search with payment info and cargoId support
     const bookings = serviceData
       .filter((s) => s.type === "BOOKING" && s.bookingData?.bookingId)
       .filter((s) => {
@@ -246,6 +248,15 @@ export const generateRiderSearchSuggestions = (
         amount: s.bookingData?.deliveryFee 
           ? `GH₵${s.bookingData.deliveryFee}` 
           : undefined,
+        // Include the complete bookingData with cargoId
+        bookingData: {
+          cargoId: s.bookingData?.cargoId,
+          status: s.bookingData?.status,
+          deliveryFee: s.bookingData?.deliveryFee,
+          bookingId: s.bookingData?.bookingId,
+          pickUpAddress: s.bookingData?.pickUpAddress,
+          deliveryAddress: s.bookingData?.deliveryAddress,
+        }
       }));
 
     // Vendor search with service count
@@ -263,7 +274,7 @@ export const generateRiderSearchSuggestions = (
         };
       });
 
-    // MultiGroup search with enhanced info
+    // MultiGroup search with enhanced info and cargoId support
     const multiGroupSuggestions = (() => {
       const multiGroupIds = [
         ...new Set(
@@ -302,6 +313,10 @@ export const generateRiderSearchSuggestions = (
             s.bookingData?.paymentStatus?.toUpperCase() === "COMPLETED"
           ).length;
 
+          // Check if any booking in the group has cargoId
+          const hasCargoId = groupBookings.some(b => b.bookingData?.cargoId);
+          const firstCargoId = groupBookings.find(b => b.bookingData?.cargoId)?.bookingData?.cargoId;
+
           return {
             type: "multigroup" as const,
             value: `#${multiGroupId.slice(-6)}`,
@@ -315,11 +330,17 @@ export const generateRiderSearchSuggestions = (
               uniqueCustomers.length === 1
                 ? uniqueCustomers[0]
                 : `${uniqueCustomers.length} customers`,
+            // Include bookingData if there's a cargoId in the group
+            ...(hasCargoId && {
+              bookingData: {
+                cargoId: firstCargoId,
+              }
+            })
           };
         });
     })();
 
-    // Payment method search
+    // Payment method search with cargoId support
     const paymentMethodSearch = serviceData
       .filter(service => {
         const paymentMethod = service.type === "ORDER" 
@@ -343,9 +364,18 @@ export const generateRiderSearchSuggestions = (
         paymentStatus: service.type === "ORDER" 
           ? service.orderData?.paymentStatus 
           : service.bookingData?.paymentStatus,
+        // Include bookingData for booking payments
+        ...(service.type === "BOOKING" && {
+          bookingData: {
+            cargoId: service.bookingData?.cargoId,
+            status: service.bookingData?.status,
+            deliveryFee: service.bookingData?.deliveryFee,
+            bookingId: service.bookingData?.bookingId,
+          }
+        })
       }));
 
-    // Address search
+    // Address search with cargoId support
     const addresses = serviceData
       .filter(service => {
         if (service.type === "ORDER" && service.orderData?.deliveryAddress) {
@@ -370,6 +400,17 @@ export const generateRiderSearchSuggestions = (
           : service.bookingData!.deliveryAddress}`,
         icon: "📍",
         customer: service.customer.name,
+        // Include bookingData for booking addresses
+        ...(service.type === "BOOKING" && {
+          bookingData: {
+            cargoId: service.bookingData?.cargoId,
+            status: service.bookingData?.status,
+            deliveryFee: service.bookingData?.deliveryFee,
+            bookingId: service.bookingData?.bookingId,
+            pickUpAddress: service.bookingData?.pickUpAddress,
+            deliveryAddress: service.bookingData?.deliveryAddress,
+          }
+        })
       }));
 
     // Combine all suggestions
@@ -384,6 +425,8 @@ export const generateRiderSearchSuggestions = (
     ].slice(0, 8);
 
     console.log(`✅ Generated ${allSuggestions.length} suggestions successfully`);
+    console.log(`📦 Suggestions with cargoId:`, allSuggestions.filter(s => s.bookingData?.cargoId));
+    
     return allSuggestions;
 
   } catch (error) {
@@ -392,24 +435,47 @@ export const generateRiderSearchSuggestions = (
   }
 };
 
+// // Helper function for payment method icons
+// const getPaymentMethodIcon = (paymentMethod: string): string => {
+//   const method = paymentMethod?.toLowerCase();
+//   if (method?.includes('card') || method?.includes('visa') || method?.includes('mastercard')) {
+//     return "💳";
+//   }
+//   if (method?.includes('mobile') || method?.includes('momo')) {
+//     return "📱";
+//   }
+//   if (method?.includes('cash')) {
+//     return "💵";
+//   }
+//   if (method?.includes('bank') || method?.includes('transfer')) {
+//     return "🏦";
+//   }
+//   return "💰";
+// };
+
 // Rest of the utility functions remain the same...
-export interface RiderSearchSuggestion {
+interface RiderSearchSuggestion {
   type: "customer" | "order" | "booking" | "vendor" | "multigroup";
   value: string;
   label: string;
   icon: string;
   customer?: string;
-  multiGroupId?: string;
-  bookingCount?: number;
-  customers?: string[];
   customerDisplay?: string;
-  serviceCount?: number;
-  paidServices?: number;
-  paidBookings?: number;
+  bookingCount?: number;
+  amount?: string;
   status?: string;
+  serviceCount?: number;
   paymentStatus?: string;
   paymentMethod?: string;
-  amount?: string;
+  paidServices?: number;
+  paidBookings?: number;
+  // ADD THIS:
+  bookingData?: {
+    cargoId?: string;
+    status?: string;
+    deliveryFee?: string;
+    bookingId?: string;
+  };
 }
 
 export interface RiderSelectedEntity {
@@ -593,7 +659,8 @@ export const addRiderRoutesToMap = (
   if (!mapInstance) return;
 
   // Clear existing route layers
-  const existingLayers = mapInstance.getStyle().layers || [];
+  const style = mapInstance.getStyle?.();
+  const existingLayers = style && style.layers ? style.layers : [];
   existingLayers.forEach(layer => {
     if (layer.id.startsWith('rider-route-')) {
       if (mapInstance.getLayer(layer.id)) {
@@ -603,7 +670,8 @@ export const addRiderRoutesToMap = (
   });
 
   // Clear existing route sources
-  const existingSources = mapInstance.getStyle().sources || {};
+  const styleObj = mapInstance.getStyle && mapInstance.getStyle();
+  const existingSources = styleObj && styleObj.sources ? styleObj.sources : {};
   Object.keys(existingSources).forEach(sourceId => {
     if (sourceId.startsWith('rider-route-')) {
       if (mapInstance.getSource(sourceId)) {

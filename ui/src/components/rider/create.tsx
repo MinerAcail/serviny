@@ -148,7 +148,7 @@ const experienceOptions: ExperienceOption[] = [
 ];
 
 // Main Component wrapped in Error Boundary
-export function RiderRegistration(): JSX.Element {
+export default function RiderRegistration(): JSX.Element {
   // Google Maps API configuration
   const libraries: Libraries = ["places"];
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";

@@ -212,7 +212,7 @@ export function PaymentStatusSectionAssigned({
   // GraphQL queries
   const {
     data: priceCardsData,
-    loading: priceCardsLoading,
+    // loading: priceCardsLoading,
     refetch: refetchPriceCards,
   } = useQuery(GET_PRICE_CARDS, {
     variables: { serviceId: booking?.serviceId },
@@ -221,14 +221,14 @@ export function PaymentStatusSectionAssigned({
 
   const {
     data: policiesData,
-    loading: policiesLoading,
+    // loading: policiesLoading,
     refetch: refetchPolicies,
   } = useQuery(GET_POLICY_INFORMATION, {
     variables: { ServiceID: booking?.serviceId },
     skip: !booking?.serviceId,
   });
 
-  const { data: ridersData, loading: ridersLoading } = useQuery(GET_RIDERS);
+  const { data: ridersData } = useQuery(GET_RIDERS);
 
   const {
     data: invoiceData,
@@ -317,8 +317,8 @@ export function PaymentStatusSectionAssigned({
   const isCargoBooking =
     booking.type === "BOOKING" && booking.bookingData?.cargoId;
   const priceCards: PriceCard[] =
-    priceCardsData?.getpriceCardsinformation || [];
-  const policies: Policy[] = policiesData?.getPolicyInformation || [];
+    priceCardsData?.getpriceCardsinformationByService || [];
+  const policies: Policy[] = policiesData?.getPolicyInformationByService || [];
   const riders: Rider[] = ridersData?.riders || [];
   const invoice: Invoice | null = invoiceData?.getInvoice || null;
 
@@ -477,27 +477,189 @@ export function PaymentStatusSectionAssigned({
     <div className="mt-6 pt-6 border-t border-white/30">
       {/* Cargo Booking Overview Card */}
 
-      {invoice ?(
+      {invoice ? (
+        <Button
+          onClick={() => navigate(`/invoice/${booking.bookingData?.cargoId}`)}
+          variant="outline"
+          className="h-12 rounded-xl backdrop-blur-sm bg-blue-100  border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+        >
+          <FileText className="h-4 w-4 mr-2 text-gray-600" />
+          <span className="font-semibold">{"View Invoice"}</span>
+        </Button>
+      ) : (
+              <div className="flex gap-3">
+                <Dialog
+                  open={showInvoiceDialog}
+                  onOpenChange={setShowInvoiceDialog}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-12 rounded-xl backdrop-blur-sm bg-white/60 border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+                    >
+                      <UserCheck className="h-5 w-5 mr-3 text-blue-600" />
+                      <span className="font-semibold">
+                                                   Add Invoice
 
-            <Button
-        onClick={() => navigate(`/invoice/${booking.bookingData?.cargoId}`)}
-        variant="outline"
-        className="h-12 rounded-xl backdrop-blur-sm bg-blue-100  border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
-      >
-        <FileText className="h-4 w-4 mr-2 text-gray-600" />
-        <span className="font-semibold">{"View Invoice"}</span>
-      </Button>
-      ) :(
-  
+                      </span>
+                    </Button>
+                  </DialogTrigger>
 
-      <Button
-        onClick={() => setShowBookingDialog(!showBookingDialog)}
-        variant="outline"
-        className="h-12 rounded-xl backdrop-blur-sm bg-blue-100  border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
-      >
-        <FileText className="h-4 w-4 mr-2 text-gray-600" />
-        <span className="font-semibold">Add Invoice</span>
-      </Button>
+                  <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto backdrop-blur-2xl bg-white/95 border-white/30 rounded-3xl">
+                    <DialogHeader className="pb-4">
+                      <DialogTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <Receipt className="h-6 w-6 text-emerald-600" />
+                        Create Invoice for Cargo #
+                        {booking.bookingData?.cargoId?.slice(-6)}
+                      </DialogTitle>
+                      <div>
+                        <Button
+                         onClick={() => {
+                      setShowCreatePriceDialog(!showCreatePriceDialog);
+                    }}
+                          variant="outline"
+                          className="h-12 rounded-xl backdrop-blur-sm bg-white/60 border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+                        >
+                           <span className="h-5 w-5 mr-3 text-green-600" >GH</span>
+                        <span className="font-semibold">Create Price Card</span>
+                        </Button>
+                        <Button
+                    onClick={() => {
+                      setShowCreatePolicyDialog(!showCreatePolicyDialog);
+                    }}
+                          variant="outline"
+                          className="h-12 rounded-xl backdrop-blur-sm bg-white/60 border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+                        >
+                        <FileCheck className="h-5 w-5 mr-3 text-purple-600" />
+                        <span className="font-semibold">Create Policy</span>
+                        </Button>
+                        <Button
+                         onClick={() => {
+                      setShowRiderDialog(!showRiderDialog);
+                    }}
+                          variant="outline"
+                          className="h-12 rounded-xl backdrop-blur-sm bg-white/60 border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+                        >
+                          <UserCheck className="h-5 w-5 mr-3 text-blue-600" />
+                          <span className="font-semibold">
+                            {booking.rider ? "Change Rider" : "Assign Rider"}
+                          </span>
+                        </Button>
+                      </div>
+                    </DialogHeader>
+                    <div className="space-y-6">
+                      {/* Invoice Notes */}
+                      <div className="p-4 rounded-2xl backdrop-blur-sm bg-gradient-to-br from-gray-50/60 to-white/40 border border-white/20">
+                        <Label
+                          htmlFor="invoice-notes"
+                          className="text-sm font-semibold text-gray-800 mb-2 block"
+                        >
+                          Invoice Notes
+                        </Label>
+                        <Textarea
+                          id="invoice-notes"
+                          placeholder="Add any notes for this invoice..."
+                          value={invoiceNotes}
+                          onChange={(e) => setInvoiceNotes(e.target.value)}
+                          rows={3}
+                          className="backdrop-blur-sm bg-white/60 border-white/30 rounded-xl focus:bg-white/80 transition-all duration-200"
+                        />
+                      </div>
+
+                      {/* Price Card Selection */}
+                      <div>
+                        <Label className="text-lg font-bold text-gray-800 mb-4 block">
+                          Select Price Card (Optional)
+                        </Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {priceCards.map((priceCard) => (
+                            <PriceCardSelection
+                              key={priceCard.card.id}
+                              priceCard={priceCard}
+                              isSelected={
+                                selectedInvoicePriceCard === priceCard.card.id
+                              }
+                              onSelect={() =>
+                                setSelectedInvoicePriceCard(
+                                  selectedInvoicePriceCard === priceCard.card.id
+                                    ? ""
+                                    : priceCard.card.id
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
+                        {priceCards.length === 0 && (
+                          <div className="p-4 rounded-2xl backdrop-blur-sm bg-yellow-50/60 border border-yellow-200/50 text-center">
+                            <p className="text-sm text-yellow-700 font-medium">
+                              No price cards available. Create one first!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Policy Selection */}
+                      <div>
+                        <Label className="text-lg font-bold text-gray-800 mb-4 block">
+                          Select Policy (Optional)
+                        </Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {policies.map((policy) => (
+                            <PolicyCardSelection
+                              key={policy.policy.id}
+                              policy={policy}
+                              isSelected={
+                                selectedInvoicePolicy === policy.policy.id
+                              }
+                              onSelect={() =>
+                                setSelectedInvoicePolicy(
+                                  selectedInvoicePolicy === policy.policy.id
+                                    ? ""
+                                    : policy.policy.id
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
+                        {policies.length === 0 && (
+                          <div className="p-4 rounded-2xl backdrop-blur-sm bg-yellow-50/60 border border-yellow-200/50 text-center">
+                            <p className="text-sm text-yellow-700 font-medium">
+                              No policies available. Create one first!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-6 border-t border-white/20">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowInvoiceDialog(false)}
+                        className="rounded-xl backdrop-blur-sm bg-white/60 border-white/30"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreateInvoice}
+                        disabled={creatingInvoice}
+                        className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                      >
+                        {creatingInvoice ? (
+                          <>
+                            <Clock className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Create Invoice
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
       )}
 
       {isCargoBooking && (
@@ -640,8 +802,19 @@ export function PaymentStatusSectionAssigned({
                   <span className="bg-blue-500 text-white text-sm font-bold px-2 py-1 rounded-full">
                     2
                   </span>
-                  Assign Rider (Optional)
+                  Assign Rider (Optssional)
                 </h5>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-12 rounded-xl backdrop-blur-sm bg-white/60 border-white/30 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+                  >
+                    <UserCheck className="h-5 w-5 mr-3 text-blue-600" />
+                    <span className="font-semibold">
+                      {booking.rider ? "Change Rider" : "Assign Rider"}
+                    </span>
+                  </Button>
+                </DialogTrigger>
                 <Dialog
                   open={showRiderDialog}
                   onOpenChange={setShowRiderDialog}
@@ -747,140 +920,7 @@ export function PaymentStatusSectionAssigned({
                 </Dialog>
               </div>
 
-              {/* STEP 3: Invoice Management */}
-             <div className="flex gap-3">
-                 
-
-                  {!invoice && (
-                    <Dialog
-                      open={showInvoiceDialog}
-                      onOpenChange={setShowInvoiceDialog}
-                    >
-                     
-                      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto backdrop-blur-2xl bg-white/95 border-white/30 rounded-3xl">
-                        <DialogHeader className="pb-4">
-                          <DialogTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <Receipt className="h-6 w-6 text-emerald-600" />
-                            Create Invoice for Cargo #
-                            {booking.bookingData?.cargoId?.slice(-6)}
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-6">
-                          {/* Invoice Notes */}
-                          <div className="p-4 rounded-2xl backdrop-blur-sm bg-gradient-to-br from-gray-50/60 to-white/40 border border-white/20">
-                            <Label
-                              htmlFor="invoice-notes"
-                              className="text-sm font-semibold text-gray-800 mb-2 block"
-                            >
-                              Invoice Notes
-                            </Label>
-                            <Textarea
-                              id="invoice-notes"
-                              placeholder="Add any notes for this invoice..."
-                              value={invoiceNotes}
-                              onChange={(e) => setInvoiceNotes(e.target.value)}
-                              rows={3}
-                              className="backdrop-blur-sm bg-white/60 border-white/30 rounded-xl focus:bg-white/80 transition-all duration-200"
-                            />
-                          </div>
-
-                          {/* Price Card Selection */}
-                          <div>
-                            <Label className="text-lg font-bold text-gray-800 mb-4 block">
-                              Select Price Card (Optional)
-                            </Label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {priceCards.map((priceCard) => (
-                                <PriceCardSelection
-                                  key={priceCard.card.id}
-                                  priceCard={priceCard}
-                                  isSelected={
-                                    selectedInvoicePriceCard ===
-                                    priceCard.card.id
-                                  }
-                                  onSelect={() =>
-                                    setSelectedInvoicePriceCard(
-                                      selectedInvoicePriceCard ===
-                                        priceCard.card.id
-                                        ? ""
-                                        : priceCard.card.id
-                                    )
-                                  }
-                                />
-                              ))}
-                            </div>
-                            {priceCards.length === 0 && (
-                              <div className="p-4 rounded-2xl backdrop-blur-sm bg-yellow-50/60 border border-yellow-200/50 text-center">
-                                <p className="text-sm text-yellow-700 font-medium">
-                                  No price cards available. Create one first!
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Policy Selection */}
-                          <div>
-                            <Label className="text-lg font-bold text-gray-800 mb-4 block">
-                              Select Policy (Optional)
-                            </Label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {policies.map((policy) => (
-                                <PolicyCardSelection
-                                  key={policy.policy.id}
-                                  policy={policy}
-                                  isSelected={
-                                    selectedInvoicePolicy === policy.policy.id
-                                  }
-                                  onSelect={() =>
-                                    setSelectedInvoicePolicy(
-                                      selectedInvoicePolicy === policy.policy.id
-                                        ? ""
-                                        : policy.policy.id
-                                    )
-                                  }
-                                />
-                              ))}
-                            </div>
-                            {policies.length === 0 && (
-                              <div className="p-4 rounded-2xl backdrop-blur-sm bg-yellow-50/60 border border-yellow-200/50 text-center">
-                                <p className="text-sm text-yellow-700 font-medium">
-                                  No policies available. Create one first!
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <DialogFooter className="pt-6 border-t border-white/20">
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowInvoiceDialog(false)}
-                            className="rounded-xl backdrop-blur-sm bg-white/60 border-white/30"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={handleCreateInvoice}
-                            disabled={creatingInvoice}
-                            className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
-                          >
-                            {creatingInvoice ? (
-                              <>
-                                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                                Creating...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                Create Invoice
-                              </>
-                            )}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
+              
             </div>
 
             <DialogFooter className="pt-6 border-t border-white/20">

@@ -165,16 +165,7 @@ export function UserAuthCardForRider({
   const [open, setOpen] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  const switchToLoginTab = () => {
-    if (tabsRef.current) {
-      const loginTrigger = tabsRef.current.querySelector(
-        '[value="login"]'
-      ) as HTMLButtonElement;
-      if (loginTrigger) {
-        loginTrigger.click();
-      }
-    }
-  };
+ 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

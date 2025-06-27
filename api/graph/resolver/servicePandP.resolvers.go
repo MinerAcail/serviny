@@ -828,6 +828,43 @@ func (r *queryResolver) GetPolicyInformation(ctx context.Context, serviceID stri
 	return policyInfoList, nil
 }
 
+// GetPolicyInformationByService is the resolver for the getPolicyInformationByService field.
+func (r *queryResolver) GetPolicyInformationByService(ctx context.Context, serviceID string) ([]*model.PolicyInformation, error) {
+	// Find all policies for the given service ID
+	var policies []*model.Policy
+	if err := r.DB.Where("service_id = ? ", serviceID).Find(&policies).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch policies for service ID %s: %w", serviceID, err)
+	}
+
+	// If no policies found, return empty slice
+	if len(policies) == 0 {
+		return []*model.PolicyInformation{}, nil
+	}
+
+	// Create policy information for each policy
+	var policyInfoList []*model.PolicyInformation
+
+	for _, policy := range policies {
+		// Find all policy details for this policy
+		var policyDetails []*model.PolicyDetail
+		policyID := policy.ID.String()
+
+		if err := r.DB.Where("policy_id = ?", policyID).Find(&policyDetails).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch policy details for policy ID %s: %w", policyID, err)
+		}
+
+		// Create and add policy information
+		policyInfo := &model.PolicyInformation{
+			Policy:        policy,
+			PolicyDetails: policyDetails,
+		}
+
+		policyInfoList = append(policyInfoList, policyInfo)
+	}
+
+	return policyInfoList, nil
+}
+
 // GetPolicy is the resolver for the getPolicy field.
 func (r *queryResolver) GetPolicy(ctx context.Context, policyID string) (*model.PolicyInformation, error) {
 	// Parse the UUID from input
@@ -955,6 +992,53 @@ func (r *queryResolver) GetpriceCardsinformation(ctx context.Context, serviceID 
 	// Fetch all price cards associated with the given serviceID where is_public is NULL or TRUE
 	var priceCards []model.PriceCard
 	if err := r.DB.Where("service_id = ? AND (is_public IS NULL OR is_public = ?)", *serviceID, true).Find(&priceCards).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch price cards for service ID %s: %w", *serviceID, err)
+	}
+
+	// If no price cards are found, return an empty slice.
+	if len(priceCards) == 0 {
+		return []*model.FullCard{}, nil
+	}
+
+	// Create a list to hold FullCard objects
+	var fullCards []*model.FullCard
+
+	for _, priceCard := range priceCards {
+		// Fetch associated prices for each price card
+		var prices []*model.Price
+		if err := r.DB.Where("price_card_id = ?", priceCard.ID).Find(&prices).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch prices for price card %s: %w", priceCard.ID, err)
+		}
+
+		// Fetch associated amenities for each price card
+		var amenities []*model.Amenity
+		if err := r.DB.Where("price_card_id = ?", priceCard.ID).Find(&amenities).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch amenities for price card %s: %w", priceCard.ID, err)
+		}
+
+		// Construct a FullCard object with the PriceCard, Prices, and Amenities
+		fullCard := &model.FullCard{
+			Card:      &priceCard,
+			Prices:    prices,
+			Amenities: amenities,
+		}
+
+		fullCards = append(fullCards, fullCard)
+	}
+
+	return fullCards, nil
+}
+
+// GetpriceCardsinformationByService is the resolver for the getpriceCardsinformationByService field.
+func (r *queryResolver) GetpriceCardsinformationByService(ctx context.Context, serviceID *string) ([]*model.FullCard, error) {
+	// If serviceID is nil, return an empty slice.
+	if serviceID == nil {
+		return []*model.FullCard{}, nil
+	}
+
+	// Fetch all price cards associated with the given serviceID where is_public is NULL or TRUE
+	var priceCards []model.PriceCard
+	if err := r.DB.Where("service_id = ? ", *serviceID).Find(&priceCards).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch price cards for service ID %s: %w", *serviceID, err)
 	}
 

@@ -127,7 +127,7 @@ interface FullInvoiceData {
   cargo: Cargo;
 }
 
-export const FullInvoiceDocument: React.FC = () => {
+const FullInvoiceDocument: React.FC = () => {
   const { cargoId } = useParams<{ cargoId: string }>();
   const { data, loading, error } = useQuery(GET_FULL_INVOICE, {
     variables: { cargoId },
@@ -619,3 +619,5 @@ export const FullInvoiceDocument: React.FC = () => {
     </div>
   );
 };
+
+export default FullInvoiceDocument;

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router";
 // import NavBar from "./navBar";
 import { gql } from "@apollo/client";
-import LandingPage from "./page";
+// import LandingPage from "./page";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ItemNotFound, SpectaclesError, SpectaclesLoading } from "../custom/loading";
 import MainNaveBar from "./menuBar";
@@ -52,10 +52,7 @@ export function ServiceProvidersDirectory() {
     nextFetchPolicy: "network-only", // Ensure subsequent fetches also hit network
   });
 
-  const [dialogState, setDialogState] = useState(() => {
-    const savedState = localStorage.getItem("isDialogOpen");
-    return savedState !== null ? JSON.parse(savedState) : true;
-  });
+ 
 
   const loadMoreServices = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -104,30 +101,14 @@ export function ServiceProvidersDirectory() {
     return () => observer.current?.disconnect(); // Cleanup observer
   }, [loadMoreServices, data?.listServices?.length]);
 
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const currentState = localStorage.getItem("isDialogOpen");
-      if (currentState !== null) {
-        setDialogState(JSON.parse(currentState));
-      }
-    };
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
 
   function handleSearch(value: string): void {
     setSearchTerm(value);
     refetch({ search: value.trim() || null });
   }
 
-  // if (dialogState) {
-  //   return <LandingPage  onClose={() => setDialogState(false)} />;
-  // }
-
-  // if (loading && !data) return <SpectaclesLoading />;
-
-  // if (error) return <SpectaclesError />;
+ 
 
   return (
     <div className="max-w-6xl mx-auto px-3 py-6">
