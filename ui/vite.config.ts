@@ -75,13 +75,13 @@ export default defineConfig({
   preview: {
     allowedHosts: [".winnemart.com", ".r.winnemart.com"],
   },
-  build: {
-    rollupOptions: {
-      output: {
-        entryFileNames: "assets/[name]-[hash].js",
-        chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: "assets/[name]-[hash].[ext]",
-      },
-    },
-  },
+  // build: {
+  //   rollupOptions: {
+  //     output: {
+  //       entryFileNames: "assets/[name]-[hash].js",
+  //       chunkFileNames: "assets/[name]-[hash].js",
+  //       assetFileNames: "assets/[name]-[hash].[ext]",
+  //     },
+  //   },
+  // },
 });
