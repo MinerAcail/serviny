@@ -81,6 +81,20 @@ export default defineConfig({
     allowedHosts: [".winnemart.com",".r.winnemart.com"], 
 
   },
+  // ✅ Add build
+//   Prevent This in Future
+// You can set a consistent file naming strategy for Vite to avoid hashed filenames:
+
+
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/index.js`,
+        chunkFileNames: `assets/[name].js`,
+        assetFileNames: `assets/[name].[ext]`,
+      },
+    },
+  },
   // build: {
   //   rollupOptions: {
   //     external: ["src/sw.js"], // Exclude sw.js from the Rollup bundle
