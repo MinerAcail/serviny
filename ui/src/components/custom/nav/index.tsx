@@ -51,7 +51,7 @@ function WorksNav() {
     <nav className="fixed top-0 left-0 w-full z-50 bg-[#76a683] shadow-md">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link to={"/"} className="flex items-center">
-          <img src={logo} alt="serviny Logo" className="w-12 pr-[5px]" />
+          <img src={logo} alt="winnemart Logo" className="w-12 pr-[5px]" />
           {(isDesktop || !isSearchExpanded) && <></>}
         </Link>
 

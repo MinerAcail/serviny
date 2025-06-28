@@ -39,7 +39,7 @@ const bgSyncPlugin = new BackgroundSyncPlugin("gql-mutations-queue", {
 registerRoute(
   ({ url, request }) =>
     request.method === "POST" &&
-    url.hostname === "api.serviny.com" &&
+    url.hostname === "api.winnemart.com" &&
     url.pathname === "/query",
   new NetworkOnly({
     plugins: [bgSyncPlugin],

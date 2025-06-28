@@ -1,58 +1,61 @@
 import path from "path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-// import { VitePWA } from "vite-plugin-pwa";
-// import { visualizer } from 'rollup-plugin-visualizer';
-export const production = true;
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
     react(),
-    // visualizer({ open: true, filename: 'dist/stats.html' })
-    
-    // VitePWA({
-    //   registerType: "autoUpdate",
-    //   includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
-    //   filename: "sw.js",
-    //   srcDir: "src",
-    //   strategies: "injectManifest",
-    //   injectManifest: {
-    //     swSrc: "/sw.js",
-    //     maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 💡 allow 5MB precache files
-    //   },
-    //   manifest: {
-    //     name: "Serviny",
-    //     short_name: "Serviny",
-    //     description: "Your Serviny Progressive Web App",
-    //     theme_color: "#ffffff",
-    //     background_color: "#ffffff",
-    //     display: "standalone",
-    //     start_url: "/",
-    //     icons: [
-    //       {
-    //         src: "pwa-64x64.png",
-    //         sizes: "64x64",
-    //         type: "image/png",
-    //       },
-    //       {
-    //         src: "pwa-192x192.png",
-    //         sizes: "192x192",
-    //         type: "image/png",
-    //       },
-    //       {
-    //         src: "pwa-512x512.png",
-    //         sizes: "512x512",
-    //         type: "image/png",
-    //       },
-    //       {
-    //         src: "maskable-icon-512x512.png",
-    //         sizes: "512x512",
-    //         type: "image/png",
-    //         purpose: "maskable",
-    //       },
-    //     ],
-    //   },
-    // }),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: [
+        "favicon.ico",
+        "apple-touch-icon-180x180.png",
+        "pwa-64x64.png",
+        "pwa-192x192.png",
+        "pwa-512x512.png",
+        "maskable-icon-512x512.png"
+      ],
+      filename: "sw.js",
+      srcDir: "src",
+      strategies: "injectManifest",
+      injectManifest: {
+        swSrc: "src/sw.js",
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+      manifest: {
+        name: "winnemart",
+        short_name: "winnemart",
+        description: "Your winnemart Progressive Web App",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          {
+            src: "pwa-64x64.png",
+            sizes: "64x64",
+            type: "image/png",
+          },
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
@@ -63,41 +66,22 @@ export default defineConfig({
     proxy: {
       "/minio": {
         target: "https://files.winnemart.com/",
-        // target: 'http://localhost:9000', // Adjust if MinIO is not running on
-
-        
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/minio/, ""),
       },
     },
-    // headers: {
-    //   "Cross-Origin-Opener-Policy": "same-origin",
-    //   "Cross-Origin-Embedder-Policy": "require-corp",
-    // },
     host: "0.0.0.0",
   },
   preview: {
-    // allowedHosts: [".serviny.com", ".r.serviny.com"],
-    allowedHosts: [".winnemart.com",".r.winnemart.com"], 
-
+    allowedHosts: [".winnemart.com", ".r.winnemart.com"],
   },
-  // ✅ Add build
-//   Prevent This in Future
-// You can set a consistent file naming strategy for Vite to avoid hashed filenames:
-
-
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: `assets/index.js`,
-        chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`,
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
   },
-  // build: {
-  //   rollupOptions: {
-  //     external: ["src/sw.js"], // Exclude sw.js from the Rollup bundle
-  //   },
-  // },
 });

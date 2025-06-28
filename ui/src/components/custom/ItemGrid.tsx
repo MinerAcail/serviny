@@ -88,7 +88,7 @@ const ItemCard = memo(
     // Function to handle sharing
     const handleShare = async () => {
       const productId = item?.id;
-      const baseUrl = "https://ssr.serviny.com";
+      const baseUrl = "https://ssr.winnemart.com";
       const shareUrl = productId
         ? `${baseUrl}/product/${productId}`
         : window.location.href;

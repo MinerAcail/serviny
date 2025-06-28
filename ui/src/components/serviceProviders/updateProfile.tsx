@@ -481,7 +481,7 @@ export default function ProfileService() {
 
   const handleShare = () => {
     const serviceId = serviceData?.getService?.id;
-    const baseUrl = "https://ssr.serviny.com";
+    const baseUrl = "https://ssr.winnemart.com";
     const shareUrl = serviceId
       ? `${baseUrl}/${serviceId}`
       : window.location.href;

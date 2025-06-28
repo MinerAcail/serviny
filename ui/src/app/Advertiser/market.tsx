@@ -58,7 +58,7 @@ const marketingMaterials = [
     thumbnail: "/placeholder.svg?height=200&width=300",
     downloadUrl: "#",
     content:
-      "Heading back to campus? Use my promo code [YOUR_CODE] for 15% off your first serviny order! Perfect for dorm essentials, study snacks, and more. #servinyCampus #StudentDeals",
+      "Heading back to campus? Use my promo code [YOUR_CODE] for 15% off your first winnemart order! Perfect for dorm essentials, study snacks, and more. #winnemartCampus #StudentDeals",
     tags: ["back-to-school", "campaign", "seasonal"],
     platforms: ["instagram", "facebook", "twitter"],
   },
@@ -70,7 +70,7 @@ const marketingMaterials = [
     thumbnail: "/placeholder.svg?height=200&width=300",
     downloadUrl: "#",
     content:
-      "Exam week survival mode: ON 📚☕️\nGet everything you need delivered straight to your dorm with serviny! Use my code [YOUR_CODE] for free delivery on orders over $25.\n#ExamWeek #StudentLife #servinyDelivery",
+      "Exam week survival mode: ON 📚☕️\nGet everything you need delivered straight to your dorm with winnemart! Use my code [YOUR_CODE] for free delivery on orders over $25.\n#ExamWeek #StudentLife #winnemartDelivery",
     tags: ["exams", "student life", "promotion"],
     platforms: ["instagram", "twitter"],
   },

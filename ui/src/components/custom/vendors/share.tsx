@@ -25,7 +25,7 @@ const SocialMediaHelmet = () => {
   const vendorData = data?.getSharedVendor;
   const pageUrl = typeof window !== "undefined"
     ? window.location.href
-    : `https://serviny.com/vendor/${Vendorid}`;
+    : `https://winnemart.com/vendor/${Vendorid}`;
 
   const pageTitle = vendorData?.name
     ? `${vendorData.name} | Vendor Profile`
@@ -36,7 +36,7 @@ const SocialMediaHelmet = () => {
 
   const pageImage = vendorData?.dpfile?.startsWith("http")
     ? vendorData.dpfile
-    : `https://serviny.com${vendorData.dpfile || "/default-image.jpg"}`;
+    : `https://winnemart.com${vendorData.dpfile || "/default-image.jpg"}`;
 
   return (
     <Helmet>
