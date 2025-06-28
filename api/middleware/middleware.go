@@ -32,7 +32,7 @@ const (
 	CookieAccessKeyCtx   contextKey = "cookieAccessKeyCtx"
 	CookieName           contextKey = "SetloginToken"
 )
-
+var SecureValue = false
 // CookieAccess struct for managing cookies.
 type CookieAccess struct {
 	Writer     http.ResponseWriter
@@ -46,10 +46,10 @@ func (ca *CookieAccess) SetToken(token string) {
 		Name:     string(CookieName),             // Name of the cookie
 		Value:    token,                          // Value of the cookie, which is the authentication token
 		HttpOnly: true,                           // Indicates that the cookie is not accessible via JavaScript
-		Secure:   true,                           // Ensures the cookie is only sent over HTTPS
+		Secure:   SecureValue,                          // Allows the cookie to be sent over both HTTP and HTTPS
 		Path:     "/",                            // Path for which the cookie is valid
 		Expires:  time.Now().Add(24 * time.Hour), // Cookie expiration time set to 24 hours from now
-		SameSite: http.SameSiteLaxMode,        // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
+		SameSite: http.SameSiteLaxMode,           // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
 	})
 }
 
@@ -62,7 +62,7 @@ func (ca *CookieAccess) Logout() error {
 		Value:    "",                      // Empty value to clear the token
 		Path:     "/",                     // Path for which the cookie is valid
 		HttpOnly: true,                    // Indicates that the cookie is not accessible via JavaScript
-		Secure:   true,                    // Ensures the cookie is only sent over HTTPS
+		Secure:   SecureValue,                    // Ensures the cookie is only sent over HTTPS
 		Expires:  time.Unix(0, 0),         // Expiration time set to the Unix epoch, effectively expiring the cookie immediately
 		SameSite: http.SameSiteLaxMode, // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
 	}
