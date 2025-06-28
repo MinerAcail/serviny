@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -32,7 +33,39 @@ const (
 	CookieAccessKeyCtx   contextKey = "cookieAccessKeyCtx"
 	CookieName           contextKey = "SetloginToken"
 )
-var SecureValue = false
+
+// Environment-based configuration
+var (
+	// SecureValue determines if cookies should be secure (HTTPS only)
+	// Set to false for development/HTTP, true for production/HTTPS
+	SecureValue = getSecureValue()
+	
+	// SameSiteMode can be adjusted based on your needs
+	SameSiteMode = getSameSiteMode()
+)
+
+// getSecureValue determines the secure flag based on environment
+func getSecureValue() bool {
+	env := strings.ToLower(os.Getenv("ENVIRONMENT"))
+	// Allow HTTP in development environments
+	if env == "development" || env == "dev" || env == "local" {
+		return false
+	}
+	// Force HTTPS in production
+	return env == "production" || env == "prod"
+}
+
+// getSameSiteMode determines SameSite policy based on environment
+func getSameSiteMode() http.SameSite {
+	env := strings.ToLower(os.Getenv("ENVIRONMENT"))
+	if env == "development" || env == "dev" || env == "local" {
+		// More relaxed for development
+		return http.SameSiteLaxMode
+	}
+	// Stricter for production
+	return http.SameSiteStrictMode
+}
+
 // CookieAccess struct for managing cookies.
 type CookieAccess struct {
 	Writer     http.ResponseWriter
@@ -43,34 +76,84 @@ type CookieAccess struct {
 // SetToken writes a token to the cookie with a specified expiration time.
 func (ca *CookieAccess) SetToken(token string) {
 	http.SetCookie(ca.Writer, &http.Cookie{
-		Name:     string(CookieName),             // Name of the cookie
-		Value:    token,                          // Value of the cookie, which is the authentication token
-		HttpOnly: true,                           // Indicates that the cookie is not accessible via JavaScript
-		Secure:   SecureValue,                          // Allows the cookie to be sent over both HTTP and HTTPS
-		Path:     "/",                            // Path for which the cookie is valid
-		Expires:  time.Now().Add(24 * time.Hour), // Cookie expiration time set to 24 hours from now
-		SameSite: http.SameSiteLaxMode,           // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
+		Name:     string(CookieName),
+		Value:    token,
+		HttpOnly: true,                           // Prevents XSS attacks
+		Secure:   SecureValue,                    // Dynamic based on environment
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		SameSite: SameSiteMode,                   // Dynamic based on environment
 	})
 }
 
+// SetTokenForHTTP explicitly sets a token that works over HTTP
+// Use this method when you specifically need HTTP compatibility
+func (ca *CookieAccess) SetTokenForHTTP(token string) {
+	http.SetCookie(ca.Writer, &http.Cookie{
+		Name:     string(CookieName),
+		Value:    token,
+		HttpOnly: true,
+		Secure:   false,                          // Explicitly allow HTTP
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		SameSite: http.SameSiteLaxMode,          // Lax mode for HTTP compatibility
+	})
+}
+
+// SetTokenForHTTPS explicitly sets a secure token for HTTPS only
+func (ca *CookieAccess) SetTokenForHTTPS(token string) {
+	http.SetCookie(ca.Writer, &http.Cookie{
+		Name:     string(CookieName),
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,                           // HTTPS only
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		SameSite: http.SameSiteStrictMode,       // Strict mode for better security
+	})
+}
+
+// SetTokenDynamic sets token based on the request protocol
+func (ca *CookieAccess) SetTokenDynamic(token string, r *http.Request) {
+	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+	
+	if isHTTPS {
+		ca.SetTokenForHTTPS(token)
+	} else {
+		ca.SetTokenForHTTP(token)
+	}
+}
+
 // Logout removes the cookie by setting an expired cookie.
-// This effectively logs the user out by invalidating the authentication token cookie.
 func (ca *CookieAccess) Logout() error {
-	// Create a cookie with the same name but with an empty value and an expiration time in the past.
-	cookie := &http.Cookie{
-		Name:     string(CookieName),      // Name of the cookie
-		Value:    "",                      // Empty value to clear the token
-		Path:     "/",                     // Path for which the cookie is valid
-		HttpOnly: true,                    // Indicates that the cookie is not accessible via JavaScript
-		Secure:   SecureValue,                    // Ensures the cookie is only sent over HTTPS
-		Expires:  time.Unix(0, 0),         // Expiration time set to the Unix epoch, effectively expiring the cookie immediately
-		SameSite: http.SameSiteLaxMode, // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
+	// Create two cookies to ensure logout works regardless of the original Secure setting
+	cookies := []*http.Cookie{
+		{
+			Name:     string(CookieName),
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,                    // For HTTP
+			Expires:  time.Unix(0, 0),
+			SameSite: http.SameSiteLaxMode,
+		},
+		{
+			Name:     string(CookieName),
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,                     // For HTTPS
+			Expires:  time.Unix(0, 0),
+			SameSite: http.SameSiteStrictMode,
+		},
 	}
 
-	// Set the expired cookie in the response to invalidate it.
-	http.SetCookie(ca.Writer, cookie)
+	// Set both cookies to ensure logout works
+	for _, cookie := range cookies {
+		http.SetCookie(ca.Writer, cookie)
+	}
 
-	return nil // Return nil as there are no errors to handle in this case.
+	return nil
 }
 
 // setValInCtx sets the CookieAccess object in the request context.
@@ -156,7 +239,7 @@ func ExtractCtxInfoForAllAccess(ctx context.Context) error {
 	userType = strings.ToLower(userType) // Convert userType to lowercase
 
 	// Check if the userType is not one of the allowed values.
-	if userType != "Vendor" && userType != "driver" {
+	if userType != "vendor" && userType != "driver" {
 		return fmt.Errorf("%s is not allowed", userType)
 	}
 
@@ -235,7 +318,7 @@ func GenerateToken(userType string, ID string, optionalClaims ...jwt.MapClaims) 
 	return tokenString, nil
 }
 
-// SetTokenForContext generates a new token and sets it in the context’s cookie.
+// Enhanced SetTokenForContext with protocol detection
 func SetTokenForContext(ctx context.Context, userType, id string) error {
 	// Generate a new token
 	token, err := GenerateToken(userType, id)
@@ -249,8 +332,40 @@ func SetTokenForContext(ctx context.Context, userType, id string) error {
 		return fmt.Errorf("failed to retrieve CookieAccess from context")
 	}
 
-	// Set the generated token as a cookie using the CookieAccess object
+	// Set the generated token as a cookie
 	ca.SetToken(token)
+	return nil
+}
+
+// SetTokenForContextHTTP explicitly for HTTP
+func SetTokenForContextHTTP(ctx context.Context, userType, id string) error {
+	token, err := GenerateToken(userType, id)
+	if err != nil {
+		return fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	ca, ok := ctx.Value(CookieAccessKeyCtx).(*CookieAccess)
+	if !ok {
+		return fmt.Errorf("failed to retrieve CookieAccess from context")
+	}
+
+	ca.SetTokenForHTTP(token)
+	return nil
+}
+
+// SetTokenForContextDynamic sets token based on request protocol
+func SetTokenForContextDynamic(ctx context.Context, r *http.Request, userType, id string) error {
+	token, err := GenerateToken(userType, id)
+	if err != nil {
+		return fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	ca, ok := ctx.Value(CookieAccessKeyCtx).(*CookieAccess)
+	if !ok {
+		return fmt.Errorf("failed to retrieve CookieAccess from context")
+	}
+
+	ca.SetTokenDynamic(token, r)
 	return nil
 }
 
@@ -266,32 +381,32 @@ func GetIDFromContext(ctx context.Context) (string, error) {
 // RequireAuth is a wrapper function that checks if the user is authenticated
 // before executing the resolver function
 func RequireAuth(ctx context.Context) error {
-    // Use the existing ExtractCtxInfoForAllAccess to check authentication
-    if err := ExtractCtxInfoForAllAccess(ctx); err != nil {
-        return fmt.Errorf("authentication required: %w", err)
-    }
-    return nil
+	// Use the existing ExtractCtxInfoForAllAccess to check authentication
+	if err := ExtractCtxInfoForAllAccess(ctx); err != nil {
+		return fmt.Errorf("authentication required: %w", err)
+	}
+	return nil
 }
 
 // RequireAuthWithUserType checks both authentication and specific user type
 func RequireAuthWithType(ctx context.Context, allowedTypes []string) error {
-    // First check basic authentication
-    if err := RequireAuth(ctx); err != nil {
-        return err
-    }
+	// First check basic authentication
+	if err := RequireAuth(ctx); err != nil {
+		return err
+	}
 
-    // Then check user type
-    userType, ok := ctx.Value(UserTypeContextKey).(string)
-    if !ok {
-        return fmt.Errorf("user type not found in context")
-    }
+	// Then check user type
+	userType, ok := ctx.Value(UserTypeContextKey).(string)
+	if !ok {
+		return fmt.Errorf("user type not found in context")
+	}
 
-    // Verify user type is allowed
-    for _, allowedType := range allowedTypes {
-        if userType == allowedType {
-            return nil
-        }
-    }
+	// Verify user type is allowed
+	for _, allowedType := range allowedTypes {
+		if strings.ToLower(userType) == strings.ToLower(allowedType) {
+			return nil
+		}
+	}
 
-    return fmt.Errorf("unauthorized: user type %s not allowed", userType)
+	return fmt.Errorf("unauthorized: user type %s not allowed", userType)
 }
