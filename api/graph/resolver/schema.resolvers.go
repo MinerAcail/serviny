@@ -531,32 +531,38 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 			Type:        user.Type,
 			Number:      user.Number,
 			Email:       email,
-			Coordinates: nil,
+			Coordinates: nil, // You can adjust this if `user.Coordinates` is added later
 			Location:    nil,
 			Dpfile:      nil,
 		}, nil
 	}
+
 	// Try to find a service by ID
 	service := &model.Service{}
 	if err := r.DB.First(service, "id = ?", userID).Error; err == nil {
+		var bType, email string
+		if service.BusinessType != nil {
+			bType = *service.BusinessType
+		}
+		if service.Email != "" {
+			email = service.Email
+		}
 		return &model.UsersInfor{
 			ID:          service.ID.String(),
 			Name:        service.Name,
-			Type:        *service.BusinessType,
+			Type:        bType,
 			Number:      service.Number,
-			Email:       service.Email,
-			Location:    service.Location,
+			Email:       email,
+			Location:    service.Location,     // ensure these fields are nullable in model
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
 		}, nil
 	}
 
+	// Try to find a rider by ID
 	rider := &model.Rider{}
 	if err := r.DB.First(rider, "id = ?", userID).Error; err == nil {
-		email := ""
-		if rider.Email != "" {
-			email = rider.Email
-		}
+		email := rider.Email // already string
 		return &model.UsersInfor{
 			ID:          rider.ID.String(),
 			Name:        rider.Name,
@@ -569,7 +575,7 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no user or service found with the given ID")
+	return nil, fmt.Errorf("no user, service, or rider found with the given ID")
 }
 
 // GetUserInforFromContext is the resolver for the getUserInforFromContext field.
