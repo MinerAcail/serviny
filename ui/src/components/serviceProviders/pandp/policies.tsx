@@ -853,8 +853,8 @@ const Policies: React.FC = () => {
 
       <FormsPagePolicies serviceId={serviceId ?? ""} />
 
-      {/* No policies message */}
-      {!hasPolicies && (
+      {/* /* No policies message  */}
+        {!hasPolicies && isMatch && (
         <div className="text-center py-12 border rounded-lg bg-muted/20">
           <Info className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <h3 className="text-lg font-medium mb-2">No Policies Yet</h3>

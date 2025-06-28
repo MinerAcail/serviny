@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, X, ImageIcon, LayoutDashboard, Package } from "lucide-react";
+import {
+  ArrowRight,
+  X,
+  ImageIcon,
+  LayoutDashboard,
+  Package,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +33,7 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 import { DeliveryServiceSystemNew } from "../serviceProviders/APPOINTMENT/completeDeliveryOrder";
 import { BusinessTypeEnum } from "@/middleware/context/businessType";
 import moment from "moment";
+import { boolean } from "zod";
 // import { GET_PRICE_CARDS } from "../serviceProviders/pandp/Price";
 
 // Custom hook for detecting screen size
@@ -110,8 +117,8 @@ export interface Gallery {
   updatedAt: string;
 }
 export const GET_ALL_PRODUCT = gql`
-   query getAllProducts($vendorId:String){
-    getAllProducts(vendorId:$vendorId){
+  query getAllProducts($vendorId: String) {
+    getAllProducts(vendorId: $vendorId) {
       id
       name
       description
@@ -125,11 +132,12 @@ export const GET_ALL_PRODUCT = gql`
 // Gallery Showcase Component
 const ServiceProviderToolsShowcase = ({
   serviceId,
-  businessType
+  businessType,
+  setIsDialogOpen,
 }: {
   serviceId?: string;
   businessType?: string;
-
+  setIsDialogOpen: (open: boolean) => void;
 }) => {
   const [galleryItems, setGalleryItems] = useState<Gallery[]>([]);
   const [currentItem, setCurrentItem] = useState(0);
@@ -143,7 +151,6 @@ const ServiceProviderToolsShowcase = ({
       setGalleryItems(data.getAllGallery);
     },
   });
- 
 
   useEffect(() => {
     if (galleryItems.length > 0) {
@@ -204,6 +211,7 @@ const ServiceProviderToolsShowcase = ({
                   : "opacity-0 scale-95 z-0"
               }`}
             aria-hidden={currentItem !== index}
+            onClick={() => setIsDialogOpen(false)}
           >
             <div className="flex flex-col  items-center text-center gap-3 sm:gap-4">
               {/* Image Preview */}
@@ -212,6 +220,7 @@ const ServiceProviderToolsShowcase = ({
                   src={item.imageUrls[0] || "/api/placeholder/400/320"}
                   alt={item.title}
                   className="w-full h-full object-cover"
+                  onClick={() => setIsDialogOpen(false)}
                 />
               </div>
 
@@ -275,7 +284,7 @@ type Product = {
 
 const VendorProductsToolsShowcase = ({
   serviceId,
-  businessType
+  businessType,
 }: {
   serviceId?: string;
   businessType?: string;
@@ -442,29 +451,28 @@ const isEcommerceBusinessType = (businessType: string) => {
     BusinessTypeEnum.PRE_ORDER,
     BusinessTypeEnum.DROP_SHIPPING,
     BusinessTypeEnum.ECOMMERCE_STANDARD,
-    BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+    BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
   ];
   return ecommerceTypes.includes(businessType);
 };
 export default function ServiceLandingPage({
   onClose,
   serviceId,
-  businessType
+  businessType,
 }: {
   onClose: () => void;
   serviceId: string;
   businessType: string;
-
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(true);
   const [isDialogAbout, setDialogAbout] = useState(false);
   const { isMobile, isTablet } = useScreenSize();
   const localServiceId = localStorage.getItem("serviceId");
   serviceId = serviceId || localServiceId || "";
-// console.log("Service ID:", serviceId, "Local Service ID:", localServiceId);
+  // console.log("Service ID:", serviceId, "Local Service ID:", localServiceId);
 
   const { data, loading, error } = useQuery<provider>(GET_PROVIDER, {
-    variables: { serviceId  },
+    variables: { serviceId },
   });
   const { isMatch } = useCheckAuthId(serviceId);
   //when mount save serviceId in localStorage
@@ -546,13 +554,13 @@ export default function ServiceLandingPage({
                       <div className="grid gap-6 sm:gap-8 md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_450px] xl:grid-cols-[1fr_500px] lg:gap-12">
                         <div className="flex flex-col justify-center space-y-4 sm:space-y-6">
                           <div className="space-y-3 sm:space-y-4">
-                            <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                            {/* <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                               <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-white/20 backdrop-blur-sm text-foreground border border-white/30 w-fit text-sm sm:text-sm shadow-lg">
                                 {Array.isArray(provider?.categories)
                                   ? provider?.categories[0]
                                   : provider?.categories}
                               </Badge>
-                            </div>
+                            </div> */}
 
                             <h1
                               className={cn(
@@ -589,7 +597,7 @@ export default function ServiceLandingPage({
                             >
                               {provider?.aboutMe?.substring(0, 200)}
                             </p>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex pt-10 lg:pt-0 flex-wrap gap-2">
                               <Button
                                 variant="link"
                                 className="mt-2 text-foreground/80 hover:text-foreground backdrop-blur-sm"
@@ -668,17 +676,18 @@ export default function ServiceLandingPage({
                             </div>
                           </div>
                         </div>
-                         {/* Conditional Showcase Component */}
-                        <div className="w-full h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
+                        {/* Conditional Showcase Component */}
+                        <div className="w-full h-full pt-10 min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex items-center justify-center">
                           {isEcommerceBusinessType(businessType) ? (
-                            <VendorProductsToolsShowcase 
-                              businessType={businessType} 
-                              serviceId={serviceId} 
+                            <VendorProductsToolsShowcase
+                              businessType={businessType}
+                              serviceId={serviceId}
                             />
                           ) : (
-                            <ServiceProviderToolsShowcase 
-                              businessType={businessType} 
-                              serviceId={serviceId} 
+                            <ServiceProviderToolsShowcase
+                              businessType={businessType}
+                              serviceId={serviceId}
+                              setIsDialogOpen={setIsDialogOpen}
                             />
                           )}
                         </div>
@@ -688,14 +697,14 @@ export default function ServiceLandingPage({
                       </div>
 
                       {/* Appointment Booking System - Moved outside the grid for better responsiveness */}
-                      <div className="mt-8 sm:mt-10 md:mt-12">
+                      {/* <div className="mt-8 sm:mt-10 md:mt-12">
                         <DeliveryServiceSystemNew
                           isDialogOpenMain={false} // This won't be used in non-dialog mode
                           setDialogOpenMain={() => {}} // This won't be used in non-dialog mode
                           withDialog={false}
                           serviceId={serviceId}
                         />
-                      </div>
+                      </div> */}
                     </div>
                   </section>
 
@@ -721,7 +730,6 @@ export default function ServiceLandingPage({
                         >
                           Expert For All Your Delivery Needs
                         </h2>
-                        
                       </div>
 
                       <AnimatedFeatureSection serviceId={serviceId} delay={0} />

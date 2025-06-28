@@ -35,7 +35,8 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router";
 
 const AnimatedRouteMap = () => {
-  const [hoveredRegion, setHoveredRegion] = useState(null);
+  // const [hoveredRegion, setHoveredRegion] = useState(null);
+  const blurValue = 3.8;
 
   // Animation variants for routes
   const routeVariants = {
@@ -62,44 +63,6 @@ const AnimatedRouteMap = () => {
     }),
   };
 
-  // City animation variants
-  const cityVariants = {
-    hidden: {
-      scale: 0,
-      opacity: 0,
-    },
-    visible: (i: number) => ({
-      scale: 1,
-      opacity: 1,
-      transition: {
-        delay: 0.5 + i * 0.1,
-        duration: 0.5,
-        type: "spring",
-        stiffness: 200,
-      },
-    }),
-    hover: {
-      scale: 1.1,
-      transition: { duration: 0.2 },
-    },
-    tap: {
-      scale: 0.95,
-    },
-  };
-
-  // Pulse animation for Accra
-  const pulseVariants = {
-    animate: {
-      scale: [1, 1.5, 1],
-      opacity: [0.3, 0.1, 0.3],
-      transition: {
-        duration: 2,
-        repeat: Number.POSITIVE_INFINITY,
-        ease: "easeInOut",
-      },
-    },
-  };
-
   const routes = [
     { path: "M 965 865 Q 820 720 750 650 T 585 580", id: "route1" },
     { path: "M 965 865 Q 700 850 450 780 T 240 765", id: "route2" },
@@ -110,25 +73,12 @@ const AnimatedRouteMap = () => {
     { path: "M 960 365 Q 820 362 680 368 T 580 365", id: "route7" },
   ];
 
-  const cities = [
-    { name: "ACCRA", subtitle: "CAPITAL", x: 965, y: 865, isCapital: true },
-    { name: "KUMASI", x: 585, y: 580 },
-    { name: "TAMALE", x: 960, y: 365 },
-    { name: "CAPE COAST", x: 580, y: 865 },
-    { name: "TAKORADI", x: 240, y: 765 },
-    { name: "HO", x: 1360, y: 365 },
-    { name: "KOFORIDUA", x: 960, y: 580 },
-    { name: "BOLGATANGA", x: 580, y: 210 },
-    { name: "WA", x: 235, y: 210 },
-    { name: "SUNYANI", x: 235, y: 580 },
-  ];
-
   return (
     <motion.svg
       viewBox="0 0 1600 1000"
       className="fixed inset-0 w-full h-full -z-10"
       style={{
-        filter: "blur(0.8px)",
+        filter: `blur(${blurValue}px)`,
         minHeight: "100vh",
         minWidth: "100vw",
       }}
@@ -145,7 +95,7 @@ const AnimatedRouteMap = () => {
             style={{ stopColor: "#2c3e50", stopOpacity: 1 }}
           />
         </linearGradient>
-
+        
         <filter id="glow">
           <feGaussianBlur stdDeviation="3" result="coloredBlur" />
           <feMerge>
@@ -153,7 +103,7 @@ const AnimatedRouteMap = () => {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-
+        
         <marker
           id="arrowhead"
           markerWidth="10"
@@ -191,62 +141,7 @@ const AnimatedRouteMap = () => {
       </g>
 
       {/* Animated Cities */}
-      <g fontFamily="Arial, sans-serif">
-        {cities.map((city, i) => (
-          <motion.g
-            key={city.name}
-            custom={i}
-            initial="hidden"
-            animate="visible"
-            whileHover="hover"
-            whileTap="tap"
-            variants={cityVariants}
-            style={{ cursor: "pointer" }}
-          >
-            {city.isCapital && (
-              <motion.circle
-                cx={city.x}
-                cy={city.y}
-                r="30"
-                fill="#ffd54f"
-                opacity="0.3"
-                variants={pulseVariants}
-                animate="animate"
-              />
-            )}
-            <rect
-              x={city.x - 80}
-              y={city.y - 25}
-              width="160"
-              height="40"
-              rx="20"
-              fill={city.isCapital ? "#ffd54f" : "#ffa726"}
-            />
-            <text
-              x={city.x}
-              y={city.y - 5}
-              textAnchor="middle"
-              fontSize="16"
-              fontWeight="bold"
-              fill="#2c3e50"
-            >
-              {city.name}
-            </text>
-            {city.subtitle && (
-              <text
-                x={city.x}
-                y={city.y + 5}
-                textAnchor="middle"
-                fontSize="11"
-                fill="#2c3e50"
-              >
-                {city.subtitle}
-              </text>
-            )}
-          </motion.g>
-        ))}
-      </g>
-
+      
       {/* Moving particles along routes */}
       {routes.map((route, i) => (
         <motion.circle
@@ -604,7 +499,7 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
 
-                  <div className="w-full  h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex flex-col items-center justify-center">
+                  <div className="w-full  pt-3 h-full min-h-[250px] xs:min-h-[280px] sm:min-h-[300px] md:min-h-[350px] lg:min-h-[400px] flex flex-col items-center justify-center">
                     <div className="flex w-full   items-center justify-between lg:mt-20 mb-12">
                       <Button
                         variant="outline"
@@ -635,7 +530,7 @@ export default function LandingPage({ onClose }: { onClose: () => void }) {
             {/* Features Section */}
             <section
               id="solutions"
-              className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-muted/30 overflow-hidden"
+              className="w-full mt-6 py-6 sm:py-8 md:py-12 lg:py-16 bg-muted/30 overflow-hidden"
             >
               <div className="container px-3 sm:px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-4 text-center mb-6 sm:mb-8 md:mb-12">

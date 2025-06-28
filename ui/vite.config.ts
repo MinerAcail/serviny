@@ -74,7 +74,7 @@ export default defineConfig({
     //   "Cross-Origin-Opener-Policy": "same-origin",
     //   "Cross-Origin-Embedder-Policy": "require-corp",
     // },
-    // host: "0.0.0.0",
+    host: "0.0.0.0",
   },
   preview: {
     // allowedHosts: [".serviny.com", ".r.serviny.com"],

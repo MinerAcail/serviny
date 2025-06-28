@@ -171,9 +171,26 @@ const Login = ({ children }: { children: ReactNode }) => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </Button>
-            <Link to={"/reset"}>
+            <Link
+              to={"/reset"}
+              onClick={(e) => {
+              // Prevent navigation so dialog closes first
+              e.preventDefault();
+              // Find the closest dialog and close it
+              const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
+              if (dialog) {
+                // Simulate clicking the close button if exists
+                const closeBtn = dialog.querySelector('[data-state="open"] [aria-label="Close"]') as HTMLElement | null;
+                if (closeBtn) closeBtn.click();
+              }
+              // Navigate after closing dialog
+              setTimeout(() => {
+                window.location.href = "/reset";
+              }, 100);
+              }}
+            >
               <Button variant={"link"} type="button" className="w-full">
-                Forget Password
+              Forget Password
               </Button>
             </Link>
 

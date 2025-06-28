@@ -393,7 +393,7 @@ const Price: React.FC = () => {
         try {
           await navigator.clipboard.writeText(shareUrl);
           toast.success("Link copied to clipboard!");
-        } catch (clipboardErr) {
+        } catch  {
           toast.error("Failed to share or copy link");
         }
       }

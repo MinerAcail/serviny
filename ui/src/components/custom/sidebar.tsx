@@ -174,7 +174,7 @@ export function Sidebar() {
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="">
-        <div className="lg:hidden fixed flex w-full justify-between sm:top-4 p-2 z-[9999]">
+        <div className="lg:hidden fixed flex w-full justify-between sm:top-4 p-2  z-[40]">
           <Link to={"/"} className="flex  items-center">
             {/* <SpectaclesLogo size={"sm"} variant="primary" /> */}
           </Link>

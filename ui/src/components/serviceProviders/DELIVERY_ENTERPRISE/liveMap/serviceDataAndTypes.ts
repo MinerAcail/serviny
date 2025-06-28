@@ -1,3 +1,4 @@
+import { GOOGLE_MAPS_CONFIG } from "@/components/global/formatPrice";
 import { gql } from "@apollo/client";
 import type { Libraries } from "@react-google-maps/api";
 
@@ -136,14 +137,14 @@ export const GET_ROUTE_DATA_FOR_EACH_ORDER = gql`
 `;
 
 // Google Maps Configuration
-const googleMapsApiKey = import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY;
-const libraries: Libraries = ["places"];
+// const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+// const libraries: Libraries = ["places"];
 
-export const GOOGLE_MAPS_CONFIG = {
-  id: "google-map-script",
-  googleMapsApiKey: googleMapsApiKey,
-  libraries: libraries,
-};
+// export const GOOGLE_MAPS_CONFIG = {
+//   id: "google-map-script",
+//   googleMapsApiKey: googleMapsApiKey,
+//   libraries: libraries,
+// };
 
 // Base types that are shared
 export interface UsersInfor {

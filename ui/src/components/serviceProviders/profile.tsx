@@ -196,14 +196,8 @@ export default  function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
-            <div className="flex-col justify-center items-center">
-              {/* <ProviderProfile
-                isDialogOpen={isDialogOpen}
-                provider={provider}
-                setDialogOpen={setDialogOpen}
-                isDialogAbout={isDialogAbout}
-                setDialogAbout={setDialogAbout}
-              /> */}
+            <div className="flex-col  pt-14 justify-center items-center">
+              
               <div className="col-span-8 ">
                 <div ref={tabsPlaceholderRef}></div>
 
