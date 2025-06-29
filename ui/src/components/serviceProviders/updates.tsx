@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { getImageUrl } from "../global/formatPrice";
 
 // Types
 export interface Gallery {
@@ -323,7 +324,7 @@ export function UpdateGalleryDialog({
                 {gallery.imageUrls.map((url, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={url}
+                      src={getImageUrl(url) ?? ""}
                       alt={`Gallery image ${index + 1}`}
                       className={`object-cover aspect-square rounded ${
                         imagesToRemove.includes(url) ? "opacity-30" : ""
@@ -363,7 +364,7 @@ export function UpdateGalleryDialog({
               {previewUrls.map((url, index) => (
                 <div key={index} className="relative group">
                   <img
-                    src={url}
+                    src={getImageUrl(url)}
                     alt={`New image ${index + 1}`}
                     className="object-cover aspect-square rounded"
                   />
@@ -464,7 +465,7 @@ export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
     >
       <div className="relative overflow-hidden">
         <img
-          src={gallery?.imageUrls?.[0] || "/placeholder.svg"}
+          src={getImageUrl(gallery?.imageUrls?.[0]) || "/placeholder.svg"}
           alt={gallery?.title}
           className="h-48 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

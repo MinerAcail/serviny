@@ -3141,7 +3141,7 @@ useEffect(() => {
 
           {/* Enhanced Map Controls */}
           <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-10">
-            <div className="flex gap-2">
+            <div className="flex mt-10 gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-black/40" />
                 <Input
@@ -3299,16 +3299,14 @@ useEffect(() => {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {isMobile && (
-
-                  
-                <Button
-                  onClick={() => setShowMobileMenu(!showMobileMenu)}
-                  variant="outline"
-                  className="bg-white/95 backdrop-blur-3xl hover:bg-white/98 border-white/20 rounded-3xl shadow-3xl h-10 sm:h-12 px-3 sm:px-4"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  {!isMobile && <span className="ml-2">Analytics</span>}
-                </Button>
+                  <Button
+                    onClick={() => setShowMobileMenu(!showMobileMenu)}
+                    variant="outline"
+                    className="bg-white/95 backdrop-blur-3xl hover:bg-white/98 border-white/20 rounded-3xl shadow-3xl h-10 sm:h-12 px-3 sm:px-4"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    {!isMobile && <span className="ml-2">Analytics</span>}
+                  </Button>
                 )}
               </div>
             </div>
@@ -3318,96 +3316,96 @@ useEffect(() => {
           {showFilterPanel && <FilterControlPanel />}
 
           {/* Enhanced Floating Action Buttons */}
-         <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
-  {/* Filter Panel Toggle - Show when entity is selected */}
-  {selectedEntity && (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          onClick={() => setShowFilterPanel(!showFilterPanel)}
-          className={`bg-gradient-to-r ${
-            showFilterPanel 
-              ? 'from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800' 
-              : 'from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
-          } text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110`}
-        >
-          <div className="text-center">
-            <div className="flex items-center justify-center">
-              {showFilterPanel ? (
-                <XCircle className="h-4 w-4" />
-              ) : (
-                <Info className="h-4 w-4" />
-              )}
-            </div>
-            <div className="text-xs opacity-90 mt-1">
-              {showFilterPanel ? "Hide" : "Details"}
-            </div>
-          </div>
-          {/* Indicator dot when panel is open */}
-          {showFilterPanel && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-pulse"></div>
-          )}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{showFilterPanel ? "Hide" : "Show"} entity details</p>
-      </TooltipContent>
-    </Tooltip>
-  )}
+          <div className="absolute bottom-20 right-6 z-20 flex flex-col gap-3">
+            {/* Filter Panel Toggle - Show when entity is selected */}
+            {selectedEntity && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setShowFilterPanel(!showFilterPanel)}
+                    className={`bg-gradient-to-r ${
+                      showFilterPanel
+                        ? "from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800"
+                        : "from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                    } text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110`}
+                  >
+                    <div className="text-center">
+                      <div className="flex items-center justify-center">
+                        {showFilterPanel ? (
+                          <XCircle className="h-4 w-4" />
+                        ) : (
+                          <Info className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="text-xs opacity-90 mt-1">
+                        {showFilterPanel ? "Hide" : "Details"}
+                      </div>
+                    </div>
+                    {/* Indicator dot when panel is open */}
+                    {showFilterPanel && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{showFilterPanel ? "Hide" : "Show"} entity details</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
-  {/* Orders & Bookings Button */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        onClick={() => setShowOrdersBookings(true)}
-        className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110"
-      >
-        <div className="text-center">
-          <div className="flex items-center justify-center">
-            <Package className="h-4 w-4 mr-1" />
-            <Calendar className="h-4 w-4" />
-          </div>
-          <div className="text-xs opacity-90 mt-1">Services</div>
-        </div>
-        <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-orange-500 rounded-full flex items-center justify-center">
-          <span className="text-xs font-bold text-white">
-            {stats.totalServiceData}
-          </span>
-        </div>
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>View orders and bookings</p>
-    </TooltipContent>
-  </Tooltip>
+            {/* Orders & Bookings Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => setShowOrdersBookings(true)}
+                  className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110"
+                >
+                  <div className="text-center">
+                    <div className="flex items-center justify-center">
+                      <Package className="h-4 w-4 mr-1" />
+                      <Calendar className="h-4 w-4" />
+                    </div>
+                    <div className="text-xs opacity-90 mt-1">Services</div>
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">
+                      {stats.totalServiceData}
+                    </span>
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View orders and bookings</p>
+              </TooltipContent>
+            </Tooltip>
 
-  {/* Riders Button */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        onClick={() => setShowRidersList(true)}
-        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110"
-      >
-        <div className="text-center">
-          <div className="text-base sm:text-lg font-bold">
-            {filteredRiders.length}
+            {/* Riders Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => setShowRidersList(true)}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-3xl h-12 w-12 sm:h-14 sm:w-14 transition-all duration-300 hover:scale-110"
+                >
+                  <div className="text-center">
+                    <div className="text-base sm:text-lg font-bold">
+                      {filteredRiders.length}
+                    </div>
+                    <div className="text-xs opacity-90">Riders</div>
+                  </div>
+                  {stats.activeRiders > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">
+                        {stats.activeRiders}
+                      </span>
+                    </div>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View all riders</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <div className="text-xs opacity-90">Riders</div>
-        </div>
-        {stats.activeRiders > 0 && (
-          <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="text-xs font-bold text-white">
-              {stats.activeRiders}
-            </span>
-          </div>
-        )}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>View all riders</p>
-    </TooltipContent>
-  </Tooltip>
-</div>
         </div>
 
         {/* Enhanced Bottom Sheets */}
@@ -3439,8 +3437,8 @@ useEffect(() => {
         </Sheet>
 
         <Sheet open={showRiderDetails} onOpenChange={setShowRiderDetails}>
-          <SheetContent side="bottom" className="h-[97vh] rounded-t-2xl">
-            <SheetHeader>
+          <SheetContent side="bottom" className="h-[97vh] rounded-t-2xl p-0">
+            <SheetHeader className="p-6">
               <SheetTitle className="flex items-center gap-2">
                 <Navigation className="h-5 w-5" />
                 Rider Details
@@ -3456,6 +3454,8 @@ useEffect(() => {
                 riderRoutes={riderRoutes}
                 databaseRoutes={databaseRoutes}
                 serviceData={serviceData}
+              onViewOnLiveMap={handleViewOnLiveMap}
+
               />
             )}
           </SheetContent>
@@ -3463,8 +3463,8 @@ useEffect(() => {
 
         {/* Enhanced Service Management Sheet */}
         <Sheet open={showOrdersBookings} onOpenChange={setShowOrdersBookings}>
-          <SheetContent side="bottom" className="h-[97%] rounded-t-2xl">
-            <SheetHeader>
+          <SheetContent side="bottom" className="h-[97%] rounded-t-2xl p-0">
+            <SheetHeader className="p-3">
               <SheetTitle className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-orange-500" />
@@ -3482,6 +3482,7 @@ useEffect(() => {
               onRiderClick={handleRiderClick}
               setShowOrdersBookings={setShowOrdersBookings}
               onViewOnLiveMap={handleViewOnLiveMap}
+              
             />
           </SheetContent>
         </Sheet>

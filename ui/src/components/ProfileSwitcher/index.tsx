@@ -25,6 +25,7 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/middleware/context/authContext";
+import { getImageUrl } from "../global/formatPrice";
 
 export const LIST_SERVICES = gql`
   query listServices($search: String, $limit: Int, $offset: Int) {
@@ -361,7 +362,7 @@ export function BrowseProfilesDialog({
                       <div className="flex items-center gap-4">
                         <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
                           <AvatarImage
-                            src={profile.avatar || "/placeholder.svg"}
+                            src={getImageUrl(profile.avatar) || "/placeholder.svg"}
                           />
                           <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
                             {profile.name.charAt(0)}
@@ -478,7 +479,7 @@ export function ProfileSwitcher({
             <div className="flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-2xl hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-3xl hover:scale-[1.02]">
               <Avatar className="h-9 w-9 ring-2 ring-white/30 shadow-lg">
                 <AvatarImage
-                  src={currentProfile?.avatar || "/placeholder.svg"}
+                  src={getImageUrl(currentProfile?.avatar) || "/placeholder.svg"}
                 />
                 <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white text-sm font-semibold border border-white/20">
                   {currentProfile?.name?.charAt(0) || "U"}
@@ -546,7 +547,7 @@ export function ProfileSwitcher({
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
                             <AvatarImage
-                              src={profile.avatar || "/placeholder.svg"}
+                              src={getImageUrl(profile.avatar) || "/placeholder.svg"}
                             />
                             <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
                               {profile.name.charAt(0)}

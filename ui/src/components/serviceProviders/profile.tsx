@@ -386,7 +386,7 @@ export const ProviderProfile = ({
           <div className="flex justify-center lg:justify-start">
             <div className="relative h-48 w-48 overflow-hidden rounded-full border-4 border-white shadow-xl">
               <img
-                src={provider?.dpfile || "/default-profile.png"}
+                src={getImageUrl(provider?.dpfile) || "/default-profile.png"}
                 alt={`${provider?.name || "Provider"} Profile`}
                 className="h-full w-full object-cover rounded-full"
               />
@@ -593,6 +593,7 @@ import { AllProducts } from "@/vendor/AllProducts";
 import Policies from "./pandp/policies";
 import LandingPage from "./page";
 import { toast } from "sonner";
+import { getImageUrl } from "../global/formatPrice";
 interface ContactInfoProps {
   provider?: {
     number?: string;

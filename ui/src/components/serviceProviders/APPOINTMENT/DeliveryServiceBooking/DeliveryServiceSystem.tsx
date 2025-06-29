@@ -32,12 +32,7 @@ import { DeliveryTimeDialog } from "../delivery-time-dialog";
 
 const GET_ALL_UNAVAILABLE_PERIODS = gql`
   query GetAllUnavailablePeriods {
-    getUnavailablePeriods {
-      id
-      day
-      endTime
-      startTime
-    }
+  
     getConfirmedBookingsAsUnavailable {
       id
       day
@@ -46,7 +41,18 @@ const GET_ALL_UNAVAILABLE_PERIODS = gql`
     }
   }
 `;
+const GET_ALL_UNAVAILABLE_PERIODS_PROFILE = gql`
+     query getUnavailablePeriodsByCurrectProfile ($serviceId:String!){
+    getUnavailablePeriodsByCurrectProfile(serviceId:$serviceId) {
+      id
+      day
+      endTime
+      startTime
+    }
 
+  
+  }
+  `
 // Updated mutation to include cargo parameters
 const CREATE_MULTIPLE_BOOKINGS = gql`
   mutation CreateMultipleBookings(
@@ -188,6 +194,11 @@ export const DeliveryServiceSystem = ({
   const userId = user?.id;
   const navigate = useNavigate();
 
+//  const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  // const { firstProfileId } = useProfileUpdate();
+    // const localServiceId = localStorage.getItem("serviceId");
+
+  // const serviceId = firstProfileId  ??  localServiceId ?? "";
   // States for the delivery system
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
     null
@@ -238,11 +249,14 @@ export const DeliveryServiceSystem = ({
   const [isDialogOpenDeliverySetting, setDeliverySettingDialog] =
     useState(false);
   const { data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS);
+  const { data:Data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS_PROFILE,{
+    variables:{serviceId:serviceId}
+  });
 
   // Process unavailable periods from API
   useEffect(() => {
     if (data) {
-      const manualUnavailablePeriods = data.getUnavailablePeriods || [];
+      const manualUnavailablePeriods = Data?.getUnavailablePeriodsByCurrectProfile || [];
       const bookingUnavailablePeriods: UnavailablePeriod[] = (
         data.getConfirmedBookingsAsUnavailable || []
       ).map((booking: any): UnavailablePeriod => {
@@ -272,7 +286,7 @@ export const DeliveryServiceSystem = ({
       ];
       setUnavailablePeriods(allUnavailablePeriods);
     }
-  }, [data]);
+  }, [data, Data]);
 
   // Update delivery items when order size changes
   useEffect(() => {

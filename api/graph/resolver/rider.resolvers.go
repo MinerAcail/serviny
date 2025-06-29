@@ -1074,8 +1074,8 @@ func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID st
 				Status:                &booking.Status,
 				PaymentStatus:         &paymentStatusValue,
 				PaymentMethod:         &paymentMethodValue,
-				CargoID: booking.CargoID,
-				TransportType: transportType,
+				CargoID:               booking.CargoID,
+				TransportType:         transportType,
 			},
 			OrderData: nil,
 		}

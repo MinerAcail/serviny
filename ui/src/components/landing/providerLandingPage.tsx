@@ -34,6 +34,7 @@ import { DeliveryServiceSystemNew } from "../serviceProviders/APPOINTMENT/comple
 import { BusinessTypeEnum } from "@/middleware/context/businessType";
 import moment from "moment";
 import { boolean } from "zod";
+import { getImageUrl } from "../global/formatPrice";
 // import { GET_PRICE_CARDS } from "../serviceProviders/pandp/Price";
 
 // Custom hook for detecting screen size
@@ -217,7 +218,7 @@ const ServiceProviderToolsShowcase = ({
               {/* Image Preview */}
               <div className="relative w-full h-32 sm:h-40 rounded-lg overflow-hidden">
                 <img
-                  src={item.imageUrls[0] || "/api/placeholder/400/320"}
+                  src={getImageUrl(item.imageUrls[0]) || "/api/placeholder/400/320"}
                   alt={item.title}
                   className="w-full h-full object-cover"
                   onClick={() => setIsDialogOpen(false)}
@@ -505,7 +506,7 @@ export default function ServiceLandingPage({
             <div
               className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat scale-110"
               style={{
-                backgroundImage: `url(${provider.dpfile})`,
+                backgroundImage: `url(${getImageUrl(provider.dpfile)})`,
               }}
             />
             {/* Glass blur overlay */}
@@ -527,7 +528,7 @@ export default function ServiceLandingPage({
                   <div className="flex items-center gap-2">
                     <div className="h-12 w-12 sm:h-9 sm:w-9 rounded-full overflow-hidden border-2 border-white/20 shadow-lg backdrop-blur-sm bg-white/10">
                       <img
-                        src={provider?.dpfile || "/default-profile.png"}
+                        src={getImageUrl(provider?.dpfile) || "/default-profile.png"}
                         alt={`${provider?.name || "Provider"} Profile`}
                         className="w-full h-full object-cover"
                       />

@@ -1018,6 +1018,20 @@ func (r *queryResolver) GetUnavailablePeriods(ctx context.Context) ([]*model.Una
 	return periods, nil
 }
 
+// GetUnavailablePeriodsByCurrectProfile is the resolver for the getUnavailablePeriodsByCurrectProfile field.
+func (r *queryResolver) GetUnavailablePeriodsByCurrectProfile(ctx context.Context, serviceID string) ([]*model.UnavailablePeriod, error) {
+	serviceId, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	var periods []*model.UnavailablePeriod
+	if err := r.DB.Order("created_at DESC").Where("service_id = ?", serviceId).Find(&periods).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch unavailable periods: %v", err)
+	}
+	return periods, nil
+}
+
 // GetConfirmedBookingsAsUnavailable is the resolver for the getConfirmedBookingsAsUnavailable field.
 func (r *queryResolver) GetConfirmedBookingsAsUnavailable(ctx context.Context) ([]*model.AppointmentBooking, error) {
 	serviceIDStr, err := r.Query().GetID(ctx)

@@ -63,25 +63,26 @@ export default defineConfig({
     },
   },
   server: {
-    proxy: {
-      "/minio": {
-        target: "https://files.winnemart.com/",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/minio/, ""),
-      },
-    },
+    // proxy: {
+    //   "/minio": {
+    //     target: "http://localhost:9000",
+    //     // target: "https://files.winnemart.com/",
+    //     changeOrigin: true,
+    //     rewrite: (path) => path.replace(/^\/minio/, ""),
+    //   },
+    // },
     host: "0.0.0.0",
   },
   preview: {
     allowedHosts: [".winnemart.com", ".r.winnemart.com"],
   },
-  // build: {
-  //   rollupOptions: {
-  //     output: {
-  //       entryFileNames: "assets/[name]-[hash].js",
-  //       chunkFileNames: "assets/[name]-[hash].js",
-  //       assetFileNames: "assets/[name]-[hash].[ext]",
-  //     },
-  //   },
-  // },
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
+      },
+    },
+  },
 });

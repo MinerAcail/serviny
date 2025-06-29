@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import RegisterOptions from "@/app/checkUserCreateUI";
 import { useNavigate } from "react-router";
+import { getImageUrl } from "../global/formatPrice";
 
 const GET_USER_INFOR = gql`
   query GetUserInfor($userID: String!) {
@@ -67,7 +68,7 @@ export default function ProfileDialog() {
       >
         <Avatar className="h-7 w-7">
           <AvatarImage
-            src={userInfo?.dpfile || "/placeholder.svg?height=200&width=200"}
+            src={getImageUrl(userInfo?.dpfile) || "/placeholder.svg?height=200&width=200"}
             alt="Profile"
           />
           <AvatarFallback>
@@ -97,7 +98,7 @@ export default function ProfileDialog() {
                   <Avatar className="h-24 w-24">
                     <AvatarImage
                       src={
-                        userInfo?.dpfile ||
+                       getImageUrl( userInfo?.dpfile) ||
                         "/placeholder.svg?height=200&width=200"
                       }
                       alt="Profile"
@@ -279,7 +280,7 @@ export function ProfileProviderDialog({ userID }: { userID: string }) {
       >
         <Avatar className="h-7 w-7">
           <AvatarImage
-            src={userInfo?.dpfile || "/placeholder.svg?height=200&width=200"}
+            src={getImageUrl(userInfo?.dpfile) || "/placeholder.svg?height=200&width=200"}
             alt="Profile"
           />
           <AvatarFallback>
@@ -303,7 +304,7 @@ export function ProfileProviderDialog({ userID }: { userID: string }) {
               <Avatar className="h-24 w-24">
                 <AvatarImage
                   src={
-                    userInfo?.dpfile || "/placeholder.svg?height=200&width=200"
+                    getImageUrl(userInfo?.dpfile) || "/placeholder.svg?height=200&width=200"
                   }
                   alt="Profile"
                 />

@@ -553,7 +553,7 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 			Type:        bType,
 			Number:      service.Number,
 			Email:       email,
-			Location:    service.Location,     // ensure these fields are nullable in model
+			Location:    service.Location, // ensure these fields are nullable in model
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
 		}, nil

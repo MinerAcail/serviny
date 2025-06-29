@@ -14,6 +14,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { getImageUrl } from "../global/formatPrice";
 
 // Define TypeScript interfaces
 interface SearchResult {
@@ -585,7 +586,7 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
                       >
                         {item.imageurl ? (
                           <img
-                            src={item.imageurl}
+                            src={getImageUrl(item.imageurl)}
                             alt=""
                             className="h-10 w-10 rounded-md object-cover"
                           />

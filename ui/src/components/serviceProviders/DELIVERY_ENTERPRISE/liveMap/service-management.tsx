@@ -1279,7 +1279,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
+    <div className="h-full px-1 flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
       {/* Details Panel */}
       <DetailsPanel />
 

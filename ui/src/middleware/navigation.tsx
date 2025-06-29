@@ -605,7 +605,7 @@ export function SidebarLayoutProvider() {
         <ScrollArea className="h-full border-r">
           <Sidebar />
         </ScrollArea>
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1">
           <Outlet />
         </ScrollArea>
       </ProviderContextProvider>

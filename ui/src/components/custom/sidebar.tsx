@@ -298,22 +298,22 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const localServiceId = localStorage.getItem("serviceId");
   serviceId = serviceId ?? localServiceId ?? "";
-  const { isMatch } = useCheckAuthId(serviceId);
-  const { userType } = useProvider();
+  // const { isMatch } = useCheckAuthId(serviceId);
+  // const { userType } = useProvider();
   const { isAuthenticated, user, clearCache } = useAuth();
-  const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
-    useProvider();
+  // const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
+  //   useProvider();
     const hasEcommerceAccess = useCurrentUserHasAnyBusinessType([
     BusinessTypeEnum.ECOMMERCE_STANDARD,
     BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
     BusinessTypeEnum.PRE_ORDER,
     BusinessTypeEnum.DROP_SHIPPING
   ]);
-const profileId = useCurrentUserProfileId();
-     const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
-    BusinessTypeEnum.DELIVERY_STANDARD,
-    BusinessTypeEnum.DELIVERY_ENTERPRISE,
-  ]);
+// const profileId = useCurrentUserProfileId();
+//      const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
+//     BusinessTypeEnum.DELIVERY_STANDARD,
+//     BusinessTypeEnum.DELIVERY_ENTERPRISE,
+//   ]);
   const location = useLocation();
   const install = location.pathname === "/install";
   // const providers = location.pathname === "/providers";

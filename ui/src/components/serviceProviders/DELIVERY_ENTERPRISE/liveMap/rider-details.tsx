@@ -3,7 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   ArrowLeft,
   Star,
@@ -11,7 +16,6 @@ import {
   Phone,
   Route,
   Navigation,
-  MapIcon,
   Car,
   Bike,
   TrendingUp,
@@ -21,15 +25,13 @@ import {
   CheckCircle,
   PlayCircle,
   Circle,
-  Maximize2,
-  Minimize2,
-  Globe,
   Database,
 } from "lucide-react";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import type { ProcessedRider, RouteData, ServiceData } from "./serviceDataAndTypes";
-import { getStatusColor, parseRouteGeoJSON } from "./hooks/mapUtils";
+import type {
+  ProcessedRider,
+  RouteData,
+  ServiceData,
+} from "./serviceDataAndTypes";
 
 interface RiderDetailsProps {
   rider: ProcessedRider;
@@ -37,20 +39,22 @@ interface RiderDetailsProps {
   riderRoutes: Map<string, RouteData>;
   databaseRoutes: Map<string, RouteData>;
   serviceData: ServiceData[];
+   onViewOnLiveMap?: (
+    entityId: string,
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+  ) => void;
 }
 
-export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, serviceData }: RiderDetailsProps) {
-  const [isMapExpanded, setIsMapExpanded] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [showGoogleRoute, setShowGoogleRoute] = useState(true);
-  const [showDatabaseRoute, setShowDatabaseRoute] = useState(true);
+export function RiderDetails({
+  rider,
+  onBack,
+  riderRoutes,
+  databaseRoutes,
+  serviceData,
+    onViewOnLiveMap,
+
+}: RiderDetailsProps) {
   const [isMobile, setIsMobile] = useState(false);
-
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapInstance = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-
-  const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
   // Check if mobile
   useEffect(() => {
@@ -67,333 +71,6 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
   const googleRouteData = riderRoutes.get(rider.id);
   const databaseRouteData = databaseRoutes.get(rider.id);
   const hasRoutes = !!(googleRouteData || databaseRouteData);
-
-  // Initialize map when component mounts or when expanded
-  useEffect(() => {
-    if (!mapRef.current || mapInstance.current) return;
-
-    const mapStyle = maptilerApiKey
-      ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
-      : "https://demotiles.maplibre.org/style.json";
-
-    const map = new maplibregl.Map({
-      container: mapRef.current,
-      style: mapStyle,
-      center: [rider.position.lng, rider.position.lat],
-      zoom: 13,
-      attributionControl: false,
-    });
-
-    mapInstance.current = map;
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-    map.on("load", () => {
-      setMapLoaded(true);
-      updateMapContent();
-    });
-
-    map.on("error", (e) => {
-      console.error("Rider details map error:", e);
-    });
-
-    return () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, [rider.position, maptilerApiKey]);
-
-  // Update map content when data changes
-  const updateMapContent = () => {
-    if (!mapInstance.current || !mapLoaded) return;
-
-    // Clear existing markers and layers
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    // Remove existing route layers
-    ["google-route", "database-route", "google-route-arrows", "database-route-arrows"].forEach((layerId) => {
-      if (mapInstance.current!.getLayer(layerId)) {
-        mapInstance.current!.removeLayer(layerId);
-      }
-      if (mapInstance.current!.getSource(layerId)) {
-        mapInstance.current!.removeSource(layerId);
-      }
-    });
-
-    // Add rider marker
-    const riderMarker = new maplibregl.Marker({
-      color: getStatusColor(rider.status),
-      scale: 1.2,
-    })
-      .setLngLat([rider.position.lng, rider.position.lat])
-      .setPopup(
-        new maplibregl.Popup({ offset: 25 }).setHTML(`
-        <div class="p-3 bg-white rounded-lg shadow-lg">
-          <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            ${rider.vehicle === "Motorcycle" ? "🏍️" : "🚲"} ${rider.name}
-          </h3>
-          <p class="text-sm text-gray-600">${rider.location}</p>
-          <div class="mt-2 text-xs font-medium" style="color: ${getStatusColor(rider.status)}">
-            ${rider.status}
-          </div>
-        </div>
-      `)
-      )
-      .addTo(mapInstance.current!);
-
-    markersRef.current.push(riderMarker);
-
-    // Add markers for current orders
-    rider.currentOrders.forEach((service) => {
-      if (service.type === 'ORDER' && service.orderData) {
-        // Vendor marker
-        if (service.vendor?.coordinates) {
-          const vendorMarker = new maplibregl.Marker({
-            color: "#10B981",
-            scale: 1.0,
-          })
-            .setLngLat(service.vendor.coordinates)
-            .setPopup(
-              new maplibregl.Popup({ offset: 25 }).setHTML(`
-              <div class="p-3 bg-white rounded-lg shadow-lg">
-                <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  🏪 ${service.vendor.name}
-                </h3>
-                <p class="text-sm text-gray-600">${service.vendor.location}</p>
-                <div class="mt-2 text-xs text-green-600 font-medium">Pickup Location</div>
-              </div>
-            `)
-            )
-            .addTo(mapInstance.current!);
-
-          markersRef.current.push(vendorMarker);
-        }
-
-        // Customer marker
-        if (service.orderData.order?.coordinates) {
-          const customerMarker = new maplibregl.Marker({
-            color: "#F59E0B",
-            scale: 1.0,
-          })
-            .setLngLat(service.orderData.order.coordinates)
-            .setPopup(
-              new maplibregl.Popup({ offset: 25 }).setHTML(`
-              <div class="p-3 bg-white rounded-lg shadow-lg">
-                <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  🏠 ${service.customer.name}
-                </h3>
-                <p class="text-sm text-gray-600">${service.orderData!.order!.deliveryAddress}</p>
-                <div class="mt-2 text-xs text-orange-600 font-medium">
-                  Order: #${service.orderData!.orderId.slice(-6)}
-                </div>
-                ${service.orderData!.order!.distance ? `<div class="text-xs text-blue-600 mt-1">Distance: ${service.orderData!.order!.distance}</div>` : ""}
-                ${service.orderData!.order!.duration ? `<div class="text-xs text-blue-600">Duration: ${service.orderData!.order!.duration}</div>` : ""}
-              </div>
-            `)
-            )
-            .addTo(mapInstance.current!);
-
-          markersRef.current.push(customerMarker);
-        }
-      }
-    });
-
-    // Add markers for current bookings
-    rider.currentBookings?.forEach((service) => {
-      if (service.type === 'BOOKING' && service.bookingData) {
-        // Pickup marker
-        if (service.bookingData.pickupLocation) {
-          const pickupMarker = new maplibregl.Marker({
-            color: "#8B5CF6",
-            scale: 1.0,
-          })
-            .setLngLat(service.bookingData.pickupLocation)
-            .setPopup(
-              new maplibregl.Popup({ offset: 25 }).setHTML(`
-              <div class="p-3 bg-white rounded-lg shadow-lg">
-                <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  📅 ${service.vendor.name}
-                </h3>
-                <p class="text-sm text-gray-600">${service.vendor.location}</p>
-                <div class="mt-2 text-xs text-purple-600 font-medium">Pickup Location</div>
-                <div class="text-xs text-gray-500">${service.bookingData.startTime}</div>
-              </div>
-            `)
-            )
-            .addTo(mapInstance.current!);
-
-          markersRef.current.push(pickupMarker);
-        }
-
-        // Dropoff marker
-        if (service.bookingData.dropoffLocation) {
-          const dropoffMarker = new maplibregl.Marker({
-            color: "#F59E0B",
-            scale: 1.0,
-          })
-            .setLngLat(service.bookingData.dropoffLocation)
-            .setPopup(
-              new maplibregl.Popup({ offset: 25 }).setHTML(`
-              <div class="p-3 bg-white rounded-lg shadow-lg">
-                <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  🎯 ${service.customer.name}
-                </h3>
-                <p class="text-sm text-gray-600">${service.bookingData!.deliveryAddress}</p>
-                <div class="mt-2 text-xs text-orange-600 font-medium">
-                  Booking: #${service.bookingData!.bookingId.slice(-6)}
-                </div>
-                <div class="text-xs text-gray-500">Table Size: ${service.bookingData!.tableSize}</div>
-                ${service.bookingData!.distance ? `<div class="text-xs text-blue-600 mt-1">Distance: ${service.bookingData!.distance}</div>` : ""}
-                ${service.bookingData!.duration ? `<div class="text-xs text-blue-600">Duration: ${service.bookingData!.duration}</div>` : ""}
-              </div>
-            `)
-            )
-            .addTo(mapInstance.current!);
-
-          markersRef.current.push(dropoffMarker);
-        }
-      }
-    });
-
-    // Add Google route if available and enabled
-    if (googleRouteData && showGoogleRoute && googleRouteData.coordinates && googleRouteData.coordinates.length > 0) {
-      const googleRouteGeoJSON = {
-        type: "Feature",
-        properties: { source: "google" },
-        geometry: {
-          type: "LineString",
-          coordinates: googleRouteData.coordinates,
-        },
-      };
-
-      mapInstance.current.addSource("google-route", {
-        type: "geojson",
-        data: googleRouteGeoJSON as any,
-      });
-
-      mapInstance.current.addLayer({
-        id: "google-route",
-        type: "line",
-        source: "google-route",
-        paint: {
-          "line-color": googleRouteData.color || getStatusColor(rider.status),
-          "line-width": 4,
-          "line-opacity": 0.8,
-        },
-      });
-
-      // Add direction arrows for Google route
-      mapInstance.current.addLayer({
-        id: "google-route-arrows",
-        type: "symbol",
-        source: "google-route",
-        layout: {
-          "symbol-placement": "line",
-          "text-field": "▶",
-          "text-size": 12,
-          "text-keep-upright": true,
-          "symbol-spacing": 80,
-          "text-rotation-alignment": "map",
-        },
-        paint: {
-          "text-color": googleRouteData.color || getStatusColor(rider.status),
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 2,
-        },
-      });
-    }
-
-    // Add database route if available and enabled
-    if (databaseRouteData && showDatabaseRoute && databaseRouteData.coordinates && databaseRouteData.coordinates.length > 0) {
-      const databaseRouteGeoJSON = {
-        type: "Feature",
-        properties: { source: "database" },
-        geometry: {
-          type: "LineString",
-          coordinates: databaseRouteData.coordinates,
-        },
-      };
-
-      mapInstance.current.addSource("database-route", {
-        type: "geojson",
-        data: databaseRouteGeoJSON as any,
-      });
-
-      mapInstance.current.addLayer({
-        id: "database-route",
-        type: "line",
-        source: "database-route",
-        paint: {
-          "line-color": "#8B5CF6", // Purple color for database routes
-          "line-width": 3,
-          "line-opacity": 0.7,
-          "line-dasharray": [3, 3], // Dashed line to distinguish from Google routes
-        },
-      });
-
-      // Add direction arrows for database route
-      mapInstance.current.addLayer({
-        id: "database-route-arrows",
-        type: "symbol",
-        source: "database-route",
-        layout: {
-          "symbol-placement": "line",
-          "text-field": "🗺️",
-          "text-size": 10,
-          "text-keep-upright": true,
-          "symbol-spacing": 100,
-          "text-rotation-alignment": "map",
-        },
-        paint: {
-          "text-color": "#8B5CF6",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 2,
-        },
-      });
-    }
-
-    // Fit map to show route or just center on rider
-    if (hasRoutes) {
-      const bounds = new maplibregl.LngLatBounds();
-
-      // Include route coordinates in bounds
-      if (googleRouteData && showGoogleRoute) {
-        googleRouteData.coordinates.forEach((coord: [number, number]) => {
-          bounds.extend(coord);
-        });
-      }
-
-      if (databaseRouteData && showDatabaseRoute) {
-        databaseRouteData.coordinates.forEach((coord: [number, number]) => {
-          bounds.extend(coord);
-        });
-      }
-
-      // Add some padding and include rider position
-      bounds.extend([rider.position.lng, rider.position.lat]);
-
-      mapInstance.current.fitBounds(bounds, {
-        padding: 50,
-        maxZoom: 15,
-      });
-    } else {
-      // Just center on rider if no route
-      mapInstance.current.flyTo({
-        center: [rider.position.lng, rider.position.lat],
-        zoom: 13,
-      });
-    }
-  };
-
-  // Update map when rider data or route visibility changes
-  useEffect(() => {
-    updateMapContent();
-  }, [rider, riderRoutes, databaseRoutes, mapLoaded, showGoogleRoute, showDatabaseRoute]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -455,15 +132,18 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
   };
 
   const calculateOrderTotal = (service: ServiceData) => {
-    if (service.type === 'ORDER' && service.orderData?.productInfor) {
-      const itemsTotal = service.orderData.productInfor.reduce((total, item) => {
-        const productPrice = parseFloat(item.product[0]?.price || "0");
-        return total + productPrice * item.quantity;
-      }, 0);
+    if (service.type === "ORDER" && service.orderData?.productInfor) {
+      const itemsTotal = service.orderData.productInfor.reduce(
+        (total, item) => {
+          const productPrice = parseFloat(item.product[0]?.price || "0");
+          return total + productPrice * item.quantity;
+        },
+        0
+      );
 
       const deliveryFee = service.orderData.deliveryMetaData?.price || 0;
       return itemsTotal + deliveryFee;
-    } else if (service.type === 'BOOKING' && service.bookingData?.deliveryFee) {
+    } else if (service.type === "BOOKING" && service.bookingData?.deliveryFee) {
       return parseFloat(service.bookingData.deliveryFee);
     }
     return 0;
@@ -476,19 +156,25 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    return remainingMinutes > 0
+      ? `${hours}h ${remainingMinutes}m`
+      : `${hours}h`;
   };
 
   // Create route stops for orders
   const createOrderStops = (service: ServiceData) => {
-    if (service.type === 'ORDER' && service.orderData) {
+    if (service.type === "ORDER" && service.orderData) {
       return [
         {
           id: `pickup-${service.orderData.orderId}`,
           address: service.vendor.location,
           type: "pickup" as const,
-          status: service.orderData.status === "PREPARING" ? "current" : 
-                 (service.orderData.status === "CONFIRMED" ? "pending" : "completed") as const,
+          status:
+            service.orderData.status === "PREPARING"
+              ? "current"
+              : ((service.orderData.status === "CONFIRMED"
+                  ? "pending"
+                  : "completed") as const),
           estimatedTime: "0 min",
           icon: "🏪",
         },
@@ -496,10 +182,16 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
           id: `delivery-${service.orderData.orderId}`,
           address: service.orderData.order.deliveryAddress,
           type: "delivery" as const,
-          status: service.orderData.status === "OUT_FOR_DELIVERY" ? "current" : 
-                 (service.orderData.status === "DELIVERED" ? "completed" : "pending") as const,
+          status:
+            service.orderData.status === "OUT_FOR_DELIVERY"
+              ? "current"
+              : ((service.orderData.status === "DELIVERED"
+                  ? "completed"
+                  : "pending") as const),
           estimatedTime: service.orderData.deliveryMetaData
-            ? formatDeliveryDuration(service.orderData.deliveryMetaData.duration)
+            ? formatDeliveryDuration(
+                service.orderData.deliveryMetaData.duration
+              )
             : service.orderData.order.duration || "~30 min",
           icon: "🏠",
         },
@@ -510,13 +202,15 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
 
   // Create route stops for bookings
   const createBookingStops = (service: ServiceData) => {
-    if (service.type === 'BOOKING' && service.bookingData) {
+    if (service.type === "BOOKING" && service.bookingData) {
       return [
         {
           id: `pickup-${service.bookingData.bookingId}`,
           address: service.vendor.location,
           type: "pickup" as const,
-          status: service.bookingData.isConfirmed ? "current" : "pending" as const,
+          status: service.bookingData.isConfirmed
+            ? "current"
+            : ("pending" as const),
           estimatedTime: service.bookingData.startTime,
           icon: "📅",
         },
@@ -532,23 +226,43 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
     }
     return [];
   };
-
+ // Handle view on live map
+  const handleViewOnLiveMap = (
+    entityId: string,
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+  ) => {
+    if (onViewOnLiveMap) {
+      // let idShort = entityId;
+      // if (typeof entityId === "string" && entityId.length >= 6) {
+      //   idShort = entityId.slice(-6);
+      // }
+      onViewOnLiveMap(entityId, entityType);
+    }
+    onBack();
+  };
   const totalEarnings = parseFloat(rider.earnings.replace("GH₵", ""));
-  const totalServices = rider.currentOrders.length + (rider.currentBookings?.length || 0);
+  const totalServices =
+    rider.currentOrders.length + (rider.currentBookings?.length || 0);
   const avgServiceValue = totalServices > 0 ? totalEarnings / totalServices : 0;
-
   return (
     <TooltipProvider>
-      <ScrollArea className="mt-6 h-[calc(85vh-140px)]">
-        <div className="space-y-4 md:space-y-6">
+      <ScrollArea className="mt-6 px-1 h-[100%]">
+        <div className="space-y-4 b md:space-y-6">
           {/* Enhanced Header */}
           <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
-            <Button variant="ghost" size="sm" onClick={onBack} className="rounded-xl hover:bg-gray-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="rounded-xl hover:bg-gray-100"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="relative">
               <div
-                className={`w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br ${getStatusGradient(rider.status)} rounded-2xl flex items-center justify-center shadow-lg`}
+                className={`w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br ${getStatusGradient(
+                  rider.status
+                )} rounded-2xl flex items-center justify-center shadow-lg`}
               >
                 <span className="text-white font-bold text-lg md:text-xl">
                   {rider.name
@@ -571,7 +285,9 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 md:gap-3 mb-2 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{rider.name}</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 truncate">
+                  {rider.name}
+                </h2>
                 {getStatusBadge(rider.status)}
               </div>
               <div className="flex items-center gap-2 md:gap-4 flex-wrap">
@@ -581,7 +297,10 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                 </Badge>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <Navigation className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{rider.location}</span>
+                  <span className="truncate text-xs" title={rider.location}>
+                    {rider.location.split(",")[0]}
+                    {rider.location.includes(",") && "..."}
+                  </span>
                 </div>
               </div>
             </div>
@@ -596,8 +315,12 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                     <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg md:text-2xl font-bold text-blue-900 truncate">{totalEarnings.toFixed(2)}</p>
-                    <p className="text-xs md:text-sm text-blue-700 font-medium">Total Earnings (GH₵)</p>
+                    <p className="text-lg md:text-2xl font-bold text-blue-900 truncate">
+                      {totalEarnings.toFixed(2)}
+                    </p>
+                    <p className="text-xs md:text-sm text-blue-700 font-medium">
+                      Total Earnings (GH₵)
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -610,8 +333,12 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                     <Package className="h-5 w-5 md:h-6 md:w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg md:text-2xl font-bold text-orange-900">{rider.orders}</p>
-                    <p className="text-xs md:text-sm text-orange-700 font-medium">Orders Today</p>
+                    <p className="text-lg md:text-2xl font-bold text-orange-900">
+                      {rider.orders}
+                    </p>
+                    <p className="text-xs md:text-sm text-orange-700 font-medium">
+                      Orders Today
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -624,8 +351,12 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                     <Calendar className="h-5 w-5 md:h-6 md:w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg md:text-2xl font-bold text-purple-900">{rider.bookings || 0}</p>
-                    <p className="text-xs md:text-sm text-purple-700 font-medium">Bookings Today</p>
+                    <p className="text-lg md:text-2xl font-bold text-purple-900">
+                      {rider.bookings || 0}
+                    </p>
+                    <p className="text-xs md:text-sm text-purple-700 font-medium">
+                      Bookings Today
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -638,14 +369,56 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                     <Star className="h-5 w-5 md:h-6 md:w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg md:text-2xl font-bold text-green-900">{rider.rating.toFixed(1)}</p>
-                    <p className="text-xs md:text-sm text-green-700 font-medium">Rating</p>
+                    <p className="text-lg md:text-2xl font-bold text-green-900">
+                      {rider.rating.toFixed(1)}
+                    </p>
+                    <p className="text-xs md:text-sm text-green-700 font-medium">
+                      Rating
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+  {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 md:gap-4 pb-6">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl h-10 md:h-12 font-medium"
+                  onClick={() => window.open(`tel:${rider.phone}`, "_self")}
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Rider
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Call {rider.name}</p>
+              </TooltipContent>
+            </Tooltip>
 
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="rounded-xl h-10 md:h-12 font-medium border-blue-200 text-blue-700 hover:bg-blue-50"
+                  onClick={() => {
+                    handleViewOnLiveMap(
+                                    rider?.name ,
+                                     
+                                    "rider"
+                                  );
+                  }}
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  View Location
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open location in maps</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           {/* Performance Metrics */}
           <Card className="border-0 shadow-sm bg-white rounded-2xl">
             <CardHeader className="pb-3 md:pb-4">
@@ -659,141 +432,96 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                 <div className="text-center p-3 md:p-4 bg-gray-50 rounded-xl">
                   <div className="flex items-center justify-center gap-1 mb-2">
                     <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-500" />
-                    <span className="text-base md:text-lg font-bold text-gray-900">{rider.rating.toFixed(1)}</span>
+                    <span className="text-base md:text-lg font-bold text-gray-900">
+                      {rider.rating.toFixed(1)}
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-600 font-medium">Customer Rating</p>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Customer Rating
+                  </p>
                 </div>
 
                 <div className="text-center p-3 md:p-4 bg-gray-50 rounded-xl">
-                  <p className="text-base md:text-lg font-bold text-gray-900">GH₵{avgServiceValue.toFixed(2)}</p>
-                  <p className="text-xs text-gray-600 font-medium">Avg Service Value</p>
+                  <p className="text-base md:text-lg font-bold text-gray-900">
+                    GH₵{avgServiceValue.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Avg Service Value
+                  </p>
                 </div>
 
                 <div className="text-center p-3 md:p-4 bg-gray-50 rounded-xl">
                   <div className="flex items-center justify-center gap-1 mb-2">
                     <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
                   </div>
-                  <p className="text-xs text-gray-600 font-medium">{rider.lastActive}</p>
+                  <p className="text-xs text-gray-600 font-medium">
+                    {rider.lastActive}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Live Location & Navigation with Functional Map */}
+          {/* Live Location & Contact Info */}
           <Card className="border-0 shadow-sm bg-white rounded-2xl">
             <CardHeader className="pb-3 md:pb-4">
-              <CardTitle className="text-base md:text-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Navigation className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
-                  Live Location & Routes
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsMapExpanded(!isMapExpanded)}
-                  className="rounded-lg"
-                >
-                  {isMapExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </Button>
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Navigation className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
+                Location & Contact
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Route Toggle Controls */}
-              {hasRoutes && (
-                <div className="flex gap-2 mb-4 flex-wrap">
-                  {googleRouteData && (
-                    <Button
-                      variant={showGoogleRoute ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowGoogleRoute(!showGoogleRoute)}
-                      className="text-xs"
-                    >
-                      <Globe className="h-3 w-3 mr-1" />
-                      Google Route
-                    </Button>
-                  )}
-                  {databaseRouteData && (
-                    <Button
-                      variant={showDatabaseRoute ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowDatabaseRoute(!showDatabaseRoute)}
-                      className="text-xs"
-                    >
-                      <Database className="h-3 w-3 mr-1" />
-                      Saved Route
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              <div
-                className={`bg-gray-100 rounded-xl mb-4 relative overflow-hidden transition-all duration-300 ${
-                  isMapExpanded ? "h-60 md:h-80" : "h-32 md:h-40"
-                }`}
-              >
-                <div ref={mapRef} className="w-full h-full">
-                  {!mapLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-                      <div className="text-center z-10">
-                        <MapIcon className="h-8 w-8 md:h-10 md:w-10 mx-auto text-blue-500 mb-2 animate-pulse" />
-                        <p className="text-sm font-semibold text-blue-700">Loading Live Map...</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Map overlay info */}
-                {mapLoaded && hasRoutes && (
-                  <div className="absolute top-3 left-3 space-y-1">
-                    {googleRouteData && showGoogleRoute && (
-                      <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 md:px-3 py-1 md:py-2 shadow-md">
-                        <div className="text-xs font-medium text-gray-900 flex items-center gap-1">
-                          <Globe className="h-3 w-3 text-blue-500" />📍 {googleRouteData.distance.toFixed(1)}km •{" "}
-                          {Math.round(googleRouteData.duration / 60)}min
-                        </div>
-                      </div>
-                    )}
-                    {databaseRouteData && showDatabaseRoute && (
-                      <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 md:px-3 py-1 md:py-2 shadow-md">
-                        <div className="text-xs font-medium text-gray-900 flex items-center gap-1">
-                          <Database className="h-3 w-3 text-purple-500" />
-                          🗺️ {databaseRouteData.distance.toFixed(1)}km • {Math.round(databaseRouteData.duration / 60)}min
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Map status indicator */}
-                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-md">
-                  <div className="flex items-center gap-1">
-                    <div
-                      className={`w-2 h-2 rounded-full ${mapLoaded ? "bg-green-500" : "bg-yellow-500"} animate-pulse`}
-                    ></div>
-                    <span className="text-xs font-medium text-gray-700">{mapLoaded ? "Live" : "Loading"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 md:gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-sm">
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-gray-600 font-medium mb-1">Current Location</p>
-                  <p className="font-semibold text-gray-900 text-xs truncate">{rider.location}</p>
+                  <p className="text-gray-600 font-medium mb-1">
+                    Current Location
+                  </p>
+                  <p className="font-semibold text-gray-900 text-xs">
+                    {rider.location}
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-gray-600 font-medium mb-1">Last Update</p>
-                  <p className="font-semibold text-gray-900 text-xs">{rider.lastActive}</p>
+                  <p className="font-semibold text-gray-900 text-xs">
+                    {rider.lastActive}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600 font-medium mb-1">Phone Number</p>
+                  <p className="font-semibold text-gray-900 text-xs">
+                    {rider.phone}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600 font-medium mb-1">Vehicle Type</p>
+                  <div className="flex items-center gap-2">
+                    {rider.vehicle === "Motorcycle" ? (
+                      <Car className="h-4 w-4 text-blue-600" />
+                    ) : (
+                      <Bike className="h-4 w-4 text-green-600" />
+                    )}
+                    <p className="font-semibold text-gray-900 text-xs">
+                      {rider.vehicle}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               {/* Route Information */}
               {hasRoutes && (
                 <div className="mt-4 space-y-3">
+                  <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Route className="h-4 w-4" />
+                    Route Information
+                  </h5>
+
                   {googleRouteData && (
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex items-center gap-2 mb-2">
-                        <Globe className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-900">Google Route</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-blue-900">
+                          Google Route
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
@@ -816,7 +544,9 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                     <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                       <div className="flex items-center gap-2 mb-2">
                         <Database className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-purple-900">Saved Route</span>
+                        <span className="text-sm font-medium text-purple-900">
+                          Saved Route
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
@@ -841,19 +571,8 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
 
           {/* Current Services with Enhanced Design */}
           <Card className="border-0 shadow-sm bg-white rounded-2xl">
-            <CardHeader className="pb-3 md:pb-4">
-              <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
-                  <Calendar className="h-4 w-4 md:h-5 md:w-5 text-purple-500" />
-                </div>
-                Current Services
-                <Badge variant="outline" className="ml-2">
-                  {totalServices}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            
+            <CardContent className="p-0">
               {totalServices === 0 ? (
                 <div className="text-center py-6 md:py-8">
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -862,8 +581,12 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                       <Calendar className="h-4 w-4 md:h-6 md:w-6 text-gray-400" />
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-2">No Active Services</h4>
-                  <p className="text-sm text-gray-500">This rider is available for new assignments</p>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    No Active Services
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    This rider is available for new assignments
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -893,10 +616,13 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                             GH₵{calculateOrderTotal(service).toFixed(2)}
                           </p>
                           <p className="text-xs text-gray-500">
-                            ETA: {service.orderData!.order.duration || 
-                                  (service.orderData!.deliveryMetaData
-                                    ? formatDeliveryDuration(service.orderData!.deliveryMetaData.duration)
-                                    : "~30 min")}
+                            ETA:{" "}
+                            {service.orderData!.order.duration ||
+                              (service.orderData!.deliveryMetaData
+                                ? formatDeliveryDuration(
+                                    service.orderData!.deliveryMetaData.duration
+                                  )
+                                : "~30 min")}
                           </p>
                         </div>
                       </div>
@@ -911,7 +637,9 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                             <p className="font-medium text-gray-900 text-sm md:text-base truncate">
                               {service.customer.name}
                             </p>
-                            <p className="text-xs text-gray-600">{service.customer.number}</p>
+                            <p className="text-xs text-gray-600">
+                              {service.customer.number}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -922,42 +650,64 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                           <Route className="h-4 w-4" />
                           Delivery Route
                           {service.orderData!.routeData && (
-                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-purple-50 text-purple-700 border-purple-200"
+                            >
                               <Database className="h-3 w-3 mr-1" />
                               Saved
                             </Badge>
                           )}
                         </h5>
                         {createOrderStops(service).map((stop, stopIndex) => (
-                          <div key={stop.id} className="flex items-center gap-3 md:gap-4 p-3 bg-white rounded-lg">
-                            <div className="flex-shrink-0">{getStopIcon(stop.type, stop.status)}</div>
+                          <div
+                            key={stop.id}
+                            className="flex items-center gap-3 md:gap-4 p-3 bg-white rounded-lg"
+                          >
+                            <div className="flex-shrink-0">
+                              {getStopIcon(stop.type, stop.status)}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="text-base md:text-lg">{stop.icon}</span>
+                                <span className="text-base md:text-lg">
+                                  {stop.icon}
+                                </span>
                                 <span className="text-sm font-medium text-gray-900 truncate">
                                   {stop.address.split(",")[0]}
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className={`text-xs ${stop.type === "pickup" ? "bg-green-50 text-green-700 border-green-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}
+                                  className={`text-xs ${
+                                    stop.type === "pickup"
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : "bg-orange-50 text-orange-700 border-orange-200"
+                                  }`}
                                 >
                                   {stop.type}
                                 </Badge>
                               </div>
                               <p className="text-xs text-gray-500">
                                 {stop.status === "completed" ? (
-                                  <span className="text-green-600 font-medium">✓ Completed</span>
+                                  <span className="text-green-600 font-medium">
+                                    ✓ Completed
+                                  </span>
                                 ) : stop.status === "current" ? (
-                                  <span className="text-blue-600 font-medium">🚚 In Progress</span>
+                                  <span className="text-blue-600 font-medium">
+                                    🚚 In Progress
+                                  </span>
                                 ) : (
                                   `ETA: ${stop.estimatedTime}`
                                 )}
                               </p>
-                              {stop.type === "delivery" && service.orderData!.order.distance && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Distance: {service.orderData!.order.distance} • Duration: {service.orderData!.order.duration}
-                                </p>
-                              )}
+                              {stop.type === "delivery" &&
+                                service.orderData!.order.distance && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Distance:{" "}
+                                    {service.orderData!.order.distance} •
+                                    Duration:{" "}
+                                    {service.orderData!.order.duration}
+                                  </p>
+                                )}
                             </div>
                           </div>
                         ))}
@@ -979,10 +729,11 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                           </div>
                           <div className="min-w-0 flex-1">
                             <h4 className="font-semibold text-gray-900 text-sm md:text-base truncate">
-                              Booking #{service.bookingData!.bookingId.slice(-6)}
+                              Booking #
+                              {service.bookingData!.bookingId.slice(-6)}
                             </h4>
                             <Badge variant="outline" className="text-xs">
-                              {service.bookingData!.isConfirmed ? "Confirmed" : "Pending"}
+                              {service.bookingData!.status}
                             </Badge>
                           </div>
                         </div>
@@ -991,7 +742,19 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                             GH₵{calculateOrderTotal(service).toFixed(2)}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {service.bookingData!.startTime} - {service.bookingData!.endTime}
+                            {new Date(
+                              service.bookingData!.startTime
+                            ).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}{" "}
+                            -{" "}
+                            {new Date(
+                              service.bookingData!.endTime
+                            ).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
                           </p>
                         </div>
                       </div>
@@ -1006,7 +769,9 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                             <p className="font-medium text-gray-900 text-sm md:text-base truncate">
                               {service.customer.name}
                             </p>
-                            <p className="text-xs text-gray-600">{service.customer.number}</p>
+                            <p className="text-xs text-gray-600">
+                              {service.customer.number}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1017,54 +782,88 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
                           <Route className="h-4 w-4" />
                           Booking Details
                           {service.bookingData!.routeData && (
-                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-purple-50 text-purple-700 border-purple-200"
+                            >
                               <Database className="h-3 w-3 mr-1" />
                               Saved
                             </Badge>
                           )}
                         </h5>
-                        
+
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white p-3 rounded-lg">
-                            <p className="text-xs text-gray-600 mb-1">Table Size</p>
-                            <p className="font-medium text-gray-900">{service.bookingData!.tableSize} people</p>
+                            <p className="text-xs text-gray-600 mb-1">
+                              Table Size
+                            </p>
+                            <p className="font-medium text-gray-900">
+                              {service.bookingData!.tableSize} people
+                            </p>
                           </div>
                           <div className="bg-white p-3 rounded-lg">
                             <p className="text-xs text-gray-600 mb-1">Day</p>
-                            <p className="font-medium text-gray-900">{service.bookingData!.day}</p>
+                            <p className="font-medium text-gray-900">
+                              {service.bookingData!.day}
+                            </p>
                           </div>
                         </div>
 
-                        {createBookingStops(service).map((stop, stopIndex) => (
-                          <div key={stop.id} className="flex items-center gap-3 md:gap-4 p-3 bg-white rounded-lg">
-                            <div className="flex-shrink-0">{getStopIcon(stop.type, stop.status)}</div>
+                        {createBookingStops(service).map((stop) => (
+                          <div
+                            key={stop.id}
+                            className="flex items-center gap-3 md:gap-4 p-3 bg-white rounded-lg"
+                          >
+                            <div className="flex-shrink-0">
+                              {getStopIcon(stop.type, stop.status)}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="text-base md:text-lg">{stop.icon}</span>
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  {stop.address.split(",")[0]}
+                                <span className="text-base md:text-lg">
+                                  {stop.icon}
                                 </span>
+                                {
+                                  <div className="flex flex-col gap-1">
+                                  <span className="text-xs font-medium text-gray-900" title={stop.address}>
+                                    {stop.address}
+                                  </span>
+                                  <span className="text-xs text-gray-500 truncate" title={stop.address}>
+                                    {stop.address.split(",")[1]}
+                                  </span>
+                                  </div>
+                                }
+                               
                                 <Badge
                                   variant="outline"
-                                  className={`text-xs ${stop.type === "pickup" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}
+                                  className={`text-xs ${
+                                    stop.type === "pickup"
+                                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                                      : "bg-orange-50 text-orange-700 border-orange-200"
+                                  }`}
                                 >
                                   {stop.type}
                                 </Badge>
                               </div>
                               <p className="text-xs text-gray-500">
                                 {stop.status === "completed" ? (
-                                  <span className="text-green-600 font-medium">✓ Completed</span>
+                                  <span className="text-green-600 font-medium">
+                                    ✓ Completed
+                                  </span>
                                 ) : stop.status === "current" ? (
-                                  <span className="text-blue-600 font-medium">🚚 In Progress</span>
+                                  <span className="text-blue-600 font-medium">
+                                    🚚 In Progress
+                                  </span>
                                 ) : (
                                   `Time: ${stop.estimatedTime}`
                                 )}
                               </p>
-                              {stop.type === "delivery" && service.bookingData!.distance && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Distance: {service.bookingData!.distance} • Duration: {service.bookingData!.duration}
-                                </p>
-                              )}
+                              {stop.type === "delivery" &&
+                                service.bookingData!.distance && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Distance: {service.bookingData!.distance} •
+                                    Duration: {service.bookingData!.duration}
+                                  </p>
+                                )}
                             </div>
                           </div>
                         ))}
@@ -1076,61 +875,7 @@ export function RiderDetails({ rider, onBack, riderRoutes, databaseRoutes, servi
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 md:gap-4 pb-6">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl h-10 md:h-12 font-medium"
-                  onClick={() => window.open(`tel:${rider.phone}`, "_self")}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Call Rider
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Call {rider.name}</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="rounded-xl h-10 md:h-12 font-medium border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => {
-                    if (mapInstance.current && hasRoutes) {
-                      // Focus on the route
-                      const bounds = new maplibregl.LngLatBounds();
-
-                      if (googleRouteData && showGoogleRoute) {
-                        googleRouteData.coordinates.forEach((coord: [number, number]) => {
-                          bounds.extend(coord);
-                        });
-                      }
-
-                      if (databaseRouteData && showDatabaseRoute) {
-                        databaseRouteData.coordinates.forEach((coord: [number, number]) => {
-                          bounds.extend(coord);
-                        });
-                      }
-
-                      if (!bounds.isEmpty()) {
-                        mapInstance.current.fitBounds(bounds, { padding: 50 });
-                        setIsMapExpanded(true);
-                      }
-                    }
-                  }}
-                >
-                  <Route className="h-4 w-4 mr-2" />
-                  Focus Route
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Focus on route in map</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+        
         </div>
       </ScrollArea>
     </TooltipProvider>

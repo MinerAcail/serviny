@@ -9,6 +9,7 @@ import { gql } from "@apollo/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ItemNotFound, SpectaclesError, SpectaclesLoading } from "../custom/loading";
 import MainNaveBar from "./menuBar";
+import { getImageUrl } from "../global/formatPrice";
 // import MainNaveBar from "./menuBar";
 
 interface Provider {
@@ -146,7 +147,7 @@ export function ServiceProvidersDirectory() {
                 </div>
                 <div className="aspect-square overflow-hidden">
                   <img
-                    src={provider.dpfile || "/placeholder.svg"}
+                    src={getImageUrl(provider.dpfile) || "/placeholder.svg"}
                     alt={provider.name}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                   />

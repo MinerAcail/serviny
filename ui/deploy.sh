@@ -2,10 +2,12 @@
 
 KEY="$HOME/.ssh/servinykey.pem"
 REMOTE="ubuntu@ec2-16-16-254-21.eu-north-1.compute.amazonaws.com"
-DEST="/home/ubuntu/works/winneui"
+DEST="/home/ubuntu/works/winneui/dist"
+DESTd="/home/ubuntu/works/winneui/"
+
 
 echo "🚀 Removing old files on server..."
-ssh -i "$KEY" "$REMOTE" "rm -rf $DEST/*"
+ssh -i "$KEY" "$REMOTE" "rm -rf $DESTd/*"
 if [ $? -ne 0 ]; then
   echo "❌ Failed to remove old files on server."
   exit 1

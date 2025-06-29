@@ -157,7 +157,7 @@ export function ProductDetailDialog({
                   >
                     <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96">
                       <img
-                        src={image || "/placeholder.svg"}
+                        src={getImageUrl(image) || "/placeholder.svg"}
                         alt={`${product.name} - Image ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -397,7 +397,7 @@ export function ProductCard({
       >
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={product.imageUrls[0] || "/placeholder.svg"}
+            src={getImageUrl(product.imageUrls[0]) || "/placeholder.svg"}
             alt={product.name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -566,7 +566,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCart } from "@/components/custom/cart/cart-context";
-import { formatPrice } from "@/components/global/formatPrice";
+import { formatPrice, getImageUrl } from "@/components/global/formatPrice";
 import { toast } from "sonner";
 import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import Login from "@/app/Login";

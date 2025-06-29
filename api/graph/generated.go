@@ -924,6 +924,7 @@ type ComplexityRoot struct {
 		GetSharedService                              func(childComplexity int, serviceID string) int
 		GetSocialMedia                                func(childComplexity int, serviceID string) int
 		GetUnavailablePeriods                         func(childComplexity int) int
+		GetUnavailablePeriodsByCurrectProfile         func(childComplexity int, serviceID string) int
 		GetUseTheme                                   func(childComplexity int, serviceID string) int
 		GetUserBookings                               func(childComplexity int, bookTypeID string, userID string) int
 		GetUserByID                                   func(childComplexity int, id string) int
@@ -1711,6 +1712,7 @@ type QueryResolver interface {
 	GetBookingServiceDataByBookingID(ctx context.Context, bookingID string) (*model.AppointmentBookingData, error)
 	GetOrderServiceDataByUserID(ctx context.Context) ([]*model.ServiceData, error)
 	GetUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error)
+	GetUnavailablePeriodsByCurrectProfile(ctx context.Context, serviceID string) ([]*model.UnavailablePeriod, error)
 	GetConfirmedBookingsAsUnavailable(ctx context.Context) ([]*model.AppointmentBooking, error)
 	GetAllUnavailablePeriods(ctx context.Context) ([]*model.UnavailablePeriod, error)
 	GetAllAppointmentBookings(ctx context.Context) ([]*model.AppointmentBookedData, error)
@@ -7557,6 +7559,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetUnavailablePeriods(childComplexity), true
+
+	case "Query.getUnavailablePeriodsByCurrectProfile":
+		if e.complexity.Query.GetUnavailablePeriodsByCurrectProfile == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUnavailablePeriodsByCurrectProfile_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUnavailablePeriodsByCurrectProfile(childComplexity, args["serviceId"].(string)), true
 
 	case "Query.getUseTheme":
 		if e.complexity.Query.GetUseTheme == nil {
@@ -16482,6 +16496,29 @@ func (ec *executionContext) field_Query_getSocialMedia_args(ctx context.Context,
 	return args, nil
 }
 func (ec *executionContext) field_Query_getSocialMedia_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
+	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getUnavailablePeriodsByCurrectProfile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getUnavailablePeriodsByCurrectProfile_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getUnavailablePeriodsByCurrectProfile_argsServiceID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -55222,6 +55259,77 @@ func (ec *executionContext) fieldContext_Query_getUnavailablePeriods(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getUnavailablePeriodsByCurrectProfile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUnavailablePeriodsByCurrectProfile(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUnavailablePeriodsByCurrectProfile(rctx, fc.Args["serviceId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.UnavailablePeriod)
+	fc.Result = res
+	return ec.marshalNUnavailablePeriod2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUnavailablePeriodᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUnavailablePeriodsByCurrectProfile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UnavailablePeriod_id(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_UnavailablePeriod_serviceId(ctx, field)
+			case "day":
+				return ec.fieldContext_UnavailablePeriod_day(ctx, field)
+			case "startTime":
+				return ec.fieldContext_UnavailablePeriod_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_UnavailablePeriod_endTime(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_UnavailablePeriod_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_UnavailablePeriod_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UnavailablePeriod", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUnavailablePeriodsByCurrectProfile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getConfirmedBookingsAsUnavailable(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getConfirmedBookingsAsUnavailable(ctx, field)
 	if err != nil {
@@ -81444,6 +81552,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getUnavailablePeriods(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUnavailablePeriodsByCurrectProfile":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUnavailablePeriodsByCurrectProfile(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

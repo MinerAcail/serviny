@@ -61,7 +61,7 @@ export function GalleryDetailDialog({
                   >
                     <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96">
                       <img
-                        src={image || "/placeholder.svg"}
+                        src={getImageUrl(image) || "/placeholder.svg"}
                         alt={`${gallery.title} - Image ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -281,6 +281,7 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 import UserAuthCard from "../custom/users/create";
 import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { DeliveryServiceSystem } from "./APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
+import { getImageUrl } from "../global/formatPrice";
 // import { DeliveryServiceSystem } from "./APPOINTMENT/completeDeliveryOrder";
 // import AppointmentBookingSystem, { DeliveryServiceSystem } from "./APPOINTMENT/book";
 //
