@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useMemo, useEffect } from "react"
 import { gql, useQuery, useLazyQuery } from "@apollo/client"
@@ -18,9 +17,9 @@ import {
   AlertCircle,
   XCircle,
   Printer,
-  Share2,
+  // Share2,
   ArrowLeft,
-  ArrowRight,
+  // ArrowRight,
   X,
   User,
 } from "lucide-react"
@@ -33,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { toast } from "sonner"
+import { getImageUrl } from "@/components/global/formatPrice"
 
 // GraphQL Queries
 const GET_SUBMISSIONS = gql`
@@ -489,7 +489,7 @@ export default function SubmissionsViewer() {
                   <p className="text-sm font-medium text-gray-700 mb-2">Digital Signature:</p>
                   <div className="border border-gray-200 rounded bg-white p-2">
                     <img
-                      src={fieldSignatureURL || "/placeholder.svg"}
+                      src={getImageUrl(fieldSignatureURL) || "/placeholder.svg"}
                       alt={`Signature for ${field.label}`}
                       className="max-w-full h-auto max-h-32 object-contain mx-auto"
                       style={{
@@ -540,7 +540,7 @@ export default function SubmissionsViewer() {
                 <p className="text-sm font-medium text-gray-700 mb-2">Digital Signature:</p>
                 <div className="border border-gray-200 rounded bg-white p-2">
                   <img
-                    src={value || "/placeholder.svg"}
+                    src={getImageUrl(value) || "/placeholder.svg"}
                     alt={`Signature for ${field.label}`}
                     className="max-w-full h-auto max-h-32 object-contain mx-auto"
                     style={{
@@ -608,7 +608,7 @@ export default function SubmissionsViewer() {
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
               {submission.userInfo.dpfile ? (
                 <img
-                  src={submission.userInfo.dpfile || "/placeholder.svg"}
+                  src={getImageUrl(submission.userInfo.dpfile) || "/placeholder.svg"}
                   alt={submission.userInfo.name}
                   className="w-8 h-8 rounded-full object-cover"
                 />
@@ -741,7 +741,7 @@ export default function SubmissionsViewer() {
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     {submission.userInfo.dpfile ? (
                       <img
-                        src={submission.userInfo.dpfile || "/placeholder.svg"}
+                        src={getImageUrl(submission.userInfo.dpfile) || "/placeholder.svg"}
                         alt={submission.userInfo.name}
                         className="w-12 h-12 rounded-full object-cover"
                       />

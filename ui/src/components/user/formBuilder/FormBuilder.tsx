@@ -11,6 +11,7 @@ import { FormSettingsDialog } from "./FormSettingsDialog";
 import { toast } from "sonner";
 import FormsPage from "./FormsPage";
 import { FormPreviewForEdit } from "./formPreviewForEdit";
+import { useScreenSize } from "@/components/landing/providerLandingPage";
 
 // Updated GraphQL mutation to match backend schema
 const CREATE_FORM = gql`
@@ -50,7 +51,7 @@ export interface FormField {
 }
 
 export default function FormBuilder() {
-//   const navigate = useNavigate();
+  //   const navigate = useNavigate();
   const [formTitle, setFormTitle] = useState("Untitled Form");
   const [formDescription, setFormDescription] = useState("Form description");
   const [formType, setFormType] = useState("AGREEMENT");
@@ -60,6 +61,7 @@ export default function FormBuilder() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [dialogActiveTab, setdialogActiveTab] = useState("form");
+  const { isMobile } = useScreenSize();
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -223,9 +225,40 @@ export default function FormBuilder() {
       {/* Header */}
 
       <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
           {/* Main Content */}
-
+          {isMobile && (
+            <div className="flex items-center gap-3 p-1 rounded-lg mb-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSettingsOpen(true)}
+                className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+              <Button
+                onClick={saveForm}
+                size="sm"
+                disabled={isSaving}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save {fields.length} field
+                    {fields.length !== 1 ? "s" : ""}
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
           <div className="lg:col-span-3">
             <Tabs
               value={activeTab}
@@ -255,43 +288,47 @@ export default function FormBuilder() {
                     Saved
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-3 p-1 rounded-lg mb-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSettingsOpen(true)}
-                    className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </Button>
-                  <Button
-                    onClick={saveForm}
-                    size="sm"
-                    disabled={isSaving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm disabled:opacity-50"
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save {fields.length} field
-                        {fields.length !== 1 ? "s" : ""}
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {!isMobile && (
+                  <div className="flex items-center gap-3 p-1 rounded-lg mb-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSettingsOpen(true)}
+                      className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </Button>
+                    <Button
+                      onClick={saveForm}
+                      size="sm"
+                      disabled={isSaving}
+                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm disabled:opacity-50"
+                    >
+                      {isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save {fields.length} field
+                          {fields.length !== 1 ? "s" : ""}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
               {activeTab === "edit" && dialogActiveTab === "form" && (
                 <div>
                   <h1 className="text-2xl font-semibold text-gray-900">
                     {formTitle}
                   </h1>
-                  <p className="text-sm text-gray-500 mt-1">{formDescription}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {formDescription}
+                  </p>
                 </div>
               )}
               <TabsContent value="edit" className="mt-0">
@@ -358,7 +395,6 @@ export default function FormBuilder() {
                     fields={fields.sort(
                       (a, b) => (a.order || 0) - (b.order || 0)
                     )}
-                    
                   />
 
                   {fields.length === 0 && (

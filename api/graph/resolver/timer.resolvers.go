@@ -1227,8 +1227,7 @@ func (r *queryResolver) GetAllAppointmentBookings(ctx context.Context) ([]*model
 
 // GetAllAppointmentBookingsByUserID is the resolver for the getAllAppointmentBookingsByUserId field.
 func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, userID string) ([]*model.UserAppointmentBookedData, error) {
-	// Get the service ID from context
-	// Get the service provider's ID from context
+		// Get the service ID from context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
@@ -1247,39 +1246,52 @@ func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, u
 		return nil, fmt.Errorf("failed to verify service: %w", err)
 	}
 
-	// Fetch all bookings made by the user (or service) toward the service provider
+	// Parse userID to check if it's valid
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	// Check if the userID is a rider first, since riders don't have bookings
+	var rider model.Rider
+	if err := r.DB.Where("id = ?", userUUID).First(&rider).Error; err == nil {
+		// User is a rider - return empty bookings with rider data
+		userData := &model.UserData{
+			ID:         rider.ID.String(),
+			Name:       rider.Name,
+			Number:     rider.Number,
+			NumberType: "not Given",
+			Type:       string(rider.Type),
+		}
+
+		result := &model.UserAppointmentBookedData{
+			Book:     []*model.AppointmentBooking{}, // Empty bookings for riders
+			UserData: userData,
+		}
+
+		return []*model.UserAppointmentBookedData{result}, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check rider: %w", err)
+	}
+
+	// If not a rider, fetch bookings involving the user and service
+	// This includes bookings where:
+	// 1. User booked with the service (user_id = userID AND service_id = serviceID)
+	// 2. Service booked with user as service (user_id = serviceID AND service_id = userID AND user_type = service)
 	var bookings []*model.AppointmentBooking
-	if err := r.DB.Where("user_id = ? AND service_id = ?", userID, serviceID).
+	if err := r.DB.Where("(user_id = ? AND service_id = ?) OR (user_id = ? AND service_id = ? AND user_type = ?)", 
+		userID, serviceID.String(), serviceID.String(), userID, model.UserTypeService).
 		Order("day, start_time").
 		Find(&bookings).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
 	}
 
-	if len(bookings) == 0 {
-		return []*model.UserAppointmentBookedData{}, nil
-	}
-
-	// Determine user info based on UserType of the booking
+	// Determine what type of user we're dealing with and fetch their data
 	var userData *model.UserData
 
-	switch bookings[0].UserType {
-	case model.UserTypeService:
-		var serviceUser model.Service
-		if err := r.DB.Where("id = ?", userID).First(&serviceUser).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch service user: %w", err)
-		}
-		userData = &model.UserData{
-			ID:         serviceUser.ID.String(),
-			Name:       serviceUser.Name,
-			Number:     serviceUser.Number,
-			NumberType: helper.GetStringValue(serviceUser.NumberType),
-			Type:       string(model.UserTypeService),
-		}
-	case model.UserTypeUser:
-		var normalUser model.User
-		if err := r.DB.Where("id = ?", userID).First(&normalUser).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch normal user: %w", err)
-		}
+	// Check if user is a regular user
+	var normalUser model.User
+	if err := r.DB.Where("id = ?", userUUID).First(&normalUser).Error; err == nil {
 		userData = &model.UserData{
 			ID:         normalUser.ID.String(),
 			Name:       normalUser.Name,
@@ -1287,8 +1299,29 @@ func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, u
 			NumberType: helper.GetStringValue(&normalUser.NumberType),
 			Type:       string(model.UserTypeUser),
 		}
-	default:
-		return nil, fmt.Errorf("unsupported user type: %s", bookings[0].UserType)
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check normal user: %w", err)
+	}
+
+	// If not found as normal user, check if user is a service
+	if userData == nil {
+		var serviceUser model.Service
+		if err := r.DB.Where("id = ?", userUUID).First(&serviceUser).Error; err == nil {
+			userData = &model.UserData{
+				ID:         serviceUser.ID.String(),
+				Name:       serviceUser.Name,
+				Number:     serviceUser.Number,
+				NumberType: helper.GetStringValue(serviceUser.NumberType),
+				Type:       string(model.UserTypeService),
+			}
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check service user: %w", err)
+		}
+	}
+
+	// If still no user data found, return error
+	if userData == nil {
+		return nil, fmt.Errorf("user not found with ID: %s", userID)
 	}
 
 	// Build and return the result

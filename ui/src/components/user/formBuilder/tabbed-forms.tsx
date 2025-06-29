@@ -6,8 +6,8 @@ import SubmissionsViewer from "./submissionsViewer";
 
 export default function FormAndRequestTabs() {
   return (
-    <div className="w-full  mx-auto p-4">
-      <Tabs defaultValue="request" className="w-full">
+    <div className="w-full pt-14 mx-auto p-4">
+      <Tabs defaultValue="request" className="w-full pt">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="request">Request</TabsTrigger>
           <TabsTrigger value="submit">Form submit</TabsTrigger>

@@ -454,7 +454,7 @@ export const generateRiderSearchSuggestions = (
 // };
 
 // Rest of the utility functions remain the same...
-interface RiderSearchSuggestion {
+export interface RiderSearchSuggestion {
   type: "customer" | "order" | "booking" | "vendor" | "multigroup";
   value: string;
   label: string;

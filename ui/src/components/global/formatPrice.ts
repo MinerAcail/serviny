@@ -23,9 +23,13 @@ const API_URL = Production ? `https://files.winnemart.com/` : `http://localhost:
 
 export const getImageUrl = (dpfilePath: string | null | undefined): string | null => {
   if (!dpfilePath) return null;
-  
-  // Remove /minio prefix and prepend files domain
-  // return dpfilePath;
 
-  return dpfilePath.replace('/minio/', API_URL);
+  // If '/minio/' is present, replace it; otherwise, return the original string
+  if (!Production) return dpfilePath;
+  
+  if (dpfilePath.includes('/minio/')) {
+    return dpfilePath.replace('/minio/', API_URL);
+  }
+  
+  return dpfilePath;
 };

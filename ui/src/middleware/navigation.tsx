@@ -566,6 +566,7 @@ const router = createBrowserRouter([
       //     </LoadingWrapper>
       //   )
       // },
+      
       {
         path: "history",
         element: (
@@ -605,7 +606,7 @@ export function SidebarLayoutProvider() {
         <ScrollArea className="h-full border-r">
           <Sidebar />
         </ScrollArea>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 p-1">
           <Outlet />
         </ScrollArea>
       </ProviderContextProvider>
@@ -627,7 +628,7 @@ export function Layout() {
           <ScrollArea className="h-full border-r">
             <SidebarMain serviceId={serviceId} />
           </ScrollArea>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-2">
             <CartDrawer />
             <Outlet />
           </ScrollArea>

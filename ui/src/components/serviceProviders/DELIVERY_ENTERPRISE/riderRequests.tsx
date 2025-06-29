@@ -40,6 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 // Types
 interface Rider {
@@ -517,7 +518,7 @@ export default function RiderRequests() {
                     >
                       <AvatarImage
                         src={
-                          rider.dpfile || "/placeholder.svg?height=48&width=48"
+                          getImageUrl(rider.dpfile) || "/placeholder.svg?height=48&width=48"
                         }
                       />
                       <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
@@ -697,7 +698,7 @@ export default function RiderRequests() {
           {selectedImage && (
             <div className="flex justify-center">
               <img
-                src={selectedImage.url || "/placeholder.svg"}
+                src={getImageUrl(selectedImage.url) || "/placeholder.svg"}
                 alt={selectedImage.title}
                 className="max-w-full max-h-[70vh] object-contain rounded-xl"
               />
@@ -740,7 +741,7 @@ export default function RiderRequests() {
                 >
                   <AvatarImage
                     src={
-                      selectedRider.rider.dpfile ||
+                      getImageUrl(selectedRider.rider.dpfile) ||
                       "/placeholder.svg?height=64&width=64"
                     }
                   />

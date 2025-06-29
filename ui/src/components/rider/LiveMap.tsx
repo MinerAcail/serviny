@@ -46,14 +46,9 @@ import {
   BarChart3,
   X,
   Menu,
-  Phone,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  User,
+
   Info,
-  ChevronUp,
-  ChevronDown,
+
 } from "lucide-react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -61,17 +56,17 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Import rider-specific utilities
 import {
   RiderServiceData,
-  RiderSearchSuggestion,
+ type RiderSearchSuggestion,
   RiderSelectedEntity,
   ProcessedRiderData,
   RiderRouteData,
   generateRiderSearchSuggestions,
-  getRiderRelatedEntityData,
+  // getRiderRelatedEntityData,
   handleRiderSearchSuggestionSelect,
   addRiderRoutesToMap,
-  parseRouteGeoJSON,
+  // parseRouteGeoJSON,
   getServiceStatusColor,
-  formatServiceSummary,
+  // formatServiceSummary,
 } from "./riderEntityUtils";
 
 // Import the enhanced components
@@ -79,9 +74,17 @@ import { FilterControlPanel } from "./FilterControlPanel";
 import RiderServiceManagement from "./RiderServiceManagement";
 import { Badge } from "../ui/badge";
 
-// GraphQL Query for rider's assigned data
-// Updated GraphQL Query with payment fields
+// Import enhanced location tracking components
+import {
+  LocationTrackingButton,
+  LocationStatusCard,
+  LocationErrorCard,
+  useLocationTracking,
+  locationTrackingStyles,
+  RiderLocation,
+} from "./LocationTrackingManagement";
 
+// GraphQL Query for rider's assigned data
 const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
   query GetAllRidersBookingAndOrdersAssignedData {
     getAllRidersBookingAndOrdersAssignedData {
@@ -117,8 +120,8 @@ const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
         deliveryAddress
         estimatedDeliveryDate
         serviceFee
-        paymentStatus    # Added payment status field
-        paymentMethod    # Added payment method field
+        paymentStatus
+        paymentMethod
         productInfor {
           product {
             id
@@ -155,7 +158,7 @@ const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
       
       bookingData {
         bookingId
-        status           # Added status field for bookings
+        status
         startTime
         endTime
         day
@@ -172,8 +175,8 @@ const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
         distance
         duration
         estimatedDeliveryDate
-        paymentStatus    # Added payment status field
-        paymentMethod    # Added payment method field
+        paymentStatus
+        paymentMethod
             
         cargoId
         rangeMetaData {
@@ -197,8 +200,6 @@ const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
 
 const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
-
-
 // Main RiderLiveMap Component
 const RiderLiveMap: React.FC = () => {
   // State management
@@ -214,7 +215,6 @@ const RiderLiveMap: React.FC = () => {
   const [databaseRoutes, setDatabaseRoutes] = useState<Map<string, RiderRouteData>>(new Map());
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<RiderSelectedEntity | null>(null);
-
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -229,6 +229,16 @@ const RiderLiveMap: React.FC = () => {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const routeUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const markerUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Enhanced location tracking hook
+  const locationTracking = useLocationTracking(mapInstance, {
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 5000,
+    autoCenter: true,
+    showAccuracyCircle: true,
+    showBearing: true,
+  });
 
   // GraphQL query
   const { loading, error, data, refetch } = useQuery(
@@ -301,11 +311,11 @@ const RiderLiveMap: React.FC = () => {
     return {
       id: rider.id,
       name: rider.name,
-      status: "On Delivery", // You might want to determine this based on service status
+      status: "On Delivery",
       location: rider.location,
       phone: rider.number,
-      vehicle: "Motorcycle", // You might want to get this from rider data
-      rating: 4.5, // Default rating
+      vehicle: "Motorcycle",
+      rating: 4.5,
       position,
       earnings: `GH₵${totalEarnings.toFixed(2)}`,
       orders,
@@ -371,21 +381,21 @@ const RiderLiveMap: React.FC = () => {
     }
   }, [maptilerApiKey]);
 
-  // Add routes to map when data changes - with precise filtering
+  // Add location tracking styles to document
+  useEffect(() => {
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = popupStyles + locationTrackingStyles;
+    document.head.appendChild(styleSheet);
+
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, []);
+
+  // Add routes to map when data changes
   useEffect(() => {
     if (!mapInstance.current || !mapLoaded) return;
 
-    // console.log("🗺️ Map routes update triggered:", {
-    //   showRoutes,
-    //   hasSelectedEntity: !!selectedEntity,
-    //   showOnlyRelevant,
-    //   selectedEntityType: selectedEntity?.type,
-    //   selectedEntityValue: selectedEntity?.value,
-    //   totalServices: serviceData.length,
-    //   relevantServices: selectedEntity?.relatedData.services?.length || 0
-    // });
-
-    // Add routes with precise filtering
     addRiderRoutesToMap(
       mapInstance.current,
       serviceData,
@@ -405,7 +415,7 @@ const RiderLiveMap: React.FC = () => {
 
     markerUpdateTimeoutRef.current = setTimeout(() => {
       try {
-        // Clear existing markers
+        // Clear existing markers (except location tracking marker)
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
 
@@ -467,7 +477,7 @@ const RiderLiveMap: React.FC = () => {
                     <h3 class="font-bold">Pickup - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
                     <p class="text-sm font-medium">${service.customer.name}</p>
                     <p class="text-xs text-gray-600">${service.bookingData.pickUpAddress}</p>
-                    <p class="text-xs font-medium mt-1">Status: ${service.bookingData.status     || "Pending"}</p>
+                    <p class="text-xs font-medium mt-1">Status: ${service.bookingData.status || "Pending"}</p>
                     <p class="text-xs font-medium">Amount: GH₵${service.bookingData.deliveryFee}</p>
                     ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
                   </div>
@@ -518,8 +528,8 @@ const RiderLiveMap: React.FC = () => {
           }
         });
 
-        // Add rider marker if available
-        if (riderData) {
+        // Add rider marker if available and not using real-time tracking
+        if (riderData && !locationTracking.isTracking) {
           const riderMarker = new maplibregl.Marker({ 
             color: "#3B82F6",
             scale: 1.3 
@@ -540,12 +550,12 @@ const RiderLiveMap: React.FC = () => {
         }
 
         // Fit map bounds
-        if (servicesToShow.length > 0 || riderData) {
+        if (servicesToShow.length > 0 || (riderData && !locationTracking.isTracking)) {
           const bounds = new maplibregl.LngLatBounds();
           let hasCoordinates = false;
 
-          // Add rider position
-          if (riderData) {
+          // Add rider position (if not tracking real-time location)
+          if (riderData && !locationTracking.isTracking) {
             bounds.extend([riderData.position.lng, riderData.position.lat]);
             hasCoordinates = true;
           }
@@ -571,7 +581,7 @@ const RiderLiveMap: React.FC = () => {
             }
           });
 
-          if (hasCoordinates && !bounds.isEmpty()) {
+          if (hasCoordinates && !bounds.isEmpty() && !locationTracking.isTracking) {
             mapInstance.current?.fitBounds(bounds, {
               padding: showOnlyRelevant ? 100 : 80,
               maxZoom: showOnlyRelevant ? 16 : 15,
@@ -588,21 +598,9 @@ const RiderLiveMap: React.FC = () => {
         clearTimeout(markerUpdateTimeoutRef.current);
       }
     };
-  }, [serviceData, riderData, mapLoaded, showOnlyRelevant, selectedEntity]);
+  }, [serviceData, riderData, mapLoaded, showOnlyRelevant, selectedEntity, locationTracking.isTracking]);
 
-  // Add popup styles
-  useEffect(() => {
-    const styleSheet = document.createElement("style");
-    styleSheet.textContent = popupStyles;
-    document.head.appendChild(styleSheet);
-
-    return () => {
-      document.head.removeChild(styleSheet);
-    };
-  }, []);
-
-  // Handle search suggestion selection using the utility function
-
+  // Handle search suggestion selection
   const handleSearchSuggestionSelect = useCallback((suggestion: RiderSearchSuggestion) => {
     handleRiderSearchSuggestionSelect(
       suggestion,
@@ -615,15 +613,11 @@ const RiderLiveMap: React.FC = () => {
     );
   }, [serviceData]);
 
-  // Clear entity filter with enhanced logging
+  // Clear entity filter
   const clearEntityFilter = useCallback(() => {
     console.log("🧹 Clearing entity filter - will show all routes again");
-    // setSelectedEntity(null);
-    // setShowOnlyRelevant(false);
     setShowFilterPanel(false);
-    // setSearchQuery("");
     setShowSuggestions(false);
-    
   }, []);
 
   // Handle item click
@@ -670,10 +664,10 @@ const RiderLiveMap: React.FC = () => {
 
   // Handle viewing item on map
   const handleViewOnMap = useCallback((item: any, type: string) => {
-    console.log("item, type",item, type);
+    console.log("item, type", item, type);
     
     handleItemClick(item, type);
-    setShowServiceManagement(false); // Close service management sheet
+    setShowServiceManagement(false);
   }, [handleItemClick]);
 
   // Handle contacting customer
@@ -718,6 +712,60 @@ const RiderLiveMap: React.FC = () => {
     clearEntityFilter();
   };
 
+  // Handle input changes with immediate suggestion display
+  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    console.log(`🔍 Search input changed: "${value}"`);
+    setSearchQuery(value);
+    
+    // Immediately show suggestions if criteria met
+    if (value.trim().length >= 2) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, []);
+
+  const handleViewOnLiveMap = (
+    entityId: string,
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+  ) => {
+    console.log("Entity ID:", entityId);
+    console.log("Entity Type:", entityType);
+
+    // Set the search query to the entity ID
+    setSearchQuery(entityId);
+
+    // Optionally show suggestions if you want to trigger search
+    setShowSuggestions(true);
+
+    // You can also handle different entity types differently:
+    switch (entityType) {
+      case "order":
+        console.log("Opening live map for order:", entityId);
+        setSearchQuery(`#${entityId}`);
+        break;
+      case "booking":
+        console.log("Opening live map for booking:", entityId);
+        setSearchQuery(`#${entityId}`);
+        break;
+      case "multigroup":
+        console.log("Opening live map for multi-group:", entityId);
+        setSearchQuery(`#${entityId}`);
+        break;
+      case "customer":
+        console.log("Opening live map for customer:", entityId);
+        setSearchQuery(entityId);
+        break;
+      case "vendor":
+        console.log("Opening live map for vendor:", entityId);
+        setSearchQuery(entityId);
+        break;
+      default:
+        console.log("Unknown entity type:", entityType);
+    }
+  };
+
   // Stats calculation
   const stats = useMemo(() => {
     const orders = serviceData.filter((s) => s.type === "ORDER");
@@ -741,7 +789,7 @@ const RiderLiveMap: React.FC = () => {
     };
   }, [serviceData]);
 
-  // Enhanced Search suggestions component with better state management
+  // Enhanced Search suggestions component
   const SearchSuggestions = useCallback(() => {
     console.log(`🔍 SearchSuggestions render - showSuggestions: ${showSuggestions}, suggestions count: ${searchSuggestions.length}, query: "${searchQuery}"`);
     
@@ -784,7 +832,6 @@ const RiderLiveMap: React.FC = () => {
                   handleSearchSuggestionSelect(suggestion);
                 }}
                 onMouseDown={(e) => {
-                  // Prevent blur when clicking suggestion
                   e.preventDefault();
                 }}
               >
@@ -795,7 +842,6 @@ const RiderLiveMap: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {/* MultiGroup specific badges */}
                     {suggestion.type === "multigroup" && (
                       <>
                         <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
@@ -808,21 +854,18 @@ const RiderLiveMap: React.FC = () => {
                       </>
                     )}
 
-                    {/* Existing badges for other types */}
                     {suggestion.customer && suggestion.type !== "multigroup" && (
                       <span className="text-xs text-black/60 bg-white/20 px-2 py-0.5 rounded-full">
                         👤 {suggestion.customer}
                       </span>
                     )}
                     
-                    {/* Service count badge */}
                     {(suggestion as any).serviceCount && (
                       <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                         📋 {(suggestion as any).serviceCount} service{(suggestion as any).serviceCount !== 1 ? 's' : ''}
                       </span>
                     )}
                     
-                    {/* Status badge */}
                     {(suggestion as any).status && (
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         (suggestion as any).status === "CONFIRMED" || (suggestion as any).status === "Confirmed"
@@ -835,20 +878,19 @@ const RiderLiveMap: React.FC = () => {
                       </span>
                     )}
                     {('bookingData' in suggestion && suggestion.bookingData?.cargoId) ? (
-  <Badge className="text-xs">
-    <Package className="h-3 w-3 mr-1" />
-    CARGO
-  </Badge>
-) : (
-  <>
-    {(suggestion as any).amount && (
-      <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-        💰 {(suggestion as any).amount}
-      </span>
-    )}
-  </>
-)}
-                    
+                      <Badge className="text-xs">
+                        <Package className="h-3 w-3 mr-1" />
+                        CARGO
+                      </Badge>
+                    ) : (
+                      <>
+                        {(suggestion as any).amount && (
+                          <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            💰 {(suggestion as any).amount}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -877,58 +919,7 @@ const RiderLiveMap: React.FC = () => {
       </div>
     );
   }, [showSuggestions, searchSuggestions, searchQuery, handleSearchClear, handleSearchSuggestionSelect]);
-  const handleViewOnLiveMap = (
-    entityId: string,
-    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
-  ) => {
-    console.log("Entity ID:", entityId);
-    console.log("Entity Type:", entityType);
 
-    // Set the search query to the entity ID
-    setSearchQuery(entityId);
-
-    // Optionally show suggestions if you want to trigger search
-    setShowSuggestions(true);
-
-    // You can also handle different entity types differently:
-    switch (entityType) {
-      case "order":
-        console.log("Opening live map for order:", entityId);
-        setSearchQuery(`#${entityId}`);
-        break;
-      case "booking":
-        console.log("Opening live map for booking:", entityId);
-        setSearchQuery(`#${entityId}`);
-        break;
-      case "multigroup":
-        console.log("Opening live map for multi-group:", entityId);
-        setSearchQuery(`#${entityId}`);
-        break;
-      case "customer":
-        console.log("Opening live map for customer:", entityId);
-        setSearchQuery(entityId);
-        break;
-      case "vendor":
-        console.log("Opening live map for vendor:", entityId);
-        setSearchQuery(entityId);
-        break;
-      default:
-        console.log("Unknown entity type:", entityType);
-    }
-  };
-// NEW: Handle input changes with immediate suggestion display
-const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  console.log(`🔍 Search input changed: "${value}"`);
-  setSearchQuery(value);
-  
-  // Immediately show suggestions if criteria met
-  if (value.trim().length >= 2) {
-    setShowSuggestions(true);
-  } else {
-    setShowSuggestions(false);
-  }
-}, []);
   // Cleanup effect
   useEffect(() => {
     return () => {
@@ -944,8 +935,6 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
-       
-
         {/* Desktop Header */}
         {!isMobile && (
           <div className="bg-white/95 backdrop-blur-3xl border-b border-white/20 p-4 relative z-50 shadow-xl">
@@ -980,6 +969,13 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
                         ⭐ {riderData.rating.toFixed(1)}/5
                       </span>
                     </>
+                  )}
+                  {/* Location tracking status in header */}
+                  {locationTracking.isTracking && (
+                    <span className="flex items-center gap-1 text-sm text-green-600 font-semibold">
+                      <Navigation className="w-3 h-3 animate-pulse" />
+                      Live Tracking
+                    </span>
                   )}
                 </div>
               </div>
@@ -1099,6 +1095,27 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
             </div>
           </div>
 
+          {/* Enhanced Location Status Cards */}
+          {locationTracking.isTracking && locationTracking.currentLocation && (
+            <LocationStatusCard
+              currentLocation={locationTracking.currentLocation}
+              trackingDuration={locationTracking.trackingDuration}
+              totalDistance={locationTracking.totalDistance}
+              averageSpeed={locationTracking.averageSpeed}
+              onClose={locationTracking.stopTracking}
+              onCenterLocation={locationTracking.centerOnLocation}
+              variant={isMobile ? "minimal" : "detailed"}
+            />
+          )}
+
+          {locationTracking.error && (
+            <LocationErrorCard
+              error={locationTracking.error}
+              onRetry={locationTracking.startTracking}
+              onDismiss={locationTracking.clearError}
+            />
+          )}
+
           {/* Filter Control Panel */}
           <FilterControlPanel 
             clearEntityFilter={clearEntityFilter}
@@ -1136,7 +1153,6 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
                         {showFilterPanel ? "Hide" : "Details"}
                       </div>
                     </div>
-                    {/* Indicator dot when panel is open */}
                     {showFilterPanel && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-pulse"></div>
                     )}
@@ -1147,6 +1163,15 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
                 </TooltipContent>
               </Tooltip>
             )}
+
+            {/* Enhanced Location Tracking Button */}
+            <LocationTrackingButton
+              isTracking={locationTracking.isTracking}
+              hasError={!!locationTracking.error}
+              isLoading={locationTracking.isLoading}
+              onToggle={locationTracking.toggleTracking}
+              size="md"
+            />
 
             {/* Services Button */}
             <Tooltip>
@@ -1176,8 +1201,6 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
                 <p>View my services</p>
               </TooltipContent>
             </Tooltip>
-
-        
           </div>
         </div>
 
@@ -1189,17 +1212,16 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-orange-500" />
                   <Calendar className="h-5 w-5 text-purple-500" />
-                  {/* <Users className="h-5 w-5 text-blue-500" /> */}
                 </div>
                 My Service Management
               </SheetTitle>
-          <Button
-                  onClick={() => setshowInfor(!showInfor)}
-                  variant="outline"
-                  className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
+              <Button
+                onClick={() => setshowInfor(!showInfor)}
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
             </SheetHeader>
 
             <RiderServiceManagement
@@ -1209,7 +1231,8 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
               onContactCustomer={handleContactCustomer}
               onNavigateToLocation={handleNavigateToLocation}
               onViewOnLiveMap={handleViewOnLiveMap}
-              showInfor={showInfor} setshowInfor={setshowInfor}
+              showInfor={showInfor} 
+              setshowInfor={setshowInfor}
             />
           </SheetContent>
         </Sheet>
@@ -1231,6 +1254,19 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
               <div className="text-xs">
                 <div className="font-medium text-gray-900">Calculating Route...</div>
                 <div className="text-gray-500">Optimizing your delivery path</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Location tracking loading indicator */}
+        {locationTracking.isLoading && (
+          <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 border z-50">
+            <div className="flex items-center gap-3">
+              <Navigation className="w-4 h-4 animate-spin text-blue-600" />
+              <div className="text-xs">
+                <div className="font-medium text-gray-900">Getting Location...</div>
+                <div className="text-gray-500">Please allow location access</div>
               </div>
             </div>
           </div>
@@ -1311,6 +1347,8 @@ const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputEleme
     </TooltipProvider>
   );
 };
+
+// Enhanced popup styles
 const popupStyles = `
   .enhanced-popup .maplibregl-popup-content {
     padding: 0 !important;
@@ -1347,4 +1385,5 @@ const popupStyles = `
     }
   }
 `;
+
 export default RiderLiveMap;
