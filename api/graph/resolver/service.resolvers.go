@@ -205,7 +205,7 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 
 // UpdateService is the resolver for the updateService field.
 func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error) {
-	// Retrieve the service ID from the context
+// Retrieve the service ID from the context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
@@ -237,89 +237,12 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 			return nil, fmt.Errorf("failed to check for existing service: %w", err)
 		}
 
-		oldSimpleName := strings.ToLower(strings.ReplaceAll(service.Name, " ", "-"))
-		oldSimpleName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(oldSimpleName, "")
-		oldBucketName := fmt.Sprintf("s-%s", oldSimpleName[:helper.MinInt(len(oldSimpleName), 10)])
+		// // Use service ID based bucket naming (consistent with CreateService)
+		// oldBucketName := fmt.Sprintf("service-%s-bucket", service.ID.String())
+		// newBucketName := fmt.Sprintf("service-%s-bucket", service.ID.String()) // Same bucket name since ID doesn't change
 
-		newSimpleName := strings.ToLower(strings.ReplaceAll(*input.Name, " ", "-"))
-		newSimpleName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(newSimpleName, "")
-		newBucketName := fmt.Sprintf("s-%s", newSimpleName[:helper.MinInt(len(newSimpleName), 10)])
-
-		// Inside UpdateService...
-
-		if oldBucketName != newBucketName {
-			if service.Dpfile != nil {
-				oldURL := *service.Dpfile
-				objectPath := strings.TrimPrefix(oldURL, fmt.Sprintf("/minio/%s/", oldBucketName))
-
-				// Ensure new bucket exists before copying
-				if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, newBucketName); err != nil {
-					return nil, fmt.Errorf("failed to create new bucket: %w", err)
-				}
-
-				src := minio.CopySrcOptions{
-					Bucket: oldBucketName,
-					Object: objectPath,
-				}
-				dst := minio.CopyDestOptions{
-					Bucket: newBucketName,
-					Object: objectPath,
-				}
-				if _, err := r.MinIOClient.CopyObject(ctx, dst, src); err != nil {
-					return nil, fmt.Errorf("failed to copy object to new bucket: %w", err)
-				}
-				if err := r.MinIOClient.RemoveObject(ctx, oldBucketName, objectPath, minio.RemoveObjectOptions{}); err != nil {
-					return nil, fmt.Errorf("failed to delete object from old bucket: %w", err)
-				}
-
-				newURL := fmt.Sprintf("/minio/%s/%s", newBucketName, objectPath)
-				service.Dpfile = &newURL
-			}
-
-			// Update gallery profession images
-			var galleryProfessions []model.GalleryProfession
-			if err := r.DB.Where("service_id = ?", service.ID.String()).Find(&galleryProfessions).Error; err != nil {
-				return nil, fmt.Errorf("failed to fetch gallery professions: %w", err)
-			}
-
-			for i, gp := range galleryProfessions {
-				var updatedUrls pq.StringArray
-				var changed bool
-
-				for _, url := range gp.ImageUrls {
-					if strings.HasPrefix(url, fmt.Sprintf("/minio/%s/", oldBucketName)) {
-						objectPath := strings.TrimPrefix(url, fmt.Sprintf("/minio/%s/", oldBucketName))
-						newURL := fmt.Sprintf("/minio/%s/%s", newBucketName, objectPath)
-						updatedUrls = append(updatedUrls, newURL)
-						changed = true
-
-						src := minio.CopySrcOptions{
-							Bucket: oldBucketName,
-							Object: objectPath,
-						}
-						dst := minio.CopyDestOptions{
-							Bucket: newBucketName,
-							Object: objectPath,
-						}
-						if _, err := r.MinIOClient.CopyObject(ctx, dst, src); err != nil {
-							return nil, fmt.Errorf("failed to copy gallery image: %w", err)
-						}
-						if err := r.MinIOClient.RemoveObject(ctx, oldBucketName, objectPath, minio.RemoveObjectOptions{}); err != nil {
-							return nil, fmt.Errorf("failed to delete old gallery image: %w", err)
-						}
-					} else {
-						updatedUrls = append(updatedUrls, url)
-					}
-				}
-
-				if changed {
-					galleryProfessions[i].ImageUrls = updatedUrls
-					if err := r.DB.Save(&galleryProfessions[i]).Error; err != nil {
-						return nil, fmt.Errorf("failed to update gallery profession image URLs: %w", err)
-					}
-				}
-			}
-		}
+		// // Since we're using service ID, the bucket name doesn't change when name changes
+		// // No need to copy files between buckets
 
 		service.Name = *input.Name
 		updateNeeded = true
@@ -430,9 +353,8 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 
 	// Handle profile picture upload
 	if dpfile != nil {
-		simpleName := strings.ToLower(strings.ReplaceAll(service.Name, " ", "-"))
-		simpleName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(simpleName, "")
-		bucketName := fmt.Sprintf("s-%s", simpleName[:helper.MinInt(len(simpleName), 10)])
+		// Use service ID based bucket naming (consistent with CreateService)
+		bucketName := fmt.Sprintf("service-%s-bucket", service.ID.String())
 
 		// Ensure the bucket exists
 		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
@@ -460,6 +382,7 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 	}
 
 	return &service, nil
+
 }
 
 // UpdateBusinessType is the resolver for the updateBusinessType field.
