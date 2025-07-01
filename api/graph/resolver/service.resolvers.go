@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
 	"github.com/lib/pq"
-	minio "github.com/minio/minio-go/v7"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -205,7 +203,7 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 
 // UpdateService is the resolver for the updateService field.
 func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error) {
-// Retrieve the service ID from the context
+	// Retrieve the service ID from the context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
