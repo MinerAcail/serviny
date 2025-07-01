@@ -30,7 +30,7 @@ import (
 
 // ID is the resolver for the id field.
 func (r *businessTypeResolver) ID(ctx context.Context, obj *model.BusinessType) (string, error) {
-		id := obj.ID.String()
+	id := obj.ID.String()
 	return id, nil
 }
 

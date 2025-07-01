@@ -7,6 +7,7 @@ type Service {
   profession: [String]
   categories: [String]
   businessType: String
+  businessTypeId: String
   location: String
   aboutMe: String
   password: String

@@ -1128,29 +1128,30 @@ type ComplexityRoot struct {
 	}
 
 	Service struct {
-		AboutMe      func(childComplexity int) int
-		BookTypes    func(childComplexity int) int
-		BusinessType func(childComplexity int) int
-		Categories   func(childComplexity int) int
-		Coordinates  func(childComplexity int) int
-		CreatedAt    func(childComplexity int) int
-		Dpfile       func(childComplexity int) int
-		Email        func(childComplexity int) int
-		H3Indexes    func(childComplexity int) int
-		ID           func(childComplexity int) int
-		IsAuth       func(childComplexity int) int
-		IsVerified   func(childComplexity int) int
-		Location     func(childComplexity int) int
-		Name         func(childComplexity int) int
-		Number       func(childComplexity int) int
-		NumberType   func(childComplexity int) int
-		Password     func(childComplexity int) int
-		Profession   func(childComplexity int) int
-		State        func(childComplexity int) int
-		SubDomain    func(childComplexity int) int
-		Type         func(childComplexity int) int
-		UpdatedAt    func(childComplexity int) int
-		UseTheme     func(childComplexity int) int
+		AboutMe        func(childComplexity int) int
+		BookTypes      func(childComplexity int) int
+		BusinessType   func(childComplexity int) int
+		BusinessTypeId func(childComplexity int) int
+		Categories     func(childComplexity int) int
+		Coordinates    func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		Dpfile         func(childComplexity int) int
+		Email          func(childComplexity int) int
+		H3Indexes      func(childComplexity int) int
+		ID             func(childComplexity int) int
+		IsAuth         func(childComplexity int) int
+		IsVerified     func(childComplexity int) int
+		Location       func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Number         func(childComplexity int) int
+		NumberType     func(childComplexity int) int
+		Password       func(childComplexity int) int
+		Profession     func(childComplexity int) int
+		State          func(childComplexity int) int
+		SubDomain      func(childComplexity int) int
+		Type           func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
+		UseTheme       func(childComplexity int) int
 	}
 
 	ServiceData struct {
@@ -8841,6 +8842,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Service.BusinessType(childComplexity), true
+
+	case "Service.businessTypeId":
+		if e.complexity.Service.BusinessTypeId == nil {
+			break
+		}
+
+		return e.complexity.Service.BusinessTypeId(childComplexity), true
 
 	case "Service.categories":
 		if e.complexity.Service.Categories == nil {
@@ -23279,6 +23287,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_vendor(_ context.Context,
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -36662,6 +36672,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRiderOnlineStatusByServi
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -36852,6 +36864,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRiderLocationByService(c
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -37031,6 +37045,8 @@ func (ec *executionContext) fieldContext_Mutation_riderGoOnlineByService(_ conte
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -37199,6 +37215,8 @@ func (ec *executionContext) fieldContext_Mutation_riderGoOfflineByService(_ cont
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -38112,6 +38130,8 @@ func (ec *executionContext) fieldContext_Mutation_createService(ctx context.Cont
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -38212,6 +38232,8 @@ func (ec *executionContext) fieldContext_Mutation_updateService(ctx context.Cont
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -38386,6 +38408,8 @@ func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -54863,6 +54887,8 @@ func (ec *executionContext) fieldContext_Query_listServices(ctx context.Context,
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -54963,6 +54989,8 @@ func (ec *executionContext) fieldContext_Query_getService(_ context.Context, fie
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -55052,6 +55080,8 @@ func (ec *executionContext) fieldContext_Query_getProvider(ctx context.Context, 
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -55152,6 +55182,8 @@ func (ec *executionContext) fieldContext_Query_getProviderByUsername(ctx context
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -55304,6 +55336,8 @@ func (ec *executionContext) fieldContext_Query_getSharedService(ctx context.Cont
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -60538,6 +60572,8 @@ func (ec *executionContext) fieldContext_RiderWithMapData_riderService(_ context
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -62683,6 +62719,47 @@ func (ec *executionContext) fieldContext_Service_businessType(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Service_businessTypeId(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Service_businessTypeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BusinessTypeId, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Service_businessTypeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_location(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Service_location(ctx, field)
 	if err != nil {
@@ -63612,6 +63689,8 @@ func (ec *executionContext) fieldContext_ServiceData_vendor(_ context.Context, f
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -67194,6 +67273,8 @@ func (ec *executionContext) fieldContext_VendorsMapData_vendor(_ context.Context
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -67453,6 +67534,8 @@ func (ec *executionContext) fieldContext_ViewInvoice_serviceId(_ context.Context
 				return ec.fieldContext_Service_categories(ctx, field)
 			case "businessType":
 				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
 			case "location":
 				return ec.fieldContext_Service_location(ctx, field)
 			case "aboutMe":
@@ -84665,6 +84748,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "businessType":
 			out.Values[i] = ec._Service_businessType(ctx, field, obj)
+		case "businessTypeId":
+			out.Values[i] = ec._Service_businessTypeId(ctx, field, obj)
 		case "location":
 			out.Values[i] = ec._Service_location(ctx, field, obj)
 		case "aboutMe":
