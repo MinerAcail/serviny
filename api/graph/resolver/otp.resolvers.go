@@ -371,7 +371,7 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 	}
 
 	// Send OTP via email with reset password context
-	err = otp.SendPasswordResetOTPEmail(email, generatedOTP)
+	err = otp.SendOTPEmail(email, generatedOTP)
 	if err != nil {
 		log.Printf("Error sending password reset OTP email: %v", err)
 		return &model.OtpResponse{
