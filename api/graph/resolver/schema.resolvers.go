@@ -676,7 +676,7 @@ func (r *queryResolver) GetUserInforFromContextForAuthClient(ctx context.Context
 		return &model.UsersInfor{
 			ID:          service.ID.String(),
 			Name:        service.Name,
-			Type:        service.Type,
+			Type:        *service.BusinessType,
 			Number:      service.Number,
 			Email:       service.Email,
 			Location:    service.Location,
