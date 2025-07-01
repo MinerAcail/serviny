@@ -85,7 +85,7 @@ type UsersInfor {
 }
 extend type Mutation {
   deleteTable: Boolean!
-  serviceLogin(input: LoginInput!): UsersInfor
+  serviceLogin(input: LoginInput!): Returns
   adminLogin(input: LoginInput!): Admin
   # workersLogin(input: LoginInput!): jobRequest
   deliveryLogin(input: LoginInput): Returns

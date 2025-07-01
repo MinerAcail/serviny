@@ -1496,7 +1496,7 @@ type MutationResolver interface {
 	JobRequest(ctx context.Context, serviceID string, input model.RidersRequestInput) (*model.RidersRequest, error)
 	UpdateStateByServiceProvider(ctx context.Context, riderID string, state *string) (*model.RiderRequestInfor, error)
 	DeleteTable(ctx context.Context) (bool, error)
-	ServiceLogin(ctx context.Context, input model.LoginInput) (*model.UsersInfor, error)
+	ServiceLogin(ctx context.Context, input model.LoginInput) (model.Returns, error)
 	AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error)
 	DeliveryLogin(ctx context.Context, input *model.LoginInput) (model.Returns, error)
 	LogOut(ctx context.Context) (bool, error)
@@ -36928,9 +36928,9 @@ func (ec *executionContext) _Mutation_serviceLogin(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.UsersInfor)
+	res := resTmp.(model.Returns)
 	fc.Result = res
-	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
+	return ec.marshalOReturns2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐReturns(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_serviceLogin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -36940,25 +36940,7 @@ func (ec *executionContext) fieldContext_Mutation_serviceLogin(ctx context.Conte
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_UsersInfor_id(ctx, field)
-			case "name":
-				return ec.fieldContext_UsersInfor_name(ctx, field)
-			case "type":
-				return ec.fieldContext_UsersInfor_type(ctx, field)
-			case "number":
-				return ec.fieldContext_UsersInfor_number(ctx, field)
-			case "email":
-				return ec.fieldContext_UsersInfor_email(ctx, field)
-			case "location":
-				return ec.fieldContext_UsersInfor_location(ctx, field)
-			case "coordinates":
-				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
-			case "dpfile":
-				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
+			return nil, errors.New("field of type Returns does not have child fields")
 		},
 	}
 	defer func() {
