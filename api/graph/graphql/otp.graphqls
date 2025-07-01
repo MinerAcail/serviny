@@ -51,6 +51,7 @@ input ResetPassWordOtpInput {
 }
 extend type Mutation {
   requestOtp(input: RequestOtpInput!): OtpResponse!
+  testRequestOtp: Boolean!
   requestForResetOtp(input: ResetPassWordOtpInput!): OtpResponse!
   verifyOtp(input: VerifyOtpInput!): OtpResponse
   resendOTP(input: RequestOtpInput!): OtpResponse

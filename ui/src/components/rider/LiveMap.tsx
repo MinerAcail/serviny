@@ -46,9 +46,16 @@ import {
   BarChart3,
   X,
   Menu,
-
+  Phone,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  User,
   Info,
-
+  ChevronUp,
+  ChevronDown,
+  MapPinHouse,
+  Crosshair,
 } from "lucide-react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -56,10 +63,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Import rider-specific utilities
 import {
   RiderServiceData,
- type RiderSearchSuggestion,
+  RiderSearchSuggestion,
   RiderSelectedEntity,
   ProcessedRiderData,
-  RiderRouteData,
+  // RiderRouteData,
   generateRiderSearchSuggestions,
   // getRiderRelatedEntityData,
   handleRiderSearchSuggestionSelect,
@@ -77,15 +84,17 @@ import { Badge } from "../ui/badge";
 // Import enhanced location tracking components
 import {
   LocationTrackingButton,
-  LocationStatusCard,
+  // LocationStatusCard,
   LocationErrorCard,
-  useLocationTracking,
+  // useLocationTracking,
   locationTrackingStyles,
-  RiderLocation,
+  // RiderLocation,
+  // MovementStatusCard,
+  useLocationTrackingNew,
 } from "./LocationTrackingManagement";
 
 // GraphQL Query for rider's assigned data
-const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
+export const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
   query GetAllRidersBookingAndOrdersAssignedData {
     getAllRidersBookingAndOrdersAssignedData {
       id
@@ -211,16 +220,14 @@ const RiderLiveMap: React.FC = () => {
   const [isTablet, setIsTablet] = useState(false);
   const [showServiceZones, setShowServiceZones] = useState(true);
   const [showRoutes, setShowRoutes] = useState(true);
-  const [riderRoutes, setRiderRoutes] = useState<Map<string, RiderRouteData>>(new Map());
-  const [databaseRoutes, setDatabaseRoutes] = useState<Map<string, RiderRouteData>>(new Map());
+
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<RiderSelectedEntity | null>(null);
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState("overview");
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   const [showInfor, setshowInfor] = useState(false);
 
   // Refs
@@ -230,21 +237,22 @@ const RiderLiveMap: React.FC = () => {
   const routeUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const markerUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Enhanced location tracking hook
-  const locationTracking = useLocationTracking(mapInstance, {
+  // Enhanced location tracking hook with real-time settings
+  const locationTracking = useLocationTrackingNew(mapInstance, {
     enableHighAccuracy: true,
-    timeout: 15000,
-    maximumAge: 5000,
+    timeout: 10000,
+    maximumAge: 500, // Fresh data for real-time updates
     autoCenter: true,
     showAccuracyCircle: true,
     showBearing: true,
+    enableServerSync: true,
   });
 
   // GraphQL query
   const { loading, error, data, refetch } = useQuery(
     GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA,
     {
-      pollInterval: 60000,
+      pollInterval: 60000, // 60,000 ms = 60 seconds (1 minute)
       errorPolicy: "all",
       notifyOnNetworkStatusChange: true,
       fetchPolicy: "cache-and-network",
@@ -329,57 +337,60 @@ const RiderLiveMap: React.FC = () => {
   }, [searchQuery, serviceData]);
 
   // Initialize MapLibre map
-  useEffect(() => {
-    if (!mapRef.current || mapInstance.current) return;
+useEffect(() => {
+  if (!mapRef.current || mapInstance.current) return;
 
-    const mapStyle = maptilerApiKey
-      ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
-      : "https://demotiles.maplibre.org/style.json";
+  const mapStyle = maptilerApiKey
+    ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
+    : "https://demotiles.maplibre.org/style.json";
 
-    try {
-      const map = new maplibregl.Map({
-        container: mapRef.current,
-        style: mapStyle,
-        center: [-0.187, 5.6037], // Default to Accra
-        zoom: 12,
-        attributionControl: false,
-        maxZoom: 18,
-        minZoom: 8,
-      });
+  try {
+    const map = new maplibregl.Map({
+      container: mapRef.current,
+      style: mapStyle,
+      center: [-0.187, 5.6037], // Default to Accra
+      zoom: 12,
+      attributionControl: false,
+      maxZoom: 18,
+      minZoom: 8,
+    });
 
-      mapInstance.current = map;
+    mapInstance.current = map;
 
-      map.on("load", () => {
-        setMapLoaded(true);
-        console.log("Rider map loaded successfully");
-      });
+    map.on("load", () => {
+      setMapLoaded(true);
+      console.log("Rider map loaded successfully");
+    });
 
-      map.on("error", (e) => {
-        console.error("Rider map error:", e);
-      });
+    map.on("error", (e) => {
+      console.error("Rider map error:", e);
+    });
 
-      // Add resize handler
-      const handleResize = () => {
-        if (mapInstance.current) {
-          mapInstance.current.resize();
-        }
-      };
-      window.addEventListener("resize", handleResize);
+    // Add resize handler
+    const handleResize = () => {
+      if (mapInstance.current) {
+        mapInstance.current.resize();
+      }
+    };
+    window.addEventListener("resize", handleResize);
 
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        markersRef.current.forEach((marker) => marker.remove());
-        markersRef.current = [];
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      
+      // Only clean up service markers, not location tracking markers
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      // Location tracking markers are cleaned up by their own hook
 
-        if (mapInstance.current) {
-          mapInstance.current.remove();
-          mapInstance.current = null;
-        }
-      };
-    } catch (error) {
-      console.error("Failed to initialize rider map:", error);
-    }
-  }, [maptilerApiKey]);
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  } catch (error) {
+    console.error("Failed to initialize rider map:", error);
+  }
+}, [maptilerApiKey]);
 
   // Add location tracking styles to document
   useEffect(() => {
@@ -406,199 +417,209 @@ const RiderLiveMap: React.FC = () => {
   }, [mapLoaded, showRoutes, serviceData, selectedEntity, showOnlyRelevant]);
 
   // Update markers
-  useEffect(() => {
-    if (!mapInstance.current || !mapLoaded) return;
+// In the useEffect that updates markers, add this condition at the beginning:
+// Complete useEffect for updating markers with location tracking protection
+// Replace your existing marker update useEffect with this complete version
+useEffect(() => {
+  if (!mapInstance.current || !mapLoaded) return;
 
-    if (markerUpdateTimeoutRef.current) {
-      clearTimeout(markerUpdateTimeoutRef.current);
-    }
+  if (markerUpdateTimeoutRef.current) {
+    clearTimeout(markerUpdateTimeoutRef.current);
+  }
 
-    markerUpdateTimeoutRef.current = setTimeout(() => {
-      try {
-        // Clear existing markers (except location tracking marker)
-        markersRef.current.forEach((marker) => marker.remove());
-        markersRef.current = [];
+  markerUpdateTimeoutRef.current = setTimeout(() => {
+    try {
+      console.log('Clearing all service markers, current count:', markersRef.current.length);
+      
+      // Clear ALL existing markers in markersRef (location tracking is separate now)
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = []; // Reset to empty array
 
-        // Create new markers
-        const servicesToShow = showOnlyRelevant && selectedEntity
-          ? selectedEntity.relatedData.services
-          : serviceData;
+      // Create new markers for services
+      const servicesToShow = showOnlyRelevant && selectedEntity
+        ? selectedEntity.relatedData.services
+        : serviceData;
 
-        console.log(`Creating markers for ${servicesToShow.length} services`);
+      console.log(`Creating markers for ${servicesToShow.length} services`);
 
-        // Add markers for each service location
-        servicesToShow.forEach((service) => {
-          if (service.type === "ORDER" && service.orderData?.order?.coordinates) {
-            const marker = new maplibregl.Marker({ 
-              color: getServiceStatusColor(service),
-              scale: showOnlyRelevant ? 1.2 : 1.0 
+      // Add markers for each service location
+      servicesToShow.forEach((service) => {
+        if (service.type === "ORDER" && service.orderData?.order?.coordinates) {
+          const marker = new maplibregl.Marker({ 
+            color: getServiceStatusColor(service),
+            scale: showOnlyRelevant ? 1.2 : 1.0 
+          })
+            .setLngLat(service.orderData.order.coordinates)
+            .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
+              <div class="p-3">
+                <h3 class="font-bold">Order #${service.orderData.orderId.slice(-6)}</h3>
+                <p class="text-sm font-medium">${service.customer.name}</p>
+                <p class="text-xs text-gray-600">${service.orderData.deliveryAddress}</p>
+                <p class="text-xs font-medium mt-1">Status: ${service.orderData.status}</p>
+                <p class="text-xs font-medium">Amount: GH₵${service.orderData.deliveryMetaData?.price || 0}</p>
+              </div>
+            `))
+            .addTo(mapInstance.current!);
+          markersRef.current.push(marker);
+
+          // Add vendor marker if coordinates exist
+          if (service.vendor?.coordinates) {
+            const vendorMarker = new maplibregl.Marker({ 
+              color: "#10B981",
+              scale: showOnlyRelevant ? 1.1 : 0.9 
             })
-              .setLngLat(service.orderData.order.coordinates)
+              .setLngLat(service.vendor.coordinates)
               .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
                 <div class="p-3">
-                  <h3 class="font-bold">Order #${service.orderData.orderId.slice(-6)}</h3>
-                  <p class="text-sm font-medium">${service.customer.name}</p>
-                  <p class="text-xs text-gray-600">${service.orderData.deliveryAddress}</p>
-                  <p class="text-xs font-medium mt-1">Status: ${service.orderData.status}</p>
-                  <p class="text-xs font-medium">Amount: GH₵${service.orderData.deliveryMetaData?.price || 0}</p>
+                  <h3 class="font-bold">${service.vendor.name}</h3>
+                  <p class="text-sm">Vendor</p>
+                  <p class="text-xs text-gray-600">${service.vendor.location}</p>
+                  <p class="text-xs font-medium mt-1">Order #${service.orderData.orderId.slice(-6)}</p>
                 </div>
               `))
               .addTo(mapInstance.current!);
-            markersRef.current.push(marker);
+            markersRef.current.push(vendorMarker);
+          }
+        } else if (service.type === "BOOKING" && service.bookingData) {
+          // Pickup marker
+          if (service.bookingData.pickupLocation) {
+            const pickupMarker = new maplibregl.Marker({ 
+              color: "#8B5CF6",
+              scale: showOnlyRelevant ? 1.2 : 1.0 
+            })
+              .setLngLat(service.bookingData.pickupLocation)
+              .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
+                <div class="p-3">
+                  <h3 class="font-bold">Pickup - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
+                  <p class="text-sm font-medium">${service.customer.name}</p>
+                  <p class="text-xs text-gray-600">${service.bookingData.pickUpAddress}</p>
+                  <p class="text-xs font-medium mt-1">Status: ${service.bookingData.status || "Pending"}</p>
+                  <p class="text-xs font-medium">Amount: GH₵${service.bookingData.deliveryFee}</p>
+                  ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
+                </div>
+              `))
+              .addTo(mapInstance.current!);
+            markersRef.current.push(pickupMarker);
+          }
 
-            // Add vendor marker if coordinates exist
-            if (service.vendor?.coordinates) {
-              const vendorMarker = new maplibregl.Marker({ 
-                color: "#10B981",
-                scale: showOnlyRelevant ? 1.1 : 0.9 
-              })
-                .setLngLat(service.vendor.coordinates)
-                .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
-                  <div class="p-3">
-                    <h3 class="font-bold">${service.vendor.name}</h3>
-                    <p class="text-sm">Vendor</p>
-                    <p class="text-xs text-gray-600">${service.vendor.location}</p>
-                    <p class="text-xs font-medium mt-1">Order #${service.orderData.orderId.slice(-6)}</p>
-                  </div>
-                `))
-                .addTo(mapInstance.current!);
-              markersRef.current.push(vendorMarker);
-            }
-          } else if (service.type === "BOOKING" && service.bookingData) {
-            // Pickup marker
-            if (service.bookingData.pickupLocation) {
-              const pickupMarker = new maplibregl.Marker({ 
-                color: "#8B5CF6",
-                scale: showOnlyRelevant ? 1.2 : 1.0 
-              })
-                .setLngLat(service.bookingData.pickupLocation)
-                .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
-                  <div class="p-3">
-                    <h3 class="font-bold">Pickup - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
-                    <p class="text-sm font-medium">${service.customer.name}</p>
-                    <p class="text-xs text-gray-600">${service.bookingData.pickUpAddress}</p>
-                    <p class="text-xs font-medium mt-1">Status: ${service.bookingData.status || "Pending"}</p>
-                    <p class="text-xs font-medium">Amount: GH₵${service.bookingData.deliveryFee}</p>
-                    ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
-                  </div>
-                `))
-                .addTo(mapInstance.current!);
-              markersRef.current.push(pickupMarker);
-            }
+          // Dropoff marker
+          if (service.bookingData.dropoffLocation) {
+            const dropoffMarker = new maplibregl.Marker({ 
+              color: "#7C3AED",
+              scale: showOnlyRelevant ? 1.2 : 1.0 
+            })
+              .setLngLat(service.bookingData.dropoffLocation)
+              .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
+                <div class="p-3">
+                  <h3 class="font-bold">Dropoff - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
+                  <p class="text-sm font-medium">${service.customer.name}</p>
+                  <p class="text-xs text-gray-600">${service.bookingData.deliveryAddress}</p>
+                  <p class="text-xs font-medium mt-1">Table: ${service.bookingData.tableSize} people</p>
+                  <p class="text-xs font-medium">Day: ${service.bookingData.day}</p>
+                  ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
+                </div>
+              `))
+              .addTo(mapInstance.current!);
+            markersRef.current.push(dropoffMarker);
+          }
 
-            // Dropoff marker
-            if (service.bookingData.dropoffLocation) {
-              const dropoffMarker = new maplibregl.Marker({ 
-                color: "#7C3AED",
-                scale: showOnlyRelevant ? 1.2 : 1.0 
-              })
-                .setLngLat(service.bookingData.dropoffLocation)
-                .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
-                  <div class="p-3">
-                    <h3 class="font-bold">Dropoff - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
-                    <p class="text-sm font-medium">${service.customer.name}</p>
-                    <p class="text-xs text-gray-600">${service.bookingData.deliveryAddress}</p>
-                    <p class="text-xs font-medium mt-1">Table: ${service.bookingData.tableSize} people</p>
-                    <p class="text-xs font-medium">Day: ${service.bookingData.day}</p>
-                    ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
-                  </div>
-                `))
-                .addTo(mapInstance.current!);
-              markersRef.current.push(dropoffMarker);
-            }
+          // Venue marker
+          if (service.vendor?.coordinates) {
+            const venueMarker = new maplibregl.Marker({ 
+              color: "#10B981",
+              scale: showOnlyRelevant ? 1.1 : 0.9 
+            })
+              .setLngLat(service.vendor.coordinates)
+              .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
+                <div class="p-3">
+                  <h3 class="font-bold">${service.vendor.name}</h3>
+                  <p class="text-sm">Venue</p>
+                  <p class="text-xs text-gray-600">${service.vendor.location}</p>
+                  <p class="text-xs font-medium mt-1">Booking #${service.bookingData.bookingId.slice(-6)}</p>
+                </div>
+              `))
+              .addTo(mapInstance.current!);
+            markersRef.current.push(venueMarker);
+          }
+        }
+      });
 
-            // Venue marker
-            if (service.vendor?.coordinates) {
-              const venueMarker = new maplibregl.Marker({ 
-                color: "#10B981",
-                scale: showOnlyRelevant ? 1.1 : 0.9 
-              })
-                .setLngLat(service.vendor.coordinates)
-                .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
-                  <div class="p-3">
-                    <h3 class="font-bold">${service.vendor.name}</h3>
-                    <p class="text-sm">Venue</p>
-                    <p class="text-xs text-gray-600">${service.vendor.location}</p>
-                    <p class="text-xs font-medium mt-1">Booking #${service.bookingData.bookingId.slice(-6)}</p>
-                  </div>
-                `))
-                .addTo(mapInstance.current!);
-              markersRef.current.push(venueMarker);
+      // Add rider marker if available and not using real-time tracking
+      if (riderData && !locationTracking.isTracking) {
+        const riderMarker = new maplibregl.Marker({ 
+          color: "#3B82F6",
+          scale: 1.3 
+        })
+          .setLngLat([riderData.position.lng, riderData.position.lat])
+          .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
+            <div class="p-3">
+              <h3 class="font-bold">${riderData.name}</h3>
+              <p class="text-sm">${riderData.status} • ${riderData.vehicle}</p>
+              <p class="text-xs text-gray-600">${riderData.location}</p>
+              <p class="text-xs font-medium mt-1">Orders: ${riderData.orders} • Bookings: ${riderData.bookings}</p>
+              <p class="text-xs font-medium">Earnings: ${riderData.earnings}</p>
+              <p class="text-xs font-medium">Rating: ⭐ ${riderData.rating}/5</p>
+            </div>
+          `))
+          .addTo(mapInstance.current!);
+        markersRef.current.push(riderMarker);
+      }
+
+      // Fit map bounds only if not using real-time tracking
+      if ((servicesToShow.length > 0 || (riderData && !locationTracking.isTracking)) && !locationTracking.isTracking) {
+        const bounds = new maplibregl.LngLatBounds();
+        let hasCoordinates = false;
+
+        // Add rider position (if not tracking real-time location)
+        if (riderData && !locationTracking.isTracking) {
+          bounds.extend([riderData.position.lng, riderData.position.lat]);
+          hasCoordinates = true;
+        }
+
+        // Add service locations
+        servicesToShow.forEach((service) => {
+          if (service.vendor?.coordinates) {
+            bounds.extend(service.vendor.coordinates);
+            hasCoordinates = true;
+          }
+          if (service.type === "ORDER" && service.orderData?.order?.coordinates) {
+            bounds.extend(service.orderData.order.coordinates);
+            hasCoordinates = true;
+          } else if (service.type === "BOOKING") {
+            if (service.bookingData?.pickupLocation) {
+              bounds.extend(service.bookingData.pickupLocation);
+              hasCoordinates = true;
+            }
+            if (service.bookingData?.dropoffLocation) {
+              bounds.extend(service.bookingData.dropoffLocation);
+              hasCoordinates = true;
             }
           }
         });
 
-        // Add rider marker if available and not using real-time tracking
-        if (riderData && !locationTracking.isTracking) {
-          const riderMarker = new maplibregl.Marker({ 
-            color: "#3B82F6",
-            scale: 1.3 
-          })
-            .setLngLat([riderData.position.lng, riderData.position.lat])
-            .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
-              <div class="p-3">
-                <h3 class="font-bold">${riderData.name}</h3>
-                <p class="text-sm">${riderData.status} • ${riderData.vehicle}</p>
-                <p class="text-xs text-gray-600">${riderData.location}</p>
-                <p class="text-xs font-medium mt-1">Orders: ${riderData.orders} • Bookings: ${riderData.bookings}</p>
-                <p class="text-xs font-medium">Earnings: ${riderData.earnings}</p>
-                <p class="text-xs font-medium">Rating: ⭐ ${riderData.rating}/5</p>
-              </div>
-            `))
-            .addTo(mapInstance.current!);
-          markersRef.current.push(riderMarker);
-        }
-
-        // Fit map bounds
-        if (servicesToShow.length > 0 || (riderData && !locationTracking.isTracking)) {
-          const bounds = new maplibregl.LngLatBounds();
-          let hasCoordinates = false;
-
-          // Add rider position (if not tracking real-time location)
-          if (riderData && !locationTracking.isTracking) {
-            bounds.extend([riderData.position.lng, riderData.position.lat]);
-            hasCoordinates = true;
-          }
-
-          // Add service locations
-          servicesToShow.forEach((service) => {
-            if (service.vendor?.coordinates) {
-              bounds.extend(service.vendor.coordinates);
-              hasCoordinates = true;
-            }
-            if (service.type === "ORDER" && service.orderData?.order?.coordinates) {
-              bounds.extend(service.orderData.order.coordinates);
-              hasCoordinates = true;
-            } else if (service.type === "BOOKING") {
-              if (service.bookingData?.pickupLocation) {
-                bounds.extend(service.bookingData.pickupLocation);
-                hasCoordinates = true;
-              }
-              if (service.bookingData?.dropoffLocation) {
-                bounds.extend(service.bookingData.dropoffLocation);
-                hasCoordinates = true;
-              }
-            }
+        // Only fit bounds if we have coordinates and not tracking location
+        if (hasCoordinates && !bounds.isEmpty() && !locationTracking.isTracking) {
+          mapInstance.current?.fitBounds(bounds, {
+            padding: showOnlyRelevant ? 100 : 80,
+            maxZoom: showOnlyRelevant ? 16 : 15,
           });
-
-          if (hasCoordinates && !bounds.isEmpty() && !locationTracking.isTracking) {
-            mapInstance.current?.fitBounds(bounds, {
-              padding: showOnlyRelevant ? 100 : 80,
-              maxZoom: showOnlyRelevant ? 16 : 15,
-            });
-          }
         }
-      } catch (error) {
-        console.error("Error updating rider markers:", error);
       }
-    }, 500);
 
-    return () => {
-      if (markerUpdateTimeoutRef.current) {
-        clearTimeout(markerUpdateTimeoutRef.current);
-      }
-    };
-  }, [serviceData, riderData, mapLoaded, showOnlyRelevant, selectedEntity, locationTracking.isTracking]);
+      console.log(`Created ${markersRef.current.length} service markers (location tracking is separate)`);
+      
+    } catch (error) {
+      console.error("Error updating rider markers:", error);
+    }
+  }, 500);
+
+  return () => {
+    if (markerUpdateTimeoutRef.current) {
+      clearTimeout(markerUpdateTimeoutRef.current);
+    }
+  };
+}, [serviceData, riderData, mapLoaded, showOnlyRelevant, selectedEntity, locationTracking.isTracking]);
+
 
   // Handle search suggestion selection
   const handleSearchSuggestionSelect = useCallback((suggestion: RiderSearchSuggestion) => {
@@ -791,17 +812,17 @@ const RiderLiveMap: React.FC = () => {
 
   // Enhanced Search suggestions component
   const SearchSuggestions = useCallback(() => {
-    console.log(`🔍 SearchSuggestions render - showSuggestions: ${showSuggestions}, suggestions count: ${searchSuggestions.length}, query: "${searchQuery}"`);
+    // console.log(`🔍 SearchSuggestions render - showSuggestions: ${showSuggestions}, suggestions count: ${searchSuggestions.length}, query: "${searchQuery}"`);
     
     if (!showSuggestions || searchSuggestions.length === 0) {
-      console.log(`❌ Not showing suggestions - showSuggestions: ${showSuggestions}, count: ${searchSuggestions.length}`);
+      // console.log(`❌ Not showing suggestions - showSuggestions: ${showSuggestions}, count: ${searchSuggestions.length}`);
       return null;
     }
 
-    console.log(`✅ Rendering ${searchSuggestions.length} suggestions`);
+    // console.log(`✅ Rendering ${searchSuggestions.length} suggestions`);
 
     return (
-      <div className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-3xl z-50 mt-2 max-h-80 overflow-hidden">
+      <div className="absolute top-full  left-0 right-0 bg-white/95 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-3xl z-50 mt-2 max-h-80 overflow-hidden">
         <ScrollArea className="max-h-80">
           <div className="p-3">
             <div className="flex justify-between items-center mb-3">
@@ -1096,7 +1117,7 @@ const RiderLiveMap: React.FC = () => {
           </div>
 
           {/* Enhanced Location Status Cards */}
-          {locationTracking.isTracking && locationTracking.currentLocation && (
+          {/* {locationTracking.isTracking && locationTracking.currentLocation && (
             <LocationStatusCard
               currentLocation={locationTracking.currentLocation}
               trackingDuration={locationTracking.trackingDuration}
@@ -1106,14 +1127,62 @@ const RiderLiveMap: React.FC = () => {
               onCenterLocation={locationTracking.centerOnLocation}
               variant={isMobile ? "minimal" : "detailed"}
             />
-          )}
-
+          )} */}
+{/* {locationTracking.isTracking && locationTracking.isMoving && locationTracking.currentLocation && (
+  <MovementStatusCard
+    isMoving={locationTracking.isMoving}
+    speed={locationTracking.movementSpeed || 0}
+    bearingChange={locationTracking.bearingChange || 0}
+    currentLocation={locationTracking.currentLocation}
+    onClose={() => {
+      console.log('Movement status card manually closed');
+      // The card will auto-hide after 10 seconds of no movement
+    }}
+    className="movement-status-card"
+  />
+)} */}
+{/* {locationTracking.isTracking && (
+  <span className="flex items-center gap-1 text-sm text-green-600 font-semibold">
+    <Navigation className="w-3 h-3 animate-pulse" />
+    Live Tracking
+    {locationTracking.isMoving && (
+      <span className="ml-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+        🏃 Moving {locationTracking.movementSpeed?.toFixed(0)} km/h
+      </span>
+    )}
+  </span>
+)} */}
+{/* {locationTracking.isTracking && (
+  <div className={`fixed top-4 right-4 backdrop-blur-lg rounded-full px-3 py-1 text-white text-xs font-medium z-50 flex items-center gap-2 shadow-lg transition-all duration-300 ${
+    locationTracking.isMoving 
+      ? 'bg-green-500/90 animate-pulse' 
+      : 'bg-blue-500/90'
+  }`}>
+    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+    <span>
+      {locationTracking.isMoving 
+        ? `Moving ${locationTracking.movementSpeed?.toFixed(0)} km/h` 
+        : 'Live Tracking'
+      }
+    </span>
+    <Navigation className="w-3 h-3" />
+  </div>
+)} */}
           {locationTracking.error && (
             <LocationErrorCard
               error={locationTracking.error}
               onRetry={locationTracking.startTracking}
               onDismiss={locationTracking.clearError}
             />
+          )}
+
+          {/* Real-time Location Tracking Indicator */}
+          {locationTracking.isTracking && (
+            <div className="fixed top-4 left-4 bg-green-500/90 backdrop-blur-lg rounded-full px-3 py-1 text-white text-xs font-medium z-10 flex items-center gap-2 shadow-lg">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>Live Tracking</span>
+              <Navigation className="w-3 h-3" />
+            </div>
           )}
 
           {/* Filter Control Panel */}

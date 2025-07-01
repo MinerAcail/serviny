@@ -142,8 +142,8 @@ const LiveMap: React.FC = () => {
   const [showRiderDetails, setShowRiderDetails] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [showIsochrones, setShowIsochrones] = useState(true);
-  const [showRoutes, setShowRoutes] = useState(true);
+  const [showIsochrones, setShowIsochrones] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
   const [riderRoutes, setRiderRoutes] = useState<Map<string, RouteData>>(
     new Map()
   );
@@ -182,7 +182,14 @@ const LiveMap: React.FC = () => {
   } | null>(null);
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  type SearchSuggestion = {
+    type: string;
+    value: string;
+    label: string;
+    icon: string;
+    [key: string]: any;
+  };
+  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
@@ -316,16 +323,21 @@ const LiveMap: React.FC = () => {
       }));
 
     // Get rider names
-    const riderNames = riders
-      .filter((rider) => rider.name.toLowerCase().includes(query))
-      .slice(0, 2)
-      .map((rider) => ({
-        type: "rider",
-        value: rider.name,
-        label: `Rider: ${rider.name}`,
-        icon: rider.vehicle === "Motorcycle" ? "🏍️" : "🚲",
-        status: rider.status,
-      }));
+ // Replace the riderNames section with:
+const uniqueRiderNames = [...new Set(riders.map(r => r.name))];
+const riderNames = uniqueRiderNames
+  .filter(name => name.toLowerCase().includes(query))
+  .slice(0, 2)
+  .map(name => {
+    const rider = riders.find(r => r.name === name);
+    return {
+      type: "rider",
+      value: rider.name,
+      label: `Rider: ${rider.name}`,
+      icon: rider.vehicle === "Motorcycle" ? "🏍️" : "🚲",
+      status: rider.status,
+    };
+  });
 
     // MultiGroup suggestions
     const multiGroupSuggestions = (() => {
@@ -362,8 +374,8 @@ const LiveMap: React.FC = () => {
 
           return {
             type: "multigroup",
-            value: `#${multiGroupId.slice(-6)}`,
-            label: `Multi-Group #${multiGroupId.slice(-6)}`,
+            value: `#${multiGroupId?.slice(-6)}`,
+            label: `Multi-Group #${multiGroupId?.slice(-6)}`,
             icon: "📅🔗",
             multiGroupId: multiGroupId,
             bookingCount: groupBookings.length,
@@ -728,21 +740,20 @@ const LiveMap: React.FC = () => {
         });
 
         if (data?.getOrderRoute) {
-          console.log(`Successfully fetched route for service ${serviceId}:`, {
-            id: data.getOrderRoute.id,
-            hasGeojson: !!data.getOrderRoute.geojson,
-            geojsonLength: data.getOrderRoute.geojson?.length || 0,
-          });
+          // console.log(`Successfully fetched route for service ${serviceId}:`, {
+          //   id: data.getOrderRoute.id,
+          //   hasGeojson: !!data.getOrderRoute.geojson,
+          //   geojsonLength: data.getOrderRoute.geojson?.length || 0,
+          // });
 
           setOrderRouteCache((prev) =>
             new Map(prev).set(serviceId, data.getOrderRoute)
           );
           return data.getOrderRoute;
-        } else {
-          console.warn(`No route data returned for service ${serviceId}`);
         }
-      } catch (error) {
-        console.error(`Error fetching route for service ${serviceId}:`, error);
+       
+      } catch  {
+        // console.error(`Error fetching route for service ${serviceId}:`, error);
       }
       return null;
     },
@@ -752,19 +763,18 @@ const LiveMap: React.FC = () => {
   // Updated function to fetch all route data
   const fetchAllRoutesForServices = useCallback(async () => {
     if (serviceData.length === 0) {
-      console.log("No service data to fetch routes for");
+      // console.log("No service data to fetch routes for");
       return;
     }
 
-    console.log(
-      `Starting to fetch routes for ${serviceData.length} service items`
-    );
+    // console.log(
+    //   `Starting to fetch routes for ${serviceData.length} service items`
+    // );
     setLoadingDatabaseRoutes(true);
 
     const uniqueServiceIds = [
       ...new Set(serviceData.map((service) => service.id)),
     ];
-    console.log(`Found ${uniqueServiceIds.length} unique service IDs`);
 
     setRouteFetchProgress({ current: 0, total: uniqueServiceIds.length });
 
@@ -774,27 +784,14 @@ const LiveMap: React.FC = () => {
         setRouteFetchProgress((prev) => ({ ...prev, current: index + 1 }));
 
         if (routeData?.geojson) {
-          console.log(
-            `Route ${index + 1}/${
-              uniqueServiceIds.length
-            }: Success for service ${serviceId}`
-          );
+          
           return { serviceId, routeData };
         } else {
-          console.log(
-            `Route ${index + 1}/${
-              uniqueServiceIds.length
-            }: No data for service ${serviceId}`
-          );
+         
           return { serviceId, routeData: null };
         }
-      } catch (error) {
-        console.error(
-          `Route ${index + 1}/${
-            uniqueServiceIds.length
-          }: Error for service ${serviceId}:`,
-          error
-        );
+      } catch  {
+        
         setRouteFetchProgress((prev) => ({ ...prev, current: index + 1 }));
         return { serviceId, routeData: null };
       }
@@ -804,14 +801,10 @@ const LiveMap: React.FC = () => {
       const results = await Promise.all(routePromises);
       const successfulRoutes = results.filter((r) => r.routeData !== null);
 
-      console.log(
-        `Completed route fetching: ${successfulRoutes.length}/${uniqueServiceIds.length} successful`
-      );
-
       // Process the routes into database routes
       processRoutesIntoMap(successfulRoutes);
-    } catch (error) {
-      console.error("Error in batch route fetching:", error);
+    } catch  {
+      // console.error("Error in batch route fetching:", error);
     } finally {
       setLoadingDatabaseRoutes(false);
       setRouteFetchProgress({ current: 0, total: 0 });
@@ -823,9 +816,7 @@ const LiveMap: React.FC = () => {
     (routeResults: Array<{ serviceId: string; routeData: RouteData }>) => {
       const riderRouteMap = new Map<string, RouteData>();
 
-      console.log(
-        `Processing ${routeResults.length} route results into rider routes`
-      );
+  
 
       // Group routes by rider
       const riderServiceMap = new Map<
@@ -844,27 +835,22 @@ const LiveMap: React.FC = () => {
         }
       });
 
-      console.log(`Found routes for ${riderServiceMap.size} riders`);
+      // console.log(`Found routes for ${riderServiceMap.size} riders`);
 
       // Process each rider's routes
       riderServiceMap.forEach((riderRoutes, riderId) => {
         const rider = riders.find((r) => r.id === riderId);
         if (!rider) {
-          console.warn(`No rider found for ID: ${riderId}`);
           return;
         }
 
-        console.log(
-          `Processing routes for rider ${rider.name}: ${riderRoutes.length} routes`
-        );
+    
 
         // Use the first route with valid data
         for (const { serviceId, routeData } of riderRoutes) {
           if (routeData?.geojson) {
             try {
-              console.log(
-                `Parsing route for rider ${rider.name}, service ${serviceId}`
-              );
+            
               const parsedRoute = parseRouteGeoJSON(routeData.geojson);
 
               if (parsedRoute) {
@@ -873,28 +859,20 @@ const LiveMap: React.FC = () => {
                   rider
                 );
                 riderRouteMap.set(riderId, routeDataForMap);
-                console.log(
-                  `Successfully created route for rider ${rider.name}: ${parsedRoute.coordinates.length} points`
-                );
+               
                 break; // Use first valid route
-              } else {
-                console.warn(
-                  `Failed to parse route for rider ${rider.name}, service ${serviceId}`
-                );
-              }
-            } catch (error) {
-              console.error(
-                `Error processing route for rider ${rider.name}, service ${serviceId}:`,
-                error
-              );
+              } 
+            } catch  {
+              // console.error(
+              //   `Error processing route for rider ${rider.name}, service ${serviceId}:`,
+              //   error
+              // );
             }
           }
         }
       });
 
-      console.log(
-        `Successfully processed ${riderRouteMap.size} database routes`
-      );
+    
       setDatabaseRoutes(riderRouteMap);
     },
     [serviceData, riders]
@@ -903,9 +881,7 @@ const LiveMap: React.FC = () => {
   // Updated fetch routes when data changes
   useEffect(() => {
     if (serviceData.length > 0 && !loadingDatabaseRoutes) {
-      console.log(
-        `Service data changed, starting route fetch for ${serviceData.length} items`
-      );
+     
 
       // Clear any existing timeout
       if (routeUpdateTimeoutRef.current) {
@@ -930,9 +906,9 @@ const LiveMap: React.FC = () => {
     if (isLoaded && !loadError && !directionsServiceRef.current) {
       try {
         directionsServiceRef.current = new google.maps.DirectionsService();
-        console.log("Google Directions Service initialized successfully");
-      } catch (error) {
-        console.error("Failed to initialize Google Directions Service:", error);
+        // console.log("Google Directions Service initialized successfully");
+      } catch  {
+        // console.error("Failed to initialize Google Directions Service:", error);
       }
     }
   }, [isLoaded, loadError]);
@@ -954,7 +930,7 @@ const LiveMap: React.FC = () => {
         return;
       }
 
-      console.log(`Fetching Google route for rider: ${rider.name}`);
+      // console.log(`Fetching Google route for rider: ${rider.name}`);
       setLoadingRoutes((prev) => new Set(prev).add(riderId));
 
       try {
@@ -964,19 +940,11 @@ const LiveMap: React.FC = () => {
         );
 
         if (routeData) {
-          console.log(`Google route calculated for ${rider.name}:`, {
-            distance: `${routeData.distance.toFixed(1)}km`,
-            duration: `${Math.round(routeData.duration / 60)}min`,
-            points: routeData.coordinates.length,
-            legs: routeData.legs,
-          });
+       
           setRiderRoutes((prev) => new Map(prev).set(riderId, routeData));
         }
-      } catch (error) {
-        console.error(
-          `Error fetching Google route for rider ${rider.name}:`,
-          error
-        );
+      } catch  {
+        // 
       } finally {
         setLoadingRoutes((prev) => {
           const newSet = new Set(prev);
@@ -1001,9 +969,7 @@ const LiveMap: React.FC = () => {
           (rider.currentOrders.length > 0 ||
             (rider.currentBookings?.length || 0) > 0)
       );
-      console.log(
-        `Fetching Delivery Routes for ${activeRiders.length} active riders`
-      );
+  
 
       // Batch process routes with staggered timing to avoid rate limits
       activeRiders.forEach((rider, index) => {
@@ -1048,7 +1014,6 @@ const LiveMap: React.FC = () => {
   // Map initialization function
   const initializeMap = useCallback(() => {
     if (!mapRef.current || mapInstance.current) {
-      console.log("Map container not ready or map already initialized");
       return;
     }
 
@@ -1099,8 +1064,8 @@ const LiveMap: React.FC = () => {
         }
         setMapInitialized(false);
       };
-    } catch (error) {
-      console.error("Failed to initialize map:", error);
+    } catch  {
+// 
     }
   }, [maptilerApiKey]);
 
@@ -1154,8 +1119,8 @@ const LiveMap: React.FC = () => {
         }
         setMapInitialized(false);
       };
-    } catch (error) {
-      console.error("Failed to initialize map:", error);
+    } catch  {
+// 
     }
   }, [maptilerApiKey]);
 
@@ -1218,8 +1183,8 @@ const LiveMap: React.FC = () => {
             ? selectedEntity.relatedData.services
             : serviceData
         );
-      } catch (error) {
-        console.error("Error updating map layers:", error);
+      } catch  {
+// 
       }
     }, 300);
 
@@ -1304,11 +1269,11 @@ const LiveMap: React.FC = () => {
               });
             }
           } catch (boundsError) {
-            console.error("Error fitting bounds:", boundsError);
+// 
           }
         }
       } catch (error) {
-        console.error("Error updating markers:", error);
+// 
       }
     }, 500);
 
@@ -1481,41 +1446,41 @@ const LiveMap: React.FC = () => {
           }
           break;
         }
-        case "multigroup": {
-          const shortId = entityValue.replace("#", "");
-          const multiGroupServices = serviceData.filter(
-            (s) =>
-              s.type === "BOOKING" &&
-              s.bookingData?.multiGroupId &&
-              s.bookingData.multiGroupId.slice(-6) === shortId
-          );
+       case "multigroup": {
+  const shortId = entityValue.replace("#", "");
+  const multiGroupServices = serviceData.filter(
+    (s) =>
+      s.type === "BOOKING" &&
+      s.bookingData?.multiGroupId &&
+      s.bookingData.multiGroupId.slice(-6) === shortId
+  );
 
-          if (multiGroupServices.length > 0) {
-            console.log(
-              `getRelatedEntityData: Found ${multiGroupServices.length} services for multigroup ${shortId}`
-            );
+  if (multiGroupServices.length > 0) {
+    // Get unique rider IDs
+    const uniqueRiderIds = [
+      ...new Set(
+        multiGroupServices
+          .filter(s => s.rider)
+          .map(s => s.rider.id)
+      )
+    ];
 
-            related.services = multiGroupServices;
-            related.vendors = [
-              ...new Set(multiGroupServices.map((s) => s.vendor)),
-            ];
-            related.customers = [
-              ...new Set(multiGroupServices.map((s) => s.customer)),
-            ];
-            related.riders = multiGroupServices
-              .filter((s) => s.rider)
-              .map((s) => riders.find((r) => r.id === s.rider.id))
-              .filter(Boolean);
-            related.routes = multiGroupServices
-              .filter((s) => s.bookingData?.routeData?.geojson)
-              .map((s) => s.bookingData.routeData);
-
-            console.log(
-              `Related data: ${related.services.length} services, ${related.riders.length} riders, ${related.routes.length} routes`
-            );
-          }
-          break;
-        }
+    related.services = multiGroupServices;
+    related.vendors = [
+      ...new Set(multiGroupServices.map((s) => s.vendor)),
+    ];
+    related.customers = [
+      ...new Set(multiGroupServices.map((s) => s.customer)),
+    ];
+    related.riders = uniqueRiderIds
+      .map((id) => riders.find((r) => r.id === id))
+      .filter(Boolean); // Filter out undefined values
+    related.routes = multiGroupServices
+      .filter((s) => s.bookingData?.routeData?.geojson)
+      .map((s) => s.bookingData.routeData);
+  }
+  break;
+}
 
         case "vendor": {
           const vendorServices = serviceData.filter(

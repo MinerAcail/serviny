@@ -13,6 +13,7 @@ type Service {
   dpfile: String
   useTheme: String
   bookTypes: [String]
+  state: String
   isVerified: Boolean
   isAuth: isAuth
   numberType: String

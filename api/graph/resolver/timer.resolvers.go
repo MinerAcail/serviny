@@ -1227,7 +1227,7 @@ func (r *queryResolver) GetAllAppointmentBookings(ctx context.Context) ([]*model
 
 // GetAllAppointmentBookingsByUserID is the resolver for the getAllAppointmentBookingsByUserId field.
 func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, userID string) ([]*model.UserAppointmentBookedData, error) {
-		// Get the service ID from context
+	// Get the service ID from context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
@@ -1279,7 +1279,7 @@ func (r *queryResolver) GetAllAppointmentBookingsByUserID(ctx context.Context, u
 	// 1. User booked with the service (user_id = userID AND service_id = serviceID)
 	// 2. Service booked with user as service (user_id = serviceID AND service_id = userID AND user_type = service)
 	var bookings []*model.AppointmentBooking
-	if err := r.DB.Where("(user_id = ? AND service_id = ?) OR (user_id = ? AND service_id = ? AND user_type = ?)", 
+	if err := r.DB.Where("(user_id = ? AND service_id = ?) OR (user_id = ? AND service_id = ? AND user_type = ?)",
 		userID, serviceID.String(), serviceID.String(), userID, model.UserTypeService).
 		Order("day, start_time").
 		Find(&bookings).Error; err != nil {

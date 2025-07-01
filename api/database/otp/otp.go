@@ -249,7 +249,7 @@ func SendOTPEmail(email, otp string) error {
 	  <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9fafb; padding: 0; margin: 0;">
 		<div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
 		  <div style="background: #4f46e5; color: white; padding: 20px 30px;">
-			<h1 style="margin: 0; font-size: 24px;">Serviny</h1>
+			<h1 style="margin: 0; font-size: 24px;">winnemart</h1>
 		  </div>
 		  <div style="padding: 30px;">
 			<h2 style="color: #111827; font-size: 20px;">Your One-Time Password (OTP)</h2>
@@ -261,7 +261,7 @@ func SendOTPEmail(email, otp string) error {
 			<p style="color: #9ca3af; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
 		  </div>
 		  <div style="text-align: center; padding: 20px; font-size: 12px; color: #9ca3af;">
-			&copy; %d Serviny Inc. All rights reserved.
+			&copy; %d winnemart Inc. All rights reserved.
 		  </div>
 		</div>
 	  </body>
@@ -329,7 +329,105 @@ func SendOTPEmail(email, otp string) error {
 	c.Quit()
 	return nil
 }
+func SendOTPEmailNew(email, otp string) error {
+	from := "noreply@winnemart.com" // Use your verified SES sender
+	smtpUsername := os.Getenv("SES_SMTP_USERNAME")
+	smtpPassword := os.Getenv("SES_SMTP_PASSWORD")
 
+	if smtpUsername == "" || smtpPassword == "" {
+		return fmt.Errorf("SES SMTP credentials are not set in environment")
+	}
+
+	fromAddr := mail.Address{Address: from}
+	toAddr := mail.Address{Address: email}
+
+	headers := map[string]string{
+		"From":         fromAddr.String(),
+		"To":           toAddr.String(),
+		"Subject":      "Your OTP for Authentication",
+		"MIME-Version": "1.0",
+		"Content-Type": "text/html; charset=\"utf-8\"",
+	}
+
+	body := fmt.Sprintf(`
+	<html>
+	  <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9fafb; padding: 0; margin: 0;">
+		<div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
+		  <div style="background: #4f46e5; color: white; padding: 20px 30px;">
+			<h1 style="margin: 0; font-size: 24px;">winnemart</h1>
+		  </div>
+		  <div style="padding: 30px;">
+			<h2 style="color: #111827; font-size: 20px;">Your One-Time Password (OTP)</h2>
+			<p style="color: #4b5563; margin: 10px 0 20px;">Use the code below to verify your identity. This code is valid for 3 minutes.</p>
+			<div style="background-color: #f3f4f6; padding: 16px; text-align: center; font-size: 28px; font-weight: 600; color: #1f2937; border-radius: 8px; letter-spacing: 4px; border: 1px dashed #d1d5db;">
+			  %s
+			</div>
+			<p style="color: #6b7280; font-size: 12px; margin-top: 20px;">Right-click or long-press the code above to copy it.</p>
+			<p style="color: #9ca3af; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
+		  </div>
+		  <div style="text-align: center; padding: 20px; font-size: 12px; color: #9ca3af;">
+			&copy; %d winnemart Inc. All rights reserved.
+		  </div>
+		</div>
+	  </body>
+	</html>
+	`, otp, time.Now().Year())
+
+	// Build email message
+	message := ""
+	for k, v := range headers {
+		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
+	message += "\r\n" + body
+
+	// Connect to Amazon SES SMTP endpoint (TLS)
+	servername := "email-smtp.eu-north-1.amazonaws.com:465" // Change region if needed
+	host := "email-smtp.eu-north-1.amazonaws.com"
+
+	tlsconfig := &tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         host,
+	}
+
+	conn, err := tls.Dial("tcp", servername, tlsconfig)
+	if err != nil {
+		return err
+	}
+
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return err
+	}
+
+	auth := smtp.PlainAuth("", smtpUsername, smtpPassword, host)
+
+	if err = c.Auth(auth); err != nil {
+		return err
+	}
+
+	if err = c.Mail(from); err != nil {
+		return err
+	}
+	if err = c.Rcpt(email); err != nil {
+		return err
+	}
+
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write([]byte(message))
+	if err != nil {
+		return err
+	}
+	err = w.Close()
+	if err != nil {
+		return err
+	}
+
+	c.Quit()
+	return nil
+}
 
 // SendPasswordResetOTPEmail sends OTP via Gmail for password reset
 func SendPasswordResetOTPEmail(email, otp string) error {
@@ -358,7 +456,7 @@ func SendPasswordResetOTPEmail(email, otp string) error {
 	  <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9fafb; padding: 0; margin: 0;">
 		<div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
 		  <div style="background: #4f46e5; color: white; padding: 20px 30px;">
-			<h1 style="margin: 0; font-size: 24px;">Serviny</h1>
+			<h1 style="margin: 0; font-size: 24px;">winnemart</h1>
 		  </div>
 		  <div style="padding: 30px;">
 			<h2 style="color: #111827; font-size: 20px;">Password Reset Request</h2>
@@ -370,7 +468,7 @@ func SendPasswordResetOTPEmail(email, otp string) error {
 			<p style="color: #9ca3af; font-size: 12px;">If you didn't request this password reset, please secure your account immediately.</p>
 		  </div>
 		  <div style="text-align: center; padding: 20px; font-size: 12px; color: #9ca3af;">
-			&copy; %d Serviny Inc. All rights reserved.
+			&copy; %d winnemart Inc. All rights reserved.
 		  </div>
 		</div>
 	  </body>

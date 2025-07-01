@@ -99,6 +99,19 @@ func (r *mutationResolver) RequestOtp(ctx context.Context, input model.RequestOt
 	}, nil
 }
 
+// TestRequestOtp is the resolver for the testRequestOtp field.
+func (r *mutationResolver) TestRequestOtp(ctx context.Context) (bool, error) {
+	// Example test values
+	email := "kobbimensahgh@gmail.com"
+	generatedOTP := "123456"
+
+	err := otp.SendOTPEmail(email, generatedOTP)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // RequestForResetOtp is the resolver for the requestForResetOtp field.
 func (r *mutationResolver) RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error) {
 	// Clean and validate email

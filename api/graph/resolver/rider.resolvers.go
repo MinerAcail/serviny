@@ -12,7 +12,6 @@ import (
 	"log"
 	"math"
 	"sort"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -232,19 +231,28 @@ func (r *mutationResolver) UpdateRiderOnlineStatus(ctx context.Context, status m
 		return nil, fmt.Errorf("failed to update rider status: %w", err)
 	}
 
-	// Update Redis cache
-	riderIDStr := riderId
-	r.RedisClient.Set(ctx, fmt.Sprintf(model.RiderStatusKey, riderIDStr), string(status), 0)
+	return &rider, nil
+}
 
-	// Manage online riders set
-	if status == "ONLINE" {
-		r.RedisClient.SAdd(ctx, model.OnlineRidersKey, riderIDStr)
-	} else {
-		r.RedisClient.SRem(ctx, model.OnlineRidersKey, riderIDStr)
+// UpdateRiderOnlineStatusByService is the resolver for the updateRiderOnlineStatusByService field.
+func (r *mutationResolver) UpdateRiderOnlineStatusByService(ctx context.Context, status model.RiderStatus) (*model.Service, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
 	}
 
-	// Trigger subscription (if using GraphQL subscriptions)
-	// r.broadcastRiderStatusChange(&rider)
+	var rider model.Service
+	if err := r.DB.First(&rider, "id = ?", *riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
+	statusste := string(status)
+	// Update status in database
+	rider.State = &statusste
+	// rider.LastSeen = time.Now()
+
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider status: %w", err)
+	}
 
 	return &rider, nil
 }
@@ -261,23 +269,30 @@ func (r *mutationResolver) UpdateRiderLocation(ctx context.Context, coordinates 
 		return nil, fmt.Errorf("failed to find rider: %w", err)
 	}
 
-	// Only update location if rider is tracking
-	// if !rider.IsTracking {
-	// 	return nil, fmt.Errorf("location tracking is not enabled for this rider")
-	// }
+	rider.Coordinates = coordinates
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider location: %w", err)
+	}
+
+	return &rider, nil
+}
+
+// UpdateRiderLocationByService is the resolver for the updateRiderLocationByService field.
+func (r *mutationResolver) UpdateRiderLocationByService(ctx context.Context, coordinates []float64) (*model.Service, error) {
+	riderId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	var rider model.Service
+	if err := r.DB.First(&rider, "id = ?", *riderId).Error; err != nil {
+		return nil, fmt.Errorf("failed to find rider: %w", err)
+	}
 
 	rider.Coordinates = coordinates
 	if err := r.DB.Save(&rider).Error; err != nil {
 		return nil, fmt.Errorf("failed to update rider location: %w", err)
 	}
-	locationRecord := rider.Coordinates
-	// Cache location in Redis
-	riderIDStr := riderId
-	locationJSON, _ := json.Marshal(locationRecord)
-	r.RedisClient.Set(ctx, fmt.Sprintf(model.RiderLocationKey, riderIDStr), locationJSON, time.Hour*24)
-
-	// Trigger subscription for location updates
-	// r.broadcastRiderLocationUpdate(riderId.String(), locationRecord)
 
 	return &rider, nil
 }
@@ -287,13 +302,23 @@ func (r *mutationResolver) RiderGoOnline(ctx context.Context) (*model.Rider, err
 	return r.UpdateRiderOnlineStatus(ctx, "ONLINE")
 }
 
+// RiderGoOnlineByService is the resolver for the riderGoOnlineByService field.
+func (r *mutationResolver) RiderGoOnlineByService(ctx context.Context) (*model.Service, error) {
+	return r.UpdateRiderOnlineStatusByService(ctx, "ONLINE")
+}
+
 // RiderGoOffline is the resolver for the riderGoOffline field.
 func (r *mutationResolver) RiderGoOffline(ctx context.Context) (*model.Rider, error) {
 	return r.UpdateRiderOnlineStatus(ctx, "OFFLINE")
 }
 
+// RiderGoOfflineByService is the resolver for the riderGoOfflineByService field.
+func (r *mutationResolver) RiderGoOfflineByService(ctx context.Context) (*model.Service, error) {
+	return r.UpdateRiderOnlineStatusByService(ctx, "OFFLINE")
+}
+
 // StarOrStoptLocationTracking is the resolver for the starOrStoptLocationTracking field.
-func (r *mutationResolver) StarOrStoptLocationTracking(ctx context.Context, isTracking bool) (*bool, error) {
+func (r *mutationResolver) StarOrStoptLocationTracking(ctx context.Context, coordinates []float64) (*bool, error) {
 	riderId, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rider ID: %v", err)
@@ -304,14 +329,14 @@ func (r *mutationResolver) StarOrStoptLocationTracking(ctx context.Context, isTr
 		return nil, fmt.Errorf("failed to find rider: %w", err)
 	}
 
-	rider.IsTracking = isTracking
+	// rider.IsTracking = isTracking
 
 	if err := r.DB.Save(&rider).Error; err != nil {
 		return nil, fmt.Errorf("failed to update tracking: %w", err)
 	}
 
-	result := isTracking
-	return &result, nil
+	// result := isTracking
+	return nil, nil
 }
 
 // JobRequest is the resolver for the JobRequest field.
@@ -693,6 +718,7 @@ func (r *queryResolver) GetAllRidersBookingAndOrdersAssignedData(ctx context.Con
 
 	// Get orders assigned to this specific rider
 	orderResults, orderErr := r.GetRiderAssignedOrders(ctx, *riderIDStr)
+
 	if orderErr != nil {
 		log.Printf("Warning: failed to get rider assigned orders: %v", orderErr)
 	} else {

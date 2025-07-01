@@ -10,7 +10,7 @@ import { ThemeProvider } from "./context/theme-provider";
 import { SpectaclesLoading } from "@/components/custom/loading";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet } from "react-router";
-import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
+import {  Sidebar, SidebarMain } from "@/components/custom/sidebar";
 import { CartProvider } from "@/components/custom/cart/cart-context";
 import { CartDrawer } from "@/components/custom/cart/cart-drawer";
 import {
@@ -230,7 +230,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "/multidelivery/:riderId/:bookId",
+        path: "/dd/:riderId/:bookId", //change from /multidelivery to dd and no need for /delivery
         element: (
           <LoadingWrapper>
             <RiderBookingMultiDeliveryRequest />
@@ -625,13 +625,13 @@ export function Layout() {
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
         <CartProvider>
-          <ScrollArea className="h-full border-r">
+          {/* <ScrollArea className="h-full border-r"> */}
             <SidebarMain serviceId={serviceId} />
-          </ScrollArea>
-          <ScrollArea className="flex-1 p-2">
+          {/* </ScrollArea> */}
+          {/* <div className="flex-1 p-2"> */}
             <CartDrawer />
             <Outlet />
-          </ScrollArea>
+          {/* </div> */}
         </CartProvider>
       </ProviderContextProvider>
     </div>

@@ -575,7 +575,7 @@ export default function UserServiceViewer() {
       </div>
 
       {/* Mobile Controls Bar */}
-      <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-20">
+      <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-10">
         <div className="backdrop-blur-xl bg-white/20 rounded-2xl border border-white/30 shadow-2xl p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Search */}

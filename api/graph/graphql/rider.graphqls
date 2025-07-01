@@ -89,12 +89,16 @@ extend type Mutation {
   deleteRider(id: String!): Boolean
   useGetRiderTracking: Rider
   updateRiderOnlineStatus(status: RiderStatus!): Rider
+  updateRiderOnlineStatusByService(status: RiderStatus!): Service
   updateRiderLocation(coordinates: [Float!]!): Rider
+  updateRiderLocationByService(coordinates: [Float!]!): Service
 
   riderGoOnline: Rider
+  riderGoOnlineByService: Service
   riderGoOffline: Rider
 
-  starOrStoptLocationTracking(isTracking: Boolean!): Boolean
+  riderGoOfflineByService: Service
+  starOrStoptLocationTracking(coordinates: [Float!]!): Boolean
 
   jobRequest(serviceId: String!, input: RidersRequestInput!): RidersRequest
   updateStateByServiceProvider(

@@ -17,9 +17,13 @@ import {
   AlertCircle, 
   RefreshCw,
   Crosshair,
-  MapPin
+  MapPin,
+  Eye, 
+  EyeOff
 } from "lucide-react";
 import maplibregl from 'maplibre-gl';
+import { gql, useMutation } from '@apollo/client';
+import { GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA } from './LiveMap';
 
 // Types
 export interface RiderLocation {
@@ -40,7 +44,10 @@ export interface LocationTrackingOptions {
   autoCenter?: boolean;
   showAccuracyCircle?: boolean;
   showBearing?: boolean;
+  enableServerSync?: boolean; // NEW: Option to enable/disable server sync
+  refetchOnLocationUpdate?: boolean; // NEW: Option to refetch queries on location update
 }
+
 
 export interface LocationTrackingState {
   isTracking: boolean;
@@ -54,12 +61,12 @@ export interface LocationTrackingState {
   isLoading: boolean;
 }
 
-// Default options
+// Default options with real-time settings
 const DEFAULT_OPTIONS: LocationTrackingOptions = {
   enableHighAccuracy: true,
-  timeout: 15000,
-  maximumAge: 5000,
-  updateInterval: 2000,
+  timeout: 10000,
+  maximumAge: 500, // Fresh data for real-time tracking
+  updateInterval: 1000, // Update every second
   autoCenter: true,
   showAccuracyCircle: true,
   showBearing: true,
@@ -327,7 +334,7 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg"></div>
-          <h3 className="text-sm font-bold text-gray-900">Live Tracking</h3>
+          <h3 className="text-sm font-bold text-gray-900">Live Trackinddg</h3>
           {direction && (
             <span className={`text-lg ${direction.color}`}>{direction.icon}</span>
           )}
@@ -542,13 +549,303 @@ export const LocationErrorCard: React.FC<LocationErrorCardProps> = ({
     </div>
   );
 };
+// Fixed Movement Status Card Component
+// Add this to your LocationTrackingManagement.tsx file
 
-// Enhanced Location Tracking Hook
-export const useLocationTracking = (
+// Enhanced MovementStatusCard with better direction visualization
+// Replace your existing MovementStatusCard with this enhanced version:
+
+// Enhanced MovementStatusCard with toggle button control
+
+
+interface MovementStatusCardProps {
+  isMoving: boolean;
+  speed: number;
+  bearingChange: number;
+  currentLocation: RiderLocation;
+  onClose: () => void;
+  className?: string;
+}
+
+export const MovementStatusCard: React.FC<MovementStatusCardProps> = ({
+  isMoving,
+  speed,
+  bearingChange,
+  currentLocation,
+  onClose,
+  className = "",
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  const getSpeedColor = (speed: number) => {
+    if (speed < 5) return "text-yellow-600";
+    if (speed < 20) return "text-green-600";
+    if (speed < 50) return "text-blue-600";
+    return "text-red-600";
+  };
+
+  const getSpeedIcon = (speed: number) => {
+    if (speed < 5) return "🚶"; // Walking
+    if (speed < 20) return "🚴"; // Cycling
+    if (speed < 50) return "🛵"; // Motorcycle
+    return "🚗"; // Car
+  };
+
+  const getDirectionData = (heading?: number) => {
+    if (heading === undefined || heading === null) return null;
+    
+    const normalizedDegrees = ((heading % 360) + 360) % 360;
+    const directions = [
+      { name: 'North', short: 'N', icon: '🧭', emoji: '⬆️', color: '#EF4444', description: 'Heading North' },
+      { name: 'Northeast', short: 'NE', icon: '📍', emoji: '↗️', color: '#F97316', description: 'Heading Northeast' },
+      { name: 'East', short: 'E', icon: '📍', emoji: '➡️', color: '#EAB308', description: 'Heading East' },
+      { name: 'Southeast', short: 'SE', icon: '📍', emoji: '↘️', color: '#22C55E', description: 'Heading Southeast' },
+      { name: 'South', short: 'S', icon: '📍', emoji: '⬇️', color: '#06B6D4', description: 'Heading South' },
+      { name: 'Southwest', short: 'SW', icon: '📍', emoji: '↙️', color: '#3B82F6', description: 'Heading Southwest' },
+      { name: 'West', short: 'W', icon: '📍', emoji: '⬅️', color: '#8B5CF6', description: 'Heading West' },
+      { name: 'Northwest', short: 'NW', icon: '📍', emoji: '↖️', color: '#EC4899', description: 'Heading Northwest' }
+    ];
+    const index = Math.round(normalizedDegrees / 45) % 8;
+    return directions[index];
+  };
+
+  const getTurnDescription = (change: number) => {
+    if (change < 5) return { text: "Going Straight", icon: "⬆️", color: "#22C55E" };
+    if (change < 15) return { text: "Slight Turn", icon: "↗️", color: "#EAB308" };
+    if (change < 45) return { text: "Moderate Turn", icon: "↗️", color: "#F97316" };
+    if (change < 90) return { text: "Sharp Turn", icon: "➡️", color: "#EF4444" };
+    if (change < 135) return { text: "U-Turn", icon: "🔄", color: "#DC2626" };
+    return { text: "Complete Turn", icon: "🔄", color: "#991B1B" };
+  };
+
+  const currentDirection = getDirectionData(currentLocation.heading);
+  const turnInfo = getTurnDescription(bearingChange);
+
+  return (
+    <>
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsVisible(!isVisible)}
+        className={`fixed top-4 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${
+          isMoving 
+            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white animate-pulse' 
+            : 'bg-white/90 text-gray-600 hover:bg-white'
+        } backdrop-blur-sm border border-white/20`}
+        title={isVisible ? 'Hide Movement Status' : 'Show Movement Status'}
+      >
+        <div className="flex items-center gap-2">
+          {isVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          {isMoving && (
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium">{speed.toFixed(0)}</span>
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Movement Status Card */}
+      {isVisible && (
+        <div className={`fixed top-20 right-4 bg-gradient-to-r from-green-500/95 to-emerald-600/95 backdrop-blur-lg rounded-xl shadow-xl p-4 border border-white/20 z-40 max-w-sm text-white transform transition-all duration-300 ${className}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full shadow-lg ${isMoving ? 'bg-white animate-pulse' : 'bg-gray-300'}`}></div>
+              <h3 className="text-sm font-bold">
+                {isMoving ? '🏃 Movement Detected' : '⏸️ Stationary'}
+              </h3>
+            </div>
+            <button
+              onClick={() => setIsVisible(false)}
+              className="text-white/80 hover:text-white transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {/* Speed Display */}
+            <div className="bg-white/20 rounded-lg p-3 border border-white/30">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{getSpeedIcon(speed)}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Current Speed</div>
+                  <div className={`text-lg font-bold ${getSpeedColor(speed)} bg-white/90 px-2 py-1 rounded text-center`}>
+                    {speed.toFixed(1)} km/h
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Current Direction with Visual Compass */}
+            {currentDirection && currentLocation.heading !== undefined && (
+              <div className="bg-white/20 rounded-lg p-3 border border-white/30">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    {/* Compass background */}
+                    <div className="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center border-2 border-white/50">
+                      <Navigation 
+                        className="w-6 h-6 text-white transition-transform duration-300" 
+                        style={{ 
+                          transform: `rotate(${currentLocation.heading}deg)`,
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                        }} 
+                      />
+                    </div>
+                    {/* Direction indicator */}
+                    <div 
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs"
+                      style={{ backgroundColor: currentDirection.color }}
+                    >
+                      <span className="text-white font-bold">{currentDirection.short}</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Current Direction</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{currentDirection.emoji}</span>
+                      <div>
+                        <div className="text-lg font-bold" style={{ color: currentDirection.color }}>
+                          {currentDirection.name}
+                        </div>
+                        <div className="text-sm opacity-90">
+                          {currentLocation.heading.toFixed(0)}°
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Turn Information */}
+            {bearingChange > 3 && (
+              <div className="bg-white/20 rounded-lg p-3 border border-white/30">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-xl border-2 border-white/50"
+                    style={{ backgroundColor: turnInfo.color }}
+                  >
+                    {turnInfo.icon}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Turn Detection</div>
+                    <div className="text-lg font-bold" style={{ color: turnInfo.color }}>
+                      {turnInfo.text}
+                    </div>
+                    <div className="text-sm opacity-90">
+                      {bearingChange.toFixed(0)}° change
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Movement Statistics */}
+            <div className="bg-white/20 rounded-lg p-2 border border-white/30">
+              <div className="text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>GPS Accuracy:</span>
+                  <span className="font-medium">±{currentLocation.accuracy?.toFixed(0) || "Unknown"}m</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Update:</span>
+                  <span className="font-medium">{new Date().toLocaleTimeString()}</span>
+                </div>
+                {currentLocation.altitude && (
+                  <div className="flex justify-between">
+                    <span>Altitude:</span>
+                    <span className="font-medium">{currentLocation.altitude.toFixed(0)}m</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Real-time Compass Display */}
+            {currentLocation.heading !== undefined && (
+              <div className="bg-white/20 rounded-lg p-3 border border-white/30">
+                <div className="text-center">
+                  <div className="text-sm font-medium mb-2">Live Compass</div>
+                  <div className="relative w-16 h-16 mx-auto">
+                    {/* Compass ring */}
+                    <div className="w-16 h-16 border-4 border-white/50 rounded-full relative">
+                      {/* Cardinal directions */}
+                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 text-xs font-bold text-red-400">N</div>
+                      <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 text-xs font-bold">E</div>
+                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-xs font-bold">S</div>
+                      <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 text-xs font-bold">W</div>
+                      
+                      {/* Compass needle */}
+                      <div className="absolute inset-2 flex items-center justify-center">
+                        <div 
+                          className="w-1 h-6 bg-gradient-to-t from-blue-400 to-red-500 rounded-full transition-transform duration-300"
+                          style={{ transform: `rotate(${currentLocation.heading}deg)` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-lg font-bold mt-2" style={{ color: currentDirection?.color }}>
+                    {currentLocation.heading.toFixed(0)}°
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status notice */}
+            <div className="text-xs text-white/70 text-center border-t border-white/20 pt-2">
+              Click the eye button to hide this panel
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// GraphQL Mutations
+const UPDATE_RIDER_LOCATION = gql`
+  mutation UpdateRiderLocation($coordinates: [Float!]!) {
+    updateRiderLocation(coordinates: $coordinates) {
+      id
+      coordinates
+      state
+       lastSeen :updatedAt
+    }
+  }
+`;
+
+const UPDATE_RIDER_ONLINE_STATUS = gql`
+          mutation UpdateRiderOnlineStatus($status: RiderStatus!) {
+    updateRiderOnlineStatus(status: $status) {
+      id
+      state
+      lastSeen :updatedAt
+
+    }
+  }
+`;
+
+
+export const useLocationTrackingNew = (
   mapInstance: React.RefObject<maplibregl.Map | null>,
   options: LocationTrackingOptions = {}
 ) => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
+  
+// Apollo mutations with refetchQueries
+  const [updateLocationMutation] = useMutation(UPDATE_RIDER_LOCATION, {
+    // Optionally refetch on location updates too
+    refetchQueries: opts.refetchOnLocationUpdate ? [
+      { query: GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA }
+    ] : []
+  });
+  
+  const [updateStatusMutation] = useMutation(UPDATE_RIDER_ONLINE_STATUS, {
+    // Always refetch when status changes
+    refetchQueries: [
+      { query: GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA }
+    ],
+    awaitRefetchQueries: false // Don't wait for refetch to complete
+  });
   
   // State management
   const [state, setState] = useState<LocationTrackingState>({
@@ -563,16 +860,41 @@ export const useLocationTracking = (
     isLoading: false,
   });
 
+  // Movement detection state
+  const [movementState, setMovementState] = useState({
+    isMoving: false,
+    lastMoveTime: Date.now(),
+    speed: 0,
+    bearingChange: 0,
+  });
+
+  // Server sync state
+  const [serverSyncState, setServerSyncState] = useState({
+    isOnline: false,
+    lastSyncTime: null as number | null,
+    syncError: null as string | null,
+  });
+
   // Refs for tracking
   const watchIdRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const lastLocationRef = useRef<RiderLocation | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
   const trackingStatsRef = useRef({
     totalDistance: 0,
     startTime: 0,
     positions: [] as RiderLocation[],
   });
+
+  // Movement detection refs
+  const lastBearingRef = useRef<number | null>(null);
+  const movementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // NEW: Movement counting and sync refs
+  const movementCountRef = useRef<number>(0);
+  const isFirstLocationUpdateRef = useRef<boolean>(true);
+  const lastSyncedLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Calculate distance between two points using Haversine formula
   const calculateDistance = useCallback((
@@ -595,251 +917,599 @@ export const useLocationTracking = (
     return R * c; // Distance in meters
   }, []);
 
-  // Create location marker element with enhanced bearing indicator
+  // Calculate bearing difference
+  const calculateBearingDifference = useCallback((bearing1: number, bearing2: number): number => {
+    let diff = Math.abs(bearing1 - bearing2);
+    if (diff > 180) {
+      diff = 360 - diff;
+    }
+    return diff;
+  }, []);
+
+  // NEW: Server sync functions
+  const updateServerLocation = useCallback(async (coordinates: [number, number]) => {
+    if (!opts.enableServerSync) return;
+
+    try {
+      console.log('📡 Updating rider location via Apollo:', coordinates);
+      
+      const { data } = await updateLocationMutation({
+        variables: { coordinates },
+        errorPolicy: 'all'
+      });
+
+      setServerSyncState(prev => ({
+        ...prev,
+        lastSyncTime: Date.now(),
+        syncError: null,
+      }));
+
+      console.log('✅ Location updated successfully:', data?.updateRiderLocation);
+      return data?.updateRiderLocation;
+    } catch (error) {
+      console.error('❌ Failed to update location:', error);
+      setServerSyncState(prev => ({
+        ...prev,
+        syncError: error instanceof Error ? error.message : 'Unknown sync error',
+      }));
+      throw error;
+    }
+  }, [updateLocationMutation, opts.enableServerSync]);
+
+  const updateServerStatus = useCallback(async (status: 'ONLINE' | 'OFFLINE') => {
+    if (!opts.enableServerSync) return;
+
+    try {
+      console.log('🟢 Updating rider status via Apollo:', status);
+      
+      const { data } = await updateStatusMutation({
+        variables: { status },
+        errorPolicy: 'all'
+      });
+
+      console.log('✅ Status updated successfully:', data?.updateRiderOnlineStatus);
+      return data?.updateRiderOnlineStatus;
+    } catch (error) {
+      console.error('❌ Failed to update status:', error);
+      setServerSyncState(prev => ({
+        ...prev,
+        syncError: error instanceof Error ? error.message : 'Unknown status error',
+      }));
+      throw error;
+    }
+  }, [updateStatusMutation, opts.enableServerSync]);
+
+  // NEW: Handle server sync based on movement count
+  const handleServerSync = useCallback(async (location: RiderLocation, isMoving: boolean) => {
+    if (!opts.enableServerSync) return;
+
+    const coordinates: [number, number] = [location.lng, location.lat];
+
+    // First location update: send both location and status
+    if (isFirstLocationUpdateRef.current) {
+      console.log('🚀 First location update - sending location AND status');
+      
+      try {
+        // Update location first
+        await updateServerLocation(coordinates);
+        
+        // Update status to ONLINE
+        await updateServerStatus('ONLINE');
+        setServerSyncState(prev => ({ ...prev, isOnline: true }));
+        
+        lastSyncedLocationRef.current = { lat: location.lat, lng: location.lng };
+        isFirstLocationUpdateRef.current = false;
+        
+        console.log('✅ First sync completed - location and status updated');
+      } catch (error) {
+        console.error('❌ Failed first sync:', error);
+      }
+      return;
+    }
+
+    // For subsequent updates: only sync location every 10 movements
+    if (isMoving) {
+      movementCountRef.current += 1;
+      console.log(`🏃 Movement count: ${movementCountRef.current}/10`);
+
+      if (movementCountRef.current >= 10) {
+        console.log('📡 10 movements reached - updating location');
+        
+        try {
+          await updateServerLocation(coordinates);
+          lastSyncedLocationRef.current = { lat: location.lat, lng: location.lng };
+          movementCountRef.current = 0; // Reset counter
+          
+          console.log('✅ Location sync completed after 10 movements');
+        } catch (error) {
+          console.error('❌ Failed movement-based sync:', error);
+        }
+      }
+    }
+  }, [opts.enableServerSync, updateServerLocation, updateServerStatus]);
+
+  // NEW: Stop server sync
+  const stopServerSync = useCallback(async () => {
+    if (!opts.enableServerSync) return;
+
+    console.log('🛑 Stopping server sync');
+
+    // Set offline status
+    try {
+      await updateServerStatus('OFFLINE');
+    } catch (error) {
+      console.error('Failed to set offline status:', error);
+    }
+
+    setServerSyncState(prev => ({
+      ...prev,
+      isOnline: false,
+      lastSyncTime: null,
+    }));
+
+    // Reset sync refs
+    lastSyncedLocationRef.current = null;
+    movementCountRef.current = 0;
+    isFirstLocationUpdateRef.current = true;
+  }, [opts.enableServerSync, updateServerStatus]);
+
+  // Detect movement based on location changes
+  const detectMovement = useCallback((newLocation: RiderLocation) => {
+    const now = Date.now();
+    let isMoving = false;
+    let bearingChange = 0;
+    let speed = newLocation.speed || 0;
+
+    if (lastLocationRef.current) {
+      const distance = calculateDistance(
+        lastLocationRef.current.lat,
+        lastLocationRef.current.lng,
+        newLocation.lat,
+        newLocation.lng
+      );
+
+      const timeDiff = (now - (lastLocationRef.current.timestamp || now)) / 1000;
+
+      if (!newLocation.speed && timeDiff > 0) {
+        speed = distance / timeDiff;
+      }
+
+      if (distance > 2) {
+        isMoving = true;
+      }
+
+      if (lastBearingRef.current !== null && newLocation.heading !== undefined) {
+        bearingChange = calculateBearingDifference(lastBearingRef.current, newLocation.heading);
+        if (bearingChange > 5) {
+          isMoving = true;
+        }
+      }
+
+      if (speed > 0.5) {
+        isMoving = true;
+      }
+    }
+
+    setMovementState(prev => ({
+      isMoving,
+      lastMoveTime: isMoving ? now : prev.lastMoveTime,
+      speed: speed * 3.6,
+      bearingChange,
+    }));
+
+    if (movementTimeoutRef.current) {
+      clearTimeout(movementTimeoutRef.current);
+    }
+
+    if (isMoving) {
+      movementTimeoutRef.current = setTimeout(() => {
+        setMovementState(prev => ({ ...prev, isMoving: false }));
+      }, 10000);
+    }
+
+    if (newLocation.heading !== undefined) {
+      lastBearingRef.current = newLocation.heading;
+    }
+
+    console.log(`🏃 Movement detected: ${isMoving}, Speed: ${(speed * 3.6).toFixed(1)} km/h`);
+    
+    // NEW: Handle server sync based on movement
+    handleServerSync(newLocation, isMoving);
+    
+    return isMoving;
+  }, [calculateDistance, calculateBearingDifference, handleServerSync]);
+
+  // Create location marker element with Navigation icon
   const createLocationMarkerElement = useCallback((location: RiderLocation): HTMLDivElement => {
     const markerElement = document.createElement('div');
     markerElement.className = 'rider-location-marker';
     
-    const accuracyRadius = Math.min((location.accuracy || 10) * 2, 200); // Cap at 200px
+    const accuracyRadius = Math.min((location.accuracy || 10) * 2, 200);
     const hasHeading = opts.showBearing && location.heading !== undefined && location.heading !== null;
     const heading = location.heading || 0;
     
-    // Calculate compass direction
     const getCompassDirection = (degrees: number) => {
       const normalizedDegrees = ((degrees % 360) + 360) % 360;
-      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-      const index = Math.round(normalizedDegrees / 45) % 8;
-      return directions[index];
-    };
-
-    const compassDir = hasHeading ? getCompassDirection(heading) : '';
-    
-    markerElement.innerHTML = `
-      <div class="location-dot">
-        <div class="location-pulse"></div>
-        <div class="location-center">
-          ${hasHeading ? `
-            <div class="location-compass">${compassDir}</div>
-          ` : ''}
-        </div>
-        ${hasHeading ? `
-          <div class="location-bearing-container" style="transform: rotate(${heading}deg)">
-            <div class="location-navigation-arrow">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L12 22M12 2L18 8M12 2L6 8" stroke="#EF4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="2" fill="#EF4444"/>
-              </svg>
-            </div>
-            <div class="bearing-direction-indicator">
-              <div class="direction-line"></div>
-              <div class="direction-arrow-head"></div>
-            </div>
-          </div>
-        ` : ''}
-        ${hasHeading ? `
-          <div class="bearing-info-display">
-            <span class="bearing-degrees">${heading.toFixed(0)}°</span>
-            <span class="bearing-compass">${compassDir}</span>
-          </div>
-        ` : ''}
-      </div>
-      ${opts.showAccuracyCircle ? `
-        <div class="location-accuracy" style="width: ${accuracyRadius}px; height: ${accuracyRadius}px;"></div>
-      ` : ''}
-    `;
-
-    return markerElement;
-  }, [opts.showBearing, opts.showAccuracyCircle]);
-
-  // Create popup content with enhanced bearing information
-  const createPopupContent = useCallback((location: RiderLocation): string => {
-    const formatTime = (timestamp?: number) => {
-      if (!timestamp) return new Date().toLocaleTimeString();
-      return new Date(timestamp).toLocaleTimeString();
-    };
-
-    const formatSpeed = (speed?: number) => {
-      if (speed === undefined || speed === null) return 'Unknown';
-      return `${(speed * 3.6).toFixed(1)} km/h`;
-    };
-
-    const getCompassDirection = (degrees?: number) => {
-      if (degrees === undefined || degrees === null) return 'Unknown';
-      const normalizedDegrees = ((degrees % 360) + 360) % 360;
       const directions = [
-        { name: 'North', short: 'N', icon: '🧭' },
-        { name: 'Northeast', short: 'NE', icon: '🔄' },
-        { name: 'East', short: 'E', icon: '➡️' },
-        { name: 'Southeast', short: 'SE', icon: '↘️' },
-        { name: 'South', short: 'S', icon: '⬇️' },
-        { name: 'Southwest', short: 'SW', icon: '↙️' },
-        { name: 'West', short: 'W', icon: '⬅️' },
-        { name: 'Northwest', short: 'NW', icon: '↖️' }
+        { name: 'North', short: 'N', icon: '🧭', color: '#EF4444' },
+        { name: 'Northeast', short: 'NE', icon: '↗️', color: '#F97316' },
+        { name: 'East', short: 'E', icon: '➡️', color: '#EAB308' },
+        { name: 'Southeast', short: 'SE', icon: '↘️', color: '#22C55E' },
+        { name: 'South', short: 'S', icon: '⬇️', color: '#06B6D4' },
+        { name: 'Southwest', short: 'SW', icon: '↙️', color: '#3B82F6' },
+        { name: 'West', short: 'W', icon: '⬅️', color: '#8B5CF6' },
+        { name: 'Northwest', short: 'NW', icon: '↖️', color: '#EC4899' }
       ];
       const index = Math.round(normalizedDegrees / 45) % 8;
       return directions[index];
     };
 
-    const getDirectionGuidance = (heading?: number) => {
-      if (heading === undefined || heading === null) return '';
-      
-      const direction = getCompassDirection(heading);
-      const guidance = {
-        'N': 'Moving North - Straight ahead',
-        'NE': 'Moving Northeast - Slight right turn',
-        'E': 'Moving East - Turn right',
-        'SE': 'Moving Southeast - Sharp right turn',
-        'S': 'Moving South - Turn around',
-        'SW': 'Moving Southwest - Sharp left turn',
-        'W': 'Moving West - Turn left',
-        'NW': 'Moving Northwest - Slight left turn'
-      };
-      
-      return guidance[direction.short as keyof typeof guidance] || 'Direction unknown';
-    };
-
-    const direction = location.heading !== undefined ? getCompassDirection(location.heading) : null;
-    const guidance = getDirectionGuidance(location.heading);
-
-    return `
-      <div class="p-4">
-        <h3 class="font-bold text-blue-600 flex items-center gap-2 mb-3">
-          <span class="animate-pulse">📍</span>
-          My Current Location
-          ${direction ? `<span class="text-lg">${direction.icon}</span>` : ''}
-        </h3>
-        
-        <div class="space-y-3 text-sm">
-          <div class="bg-blue-50 p-3 rounded-lg">
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div><strong>Latitude:</strong><br/>${location.lat.toFixed(6)}</div>
-              <div><strong>Longitude:</strong><br/>${location.lng.toFixed(6)}</div>
-            </div>
-          </div>
-          
-          ${location.heading !== undefined ? `
-            <div class="bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-lg border border-red-200">
-              <div class="flex items-center gap-2 mb-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L12 22M12 2L18 8M12 2L6 8" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="12" cy="12" r="2" fill="#EF4444"/>
-                </svg>
-                <strong class="text-red-800">Direction & Navigation</strong>
-              </div>
-              <div class="space-y-2 text-xs">
-                <div class="flex justify-between items-center">
-                  <span>Heading:</span>
-                  <span class="bg-red-100 px-2 py-1 rounded font-bold text-red-800">
-                    ${location.heading.toFixed(0)}° ${direction ? direction.short : ''}
-                  </span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>Direction:</span>
-                  <span class="bg-orange-100 px-2 py-1 rounded font-medium text-orange-800">
-                    ${direction ? direction.name : 'Unknown'}
-                  </span>
-                </div>
-                <div class="bg-yellow-50 p-2 rounded border border-yellow-200">
-                  <div class="text-yellow-800 font-medium text-center">
-                    🧭 ${guidance}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ` : ''}
-          
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            ${location.accuracy !== undefined ? `
-              <div class="bg-yellow-50 p-2 rounded text-center border border-yellow-200">
-                <strong>Accuracy</strong><br/>
-                <span class="text-lg text-yellow-800">±${location.accuracy.toFixed(0)}m</span>
-              </div>
-            ` : ''}
-            
-            <div class="bg-purple-50 p-2 rounded text-center border border-purple-200">
-              <strong>Speed</strong><br/>
-              <span class="text-lg text-purple-800">${formatSpeed(location.speed)}</span>
-            </div>
-          </div>
-          
-          <div class="bg-gray-50 p-2 rounded text-center border border-gray-200">
-            <strong>Last Updated:</strong> ${formatTime(location.timestamp)}
-          </div>
-          
-          ${location.altitude !== undefined ? `
-            <div class="bg-indigo-50 p-2 rounded text-center border border-indigo-200">
-              <strong>Altitude:</strong> <span class="text-indigo-800">${location.altitude.toFixed(1)}m</span>
-            </div>
-          ` : ''}
-        </div>
-        
-        <div class="mt-4 pt-3 border-t border-gray-200 text-xs text-gray-600">
-          <div class="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <div class="font-bold text-green-600">${(state.totalDistance / 1000).toFixed(2)} km</div>
-              <div>Distance</div>
-            </div>
-            <div>
-              <div class="font-bold text-blue-600">${state.averageSpeed.toFixed(1)} km/h</div>
-              <div>Avg Speed</div>
-            </div>
-            <div>
-              <div class="font-bold text-purple-600">${Math.floor(state.trackingDuration / 60)}:${(state.trackingDuration % 60).toString().padStart(2, '0')}</div>
-              <div>Duration</div>
-            </div>
+    const compassDir = hasHeading ? getCompassDirection(heading) : null;
+    
+    const compassNeedleSVG = `
+      <svg class="compass-needle" width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="13" y1="3" x2="13" y2="23" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M13 3 L17 9 L13 7 L9 9 Z" fill="#EF4444" stroke="white" stroke-width="1"/>
+        <path d="M13 23 L17 17 L13 19 L9 17 Z" fill="#3B82F6" stroke="white" stroke-width="1"/>
+        <circle cx="13" cy="13" r="2" fill="white" stroke="#1E40AF" stroke-width="1.5"/>
+      </svg>
+    `;
+    
+    markerElement.innerHTML = `
+      <div class="location-dot" data-heading="${heading}">
+        ${opts.showAccuracyCircle ? `
+          <div class="location-accuracy-circle" style="width: ${accuracyRadius}px; height: ${accuracyRadius}px;"></div>
+        ` : ''}
+        <div class="location-pulse"></div>
+        <div class="location-center ${hasHeading ? 'has-bearing' : ''}">
+          <div class="bearing-container" style="transform: rotate(${hasHeading ? heading : 0}deg)">
+            ${compassNeedleSVG}
           </div>
         </div>
-        
-        ${location.heading !== undefined ? `
-          <div class="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
-            <div class="text-xs text-blue-800 text-center">
-              <strong>Navigation Tip:</strong> The red arrow shows where you're facing. 
-              Use this to orient yourself and navigate accurately.
-            </div>
+        ${hasHeading && compassDir ? `
+          <div class="bearing-info-display">
+            <span class="bearing-degrees">${heading.toFixed(0)}°</span>
+            <span class="bearing-compass" style="color: ${compassDir.color}">${compassDir.icon} ${compassDir.short}</span>
           </div>
         ` : ''}
       </div>
     `;
-  }, [state.totalDistance, state.averageSpeed, state.trackingDuration]);
 
-  // Update location marker on map
+    return markerElement;
+  }, [opts.showBearing, opts.showAccuracyCircle]);
+
+  // Create popup content
+  const createPopupContent = useCallback((location: RiderLocation): string => {
+    return `
+      <div class="p-4">
+        <h3 class="font-bold text-blue-600 mb-3">📍 My Location</h3>
+        <div class="text-sm space-y-2">
+          <p><strong>Lat:</strong> ${location.lat.toFixed(6)}</p>
+          <p><strong>Lng:</strong> ${location.lng.toFixed(6)}</p>
+          <p><strong>Accuracy:</strong> ±${location.accuracy?.toFixed(0) || "Unknown"}m</p>
+          ${location.heading !== undefined ? `<p><strong>Heading:</strong> ${location.heading.toFixed(0)}°</p>` : ''}
+          ${location.speed !== undefined ? `<p><strong>Speed:</strong> ${(location.speed * 3.6).toFixed(1)} km/h</p>` : ''}
+          <p><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</p>
+          ${opts.enableServerSync ? `
+            <p><strong>Server Sync:</strong> ${serverSyncState.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
+            <p><strong>Movement Count:</strong> ${movementCountRef.current}/10</p>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }, [opts.enableServerSync, serverSyncState.isOnline]);
+
+  // Update location marker with smooth animations
   const updateLocationMarker = useCallback((location: RiderLocation) => {
-    if (!mapInstance.current) return;
-
-    // Remove existing marker
-    if (state.marker) {
-      state.marker.remove();
+    if (!mapInstance.current) {
+      console.log('❌ No map instance available');
+      return;
     }
 
-    // Create new marker
-    const markerElement = createLocationMarkerElement(location);
-    const marker = new maplibregl.Marker({
-      element: markerElement,
-      anchor: 'center'
-    })
-      .setLngLat([location.lng, location.lat])
-      .setPopup(new maplibregl.Popup({ 
-        offset: 25,
-        className: "location-popup",
-        closeOnClick: false,
-        closeButton: true,
-        maxWidth: '320px',
-      }).setHTML(createPopupContent(location)))
-      .addTo(mapInstance.current);
+    if (markerRef.current) {
+      markerRef.current.setLngLat([location.lng, location.lat]);
+      
+      const markerElement = markerRef.current.getElement();
+      if (markerElement) {
+        const bearingContainer = markerElement.querySelector('.bearing-container') as HTMLElement;
+        
+        if (bearingContainer && location.heading !== undefined) {
+          bearingContainer.style.transform = `rotate(${location.heading}deg)`;
+        }
+      }
+      
+      const popup = markerRef.current.getPopup();
+      if (popup) {
+        popup.setHTML(createPopupContent(location));
+      }
+    } else {
+      const markerElement = createLocationMarkerElement(location);
+      const marker = new maplibregl.Marker({
+        element: markerElement,
+        anchor: 'center'
+      })
+        .setLngLat([location.lng, location.lat])
+        .setPopup(new maplibregl.Popup({ 
+          offset: 25,
+          className: "location-popup",
+          closeOnClick: false,
+          closeButton: true,
+          maxWidth: '320px',
+        }).setHTML(createPopupContent(location)))
+        .addTo(mapInstance.current);
 
-    // Update state with new marker
-    setState(prev => ({ ...prev, marker }));
+      markerRef.current = marker;
+    }
 
-    // Auto-center map if enabled
     if (opts.autoCenter) {
       mapInstance.current.flyTo({
         center: [location.lng, location.lat],
         zoom: Math.max(mapInstance.current.getZoom(), 16),
-        duration: 1500,
+        duration: 800,
         essential: true,
       });
     }
-  }, [mapInstance, state.marker, createLocationMarkerElement, createPopupContent, opts.autoCenter]);
+  }, [mapInstance, createLocationMarkerElement, createPopupContent, opts.autoCenter]);
+
+  // Update tracking statistics
+  const updateTrackingStats = useCallback((location: RiderLocation) => {
+    if (!startTimeRef.current) return;
+
+    let additionalDistance = 0;
+    if (lastLocationRef.current) {
+      additionalDistance = calculateDistance(
+        lastLocationRef.current.lat,
+        lastLocationRef.current.lng,
+        location.lat,
+        location.lng
+      );
+      
+      if (additionalDistance < 1000) {
+        trackingStatsRef.current.totalDistance += additionalDistance;
+      }
+    }
+
+    trackingStatsRef.current.positions.push(location);
+    if (trackingStatsRef.current.positions.length > 100) {
+      trackingStatsRef.current.positions.shift();
+    }
+
+    lastLocationRef.current = location;
+  }, [calculateDistance]);
+
+  // Handle location updates with movement detection and server sync
+  const handleLocationSuccess = useCallback((position: GeolocationPosition) => {
+    const { latitude, longitude, heading, accuracy, speed, altitude } = position.coords;
+    const location: RiderLocation = {
+      lat: latitude,
+      lng: longitude,
+      heading: heading || undefined,
+      accuracy,
+      speed: speed || undefined,
+      altitude: altitude || undefined,
+      timestamp: Date.now(),
+    };
+
+    console.log('📡 Location update received:', {
+      lat: location.lat.toFixed(6),
+      lng: location.lng.toFixed(6),
+      heading: location.heading?.toFixed(0),
+      speed: location.speed ? (location.speed * 3.6).toFixed(1) + ' km/h' : 'unknown',
+      accuracy: location.accuracy?.toFixed(0) + 'm'
+    });
+
+    detectMovement(location);
+
+    setState(prev => ({
+      ...prev,
+      currentLocation: location,
+      error: null,
+      isLoading: false,
+    }));
+
+    updateLocationMarker(location);
+    updateTrackingStats(location);
+  }, [updateLocationMarker, updateTrackingStats, detectMovement]);
+
+  // Handle location error
+  const handleLocationError = useCallback((error: GeolocationPositionError) => {
+    console.error('📍 Location error:', error);
+    
+    let errorMessage = 'Unknown location error';
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        errorMessage = 'Location access denied. Please enable location permissions.';
+        break;
+      case error.POSITION_UNAVAILABLE:
+        errorMessage = 'Location information unavailable.';
+        break;
+      case error.TIMEOUT:
+        errorMessage = 'Location request timed out.';
+        break;
+    }
+
+    setState(prev => ({
+      ...prev,
+      error: errorMessage,
+      isPermissionGranted: error.code !== error.PERMISSION_DENIED,
+      isLoading: false,
+    }));
+  }, []);
+
+  // Check geolocation support
+  const checkGeolocationSupport = useCallback(() => {
+    if (!navigator.geolocation) {
+      setState(prev => ({
+        ...prev,
+        error: 'Geolocation is not supported by this browser.',
+        isLoading: false,
+      }));
+      return false;
+    }
+    return true;
+  }, []);
+
+  // Request permission
+  const requestPermission = useCallback(async () => {
+    if (!navigator.permissions) return true;
+
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' });
+      setState(prev => ({
+        ...prev,
+        isPermissionGranted: result.state === 'granted',
+      }));
+      return result.state !== 'denied';
+    } catch (error) {
+      console.warn('Could not check geolocation permission:', error);
+      return true;
+    }
+  }, []);
+
+  // Start tracking with server sync
+  const startTracking = useCallback(async () => {
+    console.log('🚀 STARTING location tracking with movement-based server sync');
+    
+    // Clean up existing markers
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+
+    if (!checkGeolocationSupport()) return;
+
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    const permissionOk = await requestPermission();
+    if (!permissionOk) {
+      setState(prev => ({
+        ...prev,
+        error: 'Location permission is required for tracking.',
+        isLoading: false,
+      }));
+      return;
+    }
+
+    const positionOptions: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+    };
+
+    // Reset tracking stats and sync counters
+    startTimeRef.current = Date.now();
+    trackingStatsRef.current = {
+      totalDistance: 0,
+      startTime: Date.now(),
+      positions: [],
+    };
+    lastLocationRef.current = null;
+    lastBearingRef.current = null;
+    
+    // Reset sync refs
+    movementCountRef.current = 0;
+    isFirstLocationUpdateRef.current = true;
+    lastSyncedLocationRef.current = null;
+
+    setState(prev => ({
+      ...prev,
+      isTracking: true,
+      trackingDuration: 0,
+      totalDistance: 0,
+      averageSpeed: 0,
+    }));
+
+    setMovementState({
+      isMoving: false,
+      lastMoveTime: Date.now(),
+      speed: 0,
+      bearingChange: 0,
+    });
+
+    // Get initial position
+    navigator.geolocation.getCurrentPosition(
+      handleLocationSuccess,
+      handleLocationError,
+      positionOptions
+    );
+
+    // Start continuous tracking
+    const watchId = navigator.geolocation.watchPosition(
+      handleLocationSuccess,
+      handleLocationError,
+      {
+        ...positionOptions,
+        maximumAge: 5000,
+      }
+    );
+
+    watchIdRef.current = watchId;
+    console.log('🚀 Location tracking started with movement-based server sync');
+  }, [handleLocationSuccess, handleLocationError, checkGeolocationSupport, requestPermission]);
+
+  // Stop tracking with complete cleanup
+  const stopTracking = useCallback(async () => {
+    console.log('🛑 STOPPING location tracking');
+    
+    // Stop geolocation watch
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
+    // Stop intervals
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+
+    if (movementTimeoutRef.current) {
+      clearTimeout(movementTimeoutRef.current);
+      movementTimeoutRef.current = null;
+    }
+
+    // Stop server sync
+    await stopServerSync();
+
+    // Remove marker
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+
+    // Reset refs
+    startTimeRef.current = null;
+    lastLocationRef.current = null;
+    lastBearingRef.current = null;
+
+    // Reset state
+    setState(prev => ({
+      ...prev,
+      isTracking: false,
+      marker: null,
+      error: null,
+      isLoading: false,
+      currentLocation: null,
+    }));
+
+    setMovementState({
+      isMoving: false,
+      lastMoveTime: Date.now(),
+      speed: 0,
+      bearingChange: 0,
+    });
+    
+    console.log('🛑 Location tracking completely stopped');
+  }, [stopServerSync]);
+
+  // Toggle tracking
+  const toggleTracking = useCallback(() => {
+    if (state.isTracking) {
+      stopTracking();
+    } else {
+      startTracking();
+    }
+  }, [state.isTracking, startTracking, stopTracking]);
 
   // Center map on current location
   const centerOnLocation = useCallback(() => {
@@ -853,45 +1523,38 @@ export const useLocationTracking = (
     });
   }, [mapInstance, state.currentLocation]);
 
-  // Update tracking statistics
-  const updateTrackingStats = useCallback((location: RiderLocation) => {
-    if (!startTimeRef.current) return;
+  // Clear error
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+    setServerSyncState(prev => ({ ...prev, syncError: null }));
+  }, []);
 
-    // Calculate distance if we have a previous location
-    let additionalDistance = 0;
-    if (lastLocationRef.current) {
-      additionalDistance = calculateDistance(
-        lastLocationRef.current.lat,
-        lastLocationRef.current.lng,
-        location.lat,
-        location.lng
-      );
-      
-      // Only add distance if it's reasonable (less than 1km per update to filter out GPS jumps)
-      if (additionalDistance < 1000) {
-        trackingStatsRef.current.totalDistance += additionalDistance;
+  // Force location update to server
+  const forceServerUpdate = useCallback(async () => {
+    if (state.currentLocation && opts.enableServerSync) {
+      try {
+        await updateServerLocation([state.currentLocation.lng, state.currentLocation.lat]);
+        lastSyncedLocationRef.current = { 
+          lat: state.currentLocation.lat, 
+          lng: state.currentLocation.lng 
+        };
+        // Reset movement counter after manual update
+        movementCountRef.current = 0;
+      } catch (error) {
+        console.error('Failed to force server update:', error);
       }
     }
+  }, [state.currentLocation, updateServerLocation, opts.enableServerSync]);
 
-    // Add to positions array (keep last 100 for performance)
-    trackingStatsRef.current.positions.push(location);
-    if (trackingStatsRef.current.positions.length > 100) {
-      trackingStatsRef.current.positions.shift();
-    }
-
-    lastLocationRef.current = location;
-  }, [calculateDistance]);
-
-  // Update duration and stats periodically
+  // Duration and stats update
   useEffect(() => {
     if (state.isTracking && startTimeRef.current) {
       durationIntervalRef.current = setInterval(() => {
         const now = Date.now();
         const duration = Math.floor((now - startTimeRef.current!) / 1000);
         
-        // Calculate average speed
         const averageSpeed = duration > 0 
-          ? (trackingStatsRef.current.totalDistance / duration) * 3.6 // Convert to km/h
+          ? (trackingStatsRef.current.totalDistance / duration) * 3.6
           : 0;
 
         setState(prev => ({
@@ -915,7 +1578,535 @@ export const useLocationTracking = (
     };
   }, [state.isTracking]);
 
-  // Handle successful location update
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 useLocationTracking cleanup on unmount');
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+      }
+      if (movementTimeoutRef.current) {
+        clearTimeout(movementTimeoutRef.current);
+      }
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  return {
+    // Location state
+    isTracking: state.isTracking,
+    isLoading: state.isLoading,
+    currentLocation: state.currentLocation,
+    error: state.error,
+    isPermissionGranted: state.isPermissionGranted,
+    trackingDuration: state.trackingDuration,
+    totalDistance: state.totalDistance,
+    averageSpeed: state.averageSpeed,
+
+    // Movement state
+    isMoving: movementState.isMoving,
+    movementSpeed: movementState.speed,
+    bearingChange: movementState.bearingChange,
+    lastMoveTime: movementState.lastMoveTime,
+
+    // Server sync state
+    isOnline: serverSyncState.isOnline,
+    lastSyncTime: serverSyncState.lastSyncTime,
+    syncError: serverSyncState.syncError,
+    movementCount: movementCountRef.current, // NEW: Expose movement count
+
+    // Actions
+    startTracking,
+    stopTracking,
+    toggleTracking,
+    clearError,
+    centerOnLocation,
+    forceServerUpdate,
+
+  }
+}
+
+// GraphQL Mutations
+const UPDATE_RIDER_LOCATION_BY_SERVICE = gql`
+  mutation UpdateRiderLocationByService($coordinates: [Float!]!) {
+    updateRiderLocationByService(coordinates: $coordinates) {
+      id
+      coordinates
+      state
+       lastSeen :updatedAt
+    }
+  }
+`;
+
+const UPDATE_RIDER_ONLINE_STATUS_BY_SERVICE = gql`
+          mutation UpdateRiderOnlineStatusByService($status: RiderStatus!) {
+    updateRiderOnlineStatusByService(status: $status) {
+      id
+      state
+      lastSeen :updatedAt
+
+    }
+  }
+`;
+export const useLocationTrackingServiceRider = (
+  mapInstance: React.RefObject<maplibregl.Map | null>,
+  options: LocationTrackingOptions = {}
+) => {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  
+// Apollo mutations with refetchQueries
+  const [updateLocationMutation] = useMutation(UPDATE_RIDER_LOCATION_BY_SERVICE, {
+    // Optionally refetch on location updates too
+    refetchQueries: opts.refetchOnLocationUpdate ? [
+      { query: GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA }
+    ] : []
+  });
+  
+  const [updateStatusMutation] = useMutation(UPDATE_RIDER_ONLINE_STATUS_BY_SERVICE, {
+    // Always refetch when status changes
+    refetchQueries: [
+      { query: GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA }
+    ],
+    awaitRefetchQueries: false // Don't wait for refetch to complete
+  });
+  
+  // State management
+  const [state, setState] = useState<LocationTrackingState>({
+    isTracking: false,
+    currentLocation: null,
+    error: null,
+    marker: null,
+    isPermissionGranted: false,
+    trackingDuration: 0,
+    totalDistance: 0,
+    averageSpeed: 0,
+    isLoading: false,
+  });
+
+  // Movement detection state
+  const [movementState, setMovementState] = useState({
+    isMoving: false,
+    lastMoveTime: Date.now(),
+    speed: 0,
+    bearingChange: 0,
+  });
+
+  // Server sync state
+  const [serverSyncState, setServerSyncState] = useState({
+    isOnline: false,
+    lastSyncTime: null as number | null,
+    syncError: null as string | null,
+  });
+
+  // Refs for tracking
+  const watchIdRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const lastLocationRef = useRef<RiderLocation | null>(null);
+  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
+  const trackingStatsRef = useRef({
+    totalDistance: 0,
+    startTime: 0,
+    positions: [] as RiderLocation[],
+  });
+
+  // Movement detection refs
+  const lastBearingRef = useRef<number | null>(null);
+  const movementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // NEW: Movement counting and sync refs
+  const movementCountRef = useRef<number>(0);
+  const isFirstLocationUpdateRef = useRef<boolean>(true);
+  const lastSyncedLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = useCallback((
+    lat1: number, 
+    lng1: number, 
+    lat2: number, 
+    lng2: number
+  ): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+  }, []);
+
+  // Calculate bearing difference
+  const calculateBearingDifference = useCallback((bearing1: number, bearing2: number): number => {
+    let diff = Math.abs(bearing1 - bearing2);
+    if (diff > 180) {
+      diff = 360 - diff;
+    }
+    return diff;
+  }, []);
+
+  // NEW: Server sync functions
+  const updateServerLocation = useCallback(async (coordinates: [number, number]) => {
+    if (!opts.enableServerSync) return;
+
+    try {
+      console.log('📡 Updating rider location via Apollo:', coordinates);
+      
+      const { data } = await updateLocationMutation({
+        variables: { coordinates },
+        errorPolicy: 'all'
+      });
+
+      setServerSyncState(prev => ({
+        ...prev,
+        lastSyncTime: Date.now(),
+        syncError: null,
+      }));
+
+      console.log('✅ Location updated successfully:', data?.updateRiderLocationByService);
+      return data?.updateRiderLocationByService;
+    } catch (error) {
+      console.error('❌ Failed to update location:', error);
+      setServerSyncState(prev => ({
+        ...prev,
+        syncError: error instanceof Error ? error.message : 'Unknown sync error',
+      }));
+      throw error;
+    }
+  }, [updateLocationMutation, opts.enableServerSync]);
+
+  const updateServerStatus = useCallback(async (status: 'ONLINE' | 'OFFLINE') => {
+    if (!opts.enableServerSync) return;
+
+    try {
+      console.log('🟢 Updating rider status via Apollo:', status);
+      
+      const { data } = await updateStatusMutation({
+        variables: { status },
+        errorPolicy: 'all'
+      });
+
+      console.log('✅ Status updated successfully:', data?.updateRiderOnlineStatusByService);
+      return data?.updateRiderOnlineStatusByService;
+    } catch (error) {
+      console.error('❌ Failed to update status:', error);
+      setServerSyncState(prev => ({
+        ...prev,
+        syncError: error instanceof Error ? error.message : 'Unknown status error',
+      }));
+      throw error;
+    }
+  }, [updateStatusMutation, opts.enableServerSync]);
+
+  // NEW: Handle server sync based on movement count
+  const handleServerSync = useCallback(async (location: RiderLocation, isMoving: boolean) => {
+    if (!opts.enableServerSync) return;
+
+    const coordinates: [number, number] = [location.lng, location.lat];
+
+    // First location update: send both location and status
+    if (isFirstLocationUpdateRef.current) {
+      console.log('🚀 First location update - sending location AND status');
+      
+      try {
+        // Update location first
+        await updateServerLocation(coordinates);
+        
+        // Update status to ONLINE
+        await updateServerStatus('ONLINE');
+        setServerSyncState(prev => ({ ...prev, isOnline: true }));
+        
+        lastSyncedLocationRef.current = { lat: location.lat, lng: location.lng };
+        isFirstLocationUpdateRef.current = false;
+        
+        console.log('✅ First sync completed - location and status updated');
+      } catch (error) {
+        console.error('❌ Failed first sync:', error);
+      }
+      return;
+    }
+
+    // For subsequent updates: only sync location every 10 movements
+    if (isMoving) {
+      movementCountRef.current += 1;
+      console.log(`🏃 Movement count: ${movementCountRef.current}/10`);
+
+      if (movementCountRef.current >= 10) {
+        console.log('📡 10 movements reached - updating location');
+        
+        try {
+          await updateServerLocation(coordinates);
+          lastSyncedLocationRef.current = { lat: location.lat, lng: location.lng };
+          movementCountRef.current = 0; // Reset counter
+          
+          console.log('✅ Location sync completed after 10 movements');
+        } catch (error) {
+          console.error('❌ Failed movement-based sync:', error);
+        }
+      }
+    }
+  }, [opts.enableServerSync, updateServerLocation, updateServerStatus]);
+
+  // NEW: Stop server sync
+  const stopServerSync = useCallback(async () => {
+    if (!opts.enableServerSync) return;
+
+    console.log('🛑 Stopping server sync');
+
+    // Set offline status
+    try {
+      await updateServerStatus('OFFLINE');
+    } catch (error) {
+      console.error('Failed to set offline status:', error);
+    }
+
+    setServerSyncState(prev => ({
+      ...prev,
+      isOnline: false,
+      lastSyncTime: null,
+    }));
+
+    // Reset sync refs
+    lastSyncedLocationRef.current = null;
+    movementCountRef.current = 0;
+    isFirstLocationUpdateRef.current = true;
+  }, [opts.enableServerSync, updateServerStatus]);
+
+  // Detect movement based on location changes
+  const detectMovement = useCallback((newLocation: RiderLocation) => {
+    const now = Date.now();
+    let isMoving = false;
+    let bearingChange = 0;
+    let speed = newLocation.speed || 0;
+
+    if (lastLocationRef.current) {
+      const distance = calculateDistance(
+        lastLocationRef.current.lat,
+        lastLocationRef.current.lng,
+        newLocation.lat,
+        newLocation.lng
+      );
+
+      const timeDiff = (now - (lastLocationRef.current.timestamp || now)) / 1000;
+
+      if (!newLocation.speed && timeDiff > 0) {
+        speed = distance / timeDiff;
+      }
+
+      if (distance > 2) {
+        isMoving = true;
+      }
+
+      if (lastBearingRef.current !== null && newLocation.heading !== undefined) {
+        bearingChange = calculateBearingDifference(lastBearingRef.current, newLocation.heading);
+        if (bearingChange > 5) {
+          isMoving = true;
+        }
+      }
+
+      if (speed > 0.5) {
+        isMoving = true;
+      }
+    }
+
+    setMovementState(prev => ({
+      isMoving,
+      lastMoveTime: isMoving ? now : prev.lastMoveTime,
+      speed: speed * 3.6,
+      bearingChange,
+    }));
+
+    if (movementTimeoutRef.current) {
+      clearTimeout(movementTimeoutRef.current);
+    }
+
+    if (isMoving) {
+      movementTimeoutRef.current = setTimeout(() => {
+        setMovementState(prev => ({ ...prev, isMoving: false }));
+      }, 10000);
+    }
+
+    if (newLocation.heading !== undefined) {
+      lastBearingRef.current = newLocation.heading;
+    }
+
+    console.log(`🏃 Movement detected: ${isMoving}, Speed: ${(speed * 3.6).toFixed(1)} km/h`);
+    
+    // NEW: Handle server sync based on movement
+    handleServerSync(newLocation, isMoving);
+    
+    return isMoving;
+  }, [calculateDistance, calculateBearingDifference, handleServerSync]);
+
+  // Create location marker element with Navigation icon
+  const createLocationMarkerElement = useCallback((location: RiderLocation): HTMLDivElement => {
+    const markerElement = document.createElement('div');
+    markerElement.className = 'rider-location-marker';
+    
+    const accuracyRadius = Math.min((location.accuracy || 10) * 2, 200);
+    const hasHeading = opts.showBearing && location.heading !== undefined && location.heading !== null;
+    const heading = location.heading || 0;
+    
+    const getCompassDirection = (degrees: number) => {
+      const normalizedDegrees = ((degrees % 360) + 360) % 360;
+      const directions = [
+        { name: 'North', short: 'N', icon: '🧭', color: '#EF4444' },
+        { name: 'Northeast', short: 'NE', icon: '↗️', color: '#F97316' },
+        { name: 'East', short: 'E', icon: '➡️', color: '#EAB308' },
+        { name: 'Southeast', short: 'SE', icon: '↘️', color: '#22C55E' },
+        { name: 'South', short: 'S', icon: '⬇️', color: '#06B6D4' },
+        { name: 'Southwest', short: 'SW', icon: '↙️', color: '#3B82F6' },
+        { name: 'West', short: 'W', icon: '⬅️', color: '#8B5CF6' },
+        { name: 'Northwest', short: 'NW', icon: '↖️', color: '#EC4899' }
+      ];
+      const index = Math.round(normalizedDegrees / 45) % 8;
+      return directions[index];
+    };
+
+    const compassDir = hasHeading ? getCompassDirection(heading) : null;
+    
+    const compassNeedleSVG = `
+      <svg class="compass-needle" width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="13" y1="3" x2="13" y2="23" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M13 3 L17 9 L13 7 L9 9 Z" fill="#EF4444" stroke="white" stroke-width="1"/>
+        <path d="M13 23 L17 17 L13 19 L9 17 Z" fill="#3B82F6" stroke="white" stroke-width="1"/>
+        <circle cx="13" cy="13" r="2" fill="white" stroke="#1E40AF" stroke-width="1.5"/>
+      </svg>
+    `;
+    
+    markerElement.innerHTML = `
+      <div class="location-dot" data-heading="${heading}">
+        ${opts.showAccuracyCircle ? `
+          <div class="location-accuracy-circle" style="width: ${accuracyRadius}px; height: ${accuracyRadius}px;"></div>
+        ` : ''}
+        <div class="location-pulse"></div>
+        <div class="location-center ${hasHeading ? 'has-bearing' : ''}">
+          <div class="bearing-container" style="transform: rotate(${hasHeading ? heading : 0}deg)">
+            ${compassNeedleSVG}
+          </div>
+        </div>
+        ${hasHeading && compassDir ? `
+          <div class="bearing-info-display">
+            <span class="bearing-degrees">${heading.toFixed(0)}°</span>
+            <span class="bearing-compass" style="color: ${compassDir.color}">${compassDir.icon} ${compassDir.short}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    return markerElement;
+  }, [opts.showBearing, opts.showAccuracyCircle]);
+
+  // Create popup content
+  const createPopupContent = useCallback((location: RiderLocation): string => {
+    return `
+      <div class="p-4">
+        <h3 class="font-bold text-blue-600 mb-3">📍 My Location</h3>
+        <div class="text-sm space-y-2">
+          <p><strong>Lat:</strong> ${location.lat.toFixed(6)}</p>
+          <p><strong>Lng:</strong> ${location.lng.toFixed(6)}</p>
+          <p><strong>Accuracy:</strong> ±${location.accuracy?.toFixed(0) || "Unknown"}m</p>
+          ${location.heading !== undefined ? `<p><strong>Heading:</strong> ${location.heading.toFixed(0)}°</p>` : ''}
+          ${location.speed !== undefined ? `<p><strong>Speed:</strong> ${(location.speed * 3.6).toFixed(1)} km/h</p>` : ''}
+          <p><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</p>
+          ${opts.enableServerSync ? `
+            <p><strong>Server Sync:</strong> ${serverSyncState.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
+            <p><strong>Movement Count:</strong> ${movementCountRef.current}/10</p>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }, [opts.enableServerSync, serverSyncState.isOnline]);
+
+  // Update location marker with smooth animations
+  const updateLocationMarker = useCallback((location: RiderLocation) => {
+    if (!mapInstance.current) {
+      console.log('❌ No map instance available');
+      return;
+    }
+
+    if (markerRef.current) {
+      markerRef.current.setLngLat([location.lng, location.lat]);
+      
+      const markerElement = markerRef.current.getElement();
+      if (markerElement) {
+        const bearingContainer = markerElement.querySelector('.bearing-container') as HTMLElement;
+        
+        if (bearingContainer && location.heading !== undefined) {
+          bearingContainer.style.transform = `rotate(${location.heading}deg)`;
+        }
+      }
+      
+      const popup = markerRef.current.getPopup();
+      if (popup) {
+        popup.setHTML(createPopupContent(location));
+      }
+    } else {
+      const markerElement = createLocationMarkerElement(location);
+      const marker = new maplibregl.Marker({
+        element: markerElement,
+        anchor: 'center'
+      })
+        .setLngLat([location.lng, location.lat])
+        .setPopup(new maplibregl.Popup({ 
+          offset: 25,
+          className: "location-popup",
+          closeOnClick: false,
+          closeButton: true,
+          maxWidth: '320px',
+        }).setHTML(createPopupContent(location)))
+        .addTo(mapInstance.current);
+
+      markerRef.current = marker;
+    }
+
+    if (opts.autoCenter) {
+      mapInstance.current.flyTo({
+        center: [location.lng, location.lat],
+        zoom: Math.max(mapInstance.current.getZoom(), 16),
+        duration: 800,
+        essential: true,
+      });
+    }
+  }, [mapInstance, createLocationMarkerElement, createPopupContent, opts.autoCenter]);
+
+  // Update tracking statistics
+  const updateTrackingStats = useCallback((location: RiderLocation) => {
+    if (!startTimeRef.current) return;
+
+    let additionalDistance = 0;
+    if (lastLocationRef.current) {
+      additionalDistance = calculateDistance(
+        lastLocationRef.current.lat,
+        lastLocationRef.current.lng,
+        location.lat,
+        location.lng
+      );
+      
+      if (additionalDistance < 1000) {
+        trackingStatsRef.current.totalDistance += additionalDistance;
+      }
+    }
+
+    trackingStatsRef.current.positions.push(location);
+    if (trackingStatsRef.current.positions.length > 100) {
+      trackingStatsRef.current.positions.shift();
+    }
+
+    lastLocationRef.current = location;
+  }, [calculateDistance]);
+
+  // Handle location updates with movement detection and server sync
   const handleLocationSuccess = useCallback((position: GeolocationPosition) => {
     const { latitude, longitude, heading, accuracy, speed, altitude } = position.coords;
     const location: RiderLocation = {
@@ -928,6 +2119,16 @@ export const useLocationTracking = (
       timestamp: Date.now(),
     };
 
+    console.log('📡 Location update received:', {
+      lat: location.lat.toFixed(6),
+      lng: location.lng.toFixed(6),
+      heading: location.heading?.toFixed(0),
+      speed: location.speed ? (location.speed * 3.6).toFixed(1) + ' km/h' : 'unknown',
+      accuracy: location.accuracy?.toFixed(0) + 'm'
+    });
+
+    detectMovement(location);
+
     setState(prev => ({
       ...prev,
       currentLocation: location,
@@ -937,24 +2138,22 @@ export const useLocationTracking = (
 
     updateLocationMarker(location);
     updateTrackingStats(location);
-
-    console.log('Location updated:', location);
-  }, [updateLocationMarker, updateTrackingStats]);
+  }, [updateLocationMarker, updateTrackingStats, detectMovement]);
 
   // Handle location error
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
-    console.error('Location error:', error);
+    console.error('📍 Location error:', error);
     
     let errorMessage = 'Unknown location error';
     switch (error.code) {
       case error.PERMISSION_DENIED:
-        errorMessage = 'Location access denied. Please enable location permissions in your browser settings.';
+        errorMessage = 'Location access denied. Please enable location permissions.';
         break;
       case error.POSITION_UNAVAILABLE:
-        errorMessage = 'Location information unavailable. Please check your GPS settings and try again.';
+        errorMessage = 'Location information unavailable.';
         break;
       case error.TIMEOUT:
-        errorMessage = 'Location request timed out. Please check your connection and try again.';
+        errorMessage = 'Location request timed out.';
         break;
     }
 
@@ -966,12 +2165,12 @@ export const useLocationTracking = (
     }));
   }, []);
 
-  // Check if geolocation is supported
+  // Check geolocation support
   const checkGeolocationSupport = useCallback(() => {
     if (!navigator.geolocation) {
       setState(prev => ({
         ...prev,
-        error: 'Geolocation is not supported by this browser. Please use a modern browser with location support.',
+        error: 'Geolocation is not supported by this browser.',
         isLoading: false,
       }));
       return false;
@@ -979,18 +2178,16 @@ export const useLocationTracking = (
     return true;
   }, []);
 
-  // Request permission explicitly
+  // Request permission
   const requestPermission = useCallback(async () => {
     if (!navigator.permissions) return true;
 
     try {
       const result = await navigator.permissions.query({ name: 'geolocation' });
-      
       setState(prev => ({
         ...prev,
         isPermissionGranted: result.state === 'granted',
       }));
-
       return result.state !== 'denied';
     } catch (error) {
       console.warn('Could not check geolocation permission:', error);
@@ -998,13 +2195,20 @@ export const useLocationTracking = (
     }
   }, []);
 
-  // Start location tracking
+  // Start tracking with server sync
   const startTracking = useCallback(async () => {
+    console.log('🚀 STARTING location tracking with movement-based server sync');
+    
+    // Clean up existing markers
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+
     if (!checkGeolocationSupport()) return;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-    // Check permissions first
     const permissionOk = await requestPermission();
     if (!permissionOk) {
       setState(prev => ({
@@ -1016,12 +2220,12 @@ export const useLocationTracking = (
     }
 
     const positionOptions: PositionOptions = {
-      enableHighAccuracy: opts.enableHighAccuracy,
-      timeout: opts.timeout,
-      maximumAge: opts.maximumAge,
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
     };
 
-    // Reset tracking stats
+    // Reset tracking stats and sync counters
     startTimeRef.current = Date.now();
     trackingStatsRef.current = {
       totalDistance: 0,
@@ -1029,6 +2233,12 @@ export const useLocationTracking = (
       positions: [],
     };
     lastLocationRef.current = null;
+    lastBearingRef.current = null;
+    
+    // Reset sync refs
+    movementCountRef.current = 0;
+    isFirstLocationUpdateRef.current = true;
+    lastSyncedLocationRef.current = null;
 
     setState(prev => ({
       ...prev,
@@ -1037,6 +2247,13 @@ export const useLocationTracking = (
       totalDistance: 0,
       averageSpeed: 0,
     }));
+
+    setMovementState({
+      isMoving: false,
+      lastMoveTime: Date.now(),
+      speed: 0,
+      bearingChange: 0,
+    });
 
     // Get initial position
     navigator.geolocation.getCurrentPosition(
@@ -1049,43 +2266,70 @@ export const useLocationTracking = (
     const watchId = navigator.geolocation.watchPosition(
       handleLocationSuccess,
       handleLocationError,
-      positionOptions
+      {
+        ...positionOptions,
+        maximumAge: 5000,
+      }
     );
 
     watchIdRef.current = watchId;
-    console.log('Location tracking started with watch ID:', watchId);
-  }, [opts, handleLocationSuccess, handleLocationError, checkGeolocationSupport, requestPermission]);
+    console.log('🚀 Location tracking started with movement-based server sync');
+  }, [handleLocationSuccess, handleLocationError, checkGeolocationSupport, requestPermission]);
 
-  // Stop location tracking
-  const stopTracking = useCallback(() => {
+  // Stop tracking with complete cleanup
+  const stopTracking = useCallback(async () => {
+    console.log('🛑 STOPPING location tracking');
+    
+    // Stop geolocation watch
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
-      console.log('Location tracking stopped');
     }
 
+    // Stop intervals
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
 
-    // Remove location marker
-    if (state.marker) {
-      state.marker.remove();
+    if (movementTimeoutRef.current) {
+      clearTimeout(movementTimeoutRef.current);
+      movementTimeoutRef.current = null;
+    }
+
+    // Stop server sync
+    await stopServerSync();
+
+    // Remove marker
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
     }
 
     // Reset refs
     startTimeRef.current = null;
     lastLocationRef.current = null;
+    lastBearingRef.current = null;
 
+    // Reset state
     setState(prev => ({
       ...prev,
       isTracking: false,
       marker: null,
       error: null,
       isLoading: false,
+      currentLocation: null,
     }));
-  }, [state.marker]);
+
+    setMovementState({
+      isMoving: false,
+      lastMoveTime: Date.now(),
+      speed: 0,
+      bearingChange: 0,
+    });
+    
+    console.log('🛑 Location tracking completely stopped');
+  }, [stopServerSync]);
 
   // Toggle tracking
   const toggleTracking = useCallback(() => {
@@ -1096,41 +2340,95 @@ export const useLocationTracking = (
     }
   }, [state.isTracking, startTracking, stopTracking]);
 
+  // Center map on current location
+  const centerOnLocation = useCallback(() => {
+    if (!mapInstance.current || !state.currentLocation) return;
+    
+    mapInstance.current.flyTo({
+      center: [state.currentLocation.lng, state.currentLocation.lat],
+      zoom: Math.max(mapInstance.current.getZoom(), 16),
+      duration: 1500,
+      essential: true,
+    });
+  }, [mapInstance, state.currentLocation]);
+
   // Clear error
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
+    setServerSyncState(prev => ({ ...prev, syncError: null }));
   }, []);
 
-  // Get tracking summary
-  const getTrackingSummary = useCallback(() => {
-    return {
-      isActive: state.isTracking,
-      duration: state.trackingDuration,
-      distance: state.totalDistance,
-      averageSpeed: state.averageSpeed,
-      currentLocation: state.currentLocation,
-      positionCount: trackingStatsRef.current.positions.length,
-      hasError: !!state.error,
+  // Force location update to server
+  const forceServerUpdate = useCallback(async () => {
+    if (state.currentLocation && opts.enableServerSync) {
+      try {
+        await updateServerLocation([state.currentLocation.lng, state.currentLocation.lat]);
+        lastSyncedLocationRef.current = { 
+          lat: state.currentLocation.lat, 
+          lng: state.currentLocation.lng 
+        };
+        // Reset movement counter after manual update
+        movementCountRef.current = 0;
+      } catch (error) {
+        console.error('Failed to force server update:', error);
+      }
+    }
+  }, [state.currentLocation, updateServerLocation, opts.enableServerSync]);
+
+  // Duration and stats update
+  useEffect(() => {
+    if (state.isTracking && startTimeRef.current) {
+      durationIntervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const duration = Math.floor((now - startTimeRef.current!) / 1000);
+        
+        const averageSpeed = duration > 0 
+          ? (trackingStatsRef.current.totalDistance / duration) * 3.6
+          : 0;
+
+        setState(prev => ({
+          ...prev,
+          trackingDuration: duration,
+          totalDistance: trackingStatsRef.current.totalDistance,
+          averageSpeed,
+        }));
+      }, 1000);
+    } else {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+        durationIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+      }
     };
-  }, [state]);
+  }, [state.isTracking]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('🧹 useLocationTracking cleanup on unmount');
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       if (durationIntervalRef.current) {
         clearInterval(durationIntervalRef.current);
       }
-      if (state.marker) {
-        state.marker.remove();
+      if (movementTimeoutRef.current) {
+        clearTimeout(movementTimeoutRef.current);
+      }
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
       }
     };
-  }, [state.marker]);
+  }, []);
 
   return {
-    // State
+    // Location state
     isTracking: state.isTracking,
     isLoading: state.isLoading,
     currentLocation: state.currentLocation,
@@ -1139,20 +2437,32 @@ export const useLocationTracking = (
     trackingDuration: state.trackingDuration,
     totalDistance: state.totalDistance,
     averageSpeed: state.averageSpeed,
-    
+
+    // Movement state
+    isMoving: movementState.isMoving,
+    movementSpeed: movementState.speed,
+    bearingChange: movementState.bearingChange,
+    lastMoveTime: movementState.lastMoveTime,
+
+    // Server sync state
+    isOnline: serverSyncState.isOnline,
+    lastSyncTime: serverSyncState.lastSyncTime,
+    syncError: serverSyncState.syncError,
+    movementCount: movementCountRef.current, // NEW: Expose movement count
+
     // Actions
     startTracking,
     stopTracking,
     toggleTracking,
     clearError,
     centerOnLocation,
-    
-    // Utils
-    getTrackingSummary,
-  };
-};
+    forceServerUpdate,
 
-// Enhanced location tracking styles with improved bearing indicators
+  }
+}
+// Enhanced CSS styles for the directional marker
+// Replace your locationTrackingStyles with this enhanced version:
+
 export const locationTrackingStyles = `
   .rider-location-marker {
     position: relative;
@@ -1165,18 +2475,19 @@ export const locationTrackingStyles = `
   
   .location-dot {
     position: relative;
-    width: 40px;
-    height: 40px;
-    margin: 10px;
-    z-index: 3;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .location-pulse {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 50px;
-    height: 50px;
+    width: 70px;
+    height: 70px;
     background: rgba(59, 130, 246, 0.3);
     border-radius: 50%;
     transform: translate(-50%, -50%);
@@ -1185,100 +2496,88 @@ export const locationTrackingStyles = `
   }
   
   .location-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
+    position: relative;
+    width: 40px;
+    height: 40px;
     background: linear-gradient(135deg, #3B82F6, #1D4ED8);
     border: 4px solid white;
     border-radius: 50%;
-    transform: translate(-50%, -50%);
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   
-  .location-compass {
-    color: white;
-    font-size: 8px;
-    font-weight: bold;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-    z-index: 6;
-  }
-  
-  .location-bearing-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60px;
-    height: 60px;
+  /* Enhanced bearing container with smooth transitions */
+  .bearing-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center;
-    pointer-events: none;
-    z-index: 4;
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
   }
   
-  .location-navigation-arrow {
-    position: absolute;
-    top: -15px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 6;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-    animation: arrowPulse 1.5s infinite;
+  /* Different marker styles based on bearing availability */
+  .location-center.has-bearing {
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+    border-color: white;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
   }
   
-  .location-navigation-arrow svg {
-    width: 24px;
-    height: 24px;
+  /* Directional arrow styles */
+  .directional-arrow,
+  .simple-arrow,
+  .compass-needle {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
   }
   
-  .bearing-direction-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 3;
-  }
-  
-  .direction-line {
-    width: 2px;
-    height: 30px;
-    background: linear-gradient(to top, transparent, #EF4444, #DC2626);
-    margin: 0 auto;
-    border-radius: 1px;
-    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
-  }
-  
-  .direction-arrow-head {
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 12px solid #EF4444;
-    margin: -2px auto 0;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-    position: relative;
-  }
-  
-  .direction-arrow-head::after {
-    content: '';
-    position: absolute;
-    top: 12px;
-    left: -3px;
-    width: 6px;
-    height: 8px;
-    background: #EF4444;
-    border-radius: 0 0 3px 3px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  }
-  
+  /* Bearing info display - enhanced */
   .bearing-info-display {
     position: absolute;
-    top: -35px;
+    top: -45px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    z-index: 7;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    animation: infoFadeIn 0.5s ease-out;
+    transition: all 0.3s ease;
+  }
+  
+  .bearing-degrees {
+    display: block;
+    color: #60A5FA;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+  
+  .bearing-compass {
+    display: block;
+    font-size: 10px;
+    margin-top: 2px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+  
+  /* NEW: Direction indicator below the marker */
+  .direction-indicator {
+    position: absolute;
+    bottom: -35px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.8);
@@ -1289,62 +2588,138 @@ export const locationTrackingStyles = `
     font-weight: bold;
     text-align: center;
     white-space: nowrap;
-    z-index: 7;
+    z-index: 6;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    animation: infoFadeIn 0.5s ease-out;
+    animation: infoFadeIn 0.5s ease-out 0.2s both;
   }
   
-  .bearing-degrees {
-    display: block;
-    color: #60A5FA;
-    font-size: 11px;
-  }
-  
-  .bearing-compass {
-    display: block;
-    color: #34D399;
+  .direction-text {
     font-size: 9px;
-    margin-top: 1px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   
-  .location-accuracy {
+  /* Bearing update animation */
+  .rider-location-marker.bearing-updated .location-center {
+    animation: bearingUpdate 0.5s ease-out;
+  }
+  
+  .rider-location-marker.bearing-updated .bearing-container {
+    animation: rotationPulse 0.5s ease-out;
+  }
+  
+  /* Movement-based animations */
+  .rider-location-marker.moving .location-pulse {
+    animation: movementPulse 1.5s infinite;
+    background: rgba(34, 197, 94, 0.4);
+  }
+  
+  .rider-location-marker.moving .location-center {
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+  }
+  
+  .rider-location-marker.moving.has-bearing .location-center {
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5);
+  }
+  
+  /* High-speed movement indicator */
+  .rider-location-marker.high-speed .location-pulse {
+    animation: highSpeedPulse 1s infinite;
+    background: rgba(239, 68, 68, 0.4);
+  }
+  
+  .rider-location-marker.high-speed .location-center {
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+  }
+  
+  /* Accuracy circle with enhanced styling */
+  .location-accuracy-circle {
     position: absolute;
     top: 50%;
     left: 50%;
-    border: 2px solid rgba(59, 130, 246, 0.4);
+    border: 3px solid rgba(59, 130, 246, 0.4);
     border-radius: 50%;
     background: rgba(59, 130, 246, 0.1);
     transform: translate(-50%, -50%);
     pointer-events: none;
     z-index: 0;
     animation: accuracyPulse 3s infinite;
+    transition: width 0.5s ease, height 0.5s ease;
   }
   
+  /* Animation keyframes */
   @keyframes locationPulse {
     0% {
-      transform: translate(-50%, -50%) scale(0.5);
+      transform: translate(-50%, -50%) scale(0.8);
       opacity: 1;
     }
     70% {
-      transform: translate(-50%, -50%) scale(1.8);
-      opacity: 0.3;
+      transform: translate(-50%, -50%) scale(1.4);
+      opacity: 0.4;
     }
     100% {
-      transform: translate(-50%, -50%) scale(2.2);
+      transform: translate(-50%, -50%) scale(1.8);
       opacity: 0;
     }
   }
   
-  @keyframes arrowPulse {
-    0%, 100% {
-      transform: translateX(-50%) scale(1);
+  @keyframes movementPulse {
+    0% {
+      transform: translate(-50%, -50%) scale(0.9);
       opacity: 1;
     }
     50% {
-      transform: translateX(-50%) scale(1.1);
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.5);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes highSpeedPulse {
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.3);
       opacity: 0.8;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.6);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes bearingUpdate {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes rotationPulse {
+    0% {
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+    50% {
+      filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.6));
+    }
+    100% {
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     }
   }
   
@@ -1370,6 +2745,7 @@ export const locationTrackingStyles = `
     }
   }
   
+  /* Enhanced popup styles */
   .location-popup .maplibregl-popup-content {
     border-radius: 16px !important;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
@@ -1415,48 +2791,46 @@ export const locationTrackingStyles = `
     }
     
     .location-dot {
-      width: 30px;
-      height: 30px;
-      margin: 10px;
-    }
-    
-    .location-center {
-      width: 16px;
-      height: 16px;
-      border: 3px solid white;
-    }
-    
-    .location-compass {
-      font-size: 7px;
-    }
-    
-    .location-pulse {
-      width: 40px;
-      height: 40px;
-    }
-    
-    .location-bearing-container {
       width: 50px;
       height: 50px;
     }
     
-    .location-navigation-arrow svg {
-      width: 20px;
-      height: 20px;
+    .location-center {
+      width: 32px;
+      height: 32px;
+      border: 3px solid white;
+    }
+    
+    .directional-arrow,
+    .simple-arrow,
+    .compass-needle {
+      width: 22px;
+      height: 22px;
+    }
+    
+    .location-pulse {
+      width: 60px;
+      height: 60px;
     }
     
     .bearing-info-display {
-      top: -30px;
+      top: -40px;
+      padding: 4px 8px;
+      font-size: 10px;
+    }
+    
+    .direction-indicator {
+      bottom: -30px;
       padding: 3px 6px;
       font-size: 9px;
     }
     
     .bearing-degrees {
-      font-size: 10px;
+      font-size: 11px;
     }
     
     .bearing-compass {
-      font-size: 8px;
+      font-size: 9px;
     }
     
     .location-popup .maplibregl-popup-content {
@@ -1464,22 +2838,30 @@ export const locationTrackingStyles = `
     }
   }
   
-  /* Enhanced direction indicators for better visibility */
-  .direction-indicator-n { color: #EF4444; }
-  .direction-indicator-ne { color: #F97316; }
-  .direction-indicator-e { color: #EAB308; }
-  .direction-indicator-se { color: #84CC16; }
-  .direction-indicator-s { color: #22C55E; }
-  .direction-indicator-sw { color: #06B6D4; }
-  .direction-indicator-w { color: #3B82F6; }
-  .direction-indicator-nw { color: #8B5CF6; }
+  /* Enhanced hover effects */
+  .rider-location-marker:hover .directional-arrow,
+  .rider-location-marker:hover .simple-arrow,
+  .rider-location-marker:hover .compass-needle {
+    transform: scale(1.1);
+    filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.5));
+  }
+  
+  .rider-location-marker:hover .location-center {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
+  }
+  
+  .rider-location-marker:hover .bearing-info-display {
+    background: rgba(0, 0, 0, 0.95);
+    border-color: rgba(59, 130, 246, 0.5);
+  }
 `;
-
 // Export all components and hooks
 export default {
   LocationTrackingButton,
   LocationStatusCard,
   LocationErrorCard,
-  useLocationTracking,
+  // useLocationTracking,
+  useLocationTrackingServiceRider,
   locationTrackingStyles,
 };

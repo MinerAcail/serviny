@@ -174,7 +174,7 @@ export function Sidebar() {
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="">
-        <div className="lg:hidden fixed flex w-full justify-between sm:top-4 p-2  z-[40]">
+        <div className="lg:hidden fixed flex w-full justify-between sm:top-4 p-2  z-50">
           <Link to={"/"} className="flex  items-center">
             {/* <SpectaclesLogo size={"sm"} variant="primary" /> */}
           </Link>
@@ -285,7 +285,7 @@ export function Sidebar() {
 
 import { gql, useQuery } from "@apollo/client";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
-import { useCurrentUserHasAnyBusinessType, useCurrentUserProfileId } from "../GlobalLogic/checkBusinessType";
+import { useCurrentUserHasAnyBusinessType } from "../GlobalLogic/checkBusinessType";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
     clearClientCache
@@ -437,7 +437,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
-          <CartButton />
+          {/* <CartButton /> */}
           {/* <NotificationCenter /> */}
           {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button

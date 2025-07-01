@@ -957,14 +957,14 @@ export function MultiCompleteStep({
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        <Button onClick={onReset} className={`w-full ${
+        {/* <Button onClick={onReset} className={`w-full ${
           isCargo 
             ? "bg-orange-500 hover:bg-orange-600" 
             : "bg-blue-500 hover:bg-blue-600"
         }`}>
           <Plus className="w-4 h-4 mr-2" />
           {isCargo ? "Book Another Cargo Delivery" : "Book Another Multi-Delivery"}
-        </Button>
+        </Button> */}
         
         {/* Tracking Button */}
         {bookId && onStartTracking && onStopTracking && (
@@ -1021,9 +1021,7 @@ export function MultiStepNavigation({
   ] as const;
 
   return (
-    <div className="space-y-3">
-      {/* Step Indicators */}
-      <div className="flex items-center justify-center space-x-2">
+    <div className="flex items-center justify-center rounded-md space-x-2">
         {steps.map((step, index) => {
           const isActive = currentStep === step.id;
           const isCompleted =
@@ -1069,14 +1067,5 @@ export function MultiStepNavigation({
           );
         })}
       </div>
-
-      {/* Step Labels */}
-      <div className="flex justify-center">
-        <span className="text-sm font-medium text-gray-700">
-          {steps.find((step) => step.id === currentStep)?.label}
-          {isCargo && currentStep === "complete" && " (Invoice Pending)"}
-        </span>
-      </div>
-    </div>
   );
 }

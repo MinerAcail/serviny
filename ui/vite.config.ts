@@ -63,14 +63,14 @@ export default defineConfig({
     },
   },
   server: {
-    // proxy: {
-    //   "/minio": {
-    //     target: "http://localhost:9000",
-    //     // target: "https://files.winnemart.com/",
-    //     changeOrigin: true,
-    //     rewrite: (path) => path.replace(/^\/minio/, ""),
-    //   },
-    // },
+    proxy: {
+      "/minio": {
+        target: "http://localhost:9000",
+        // target: "https://files.winnemart.com/",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/minio/, ""),
+      },
+    },
     host: "0.0.0.0",
   },
   preview: {

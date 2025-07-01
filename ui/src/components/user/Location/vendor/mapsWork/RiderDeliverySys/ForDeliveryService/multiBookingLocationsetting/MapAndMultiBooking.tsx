@@ -32,6 +32,7 @@ import type { Location, PricingZone } from "../riderBookingHooks";
 // Import the multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
 import { useSearchParams } from "react-router";
+import { Button } from "@/components/ui/button";
 
 interface MapAndMultiBookingProps {
   // Map refs
@@ -77,6 +78,8 @@ interface MapAndMultiBookingProps {
   // Route dialog
   showRouteDialog: boolean;
   setShowRouteDialog: (show: boolean) => void;
+    setIsOpen: (isOpen: boolean) => void;
+
 }
 
 // NEW: Multi-Delivery Summary Card Component
@@ -85,13 +88,15 @@ function MultiDeliverySummaryCard({
   deliveryItems,
   totalCalculations,
   isCalculating,
+  setIsOpen
 }: {
   pickupLocation: Location | null;
   deliveryItems: MultiDeliveryItem[];
   totalCalculations: any;
   isCalculating: boolean;
+    setIsOpen: (isOpen: boolean) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [searchParams] = useSearchParams()
   const isCargo = searchParams.get('cargo') === 'true'
@@ -113,7 +118,7 @@ function MultiDeliverySummaryCard({
             <Package className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Multi-Delivery</h3>
+            <h3 className="font-semibold text-gray-900">Delivery Infor</h3>
             <p className="text-xs text-gray-600">
               {completedItems.length}/{deliveryItems.length} destinations ready
             </p>
@@ -147,7 +152,27 @@ function MultiDeliverySummaryCard({
               </p>
             </div>
           )}
-
+  <Button
+                onClick={() => setIsOpen(true)}
+                className="flex items-center gap-2 text-[12px] font-medium text-gray-200"
+              >
+                {isCargo ? (
+                  <Truck className="h-4 w-4 text-orange-600" />
+                ) : (
+                  <Package className="h-4 w-4 text-white" />
+                )}
+                <span>Complete Booking</span>
+                {/* Show item count if applicable */}
+                {deliveryItems.length > 0 && (
+                  <div className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    isCargo 
+                      ? "bg-orange-100 text-orange-800" 
+                      : "bg-blue-100 text-blue-800"
+                  }`}>
+                    {completedItems.length}/{deliveryItems.length}
+                  </div>
+                )}
+              </Button>
           {/* Calculation Summary */}
           {totalCalculations && !isCalculating && (
             <div className="bg-blue-50 rounded-lg p-3">
@@ -248,71 +273,7 @@ function MultiDeliverySummaryCard({
   );
 }
 
-// NEW: Multi-Delivery Route Info Card
-function MultiDeliveryRouteCard({
-  totalCalculations,
-  deliveryItems,
-}: {
-  totalCalculations: any;
-  deliveryItems: MultiDeliveryItem[];
-}) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [searchParams] = useSearchParams()
-  const isCargo = searchParams.get('cargo') === 'true'
 
-  if (!totalCalculations) return null;
-
-  return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-gray-100 transition-all">
-      <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center space-x-2">
-          <Navigation className="h-4 w-4 text-blue-600" />
-          <span className="font-medium text-sm text-gray-900">Route Overview</span>
-        </div>
-        <div className="flex items-center space-x-2">
-            {!isCargo && (
-          <div className="text-right">
-            <div className="text-sm font-bold text-blue-600">
-              GH₵{totalCalculations.totalPrice.toFixed(2)}
-            </div>
-          </div>
-                              
-                            )}
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-        </div>
-      </div>
-
-      {isExpanded && (
-        <div className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="bg-blue-50 rounded-lg p-2">
-              <div className="text-sm font-bold text-blue-900">
-                {totalCalculations.totalDistance}km
-              </div>
-              <div className="text-xs text-blue-700">Total Distance</div>
-            </div>
-            <div className="bg-green-50 rounded-lg p-2">
-              <div className="text-sm font-bold text-green-900">
-                {deliveryItems.length}
-              </div>
-              <div className="text-xs text-green-700">Deliveries</div>
-            </div>
-          </div>
-
-          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <div className="flex items-center">
-              <Truck className="h-3 w-3 mr-1" />
-              <span>Estimated total delivery time: {totalCalculations.averageDuration}</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // NEW: Coverage Zones Helper for Multi-Delivery
 function MultiDeliveryCoverageHelper({
@@ -410,8 +371,10 @@ export function MapAndMultiBooking({
   onStartPinDrop,
   showRouteDialog,
   setShowRouteDialog,
+  setIsOpen
 }: MapAndMultiBookingProps) {
-
+    const [searchParams] = useSearchParams()
+  const isCargo = searchParams.get('cargo') === 'true'
   // NEW: Enhanced map update effect for multiple markers
   useEffect(() => {
     if (!mapRef.current || !pickupLocation) return;
@@ -424,6 +387,12 @@ export function MapAndMultiBooking({
       completed: deliveryItems.filter(item => item.deliveryAddress).length
     });
   }, [pickupLocation, deliveryItems]);
+
+
+  const completedItems = deliveryItems.filter(item => 
+    item.deliveryAddress && item.itemDescription &&
+    item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
+  );
 
   return (
     <div className="space-y-4 w-full">
@@ -463,9 +432,10 @@ export function MapAndMultiBooking({
 
       {/* Map Container */}
       <div
-        className={`h-[86vh] w-full rounded-2xl overflow-hidden border shadow-sm bg-white relative ${
+        className={` inset-0 z-0 rounded-none overflow-hidden border-none shadow-none bg-wte relative ${
           isOpenBookingMenu ? "pointer-events-none blur-sm" : ""
         } ${isPinDropActive ? "ring-2 ring-blue-300 ring-opacity-50" : ""}`}
+        style={{ height: "100vh", width: "100vw" }}
       >
         <div ref={mapRef} className="w-full h-full" />
 
@@ -480,9 +450,9 @@ export function MapAndMultiBooking({
         )}
 
         {/* iOS-style Map Controls */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <div className="absolute bottom-10 right-4 z-10 flex flex-col gap-2">
           {/* Zone Toggle Button */}
-          {showRouteDialog && (
+          {/* {showRouteDialog && (
             <button
               onClick={() => setShowRouteDialog(!showRouteDialog)}
               className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-colors"
@@ -494,32 +464,46 @@ export function MapAndMultiBooking({
                 <Eye className="h-5 w-5 text-gray-700" />
               )}
             </button>
-          )}
+          )} */}
 
           {/* Pin Drop Button */}
           {onStartPinDrop && (
             <button
               onClick={onStartPinDrop}
-              className={`w-10 h-10 backdrop-blur-sm rounded-full shadow-lg border flex items-center justify-center transition-colors ${
-                isPinDropActive
-                  ? "bg-blue-500 border-blue-600 text-white"
-                  : "bg-white/90 border-gray-200 text-gray-700 hover:bg-white"
+              className={`ml-auto w-10 h-10 backdrop-blur-sm rounded-full shadow-lg border flex items-center justify-center transition-colors ${
+              isPinDropActive
+                ? "bg-blue-500 border-blue-600 text-white"
+                : "bg-white/90 border-gray-200 text-gray-700 hover:bg-white"
               }`}
               title="Drop pin on map"
+              style={{ alignSelf: "flex-end" }}
             >
               <Pin className="h-5 w-5" />
             </button>
           )}
 
-          {/* Multi-Delivery Indicator */}
-          {deliveryItems.length > 0 && (
-            <div className="bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-3 py-1 flex items-center space-x-1">
-              <Package className="h-4 w-4 text-blue-600" />
-              <span className="text-xs font-medium text-gray-700">
-                {deliveryItems.filter(item => item.deliveryAddress).length}/{deliveryItems.length}
-              </span>
-            </div>
-          )}
+          
+            <Button
+                onClick={() => setIsOpen(true)}
+                className="flex items-center gap-2 text-[12px] font-medium text-gray-200"
+              >
+                {isCargo ? (
+                  <Truck className="h-4 w-4 text-orange-600" />
+                ) : (
+                  <Package className="h-4 w-4 text-white" />
+                )}
+                <span>Complete</span>
+                {/* Show item count if applicable */}
+                {deliveryItems.length > 0 && (
+                  <div className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    isCargo 
+                      ? "bg-orange-100 text-orange-800" 
+                      : "bg-blue-100 text-blue-800"
+                  }`}>
+                    {completedItems.length}/{deliveryItems.length}
+                  </div>
+                )}
+              </Button>
         </div>
 
         {/* Multi-Delivery Summary Card */}
@@ -530,19 +514,12 @@ export function MapAndMultiBooking({
               deliveryItems={deliveryItems}
               totalCalculations={totalCalculations}
               isCalculating={isCalculating}
+              setIsOpen={setIsOpen}
             />
           </div>
         )}
 
-        {/* Route Overview Card */}
-        {totalCalculations && !isPinDropActive && (
-          <div className="absolute bottom-20 left-3 z-10">
-            <MultiDeliveryRouteCard
-              totalCalculations={totalCalculations}
-              deliveryItems={deliveryItems}
-            />
-          </div>
-        )}
+   
 
         {/* Coverage Zones Helper */}
         <div className="absolute top-3 left-3 z-10">

@@ -108,7 +108,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
-  const [isOpenBookingMenu, setIsOpenBookingMenu] = useState(true);
+  const [isOpenBookingMenu, setIsOpenBookingMenu] = useState(false);
   const [showZones, setShowZones] = useState(true);
   const [showRoutePanel, setShowRoutePanel] = useState(false);
   const [showRouteDialog, setShowRouteDialog] = useState(false);
@@ -618,9 +618,9 @@ export default function RiderBookingMultiDeliveryRequest() {
       lastProcessedDataRef.current = "";
       isMapUpdatingRef.current = false;
 
-      toast.success("Multi-delivery locations updated!", {
-        description: `Pickup + ${items.length} delivery destinations`,
-      });
+      // toast.success("Multi-delivery locations updated!", {
+      //   description: `Pickup + ${items.length} delivery destinations`,
+      // });
     },
     [clearCalculations, isTrackingActive, stopTracking]
   );
@@ -685,9 +685,9 @@ export default function RiderBookingMultiDeliveryRequest() {
       });
 
       //redirect
-      // setTimeout(() => {
-      //   window.location.href = `/vob`;
-      // },5000);
+      setTimeout(() => {
+        window.location.href = `/vob`;
+      },5000);
     } catch (error: unknown) {
       console.error("❌ Multi-delivery booking update failed:", error);
       toast.error(
@@ -1090,7 +1090,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   // 28. MAIN RENDER
   // ==========================================
   return (
-    <div className="py-6 font-sans w-full min-h-screen">
+    <div className=" font-sans w-full min-h-screen">
       <div className="max-w-4xl h-full mx-auto space-y-6">
         {/* Multi-Location Input Dialog */}
         <MultiLocationInputDialog
@@ -1157,6 +1157,7 @@ export default function RiderBookingMultiDeliveryRequest() {
                   riderZones={riderZones}
                   showRouteDialog={showRouteDialog}
                   setShowRouteDialog={setShowRouteDialog}
+                  setIsOpen={setIsOpenBookingMenu}
                 />
 
                 <RouteInfoPanel

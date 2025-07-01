@@ -29,7 +29,7 @@ type Service struct {
 	IsAuth       *IsAuth        `json:"is_auth,omitempty"`
 	SubDomain    *string        `gorm:"unique" json:"sub_domain,omitempty"`
 	UseTheme     *string        `json:"use_theme,omitempty"`
-
+ State        *string   `json:"state,omitempty"`
 	// Coordinates []float64 `json:"coordinates" gorm:"type:float[]"`  // [lng, lat]
 	//   H3Indexes   []string  `json:"h3Indexes" gorm:"type:text[]"` // Multiple resolutions
 	Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]

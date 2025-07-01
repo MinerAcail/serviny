@@ -347,14 +347,9 @@ export const DeliveryServiceSystem = ({
 
         if (firstBookingId) {
           // Build URL with conditional parameters
-          let navigationUrl;
-          if (createdBookings.length === 1) {
-            
-            navigationUrl = `/delivery/${serviceId}/${firstBookingId}`;
-          } else {
-            
-            navigationUrl = `/multidelivery/${serviceId}/${firstBookingId}`;
-          }
+          
+          const    navigationUrl = `/dd/${serviceId}/${firstBookingId}`;
+
           
           // Add URL parameters for special delivery types
           const params = new URLSearchParams();

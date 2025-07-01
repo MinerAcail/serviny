@@ -547,12 +547,15 @@ type ComplexityRoot struct {
 		ResendOtp                                    func(childComplexity int, input model.RequestOtpInput) int
 		ResetPassword                                func(childComplexity int, input model.ResetPasswordInput) int
 		RiderGoOffline                               func(childComplexity int) int
+		RiderGoOfflineByService                      func(childComplexity int) int
 		RiderGoOnline                                func(childComplexity int) int
+		RiderGoOnlineByService                       func(childComplexity int) int
 		SendChatMessage                              func(childComplexity int, input model.ChatMessageInput, orderID *string) int
 		SendChatMessageByNumber                      func(childComplexity int, input model.ChatMessageAdminInput) int
 		ServiceLogin                                 func(childComplexity int, input model.LoginInput) int
-		StarOrStoptLocationTracking                  func(childComplexity int, isTracking bool) int
+		StarOrStoptLocationTracking                  func(childComplexity int, coordinates []float64) int
 		SubmitForm                                   func(childComplexity int, input model.FormSubmissionInput, signImage []*graphql.Upload) int
+		TestRequestOtp                               func(childComplexity int) int
 		UpdateAdmin                                  func(childComplexity int, id string, input model.UpdateAdminInput) int
 		UpdateAdminStatus                            func(childComplexity int, id string, status string) int
 		UpdateAmenity                                func(childComplexity int, priceCardID string, amenityID string, text string) int
@@ -581,7 +584,9 @@ type ComplexityRoot struct {
 		UpdateRequestItemStatus                      func(childComplexity int, requestID string, status model.ProductState) int
 		UpdateRider                                  func(childComplexity int, id string, input model.RiderUpateInput) int
 		UpdateRiderLocation                          func(childComplexity int, coordinates []float64) int
+		UpdateRiderLocationByService                 func(childComplexity int, coordinates []float64) int
 		UpdateRiderOnlineStatus                      func(childComplexity int, status model.RiderStatus) int
+		UpdateRiderOnlineStatusByService             func(childComplexity int, status model.RiderStatus) int
 		UpdateRiderRange                             func(childComplexity int, input model.UpdateRiderRangeInput) int
 		UpdateRiderStatus                            func(childComplexity int, id string, status string) int
 		UpdateService                                func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
@@ -1125,6 +1130,7 @@ type ComplexityRoot struct {
 		NumberType   func(childComplexity int) int
 		Password     func(childComplexity int) int
 		Profession   func(childComplexity int) int
+		State        func(childComplexity int) int
 		SubDomain    func(childComplexity int) int
 		Type         func(childComplexity int) int
 		UpdatedAt    func(childComplexity int) int
@@ -1434,6 +1440,7 @@ type MutationResolver interface {
 	DeleteAllRouteData(ctx context.Context) (*bool, error)
 	ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error)
 	RequestOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
+	TestRequestOtp(ctx context.Context) (bool, error)
 	RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error)
 	VerifyOtp(ctx context.Context, input model.VerifyOtpInput) (*model.OtpResponse, error)
 	ResendOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
@@ -1478,14 +1485,18 @@ type MutationResolver interface {
 	DeleteRider(ctx context.Context, id string) (*bool, error)
 	UseGetRiderTracking(ctx context.Context) (*model.Rider, error)
 	UpdateRiderOnlineStatus(ctx context.Context, status model.RiderStatus) (*model.Rider, error)
+	UpdateRiderOnlineStatusByService(ctx context.Context, status model.RiderStatus) (*model.Service, error)
 	UpdateRiderLocation(ctx context.Context, coordinates []float64) (*model.Rider, error)
+	UpdateRiderLocationByService(ctx context.Context, coordinates []float64) (*model.Service, error)
 	RiderGoOnline(ctx context.Context) (*model.Rider, error)
+	RiderGoOnlineByService(ctx context.Context) (*model.Service, error)
 	RiderGoOffline(ctx context.Context) (*model.Rider, error)
-	StarOrStoptLocationTracking(ctx context.Context, isTracking bool) (*bool, error)
+	RiderGoOfflineByService(ctx context.Context) (*model.Service, error)
+	StarOrStoptLocationTracking(ctx context.Context, coordinates []float64) (*bool, error)
 	JobRequest(ctx context.Context, serviceID string, input model.RidersRequestInput) (*model.RidersRequest, error)
 	UpdateStateByServiceProvider(ctx context.Context, riderID string, state *string) (*model.RiderRequestInfor, error)
 	DeleteTable(ctx context.Context) (bool, error)
-	ServiceLogin(ctx context.Context, input model.LoginInput) (model.Returns, error)
+	ServiceLogin(ctx context.Context, input model.LoginInput) (*model.UsersInfor, error)
 	AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error)
 	DeliveryLogin(ctx context.Context, input *model.LoginInput) (model.Returns, error)
 	LogOut(ctx context.Context) (bool, error)
@@ -4733,12 +4744,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.RiderGoOffline(childComplexity), true
 
+	case "Mutation.riderGoOfflineByService":
+		if e.complexity.Mutation.RiderGoOfflineByService == nil {
+			break
+		}
+
+		return e.complexity.Mutation.RiderGoOfflineByService(childComplexity), true
+
 	case "Mutation.riderGoOnline":
 		if e.complexity.Mutation.RiderGoOnline == nil {
 			break
 		}
 
 		return e.complexity.Mutation.RiderGoOnline(childComplexity), true
+
+	case "Mutation.riderGoOnlineByService":
+		if e.complexity.Mutation.RiderGoOnlineByService == nil {
+			break
+		}
+
+		return e.complexity.Mutation.RiderGoOnlineByService(childComplexity), true
 
 	case "Mutation.sendChatMessage":
 		if e.complexity.Mutation.SendChatMessage == nil {
@@ -4786,7 +4811,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StarOrStoptLocationTracking(childComplexity, args["isTracking"].(bool)), true
+		return e.complexity.Mutation.StarOrStoptLocationTracking(childComplexity, args["coordinates"].([]float64)), true
 
 	case "Mutation.submitForm":
 		if e.complexity.Mutation.SubmitForm == nil {
@@ -4799,6 +4824,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.SubmitForm(childComplexity, args["input"].(model.FormSubmissionInput), args["signImage"].([]*graphql.Upload)), true
+
+	case "Mutation.testRequestOtp":
+		if e.complexity.Mutation.TestRequestOtp == nil {
+			break
+		}
+
+		return e.complexity.Mutation.TestRequestOtp(childComplexity), true
 
 	case "Mutation.updateAdmin":
 		if e.complexity.Mutation.UpdateAdmin == nil {
@@ -5136,6 +5168,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateRiderLocation(childComplexity, args["coordinates"].([]float64)), true
 
+	case "Mutation.updateRiderLocationByService":
+		if e.complexity.Mutation.UpdateRiderLocationByService == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateRiderLocationByService_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateRiderLocationByService(childComplexity, args["coordinates"].([]float64)), true
+
 	case "Mutation.updateRiderOnlineStatus":
 		if e.complexity.Mutation.UpdateRiderOnlineStatus == nil {
 			break
@@ -5147,6 +5191,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateRiderOnlineStatus(childComplexity, args["status"].(model.RiderStatus)), true
+
+	case "Mutation.updateRiderOnlineStatusByService":
+		if e.complexity.Mutation.UpdateRiderOnlineStatusByService == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateRiderOnlineStatusByService_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateRiderOnlineStatusByService(childComplexity, args["status"].(model.RiderStatus)), true
 
 	case "Mutation.updateRiderRange":
 		if e.complexity.Mutation.UpdateRiderRange == nil {
@@ -8780,6 +8836,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Service.Profession(childComplexity), true
+
+	case "Service.state":
+		if e.complexity.Service.State == nil {
+			break
+		}
+
+		return e.complexity.Service.State(childComplexity), true
 
 	case "Service.subDomain":
 		if e.complexity.Service.SubDomain == nil {
@@ -12461,23 +12524,23 @@ func (ec *executionContext) field_Mutation_serviceLogin_argsInput(
 func (ec *executionContext) field_Mutation_starOrStoptLocationTracking_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_starOrStoptLocationTracking_argsIsTracking(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_starOrStoptLocationTracking_argsCoordinates(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["isTracking"] = arg0
+	args["coordinates"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_starOrStoptLocationTracking_argsIsTracking(
+func (ec *executionContext) field_Mutation_starOrStoptLocationTracking_argsCoordinates(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (bool, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("isTracking"))
-	if tmp, ok := rawArgs["isTracking"]; ok {
-		return ec.unmarshalNBoolean2bool(ctx, tmp)
+) ([]float64, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("coordinates"))
+	if tmp, ok := rawArgs["coordinates"]; ok {
+		return ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, tmp)
 	}
 
-	var zeroVal bool
+	var zeroVal []float64
 	return zeroVal, nil
 }
 
@@ -13732,6 +13795,29 @@ func (ec *executionContext) field_Mutation_updateRequestItemStatus_argsStatus(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_updateRiderLocationByService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateRiderLocationByService_argsCoordinates(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["coordinates"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateRiderLocationByService_argsCoordinates(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]float64, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("coordinates"))
+	if tmp, ok := rawArgs["coordinates"]; ok {
+		return ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, tmp)
+	}
+
+	var zeroVal []float64
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_updateRiderLocation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -13752,6 +13838,29 @@ func (ec *executionContext) field_Mutation_updateRiderLocation_argsCoordinates(
 	}
 
 	var zeroVal []float64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateRiderOnlineStatusByService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateRiderOnlineStatusByService_argsStatus(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["status"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateRiderOnlineStatusByService_argsStatus(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.RiderStatus, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
+	if tmp, ok := rawArgs["status"]; ok {
+		return ec.unmarshalNRiderStatus2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRiderStatus(ctx, tmp)
+	}
+
+	var zeroVal model.RiderStatus
 	return zeroVal, nil
 }
 
@@ -22627,6 +22736,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_vendor(_ context.Context,
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -32975,6 +33086,50 @@ func (ec *executionContext) fieldContext_Mutation_requestOtp(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_testRequestOtp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_testRequestOtp(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().TestRequestOtp(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_testRequestOtp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_requestForResetOtp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_requestForResetOtp(ctx, field)
 	if err != nil {
@@ -35900,6 +36055,106 @@ func (ec *executionContext) fieldContext_Mutation_updateRiderOnlineStatus(ctx co
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateRiderOnlineStatusByService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateRiderOnlineStatusByService(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateRiderOnlineStatusByService(rctx, fc.Args["status"].(model.RiderStatus))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateRiderOnlineStatusByService(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateRiderOnlineStatusByService_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateRiderLocation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_updateRiderLocation(ctx, field)
 	if err != nil {
@@ -35990,6 +36245,106 @@ func (ec *executionContext) fieldContext_Mutation_updateRiderLocation(ctx contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateRiderLocationByService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateRiderLocationByService(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateRiderLocationByService(rctx, fc.Args["coordinates"].([]float64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateRiderLocationByService(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateRiderLocationByService_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_riderGoOnline(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_riderGoOnline(ctx, field)
 	if err != nil {
@@ -36064,6 +36419,95 @@ func (ec *executionContext) fieldContext_Mutation_riderGoOnline(_ context.Contex
 				return ec.fieldContext_Rider_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Rider", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_riderGoOnlineByService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_riderGoOnlineByService(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RiderGoOnlineByService(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_riderGoOnlineByService(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 		},
 	}
 	return fc, nil
@@ -36148,6 +36592,95 @@ func (ec *executionContext) fieldContext_Mutation_riderGoOffline(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_riderGoOfflineByService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_riderGoOfflineByService(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RiderGoOfflineByService(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_riderGoOfflineByService(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_starOrStoptLocationTracking(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_starOrStoptLocationTracking(ctx, field)
 	if err != nil {
@@ -36162,7 +36695,7 @@ func (ec *executionContext) _Mutation_starOrStoptLocationTracking(ctx context.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().StarOrStoptLocationTracking(rctx, fc.Args["isTracking"].(bool))
+		return ec.resolvers.Mutation().StarOrStoptLocationTracking(rctx, fc.Args["coordinates"].([]float64))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -36395,9 +36928,9 @@ func (ec *executionContext) _Mutation_serviceLogin(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(model.Returns)
+	res := resTmp.(*model.UsersInfor)
 	fc.Result = res
-	return ec.marshalOReturns2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐReturns(ctx, field.Selections, res)
+	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_serviceLogin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -36407,7 +36940,25 @@ func (ec *executionContext) fieldContext_Mutation_serviceLogin(ctx context.Conte
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Returns does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UsersInfor_id(ctx, field)
+			case "name":
+				return ec.fieldContext_UsersInfor_name(ctx, field)
+			case "type":
+				return ec.fieldContext_UsersInfor_type(ctx, field)
+			case "number":
+				return ec.fieldContext_UsersInfor_number(ctx, field)
+			case "email":
+				return ec.fieldContext_UsersInfor_email(ctx, field)
+			case "location":
+				return ec.fieldContext_UsersInfor_location(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
 	}
 	defer func() {
@@ -37036,6 +37587,8 @@ func (ec *executionContext) fieldContext_Mutation_createService(ctx context.Cont
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -37134,6 +37687,8 @@ func (ec *executionContext) fieldContext_Mutation_updateService(ctx context.Cont
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -37232,6 +37787,8 @@ func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -53707,6 +54264,8 @@ func (ec *executionContext) fieldContext_Query_listServices(ctx context.Context,
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -53805,6 +54364,8 @@ func (ec *executionContext) fieldContext_Query_getService(_ context.Context, fie
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -53892,6 +54453,8 @@ func (ec *executionContext) fieldContext_Query_getProvider(ctx context.Context, 
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -53990,6 +54553,8 @@ func (ec *executionContext) fieldContext_Query_getProviderByUsername(ctx context
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -54140,6 +54705,8 @@ func (ec *executionContext) fieldContext_Query_getSharedService(ctx context.Cont
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -59309,6 +59876,8 @@ func (ec *executionContext) fieldContext_RiderWithMapData_riderService(_ context
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -61686,6 +62255,47 @@ func (ec *executionContext) fieldContext_Service_bookTypes(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Service_state(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Service_state(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.State, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Service_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_isVerified(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Service_isVerified(ctx, field)
 	if err != nil {
@@ -62340,6 +62950,8 @@ func (ec *executionContext) fieldContext_ServiceData_vendor(_ context.Context, f
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -65920,6 +66532,8 @@ func (ec *executionContext) fieldContext_VendorsMapData_vendor(_ context.Context
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -66177,6 +66791,8 @@ func (ec *executionContext) fieldContext_ViewInvoice_serviceId(_ context.Context
 				return ec.fieldContext_Service_useTheme(ctx, field)
 			case "bookTypes":
 				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
 			case "isVerified":
 				return ec.fieldContext_Service_isVerified(ctx, field)
 			case "isAuth":
@@ -76244,6 +76860,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "testRequestOtp":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_testRequestOtp(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "requestForResetOtp":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_requestForResetOtp(ctx, field)
@@ -76480,17 +77103,33 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateRiderOnlineStatus(ctx, field)
 			})
+		case "updateRiderOnlineStatusByService":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateRiderOnlineStatusByService(ctx, field)
+			})
 		case "updateRiderLocation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateRiderLocation(ctx, field)
+			})
+		case "updateRiderLocationByService":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateRiderLocationByService(ctx, field)
 			})
 		case "riderGoOnline":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_riderGoOnline(ctx, field)
 			})
+		case "riderGoOnlineByService":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_riderGoOnlineByService(ctx, field)
+			})
 		case "riderGoOffline":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_riderGoOffline(ctx, field)
+			})
+		case "riderGoOfflineByService":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_riderGoOfflineByService(ctx, field)
 			})
 		case "starOrStoptLocationTracking":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -83275,6 +83914,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "state":
+			out.Values[i] = ec._Service_state(ctx, field, obj)
 		case "isVerified":
 			out.Values[i] = ec._Service_isVerified(ctx, field, obj)
 		case "isAuth":

@@ -124,8 +124,8 @@ func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, 
 	if err == nil {
 		return fmt.Errorf(" A member with the same number already exists")
 	}
-	// Skip the check for the specific email "serviny360@gmail.com"
-	if email == "serviny360@gmail.com" {
+	// Skip the check for the specific email "winnemart360@gmail.com"
+	if email == "winnemart360@gmail.com" {
 		return nil
 	}
 	// Check if a user with the same email already exists
