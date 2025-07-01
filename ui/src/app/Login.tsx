@@ -18,10 +18,25 @@ export const LOGIN = gql`
   mutation serviceLogin($input: LoginInput!) {
     serviceLogin(input: $input) {
       __typename
-      id
+      ... on Service {
+        id
         name
         number
         type
+      }
+      ... on User {
+        id
+        name
+        number
+        type
+      }
+
+      ... on Rider {
+        id
+        name
+        number
+        type
+      }
     }
   }
 `;

@@ -255,8 +255,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = (userData: UserType) => {
     try {
-      localStorage.setItem("userData", JSON.stringify(userData));
-      setUser(userData);
+      getUserInfo();
       setIsAuthenticated(true);
     } catch (error) {
       console.error("Error saving user to localStorage:", error);

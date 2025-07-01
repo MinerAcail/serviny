@@ -52,55 +52,37 @@ func (r *mutationResolver) DeleteTable(ctx context.Context) (bool, error) {
 }
 
 // ServiceLogin is the resolver for the serviceLogin field.
-func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginInput) (*model.UsersInfor, error) {
-	// 1. Check Service
+func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginInput) (model.Returns, error) {
+	// Try to find a service first
 	service := &model.Service{}
-	if err := r.DB.Where("number = ?", input.Number).First(service).Error; err == nil && service.Password != nil {
-		if bcrypt.CompareHashAndPassword([]byte(*service.Password), []byte(input.Password)) == nil {
-			middleware.SetTokenForContext(ctx, service.Type, service.ID.String())
-			return &model.UsersInfor{
-				ID:     service.ID.String(),
-				Name:   service.Name,
-				Type:   *service.BusinessType,
-				Number: service.Number,
-			}, nil
+	if err := r.DB.Where("number = ?", input.Number).First(service).Error; err == nil {
+		if service.Password != nil {
+			if err := bcrypt.CompareHashAndPassword([]byte(*service.Password), []byte(input.Password)); err == nil {
+				middleware.SetTokenForContext(ctx, service.Type, service.ID.String())
+				return service, nil
+			}
 		}
 	}
 
-	// 2. Check User
+	// Fallback: Try to find a user
 	user := &model.User{}
-	if err := r.DB.Where("number = ?", input.Number).First(user).Error; err == nil && user.Password != nil {
-		if bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(input.Password)) == nil {
-			middleware.SetTokenForContext(ctx, user.Type, user.ID.String())
-			email := ""
-			if user.Email != nil {
-				email = *user.Email
+	if err := r.DB.Where("number = ?", input.Number).First(user).Error; err == nil {
+		if user.Password != nil {
+			if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(input.Password)); err == nil {
+
+				middleware.SetTokenForContext(ctx, user.Type, user.ID.String())
+				return user, nil
 			}
-			return &model.UsersInfor{
-				ID:     user.ID.String(),
-				Name:   user.Name,
-				Type:   user.Type,
-				Number: user.Number,
-				Email:  email,
-			}, nil
 		}
 	}
-
-	// 3. Check Rider
 	rider := &model.Rider{}
-	if err := r.DB.Where("number = ?", input.Number).First(rider).Error; err == nil && rider.Password != nil {
-		if bcrypt.CompareHashAndPassword([]byte(*rider.Password), []byte(input.Password)) == nil {
-			middleware.SetTokenForContext(ctx, rider.Type, rider.ID.String())
-			email := ""
-			if rider.Email != "" {
-				email = rider.Email
+	if err := r.DB.Where("number = ?", input.Number).First(rider).Error; err == nil {
+		if rider.Password != nil {
+			if err := bcrypt.CompareHashAndPassword([]byte(*rider.Password), []byte(input.Password)); err == nil {
+
+				middleware.SetTokenForContext(ctx, rider.Type, rider.ID.String())
+				return rider, nil
 			}
-			return &model.UsersInfor{
-				ID:    rider.ID.String(),
-				Name:  rider.Name,
-				Type:  rider.Type,
-				Email: email,
-			}, nil
 		}
 	}
 
@@ -694,7 +676,7 @@ func (r *queryResolver) GetUserInforFromContextForAuthClient(ctx context.Context
 		return &model.UsersInfor{
 			ID:          service.ID.String(),
 			Name:        service.Name,
-			Type:        *service.BusinessType,
+			Type:        service.Type,
 			Number:      service.Number,
 			Email:       service.Email,
 			Location:    service.Location,
