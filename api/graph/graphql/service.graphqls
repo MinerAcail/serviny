@@ -95,8 +95,11 @@ extend type Query {
 
   getAllUserServiceData: [ServiceData!]!
   getBookingServiceDataByUserId: [ServiceData!]!
-  getBookingServiceDataByBookingId(bookingId:String!): AppointmentBookingData!
+  getBookingServiceDataByBookingId(bookingId: String!): AppointmentBookingData!
   getOrderServiceDataByUserId: [ServiceData!]!
+
+  getBusinessType:BusinessType
+
 }
 
 extend type Mutation {
@@ -106,6 +109,7 @@ extend type Mutation {
     input: UpdateServiceInput!
     removeProfession: [String]
   ): Service
+  updateBusinessType(businessType:String):BusinessType
   generateSubDomain(serviceId: String!): Service
   useTheme(ServiceId: String!, theme: String): String
 
@@ -128,9 +132,11 @@ extend type Mutation {
   createFavorite(input: CreateFavoriteInput): Favorite
   createSocialMedia(input: SocialMediaInput): SocialMedia
 
-
-  reAssignRider(entityId: String,entityType:String,riderId:String): UsersInfor 
-
+  reAssignRider(
+    entityId: String
+    entityType: String
+    riderId: String
+  ): UsersInfor
 }
 
 input CreateServiceInput {
@@ -153,6 +159,7 @@ input UpdateServiceInput {
   profession: [String]
   aboutMe: String
   location: String
+
   password: String
 }
 
@@ -241,4 +248,17 @@ type AppointmentBookingData {
 enum ServiceType {
   ORDER
   BOOKING
+}
+
+type BusinessType {
+  id: String!
+  status: String
+  serviceId:String!
+  paymentStatus: String
+  paymentMethod: String
+  businessType: String
+  durationAt: String
+  durationEnd: String
+  createdAt: Time!
+  updatedAt: Time!
 }

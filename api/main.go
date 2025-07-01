@@ -81,6 +81,7 @@ func PerformMigrations(db *gorm.DB) error {
 		
 		&model.Profiles{},
 		&model.Invoice{},
+		&model.BusinessType{},
 
 
 	); err != nil {

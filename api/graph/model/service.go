@@ -25,11 +25,12 @@ type Service struct {
 	NumberType   *string        `json:"number_type,omitempty"`
 	BookTypes    pq.StringArray `gorm:"type:text[]" json:"book_types,omitempty"`
 	BusinessType *string        `json:"business_type,omitempty"`
+	BusinessTypeId *string        `json:"business_type_Id,omitempty"`
 	IsVerified   *bool          `json:"is_verified,omitempty"`
 	IsAuth       *IsAuth        `json:"is_auth,omitempty"`
 	SubDomain    *string        `gorm:"unique" json:"sub_domain,omitempty"`
 	UseTheme     *string        `json:"use_theme,omitempty"`
- State        *string   `json:"state,omitempty"`
+	State        *string        `json:"state,omitempty"`
 	// Coordinates []float64 `json:"coordinates" gorm:"type:float[]"`  // [lng, lat]
 	//   H3Indexes   []string  `json:"h3Indexes" gorm:"type:text[]"` // Multiple resolutions
 	Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]
@@ -55,7 +56,7 @@ type Policy struct {
 	Name      string    `json:"name"`
 	ServiceID *string   `gorm:"column:service_id" json:"ServiceId,omitempty"`
 	CargoID   *string   `json:"cargoId,omitempty"`
-	IsPublic    *bool     `json:"isPublic,omitempty"`
+	IsPublic  *bool     `json:"isPublic,omitempty"`
 
 	Description string         `json:"description"`
 	DetailsIds  pq.StringArray `gorm:"type:text[]" json:"detailsIds,omitempty"`
@@ -142,4 +143,16 @@ type SocialMedia struct {
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+type BusinessType struct {
+	ID            uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	Status        *string   `json:"status,omitempty"`
+	ServiceID     string    `json:"serviceId"`
+	PaymentStatus *string   `json:"paymentStatus,omitempty"`
+	PaymentMethod *string   `json:"paymentMethod,omitempty"`
+	BusinessType  *string   `json:"businessType,omitempty"`
+	DurationAt    *string   `json:"durationAt,omitempty"`
+	DurationEnd   *string   `json:"durationEnd,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
