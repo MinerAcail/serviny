@@ -952,6 +952,7 @@ type ComplexityRoot struct {
 		GetUserInfor                                  func(childComplexity int, userID string) int
 		GetUserInforFromContext                       func(childComplexity int) int
 		GetUserInforFromContextForAuthClient          func(childComplexity int) int
+		GetUserInforFromContextForBasedType           func(childComplexity int) int
 		GetVendorFromIsochroneResultByServiceProdiver func(childComplexity int, vendorID string) int
 		GetVendorsFromIsochroneResult                 func(childComplexity int) int
 		GetjobResponse                                func(childComplexity int, serviceID string) int
@@ -1713,6 +1714,7 @@ type QueryResolver interface {
 	GetUserInfor(ctx context.Context, userID string) (*model.UsersInfor, error)
 	GetUserInforFromContext(ctx context.Context) (*model.UsersInfor, error)
 	GetUserInforFromContextForAuthClient(ctx context.Context) (*model.UsersInfor, error)
+	GetUserInforFromContextForBasedType(ctx context.Context) (*model.UsersInfor, error)
 	ClearClientCache(ctx context.Context) (bool, error)
 	CheakType(ctx context.Context, serviceID string) (string, error)
 	GetProfiles(ctx context.Context) (*model.Profiles, error)
@@ -7800,6 +7802,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetUserInforFromContextForAuthClient(childComplexity), true
+
+	case "Query.getUserInforFromContextForBasedType":
+		if e.complexity.Query.GetUserInforFromContextForBasedType == nil {
+			break
+		}
+
+		return e.complexity.Query.GetUserInforFromContextForBasedType(childComplexity), true
 
 	case "Query.getVendorFromIsochroneResultByServiceProdiver":
 		if e.complexity.Query.GetVendorFromIsochroneResultByServiceProdiver == nil {
@@ -54383,6 +54392,65 @@ func (ec *executionContext) fieldContext_Query_getUserInforFromContextForAuthCli
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getUserInforFromContextForBasedType(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserInforFromContextForBasedType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserInforFromContextForBasedType(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.UsersInfor)
+	fc.Result = res
+	return ec.marshalOUsersInfor2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUsersInfor(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserInforFromContextForBasedType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UsersInfor_id(ctx, field)
+			case "name":
+				return ec.fieldContext_UsersInfor_name(ctx, field)
+			case "type":
+				return ec.fieldContext_UsersInfor_type(ctx, field)
+			case "number":
+				return ec.fieldContext_UsersInfor_number(ctx, field)
+			case "email":
+				return ec.fieldContext_UsersInfor_email(ctx, field)
+			case "location":
+				return ec.fieldContext_UsersInfor_location(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_clearClientCache(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_clearClientCache(ctx, field)
 	if err != nil {
@@ -70964,7 +71032,7 @@ func (ec *executionContext) unmarshalInputBookerInput(ctx context.Context, obj a
 		switch k {
 		case "userType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userType"))
-			data, err := ec.unmarshalNUserType2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUserType(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -82418,6 +82486,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getUserInforFromContextForAuthClient(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserInforFromContextForBasedType":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserInforFromContextForBasedType(ctx, field)
 				return res
 			}
 

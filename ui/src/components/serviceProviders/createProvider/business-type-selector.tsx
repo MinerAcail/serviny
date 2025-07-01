@@ -1,8 +1,7 @@
 "use client";
 
-import type React from "react";
-
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, gql } from "@apollo/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,8 +33,36 @@ import {
   Crown,
   Zap,
   Star,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import { formatPrice } from "@/components/global/formatPrice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GET_USER_INFO_FROM_CONTEXT } from "@/middleware/context/authContext";
+
+// GraphQL Queries and Mutations
+const GET_BUSINESS_TYPE = gql`
+  query GetBusinessType {
+    getBusinessType {
+      id
+      serviceId
+      businessType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const UPDATE_BUSINESS_TYPE = gql`
+  mutation UpdateBusinessType($businessType: String!) {
+    updateBusinessType(businessType: $businessType) {
+      id
+      serviceId
+      businessType
+      createdAt
+      updatedAt
+    }
+  }
+`;
 
 interface Profession {
   value: string;
@@ -54,14 +81,67 @@ interface Profession {
   tier: "basic" | "standard" | "enterprise";
 }
 
+// Format price utility
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
 export default function BusinessTypeSelector() {
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [expandedFeatures, setExpandedFeatures] = useState<string | null>(null);
 
+  // Apollo Client hooks
+  const {
+    data,
+    loading: queryLoading,
+    // error: queryError,
+    refetch,
+  } = useQuery(GET_BUSINESS_TYPE, {
+    errorPolicy: "all",
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const [updateBusinessType, { loading: updateLoading }] =
+    useMutation(UPDATE_BUSINESS_TYPE, {
+      onCompleted: (data) => {
+        console.log(
+          "Business type updated successfully:",
+          data.updateBusinessType
+        );
+        setOpen(false);
+        // Optionally refetch the query to update the UI
+        refetch();
+        
+      },
+      onError: (error) => {
+        console.error("Error updating business type:", error);
+      },
+      refetchQueries: [{ query: GET_USER_INFO_FROM_CONTEXT }],
+      awaitRefetchQueries: false, // Don't wait for refetch to complete
+    });
+
+  // Set initial values when data is loaded
+  useEffect(() => {
+    if (data?.getBusinessType?.businessType) {
+      const businessType = data.getBusinessType.businessType;
+      setSelectedType(businessType);
+
+      // Find the corresponding label
+      const profession = professions.find((p) => p.value === businessType);
+      if (profession) {
+        setSelectedLabel(profession.label);
+      }
+    }
+  }, [data]);
+
   const professions: Profession[] = [
-    
     {
       value: "ecommerce-standard",
       label: "Standard E-commerce",
@@ -182,14 +262,33 @@ export default function BusinessTypeSelector() {
     setSelectedLabel(label);
   };
 
-  const handleDone = () => {
-    console.log("Selected business type:", selectedType);
-    setOpen(false);
+  const handleSave = async () => {
+    if (!selectedType) return;
+
+    try {
+      await updateBusinessType({
+        variables: {
+          businessType: selectedType,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to save business type:", error);
+    }
   };
 
   const toggleFeatures = (value: string) => {
     setExpandedFeatures(expandedFeatures === value ? null : value);
   };
+
+  // Display loading state
+  if (queryLoading) {
+    return (
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm text-gray-600">Loading business type...</span>
+      </div>
+    );
+  }
 
   const renderFeatures = (profession: Profession) => {
     if (profession.detailedFeatures) {
@@ -241,14 +340,25 @@ export default function BusinessTypeSelector() {
   };
 
   return (
-    <div>
+    <div className="space-y-4">
+      {/* Error Alert */}
+      {/* {(queryError || updateError) && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            {queryError?.message || updateError?.message}
+          </AlertDescription>
+        </Alert>
+      )} */}
+
+      {/* Main Button */}
       <Button
         onClick={() => setOpen(true)}
         variant="outline"
         className="backdrop-blur-xl bg-white/70 border-white/30 hover:bg-white/80 transition-all duration-200 shadow-lg"
       >
         <span className="text-sm font-medium text-gray-700">
-          {selectedLabel ? selectedLabel : "Business Type"}
+          {selectedLabel ? selectedLabel : "Select Business Type"}
         </span>
         <ChevronRight className="h-4 w-4 text-gray-400" />
       </Button>
@@ -277,7 +387,7 @@ export default function BusinessTypeSelector() {
             >
               {/* Fixed Tabs */}
               <div className="px-6 sm:px-8 pt-4 sm:pt-6 flex-shrink-0">
-                <TabsList className="grid grid-cols-2 mb-4 sm:mb-6 rounded-2xl h-10 sm:h-12 p-1  bg-white/20 border border-white/20 shadow-inner">
+                <TabsList className="grid grid-cols-2 mb-4 sm:mb-6 rounded-2xl h-10 sm:h-12 p-1 bg-white/20 border border-white/20 shadow-inner">
                   <TabsTrigger
                     value="ecommerce"
                     className="rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 data-[state=active]:backdrop-blur-xl data-[state=active]:bg-white/90 data-[state=active]:shadow-md data-[state=active]:text-gray-900 data-[state=active]:border data-[state=active]:border-white/40 text-gray-600 hover:text-gray-800"
@@ -318,14 +428,6 @@ export default function BusinessTypeSelector() {
                                   <Badge className="backdrop-blur-xl bg-orange-500/20 text-orange-800 border-orange-200/50 shadow-lg text-xs">
                                     <Star className="h-3 w-3 mr-1" />
                                     Most Popular
-                                  </Badge>
-                                </div>
-                              )}
-                              {profession.recommended && (
-                                <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-10">
-                                  <Badge className="backdrop-blur-xl bg-green-500/20 text-green-800 border-green-200/50 shadow-lg text-xs">
-                                    <Zap className="h-3 w-3 mr-1" />
-                                    Recommended
                                   </Badge>
                                 </div>
                               )}
@@ -435,15 +537,7 @@ export default function BusinessTypeSelector() {
                                   : "border-white/30 bg-white/40 hover:border-white/50 hover:bg-white/50 hover:shadow-xl"
                               }`}
                             >
-                              {/* Popular/Recommended Badge */}
-                              {profession.popular && (
-                                <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-10">
-                                  <Badge className="backdrop-blur-xl bg-orange-500/20 text-orange-800 border-orange-200/50 shadow-lg text-xs">
-                                    <Star className="h-3 w-3 mr-1" />
-                                    Most Popular
-                                  </Badge>
-                                </div>
-                              )}
+                              {/* Recommended Badge */}
                               {profession.recommended && (
                                 <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-10">
                                   <Badge className="backdrop-blur-xl bg-green-500/20 text-green-800 border-green-200/50 shadow-lg text-xs">
@@ -554,16 +648,26 @@ export default function BusinessTypeSelector() {
               variant="outline"
               onClick={() => setOpen(false)}
               className="rounded-2xl px-6 sm:px-8 py-2 sm:py-3 backdrop-blur-xl bg-white/50 border-white/30 hover:bg-white/70 text-gray-700 text-sm"
+              disabled={updateLoading}
             >
               Cancel
             </Button>
             <Button
-              onClick={handleDone}
-              disabled={!selectedType}
+              onClick={handleSave}
+              disabled={!selectedType || updateLoading}
               className="rounded-2xl px-6 sm:px-8 py-2 sm:py-3 backdrop-blur-xl bg-blue-500/80 hover:bg-blue-600/80 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed border-0 text-sm"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Done
+              {updateLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

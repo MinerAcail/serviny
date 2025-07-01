@@ -54,7 +54,10 @@ import NotificationCenter from "../user/notification-center";
 import { CartButton } from "./cart/cart-button";
 import ProfileDialog, { ProfileProviderDialog } from "./profile-dialog";
 import RiderRequest from "../serviceProviders/Riders/request";
-import { BusinessTypeEnum, useProvider } from "@/middleware/context/businessType";
+import {
+  BusinessTypeEnum,
+  useProvider,
+} from "@/middleware/context/businessType";
 
 const bottomNavigation = [
   // { name: "Settings", to: "/settings", icon: Settings },
@@ -75,7 +78,7 @@ export function Sidebar() {
 
   const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
     useProvider();
-  
+
   useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
@@ -303,17 +306,17 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const { isAuthenticated, user, clearCache } = useAuth();
   // const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
   //   useProvider();
-    const hasEcommerceAccess = useCurrentUserHasAnyBusinessType([
+  const hasEcommerceAccess = useCurrentUserHasAnyBusinessType([
     BusinessTypeEnum.ECOMMERCE_STANDARD,
     BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
     BusinessTypeEnum.PRE_ORDER,
-    BusinessTypeEnum.DROP_SHIPPING
+    BusinessTypeEnum.DROP_SHIPPING,
   ]);
-// const profileId = useCurrentUserProfileId();
-//      const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
-//     BusinessTypeEnum.DELIVERY_STANDARD,
-//     BusinessTypeEnum.DELIVERY_ENTERPRISE,
-//   ]);
+  // const profileId = useCurrentUserProfileId();
+  //      const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
+  //     BusinessTypeEnum.DELIVERY_STANDARD,
+  //     BusinessTypeEnum.DELIVERY_ENTERPRISE,
+  //   ]);
   const location = useLocation();
   const install = location.pathname === "/install";
   // const providers = location.pathname === "/providers";
@@ -339,7 +342,22 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       to: `/?lo`,
       icon: Home,
     },
-    { name: "Delivery", to: `/vob`, icon: PackageCheck }, // stays on /dbp/:serviceId
+    // stays on /dbp/:serviceId
+
+    ...(user?.type === "delivery-standard"
+      ? [
+          {
+            name: "Live Map",
+            to: `/livemap`,
+            icon: Map,
+          },
+          { name: "Contacts", to: `contacts`, icon: BookUser },
+          { name: "Vendors", to: `vendors`, icon: Building2 },
+          { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+          { name: "Schedule", to: `time`, icon: CalendarSync },
+          { name: "Upload", to: "upload", icon: HardDriveUpload },
+        ]
+      : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
     ...(user?.type === "SERVICE" || user?.type === "DELIVERY"
       ? [

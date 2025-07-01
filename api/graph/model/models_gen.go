@@ -63,14 +63,14 @@ type BookedData struct {
 }
 
 type BookerInput struct {
-	UserType      UserType `json:"userType"`
-	StartTime     string   `json:"startTime"`
-	EndTime       *string  `json:"endTime,omitempty"`
-	Item          *string  `json:"item,omitempty"`
-	Notes         *string  `json:"notes,omitempty"`
-	TableSize     int32    `json:"tableSize"`
-	UserID        string   `json:"userId"`
-	TransportType *string  `json:"transportType,omitempty"`
+	UserType      string  `json:"userType"`
+	StartTime     string  `json:"startTime"`
+	EndTime       *string `json:"endTime,omitempty"`
+	Item          *string `json:"item,omitempty"`
+	Notes         *string `json:"notes,omitempty"`
+	TableSize     int32   `json:"tableSize"`
+	UserID        string  `json:"userId"`
+	TransportType *string `json:"transportType,omitempty"`
 }
 
 type BookersInput struct {
@@ -1507,20 +1507,22 @@ func (e SubmissionStatus) MarshalGQL(w io.Writer) {
 type UserType string
 
 const (
-	UserTypeService UserType = "SERVICE"
-	UserTypeAdmin   UserType = "ADMIN"
-	UserTypeUser    UserType = "USER"
+	UserTypeService  UserType = "SERVICE"
+	UserTypeAdmin    UserType = "ADMIN"
+	UserTypeUser     UserType = "USER"
+	UserTypeDelivery UserType = "DELIVERY"
 )
 
 var AllUserType = []UserType{
 	UserTypeService,
 	UserTypeAdmin,
 	UserTypeUser,
+	UserTypeDelivery,
 }
 
 func (e UserType) IsValid() bool {
 	switch e {
-	case UserTypeService, UserTypeAdmin, UserTypeUser:
+	case UserTypeService, UserTypeAdmin, UserTypeUser, UserTypeDelivery:
 		return true
 	}
 	return false

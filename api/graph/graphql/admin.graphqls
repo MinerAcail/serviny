@@ -75,4 +75,5 @@ enum UserType {
   SERVICE
   ADMIN
   USER
+  DELIVERY
 }

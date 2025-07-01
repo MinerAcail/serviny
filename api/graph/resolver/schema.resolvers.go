@@ -706,6 +706,70 @@ func (r *queryResolver) GetUserInforFromContextForAuthClient(ctx context.Context
 	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 
+// GetUserInforFromContextForBasedType is the resolver for the getUserInforFromContextForBasedType field.
+func (r *queryResolver) GetUserInforFromContextForBasedType(ctx context.Context) (*model.UsersInfor, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	if userId == nil {
+		return nil, fmt.Errorf("user ID is nil")
+	}
+
+	// Try to find a user by ID
+	user := &model.User{}
+	if err := r.DB.First(user, "id = ?", userId).Error; err == nil {
+		email := ""
+		if user.Email != nil {
+			email = *user.Email
+		}
+		return &model.UsersInfor{
+			ID:          user.ID.String(),
+			Name:        user.Name,
+			Type:        user.Type,
+			Number:      user.Number,
+			Email:       email,
+			Coordinates: nil,
+			Location:    nil,
+			Dpfile:      nil,
+		}, nil
+	}
+	// Try to find a service by ID
+	service := &model.Service{}
+	if err := r.DB.First(service, "id = ?", userId).Error; err == nil {
+		return &model.UsersInfor{
+			ID:          service.ID.String(),
+			Name:        service.Name,
+			Type:        service.Type,
+			Number:      service.Number,
+			Email:       service.Email,
+			Location:    service.Location,
+			Dpfile:      service.Dpfile,
+			Coordinates: service.Coordinates,
+		}, nil
+	}
+
+	rider := &model.Rider{}
+	if err := r.DB.First(rider, "id = ?", userId).Error; err == nil {
+		email := ""
+		if rider.Email != "" {
+			email = rider.Email
+		}
+		return &model.UsersInfor{
+			ID:          rider.ID.String(),
+			Name:        rider.Name,
+			Type:        rider.Type,
+			Number:      rider.Number,
+			Email:       email,
+			Location:    rider.Location,
+			Dpfile:      rider.Dpfile,
+			Coordinates: rider.Coordinates,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no user or service found with the given ID")
+}
+
 // ClearClientCache is the resolver for the clearClientCache field.
 func (r *queryResolver) ClearClientCache(ctx context.Context) (bool, error) {
 	userID, err := middleware.GetIDFromContext(ctx)

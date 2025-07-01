@@ -250,12 +250,16 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 					day, period.StartTime, period.EndTime)
 			}
 		}
-
+		// Get users assigned to this specific rider
+		userResults, userErr := r.Query().GetUserInforFromContextForBasedType(ctx)
+		if userErr != nil {
+			log.Printf("Warning: failed to get user Type")
+		}
 		// Create a new booking
 		booking := &model.AppointmentBooking{
 			ServiceID:    serviceID,
 			UserID:       USERID.String(),
-			UserType:     bookerInput.UserType,
+			UserType:     model.UserType(userResults.Type),
 			StartTime:    bookerInput.StartTime,
 			EndTime:      *bookerInput.EndTime,
 			Day:          day,

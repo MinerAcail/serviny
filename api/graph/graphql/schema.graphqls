@@ -51,6 +51,7 @@ extend type Query {
   getUserInfor(userId: String!): UsersInfor
   getUserInforFromContext: UsersInfor
   getUserInforFromContextForAuthClient: UsersInfor
+  getUserInforFromContextForBasedType: UsersInfor
 
   clearClientCache: Boolean!
 

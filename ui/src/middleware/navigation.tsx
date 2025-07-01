@@ -21,12 +21,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PasswordReset } from "@/app/resetPassWord";
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import { SocialForm } from "@/components/custom/Socials/forms";
+// import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
 // Lazy-loaded components - Pages & Large Components
 // const ServiceProvidersDirectory = React.lazy(() => import("@/components/serviceProviders/allProviders"));
 const ServiceProviderProfile = React.lazy(
   () => import("@/components/serviceProviders/profile")
+);
+const StandardDelveryRiderServiceLiveMap = React.lazy(
+  () => import("@/components/serviceProviders/DELIVERY_STANDARD/LiveMap")
 );
 // const VendorChatSystem = React.lazy(() => import("@/components/chatsSys/vendor/VendorChatSystem"));
 // const DeliveryTrackingMap = React.lazy(() => import("@/components/rider/getLocation"));
@@ -255,6 +259,23 @@ const router = createBrowserRouter([
             />
         ),
       },
+         {
+        path: "livemap",
+        element: (
+          <ProtectedProfileBusinessTypeRoute
+          element={
+            
+            <LoadingWrapper>
+               <StandardDelveryRiderServiceLiveMap />
+
+              </LoadingWrapper>
+              }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+              ]}
+            />
+        ),
+      },
       {
         path: "view/:id",
         element: (
@@ -371,6 +392,67 @@ const router = createBrowserRouter([
         element: (
           <LoadingWrapper>
             <RiderLiveMap />
+          </LoadingWrapper>
+        ),
+      },
+
+/// standard deleivery
+       {
+        path: "contacts",
+        element: (
+          <LoadingWrapper>
+            <SearchData />
+          </LoadingWrapper>
+        ),
+      }, {
+        path: "vendors",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+          element={
+                <LoadingWrapper>
+              <VendorsByDeliveryService />
+            
+              </LoadingWrapper>
+            }
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
+        ),
+      },{
+        path: "zone",
+        element: (
+          <ProtectedIsAuthRouteBusinessType
+            element={
+              <LoadingWrapper>
+                <RiderZoneSetup />
+              </LoadingWrapper>
+            }
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
+        ),
+      }, {
+        path: "time",
+        element: (
+          <LoadingWrapper>
+            <ProtectedIsAuthRouteBusinessType
+              element={<AvailabilityPage />}
+              expectedBusinessTypes={[
+                BusinessTypeEnum?.DELIVERY_STANDARD,
+                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+              ]}
+            />
+          </LoadingWrapper>
+        ),
+      },   {
+        path: "upload",
+        element: (
+          <LoadingWrapper>
+            <CreateGalleryForm />
           </LoadingWrapper>
         ),
       },
@@ -628,9 +710,10 @@ export function Layout() {
           {/* <ScrollArea className="h-full border-r"> */}
             <SidebarMain serviceId={serviceId} />
           {/* </ScrollArea> */}
-          {/* <div className="flex-1 p-2"> */}
             <CartDrawer />
+          <ScrollArea className="flex-1">
             <Outlet />
+          </ScrollArea>
           {/* </div> */}
         </CartProvider>
       </ProviderContextProvider>

@@ -956,7 +956,7 @@ useEffect(() => {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
+      <div className="h-screen flex-1 p-2 flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
         {/* Desktop Header */}
         {!isMobile && (
           <div className="bg-white/95 backdrop-blur-3xl border-b border-white/20 p-4 relative z-50 shadow-xl">

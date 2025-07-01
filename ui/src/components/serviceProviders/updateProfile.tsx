@@ -70,6 +70,7 @@ import { Label } from "../ui/label";
 import { ModeToggle } from "@/hooks/theme-selector";
 import BusinessTypeSelector from "./createProvider/business-type-selector";
 import { Link } from "react-router";
+import { getImageUrl } from "../global/formatPrice";
 // import MainNaveBar from "./menuBar";
 
 // GraphQL Queries and Mutations
@@ -432,7 +433,7 @@ export default function ProfileService() {
 
   const getAvatarSrc = () => {
     if (previewUrl) return previewUrl;
-    if (serviceData?.getService?.dpfile) return serviceData.getService.dpfile;
+    if ( serviceData?.getService?.dpfile) return getImageUrl(serviceData?.getService?.dpfile);
     return "/placeholder.svg?height=128&width=128";
   };
 
