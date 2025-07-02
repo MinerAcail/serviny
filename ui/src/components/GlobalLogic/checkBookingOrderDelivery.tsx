@@ -1,5 +1,6 @@
 import { useAuth } from "@/middleware/context/authContext";
 import RiderLiveMap from "../rider/LiveMap";
+import UserServiceViewer from "../custom/USER_MAP_WORK/viewService";
 // import UserServiceViewer from "../custom/USER_MAP_WORK/viewService";
 // import StandardDelveryRiderServiceLiveMap from "../serviceProviders/DELIVERY_STANDARD/LiveMap";
 
@@ -10,7 +11,7 @@ function CheckBookingOrderDelivery() {
   
   return (
     <div className="flex-1 p-2">
-      <RiderLiveMap />
+      <UserServiceViewer />
     </div>
   );
 }

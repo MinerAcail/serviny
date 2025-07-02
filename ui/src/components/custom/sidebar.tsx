@@ -359,7 +359,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
         ]
       : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
-    ...(user?.type === "SERVICE" || user?.type === "DELIVERY"
+    ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE || user?.type === "DELIVERY"
       ? [
           {
             name: "Dashboard",

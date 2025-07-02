@@ -321,7 +321,7 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: (
           <ProtectedIsAuthRoute
-          expectedTypes={[ProtectType.Service]}
+          expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
           element={
                 <LoadingWrapper>
             
@@ -463,7 +463,7 @@ const router = createBrowserRouter([
     path: "/dbp/",
     element: (
       <ProtectedIsAuthRoute
-      expectedTypes={[ProtectType.Service]}
+      expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
       element={
             <LoadingWrapper>
 
@@ -529,7 +529,7 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-          expectedTypes={[ProtectType.Service]}
+          expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
           element={
                 <LoadingWrapper>
               
