@@ -356,6 +356,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
           { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
           { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
+          { name: "Edit", to: `update`, icon: Edit },
+
         ]
       : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
@@ -511,7 +513,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             </div>
           </div>
           <RegisterOptions isCollapsed={isCollapsed} />
-          {!isCollapsed && <ProfileSwitcherContainer />}
+          {/* {!isCollapsed && <ProfileSwitcherContainer />} */}
 
           <div className="flex-1 overflow-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">

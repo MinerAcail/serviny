@@ -59,6 +59,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 // import { countries } from "./data/countries";
 import { useJsApiLoader, GoogleMap, type Libraries } from "@react-google-maps/api";
 import { useNavigate } from "react-router";
+import { formatPrice } from "../global/formatPrice";
 
 // GraphQL Mutations
 const CREATE_SERVICE = gql`
@@ -354,7 +355,8 @@ const BusinessTypeSelector: React.FC<{
       label: "Standard E-commerce",
       description: "Essential features for small businesses",
       icon: <Store className="h-5 w-5" />,
-      price: 499,
+           price: 50,
+
       category: "ecommerce",
     },
     {
@@ -362,31 +364,27 @@ const BusinessTypeSelector: React.FC<{
       label: "Enterprise E-commerce",
       description: "Advanced features for large businesses",
       icon: <Building2 className="h-5 w-5" />,
-      price: 1999,
+           price: 500,
+
       category: "ecommerce",
     },
     {
-      value: "pre-order",
-      label: "Pre-order",
+            value: "drop-shipping",
+      label: "Drop-Shipping / Pre-Order",
       description: "Accept orders before product availability",
       icon: <Calendar className="h-5 w-5" />,
-      price: 599,
+            price: 40,
+
       category: "ecommerce",
     },
-    {
-      value: "drop-shipping",
-      label: "Drop-shipping",
-      description: "Ship directly from suppliers",
-      icon: <Package className="h-5 w-5" />,
-      price: 399,
-      category: "ecommerce",
-    },
+   
     {
       value: "delivery-standard",
       label: "Standard Delivery",
       description: "For small to medium logistics needs",
       icon: <Truck className="h-5 w-5" />,
-      price: 299,
+            price: 40,
+
       category: "delivery",
     },
     {
@@ -394,7 +392,8 @@ const BusinessTypeSelector: React.FC<{
       label: "Enterprise Delivery",
       description: "For large-scale delivery operations",
       icon: <Truck className="h-5 w-5" />,
-      price: 1499,
+       price: 450,
+
       category: "delivery",
     },
   ];
@@ -411,13 +410,13 @@ const BusinessTypeSelector: React.FC<{
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
+  // const formatPrice = (price: number) => {
+  //   return new Intl.NumberFormat("en-US", {
+  //     style: "currency",
+  //     currency: "USD",
+  //     minimumFractionDigits: 0,
+  //   }).format(price);
+  // };
 
   return (
     <div>

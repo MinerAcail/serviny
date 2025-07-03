@@ -36,6 +36,7 @@ export const LIST_SERVICES = gql`
       profession
       dpfile
       location
+      subDomain
     }
   }
 `;
@@ -63,10 +64,10 @@ export const GET_PROFILES_QUERY = gql`
 export interface Profile {
   id: string;
   name: string;
-  email: string;
+  subDomain: string;
   avatar?: string;
   type?: string;
-  profession?: string;
+  profession?: string[] | string;
   location?: string;
   lastUsed?: Date;
 }
@@ -177,13 +178,15 @@ export function useProfiles(userProfileData: any) {
     return servicesData.listServices.map((service: any) => ({
       id: service.id,
       name: service.name,
-      email: `${service.name.toLowerCase().replace(/\s+/g, ".")}@${
-        service.type
-      }.com`,
+      subDomain: service.subDomain,
       avatar: service.dpfile,
       type: service.type,
       profession: service.profession,
-      location: service.location,
+      // Truncate location if it's too long
+      location:
+        service.location && service.location.length > 30
+          ? service.location.slice(0, 10) + "..."
+          : service.location,
     }));
   }, [servicesData]);
 
@@ -220,6 +223,30 @@ export function useProfiles(userProfileData: any) {
   };
 }
 
+// Helper function to format profession display
+const formatProfessionDisplay = (profession: string[] | string | undefined): string => {
+  if (!profession) return '';
+  
+  if (Array.isArray(profession)) {
+    return profession.slice(0, 1).join(', ');
+  }
+  
+  return profession;
+};
+
+// Helper function to check if profession matches search
+const professionMatches = (profession: string[] | string | undefined, query: string): boolean => {
+  if (!profession) return false;
+  
+  const lowerQuery = query.toLowerCase();
+  
+  if (Array.isArray(profession)) {
+    return profession.some(p => p.toLowerCase().includes(lowerQuery));
+  }
+  
+  return profession.toLowerCase().includes(lowerQuery);
+};
+
 interface BrowseProfilesDialogProps {
   availableProfiles: Profile[];
   savedProfiles: Profile[];
@@ -249,7 +276,7 @@ export function BrowseProfilesDialog({
       filtered = filtered.filter(
         (profile) =>
           profile.name.toLowerCase().includes(query) ||
-          (typeof profile.profession === "string" && profile.profession.toLowerCase().includes(query)) ||
+          professionMatches(profile.profession, query) ||
           profile.location?.toLowerCase().includes(query)
       );
     }
@@ -277,13 +304,13 @@ export function BrowseProfilesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl w-full max-w-[95vw] h-[90vh] p-0 bg-white/5 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/5 pointer-events-none" />
+      <DialogContent className="sm:max-w-2xl w-full max-w-[95vw] h-[90vh] p-0 bg-white/90 backdrop-blur-3xl border border-gray-200 rounded-3xl shadow-2xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-white/30 pointer-events-none" />
 
         {/* Fixed Header */}
-        <div className="relative flex-shrink-0 p-6 border-b border-white/10">
+        <div className="relative flex-shrink-0 p-6 border-b border-gray-200">
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl font-bold text-black">
+            <DialogTitle className="text-2xl font-bold text-gray-900">
               Browse Profiles
             </DialogTitle>
           </DialogHeader>
@@ -291,12 +318,12 @@ export function BrowseProfilesDialog({
           {/* Search and Filters */}
           <div className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-black/50" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search by name, profession, or location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 bg-white/10 border-white/20 text-black placeholder:text-black/50"
+                className="pl-10 h-12 bg-white/70 border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
@@ -331,21 +358,21 @@ export function BrowseProfilesDialog({
         <div className="relative flex-1 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
             <div className="h-full overflow-y-auto p-6">
               {filteredProfiles.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center mx-auto mb-6 border border-white/20">
-                    <User className="h-7 w-7 text-black/40" />
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-200">
+                    <User className="h-7 w-7 text-gray-400" />
                   </div>
-                  <p className="text-black/60 text-base font-semibold mb-2">
+                  <p className="text-gray-700 text-base font-semibold mb-2">
                     {searchQuery
                       ? "No profiles found"
                       : "No available profiles"}
                   </p>
-                  <p className="text-black/40 text-sm">
+                  <p className="text-gray-500 text-sm">
                     {searchQuery
                       ? "Try adjusting your search terms"
                       : "All profiles have been added"}
@@ -357,45 +384,49 @@ export function BrowseProfilesDialog({
                     <button
                       key={profile.id}
                       onClick={() => onSelectProfile(profile)}
-                      className="w-full p-5 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02] group text-left"
+                      className="w-full p-5 bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] group text-left"
                     >
                       <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
+                        <Avatar className="h-12 w-12 ring-2 ring-blue-200 shadow-md">
                           <AvatarImage
                             src={getImageUrl(profile.avatar) || "/placeholder.svg"}
                           />
-                          <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
+                          <AvatarFallback className="bg-blue-600 text-white font-bold border border-blue-300">
                             {profile.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-black truncate text-base">
+                            <p className="font-semibold text-gray-900 truncate text-base">
                               {profile.name}
                             </p>
                             {profile.type && (
-                              <span className="px-2 py-1 bg-black/20 text-black/70 text-xs rounded-full capitalize">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full capitalize">
                                 {profile.type}
                               </span>
                             )}
                           </div>
 
                           {profile.profession && (
-                            <p className="text-sm text-black/70 truncate font-medium mb-1">
-                              {profile.profession}
+                            <p className="text-sm text-gray-600 truncate font-medium mb-1">
+                              {formatProfessionDisplay(profile.profession)}
                             </p>
                           )}
 
-                          <div className="flex items-center gap-4 text-xs text-black/50">
-                            <span>{profile.email}</span>
-                            {profile.location && (
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>{profile.subDomain}.winnemart.com</span>
+                           
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+
+                           {profile.location && (
                               <div className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 <span>{profile.location}</span>
                               </div>
                             )}
-                          </div>
+                        </div>
                         </div>
                       </div>
                     </button>
@@ -433,6 +464,7 @@ export function ProfileSwitcher({
   const [showBrowse, setShowBrowse] = useState(false);
   const { firstProfileId } = useProfileUpdate(null);
   const { isAuthenticated } = useAuth();
+  
   const handleProfileSwitch = (profile: Profile) => {
     onProfileSwitch(profile);
     setIsOpen(false);
@@ -450,7 +482,6 @@ export function ProfileSwitcher({
       setIsOpen(false);
       // when switching profiles, reload the page to apply changes
       window.location.reload();
-     
     } catch (error) {
       console.error("Failed to add profile:", error);
     }
@@ -460,8 +491,6 @@ export function ProfileSwitcher({
     e.stopPropagation(); // Prevent profile switch when clicking remove
     try {
       await onRemoveProfile(profile);
-    
-
     } catch (error) {
       console.error("Failed to remove profile:", error);
     }
@@ -476,17 +505,17 @@ export function ProfileSwitcher({
             className="h-auto p-0 bg-transparent hover:bg-transparent group"
             disabled={loading}
           >
-            <div className="flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl shadow-2xl hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-3xl hover:scale-[1.02]">
-              <Avatar className="h-9 w-9 ring-2 ring-white/30 shadow-lg">
+            <div className="flex items-center gap-3 px-4 py-3 bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-lg hover:bg-white hover:border-gray-300 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+              <Avatar className="h-9 w-9 ring-2 ring-blue-200 shadow-md">
                 <AvatarImage
                   src={getImageUrl(currentProfile?.avatar) || "/placeholder.svg"}
                 />
-                <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white text-sm font-semibold border border-white/20">
+                <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold border border-blue-300">
                   {currentProfile?.name?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start min-w-0">
-                <span className="text-sm font-semibold text-black truncate">
+                <span className="text-sm font-semibold text-gray-900 truncate">
                   {loading
                     ? "Loading..."
                     : currentProfile?.name
@@ -495,24 +524,24 @@ export function ProfileSwitcher({
                     ? "Add Service"
                     : "Switch Service"}
                 </span>
-                {currentProfile?.email && (
-                  <span className="text-xs text-black/60 truncate font-medium">
-                    {currentProfile.email}
+                {currentProfile?.subDomain && (
+                  <span className="text-xs text-gray-600 truncate font-medium">
+                    {currentProfile.subDomain}.winnemart.com
                   </span>
                 )}
               </div>
-              <ChevronDown className="h-4 w-4 text-black/50 ml-2 group-hover:text-black/70 transition-colors" />
+              <ChevronDown className="h-4 w-4 text-gray-500 ml-2 group-hover:text-gray-700 transition-colors" />
             </div>
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="sm:max-w-md h-[85vh] p-0 bg-white/5 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/5 pointer-events-none" />
+        <DialogContent className="sm:max-w-md h-[85vh] p-0 bg-white/90 backdrop-blur-3xl border border-gray-200 rounded-3xl shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-white/30 pointer-events-none" />
 
           {/* Fixed Header */}
-          <div className="relative p-8 pb-6 flex-shrink-0 border-b border-white/10">
+          <div className="relative p-8 pb-6 flex-shrink-0 border-b border-gray-200">
             <DialogHeader className="pb-6">
-              <DialogTitle className="text-2xl font-bold text-black tracking-tight">
+              <DialogTitle className="text-2xl font-bold text-gray-900 tracking-tight">
                 Switch Profile
               </DialogTitle>
             </DialogHeader>
@@ -521,7 +550,7 @@ export function ProfileSwitcher({
             <Button
               onClick={() => setShowBrowse(true)}
               disabled={loading || availableProfiles.length === 0}
-              className="w-full h-14 bg-black/90 backdrop-blur-xl hover:bg-black text-white rounded-2xl font-semibold transition-all duration-300 shadow-2xl hover:shadow-3xl hover:scale-[1.02] border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] border border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="h-5 w-5 mr-3" />
               Add New Profile
@@ -532,7 +561,7 @@ export function ProfileSwitcher({
           <div className="relative flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto px-8 py-6">
               <div className="space-y-6">
-                <h3 className="text-xs font-bold text-black/50 uppercase tracking-widest">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                   Your Profiles
                 </h3>
 
@@ -542,39 +571,39 @@ export function ProfileSwitcher({
                       <button
                         onClick={() => handleProfileSwitch(profile)}
                         disabled={loading}
-                        className="w-full p-5 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02] group disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full p-5 bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] group disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-lg">
+                          <Avatar className="h-12 w-12 ring-2 ring-blue-200 shadow-md">
                             <AvatarImage
                               src={getImageUrl(profile.avatar) || "/placeholder.svg"}
                             />
-                            <AvatarFallback className="bg-black/80 backdrop-blur-xl text-white font-bold border border-white/20">
+                            <AvatarFallback className="bg-blue-600 text-white font-bold border border-blue-300">
                               {profile.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
 
                           <div className="flex-1 text-left min-w-0">
                             <div className="flex items-center gap-3 mb-1">
-                              <p className="font-semibold text-black truncate text-base">
+                              <p className="font-semibold text-gray-900 truncate text-base">
                                 {profile.name}
                               </p>
                               {currentProfile?.id === profile.id && (
-                                <div className="flex-shrink-0 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                                <div className="flex-shrink-0 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                                   <Check className="h-3 w-3 text-white" />
                                 </div>
                               )}
                             </div>
-                            <p className="text-sm text-black/60 truncate font-medium">
-                              {profile.email}
+                            <p className="text-sm text-gray-600 truncate font-medium">
+                              {profile.subDomain}.winnemart.com
                             </p>
                             {profile.profession && (
-                              <p className="text-xs text-black/40 truncate font-medium">
-                                {profile.profession}
+                              <p className="text-xs text-gray-500 truncate font-medium">
+                                {formatProfessionDisplay(profile.profession)}
                               </p>
                             )}
                             {profile.lastUsed && (
-                              <p className="text-xs text-black/40 mt-2 font-medium">
+                              <p className="text-xs text-gray-400 mt-2 font-medium">
                                 Last used{" "}
                                 {profile.lastUsed.toLocaleDateString()}
                               </p>
@@ -588,7 +617,7 @@ export function ProfileSwitcher({
                         <button
                           onClick={(e) => handleRemoveProfile(profile, e)}
                           disabled={loading}
-                          className="absolute top-3 right-3 w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 hover:bg-red-600 disabled:cursor-not-allowed"
+                          className="absolute top-3 right-3 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 hover:bg-red-600 disabled:cursor-not-allowed"
                           title="Remove profile"
                         >
                           <X className="h-4 w-4" />
@@ -600,13 +629,13 @@ export function ProfileSwitcher({
 
                 {savedProfiles.length === 0 && (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center mx-auto mb-6 border border-white/20 shadow-xl">
-                      <User className="h-7 w-7 text-black/40" />
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-200 shadow-md">
+                      <User className="h-7 w-7 text-gray-400" />
                     </div>
-                    <p className="text-black/60 text-base font-semibold mb-2">
+                    <p className="text-gray-700 text-base font-semibold mb-2">
                       No saved profiles yet
                     </p>
-                    <p className="text-black/40 text-sm font-medium">
+                    <p className="text-gray-500 text-sm font-medium">
                       Add your first profile to get started
                     </p>
                   </div>

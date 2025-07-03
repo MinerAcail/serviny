@@ -679,7 +679,7 @@ export const DeliveryServiceSystem = ({
         <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto bg-white/95 backdrop-blur-sm border border-gray-100 shadow-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-gray-900">
-              Schedule Delivery
+             Pick a time for delivery
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">

@@ -10,7 +10,7 @@ import { ThemeProvider } from "./context/theme-provider";
 import { SpectaclesLoading } from "@/components/custom/loading";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet } from "react-router";
-import {  Sidebar, SidebarMain } from "@/components/custom/sidebar";
+import { Sidebar, SidebarMain } from "@/components/custom/sidebar";
 import { CartProvider } from "@/components/custom/cart/cart-context";
 import { CartDrawer } from "@/components/custom/cart/cart-drawer";
 import {
@@ -245,35 +245,29 @@ const router = createBrowserRouter([
         path: "merge",
         element: (
           <ProtectedProfileBusinessTypeRoute
-          element={
-            
-            <LoadingWrapper>
-              <MainDeliveryZoneCreator />
-
+            element={
+              <LoadingWrapper>
+                <MainDeliveryZoneCreator />
               </LoadingWrapper>
-              }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.ECOMMERCE_STANDARD,
-                BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-              ]}
-            />
+            }
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.ECOMMERCE_STANDARD,
+              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+            ]}
+          />
         ),
       },
-         {
+      {
         path: "livemap",
         element: (
           <ProtectedProfileBusinessTypeRoute
-          element={
-            
-            <LoadingWrapper>
-               <StandardDelveryRiderServiceLiveMap />
-
+            element={
+              <LoadingWrapper>
+                <StandardDelveryRiderServiceLiveMap />
               </LoadingWrapper>
-              }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.DELIVERY_STANDARD,
-              ]}
-            />
+            }
+            expectedBusinessTypes={[BusinessTypeEnum?.DELIVERY_STANDARD]}
+          />
         ),
       },
       {
@@ -321,15 +315,13 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: (
           <ProtectedIsAuthRoute
-          expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
-          element={
-                <LoadingWrapper>
-            
+            expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
+            element={
+              <LoadingWrapper>
                 <Dashboard />
-          </LoadingWrapper>
-            
+              </LoadingWrapper>
             }
-            />
+          />
         ),
       },
 
@@ -396,31 +388,32 @@ const router = createBrowserRouter([
         ),
       },
 
-/// standard deleivery
-       {
+      /// standard deleivery
+      {
         path: "contacts",
         element: (
           <LoadingWrapper>
             <SearchData />
           </LoadingWrapper>
         ),
-      }, {
+      },
+      {
         path: "vendors",
         element: (
           <ProtectedIsAuthRouteBusinessType
-          element={
-                <LoadingWrapper>
-              <VendorsByDeliveryService />
-            
+            element={
+              <LoadingWrapper>
+                <VendorsByDeliveryService />
               </LoadingWrapper>
             }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.DELIVERY_STANDARD,
-                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-              ]}
-            />
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
         ),
-      },{
+      },
+      {
         path: "zone",
         element: (
           <ProtectedIsAuthRouteBusinessType
@@ -435,7 +428,8 @@ const router = createBrowserRouter([
             ]}
           />
         ),
-      }, {
+      },
+      {
         path: "time",
         element: (
           <LoadingWrapper>
@@ -448,12 +442,34 @@ const router = createBrowserRouter([
             />
           </LoadingWrapper>
         ),
-      },   {
+      },
+      {
         path: "upload",
         element: (
           <LoadingWrapper>
             <CreateGalleryForm />
           </LoadingWrapper>
+        ),
+      },
+       {
+        path: "social/:serviceId",
+        element: <SocialForm />,
+      },
+       {
+        path: "social",
+        element: <SocialForm />,
+      },
+      {
+        path: "update",
+        element: (
+          <ProtectedIsAuthRoute
+            expectedTypes={[BusinessTypeEnum.DELIVERY_STANDARD]}
+            element={
+              <LoadingWrapper>
+                <ProfileService />
+              </LoadingWrapper>
+            }
+          />
         ),
       },
     ],
@@ -463,14 +479,13 @@ const router = createBrowserRouter([
     path: "/dbp/",
     element: (
       <ProtectedIsAuthRoute
-      expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
-      element={
-            <LoadingWrapper>
-
-          <SidebarLayoutProvider />
-      </LoadingWrapper>
+        expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
+        element={
+          <LoadingWrapper>
+            <SidebarLayoutProvider />
+          </LoadingWrapper>
         }
-        />
+      />
     ),
     children: [
       {
@@ -506,6 +521,10 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "social/:serviceId",
+        element: <SocialForm />,
+      },
+       {
         path: "social",
         element: <SocialForm />,
       },
@@ -529,15 +548,13 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-          expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
-          element={
-                <LoadingWrapper>
-              
-              <ProfileService />
-            
+            expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
+            element={
+              <LoadingWrapper>
+                <ProfileService />
               </LoadingWrapper>
             }
-            />
+          />
         ),
       },
       {
@@ -560,35 +577,32 @@ const router = createBrowserRouter([
         path: "livemap",
         element: (
           <ProtectedIsAuthRouteBusinessType
-          element={
-            
-            <LoadingWrapper>
-              <LiveMap />
-            
-            </LoadingWrapper>
+            element={
+              <LoadingWrapper>
+                <LiveMap />
+              </LoadingWrapper>
             }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.DELIVERY_STANDARD,
-                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-              ]}
-            />
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
         ),
       },
       {
         path: "vendors",
         element: (
           <ProtectedIsAuthRouteBusinessType
-          element={
-                <LoadingWrapper>
-              <VendorsByDeliveryService />
-            
+            element={
+              <LoadingWrapper>
+                <VendorsByDeliveryService />
               </LoadingWrapper>
             }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.DELIVERY_STANDARD,
-                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-              ]}
-            />
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
         ),
       },
       {
@@ -625,19 +639,16 @@ const router = createBrowserRouter([
         path: "builder",
         element: (
           <ProtectedIsAuthRouteBusinessType
-          element={
-                <LoadingWrapper>
-              
-              <FormAndRequestTabs />
-            
-            
+            element={
+              <LoadingWrapper>
+                <FormAndRequestTabs />
               </LoadingWrapper>
             }
-              expectedBusinessTypes={[
-                BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
-              ]}
-            />
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+            ]}
+          />
         ),
       },
       // {
@@ -648,7 +659,7 @@ const router = createBrowserRouter([
       //     </LoadingWrapper>
       //   )
       // },
-      
+
       {
         path: "history",
         element: (
@@ -683,14 +694,27 @@ export function SidebarLayoutProvider() {
   const serviceId = firstProfileId;
 
   return (
-    <div className="flex w-full h-screen overflow-hidden">
+    // <div className="flex w-full h-screen overflow-hidden">
+    //   <ProviderContextProvider serviceId={serviceId ?? ""}>
+    //     {/* <ScrollArea className="h-full border-r"> */}
+    //       <Sidebar />
+    //     {/* </ScrollArea> */}
+    //     <ScrollArea className="flex-1 p-1">
+    //       <Outlet />
+    //     </ScrollArea>
+    //   </ProviderContextProvider>
+    // </div>
+    <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
-        <ScrollArea className="h-full border-r">
+        <>
+          {/* <ScrollArea className="h-full border-r"> */}
           <Sidebar />
-        </ScrollArea>
-        <ScrollArea className="flex-1 p-1">
-          <Outlet />
-        </ScrollArea>
+          {/* </ScrollArea> */}
+          <ScrollArea className="flex-1">
+            <Outlet />
+          </ScrollArea>
+          {/* </div> */}
+        </>
       </ProviderContextProvider>
     </div>
   );
@@ -708,9 +732,9 @@ export function Layout() {
       <ProviderContextProvider serviceId={serviceId ?? ""}>
         <CartProvider>
           {/* <ScrollArea className="h-full border-r"> */}
-            <SidebarMain serviceId={serviceId} />
+          <SidebarMain serviceId={serviceId} />
           {/* </ScrollArea> */}
-            <CartDrawer />
+          <CartDrawer />
           <ScrollArea className="flex-1">
             <Outlet />
           </ScrollArea>

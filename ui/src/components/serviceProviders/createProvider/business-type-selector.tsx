@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GET_USER_INFO_FROM_CONTEXT } from "@/middleware/context/authContext";
+import { formatPrice } from "@/components/global/formatPrice";
 
 // GraphQL Queries and Mutations
 const GET_BUSINESS_TYPE = gql`
@@ -82,14 +83,14 @@ interface Profession {
 }
 
 // Format price utility
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price);
-};
+// const formatPrice = (price: number) => {
+//   return new Intl.NumberFormat("en-US", {
+//     style: "currency",
+//     currency: "USD",
+//     minimumFractionDigits: 0,
+//     maximumFractionDigits: 0,
+//   }).format(price);
+// };
 
 export default function BusinessTypeSelector() {
   const [open, setOpen] = useState(false);
@@ -147,7 +148,7 @@ export default function BusinessTypeSelector() {
       label: "Standard E-commerce",
       description: "Complete solution for growing businesses",
       icon: <Store className="h-5 w-5" />,
-      price: 70,
+      price: 50,
       category: "ecommerce",
       tier: "standard",
       popular: true,
@@ -168,7 +169,8 @@ export default function BusinessTypeSelector() {
       label: "Enterprise E-commerce",
       description: "Advanced features for large-scale operations",
       icon: <Building2 className="h-5 w-5" />,
-      price: 200,
+                 price: 500,
+
       category: "ecommerce",
       tier: "enterprise",
       features: [
@@ -209,7 +211,7 @@ export default function BusinessTypeSelector() {
       label: "Standard Delivery",
       description: "Professional delivery service platform",
       icon: <Truck className="h-5 w-5" />,
-      price: 130,
+      price: 40,
       category: "delivery",
       tier: "standard",
       recommended: true,

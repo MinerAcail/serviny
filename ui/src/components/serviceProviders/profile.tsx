@@ -51,7 +51,7 @@ export const GET_PROVIDER = gql`
       number
       email
       profession
-      categories
+      categories:profession
       aboutMe
       location
       createdAt
@@ -159,31 +159,31 @@ export default  function ServiceProviderProfile() {
      
     }
   }, [isAuthenticated]);
-  // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
-  if (!isAuthenticated && !localServiceId && dialogState) {
-    return <LandingPage onClose={() => setDialogState(false)} />;
-  }
+  // // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
+  // if (!isAuthenticated && !localServiceId && dialogState) {
+  //   return <LandingPage onClose={() => setDialogState(false)} />;
+  // }
 
   const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
 
-  if (showLandingPage) {
-    return (
-      <ServiceLandingPage
-        serviceId={serviceId ?? ""}
-        businessType={data?.getProvider?.businessType}
-        onClose={() => {
-          setDialogState(false);
-          localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
+  // if (showLandingPage) {
+  //   return (
+  //     <ServiceLandingPage
+  //       serviceId={serviceId ?? ""}
+  //       businessType={data?.getProvider?.businessType}
+  //       onClose={() => {
+  //         setDialogState(false);
+  //         localStorage.setItem("isServiceDialogOpen", JSON.stringify(false));
 
-          const params = new URLSearchParams(location.search);
-          params.delete("lo");
+  //         const params = new URLSearchParams(location.search);
+  //         params.delete("lo");
 
-          const newUrl = `${location.pathname}?${params.toString()}`;
-          window.location.href = newUrl; // Triggers full page reload
-        }}
-      />
-    );
-  }
+  //         const newUrl = `${location.pathname}?${params.toString()}`;
+  //         window.location.href = newUrl; // Triggers full page reload
+  //       }}
+  //     />
+  //   );
+  // }
 
   return (
     // <div className="flex py-8 w-full">
@@ -196,95 +196,11 @@ export default  function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
-            <div className="flex-col  pt-14 justify-center items-center">
+            <div className="flex-col   justify-center items-center">
               
-              <div className="col-span-8 ">
-                <div ref={tabsPlaceholderRef}></div>
-
-                <div
-                  className={`${
-                    isTabsFixed
-                      ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
-                      : ""
-                  }`}
-                >
-                  <div
-                    className={`${
-                      isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""
-                    }`}
-                  >
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={handleTabChange}
-                      className="w-full"
-                      ref={tabsRef}
-                    >
-                      {data?.getProvider?.businessType ===
-                        BusinessTypeEnum.PRE_ORDER ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.DROP_SHIPPING ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                        <></>
-                      ) : (
-                        <>
-                          <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20   p-1">
-                            <TabsTrigger
-                              value="portfolio"
-                              className="rounded-full"
-                            >
-                              Portfolio
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="policies"
-                              className="rounded-full"
-                            >
-                              Policies
-                            </TabsTrigger>
-                            <TabsTrigger value="price" className="rounded-full">
-                              Price
-                            </TabsTrigger>
-                          </TabsList>
-                        </>
-                      )}
-                    </Tabs>
-                  </div>
-                </div>
-
-                <div
-                  ref={contentRef}
-                  className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
-                >
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={handleTabChange}
-                    className="w-full "
-                  >
-                    <TabsContent value="portfolio">
-                      {data?.getProvider?.businessType ===
-                        BusinessTypeEnum.PRE_ORDER ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.DROP_SHIPPING ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                        <AllProducts />
-                      ) : (
-                        <WorkGallery />
-                      )}
-                    </TabsContent>
-                    <TabsContent value="price">
-                      <Price />
-                    </TabsContent>
-                    <TabsContent value="policies">
-                      <Policies />
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
+              <WorkGallery 
+                        provider={data?.getProvider}
+                        />
             </div>
           )}
         </>

@@ -196,8 +196,32 @@ const Login = ({ children }: { children: ReactNode }) => {
 
             {/* //create a account btn */}
 
-            <Link to={"/provider/new"}>
-              <Button variant={"link"} type="button" className="w-full">
+            <Link
+            //  to={""}
+             to={"/provider/new"}
+              onClick={(e) => {
+              // Prevent navigation so dialog closes first
+              e.preventDefault();
+              // Find the closest dialog and close it
+              const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
+              if (dialog) {
+                // Simulate clicking the close button if exists
+                const closeBtn = dialog.querySelector('[data-state="open"] [aria-label="Close"]') as HTMLElement | null;
+                if (closeBtn) closeBtn.click();
+              }
+              // Navigate after closing dialog
+              setTimeout(() => {
+                window.location.href = "/provider/new";
+              }, 100);
+              }}
+             >
+              <Button
+              //      onClick={(e) => {
+
+              // e.preventDefault()
+              //      }
+              // }
+              variant={"link"} type="button" className="w-full">
                 Create
               </Button>
             </Link>

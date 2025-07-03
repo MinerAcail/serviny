@@ -52,6 +52,7 @@ import { Link, useNavigate, useParams } from "react-router";
 // import MainNaveBar from "@/components/serviceProviders/menuBar";
 import BackButton from "@/components/back";
 import { useCheckAuthId } from "@/middleware/context/checkID";
+import { GET_PROVIDER } from "@/components/serviceProviders/profile";
 // import ContactInfo from "@/components/serviceProviders/profile";
 // import { provider } from "@/components/landing/providerLandingPage";
 interface SocialDataItem {
@@ -306,36 +307,36 @@ function SocialDialog({
               </div>
 
               <div className="space-y-3">
-                {provider.number && (
+                {provider?.number && (
                   <a
-                    href={`tel:${provider.number}`}
+                    href={`tel:${provider?.number}`}
                     className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                       <Phone className="h-4 w-4 text-blue-600" />
                     </div>
-                    <span>{provider.number}</span>
+                    <span>{provider?.number}</span>
                   </a>
                 )}
 
-                {provider.email && (
+                {provider?.email && (
                   <a
-                    href={`mailto:${provider.email}`}
+                    href={`mailto:${provider?.email}`}
                     className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
                       <Mail className="h-4 w-4 text-green-600" />
                     </div>
-                    <span>{provider.email.slice(0, 20)}</span>...
+                    <span>{provider?.email.slice(0, 20)}</span>...
                   </a>
                 )}
 
-                {provider.location && (
+                {provider?.location && (
                   <div className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-3">
                       <MapPin className="h-4 w-4 text-red-600" />
                     </div>
-                    <span>{provider.location}</span>
+                    <span>{provider?.location}</span>
                   </div>
                 )}
               </div>
@@ -799,11 +800,16 @@ export default function SocialMediaManager({
 }) {
   // const { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   //
+
   const { data, loading } = useQuery(GET_SOCIAL_MEDIA, {
     variables: {
       serviceId,
     },
   });
+
+    // const { data:provider, loading:loadingprovider, error } = useQuery<provider>(GET_PROVIDER, {
+    //   variables: { serviceId },
+    // });
   //   const [view, setView] = useState<"dialog" | "form">("dialog");
 
   // Format social links for the dialog

@@ -709,33 +709,7 @@ export default function ServiceLandingPage({
                     </div>
                   </section>
 
-                  {/* Features Section */}
-                  <section
-                    id="features"
-                    className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-white/10 backdrop-blur-sm rounded-md border border-white/20 shadow-lg overflow-hidden"
-                  >
-                    <div className="container px-3 sm:px-4 md:px-6">
-                      <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-4 text-center mb-6 sm:mb-8 md:mb-12">
-                        <Badge className="inline-flex rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-white/20 backdrop-blur-sm text-foreground border border-white/30 shadow-lg text-xs sm:text-sm">
-                          Comprehensive Services
-                        </Badge>
-                        <h2
-                          className={cn(
-                            "font-medium tracking-tight text-foreground drop-shadow-lg",
-                            isMobile
-                              ? "text-xl"
-                              : isTablet
-                              ? "text-2xl"
-                              : "text-3xl sm:text-4xl"
-                          )}
-                        >
-                          Expert For All Your Delivery Needs
-                        </h2>
-                      </div>
-
-                      <AnimatedFeatureSection serviceId={serviceId} delay={0} />
-                    </div>
-                  </section>
+                 
 
                   {/* Footer */}
                   <footer className="border-t border-white/20 py-4 sm:py-6 bg-white/5 backdrop-blur-sm">

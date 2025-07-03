@@ -448,22 +448,54 @@ func (r *mutationResolver) DeleteAll(ctx context.Context) (bool, error) {
 		}
 	}()
 
-	// Delete all form submissions
-	if err := tx.Exec("DELETE FROM form_submissions").Error; err != nil {
-		tx.Rollback()
-		return false, fmt.Errorf("failed to delete form submissions: %w", err)
+	models := []interface{}{
+		&model.Product{},
+		&model.Favorite{},
+		&model.SocialMedia{},
+
+		&model.Rider{},
+		&model.IsochroneResult{},
+		&model.RidersRequest{},
+		&model.Order{},
+		&model.CartItem{},
+
+		&model.RouteInfo{},
+		&model.RiderRange{},
+		&model.Form{},
+		&model.FormField{},
+		&model.FormSubmission{},
+
+		&model.AppointmentBooking{},
+		&model.BookingCargo{},
+
+		&model.UserBookings{},
+		&model.Category{},
+		&model.InventoryItem{},
+		&model.UnavailablePeriod{},
+		&model.User{},
+		&model.EventBookings{},
+		&model.Event{},
+		&model.Service{},
+		&model.GalleryProfession{},
+		&model.PolicyDetail{},
+		&model.Policy{},
+		&model.Amenity{},
+		&model.PriceCard{},
+		&model.Price{},
+		&model.Booker{},
+		&model.TimeSlot{},
+
+		&model.BookingOrderPaymentStatus{},
+		&model.Profiles{},
+		&model.Invoice{},
+		&model.BusinessType{},
 	}
 
-	// Delete all form fields
-	if err := tx.Exec("DELETE FROM form_fields").Error; err != nil {
-		tx.Rollback()
-		return false, fmt.Errorf("failed to delete form fields: %w", err)
-	}
-
-	// Delete all forms
-	if err := tx.Exec("DELETE FROM forms").Error; err != nil {
-		tx.Rollback()
-		return false, fmt.Errorf("failed to delete forms: %w", err)
+	for _, m := range models {
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(m).Error; err != nil {
+			tx.Rollback()
+			return false, fmt.Errorf("failed to delete %T: %w", m, err)
+		}
 	}
 
 	if err := tx.Commit().Error; err != nil {

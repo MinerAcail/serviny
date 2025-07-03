@@ -282,16 +282,24 @@ import UserAuthCard from "../custom/users/create";
 import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { DeliveryServiceSystem } from "./APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
 import { getImageUrl } from "../global/formatPrice";
+import SocialMediaManager from "../custom/Socials/forms";
+import { AboutMe } from "../global/aboutme";
 // import { DeliveryServiceSystem } from "./APPOINTMENT/completeDeliveryOrder";
 // import AppointmentBookingSystem, { DeliveryServiceSystem } from "./APPOINTMENT/book";
 //
-export function WorkGallery() {
+interface Provider {
+  number?: string;
+  email?: string;
+  location?: string;
+  aboutMe:string;
+}
+export function WorkGallery({ provider }:{ provider:Provider }) {
   const { isAuthenticated } = useAuth();
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
   const { firstProfileId } = useProfileUpdate(updateServiceId);
-    const localServiceId = localStorage.getItem("serviceId");
+  const localServiceId = localStorage.getItem("serviceId");
 
-  const serviceId = firstProfileId ??updateServiceId ?? localServiceId ?? "";
+  const serviceId = firstProfileId ?? updateServiceId ?? localServiceId ?? "";
 
   // let { serviceId } = useParams<{ serviceId: string }>(); // Get ServiceId from URL
   const [isDialogOpen, setDialogOpen] = useState(false);
@@ -354,7 +362,11 @@ export function WorkGallery() {
     );
 
   return (
-    <div>
+    <div className=" grid-row-2 grid gap-2">
+      {provider.aboutMe &&(
+
+      <AboutMe aboutme={provider.aboutMe}/>
+      )}
       <div className="mb-3 flex  items-end justify-between gap-4 sm:flex-row sm:items-center">
         {isAuthenticated ? (
           <Button
@@ -363,14 +375,15 @@ export function WorkGallery() {
             className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
           >
             <NotepadText className="h-4 w-4" />
-            Book
+            Book Me
           </Button>
         ) : (
           <UserAuthCard>
-            <Button>Book</Button>
+            <Button>Book Me</Button>
           </UserAuthCard>
         )}
-        <CategoryFilter
+        <SocialMediaManager provider={provider} serviceId={serviceId ?? ""} />
+        {/* <CategoryFilter
           value={filter}
           onChange={(value) => {
             const normalizedFilter = value.toLowerCase();
@@ -387,7 +400,7 @@ export function WorkGallery() {
             });
           }}
           serviceId={serviceId ?? ""}
-        />
+        /> */}
       </div>
 
       {galleryItems.length === 0 ? (
