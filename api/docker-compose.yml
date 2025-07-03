@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     ports:
-      - "4003:4003"
+      - "${APP_PORT:-4003}:4003"
     volumes:
       - .:/usr/src/app
     environment:

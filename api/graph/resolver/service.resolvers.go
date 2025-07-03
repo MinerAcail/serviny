@@ -130,7 +130,7 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	if err := r.DB.Create(&service).Error; err != nil {
 		// Check if it's the unique constraint error for our test email
 		if strings.Contains(err.Error(), "uni_services_email") &&
-			service.Email == "serviny360@gmail.com" {
+			service.Email == "winnemart360@gmail.com" {
 			// This is our test email and we want to allow it
 			// Fetch the existing service with this email
 			var existingService model.Service
