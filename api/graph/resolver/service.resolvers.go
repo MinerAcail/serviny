@@ -1120,7 +1120,7 @@ func (r *queryResolver) GetProvider(ctx context.Context, serviceID *string) (*mo
 
 	// If serviceID is nil, fallback to "winnemart"
 	if serviceID == nil {
-		if err := r.DB.Where("name = ?", "winnemart").First(&Service).Error; err != nil {
+		if err := r.DB.Where("name = ?", "Winnemart").First(&Service).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, fmt.Errorf("Service not found")
 			}
