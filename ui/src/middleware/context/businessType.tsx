@@ -55,7 +55,7 @@ export const useProvider = (): ProviderContextType => {
 };
 
 const GET_PROVIDER = gql`
-  query getProvider($serviceId: String!) {
+  query getProvider($serviceId: String) {
     getProvider(ServiceId: $serviceId) {
       id
       dpfile

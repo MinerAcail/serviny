@@ -449,25 +449,27 @@ func (r *mutationResolver) DeleteAll(ctx context.Context) (bool, error) {
 	}()
 
 	models := []interface{}{
-		&model.Product{},
+		// Child tables first (they depend on parent rows)
+		&model.CartItem{},
 		&model.Favorite{},
+
+		// Then parent tables
+		&model.Product{},
 		&model.SocialMedia{},
 
 		&model.Rider{},
 		&model.IsochroneResult{},
 		&model.RidersRequest{},
 		&model.Order{},
-		&model.CartItem{},
 
 		&model.RouteInfo{},
 		&model.RiderRange{},
-		&model.Form{},
-		&model.FormField{},
 		&model.FormSubmission{},
+		&model.FormField{},
+		&model.Form{},
 
 		&model.AppointmentBooking{},
 		&model.BookingCargo{},
-
 		&model.UserBookings{},
 		&model.Category{},
 		&model.InventoryItem{},
@@ -484,7 +486,6 @@ func (r *mutationResolver) DeleteAll(ctx context.Context) (bool, error) {
 		&model.Price{},
 		&model.Booker{},
 		&model.TimeSlot{},
-
 		&model.BookingOrderPaymentStatus{},
 		&model.Profiles{},
 		&model.Invoice{},

@@ -363,9 +363,9 @@ export function WorkGallery({ provider }:{ provider:Provider }) {
 
   return (
     <div className=" grid-row-2 grid gap-2">
-      {provider.aboutMe &&(
+      {provider?.aboutMe &&(
 
-      <AboutMe aboutme={provider.aboutMe}/>
+      <AboutMe aboutme={provider?.aboutMe}/>
       )}
       <div className="mb-3 flex  items-end justify-between gap-4 sm:flex-row sm:items-center">
         {isAuthenticated ? (

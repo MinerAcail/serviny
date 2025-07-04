@@ -380,7 +380,6 @@ func (r *mutationResolver) UpdateService(ctx context.Context, dpfile *graphql.Up
 	}
 
 	return &service, nil
-
 }
 
 // UpdateBusinessType is the resolver for the updateBusinessType field.
@@ -1116,18 +1115,41 @@ func (r *queryResolver) GetService(ctx context.Context) (*model.Service, error) 
 }
 
 // GetProvider is the resolver for the getProvider field.
-func (r *queryResolver) GetProvider(ctx context.Context, serviceID string) (*model.Service, error) {
-	// Parse the UUID from string
-	ServiceID, err := uuid.Parse(serviceID)
+func (r *queryResolver) GetProvider(ctx context.Context, serviceID *string) (*model.Service, error) {
+	var Service model.Service
+
+	// If serviceID is nil, fallback to "winnemart"
+	if serviceID == nil {
+		if err := r.DB.Where("name = ?", "winnemart").First(&Service).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, fmt.Errorf("Service not found")
+			}
+			return nil, fmt.Errorf("failed to fetch Service: %v", err)
+		}
+		return &Service, nil
+	}
+
+	// Parse the UUID
+	ServiceID, err := uuid.Parse(*serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Service ID: %w", err)
 	}
-	var Service model.Service
-	if err := r.DB.Where("id = ?", ServiceID).First(&Service).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("Service not found")
+
+	// If ServiceID is nil UUID, fallback to "winnemart"
+	if ServiceID == uuid.Nil {
+		if err := r.DB.Where("name = ?", "winnemart").First(&Service).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, fmt.Errorf("Service not found")
+			}
+			return nil, fmt.Errorf("failed to fetch Service: %v", err)
 		}
-		return nil, fmt.Errorf("failed to fetch Service: %v", err)
+	} else {
+		if err := r.DB.Where("id = ?", ServiceID).First(&Service).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, fmt.Errorf("Service not found")
+			}
+			return nil, fmt.Errorf("failed to fetch Service: %v", err)
+		}
 	}
 
 	return &Service, nil

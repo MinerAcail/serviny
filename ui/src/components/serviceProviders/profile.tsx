@@ -13,11 +13,11 @@ import {
   Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkGallery } from "./gallery";
 import AppointmentBookingSystem from "./APPOINTMENT/book";
 import { Link } from "react-router";
-import Price from "./pandp/Price";
+// import Price from "./pandp/Price";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
 // import SocialMediaManager from "../custom/Socials/forms";
 
 export const GET_PROVIDER = gql`
-  query getProvider($serviceId: String!) {
+  query getProvider($serviceId: String) {
     getProvider(ServiceId: $serviceId) {
       id
       dpfile
@@ -84,9 +84,7 @@ export default  function ServiceProviderProfile() {
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
 
-  const { data, loading, error } = useQuery(GET_PROVIDER, {
-    variables: { serviceId: serviceId },
-  });
+  const { data, loading, error } = useQuery(GET_PROVIDER);
 
   const [isTabsFixed, setIsTabsFixed] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {

@@ -65,7 +65,7 @@ type GalleryProfession {
 extend type Query {
   listServices(search: String, limit: Int, offset: Int): [Service!]!
   getService: Service
-  getProvider(ServiceId: String!): Service
+  getProvider(ServiceId: String): Service
   getProviderByUsername(subDomain: String!): Service
   getUseTheme(ServiceId: String!): String
 

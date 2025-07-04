@@ -54,7 +54,7 @@ export function AboutMe({aboutme}:{aboutme:string}) {
             <div className="">
               <motion.div variants={itemVariants} className="text-center">
                 
-                <h5 className="font-medium mb-2">{aboutme.length > 50 ? aboutme.slice(0, 70) + "..." : aboutme}</h5>
+                <h5 className="font-medium mb-2">{aboutme.length > 50 ? aboutme.slice(0, 100) + "..." : aboutme}</h5>
                 {/* <p className="text-sm text-gray-600">
                     
                   Creating beautiful, responsive user interfaces with modern frameworks

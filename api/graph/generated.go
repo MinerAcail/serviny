@@ -930,7 +930,7 @@ type ComplexityRoot struct {
 		GetProduct                                    func(childComplexity int, id string) int
 		GetProductsByCategory                         func(childComplexity int, categoryID string) int
 		GetProfiles                                   func(childComplexity int) int
-		GetProvider                                   func(childComplexity int, serviceID string) int
+		GetProvider                                   func(childComplexity int, serviceID *string) int
 		GetProviderByUsername                         func(childComplexity int, subDomain string) int
 		GetProvidersUsersContact                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		GetRentalItem                                 func(childComplexity int, id string) int
@@ -1725,7 +1725,7 @@ type QueryResolver interface {
 	Getstau(ctx context.Context) ([]*model.BookingOrderPaymentStatus, error)
 	ListServices(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.Service, error)
 	GetService(ctx context.Context) (*model.Service, error)
-	GetProvider(ctx context.Context, serviceID string) (*model.Service, error)
+	GetProvider(ctx context.Context, serviceID *string) (*model.Service, error)
 	GetProviderByUsername(ctx context.Context, subDomain string) (*model.Service, error)
 	GetUseTheme(ctx context.Context, serviceID string) (*string, error)
 	GetSharedService(ctx context.Context, serviceID string) (*model.Service, error)
@@ -7579,7 +7579,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetProvider(childComplexity, args["ServiceId"].(string)), true
+		return e.complexity.Query.GetProvider(childComplexity, args["ServiceId"].(*string)), true
 
 	case "Query.getProviderByUsername":
 		if e.complexity.Query.GetProviderByUsername == nil {
@@ -16514,13 +16514,13 @@ func (ec *executionContext) field_Query_getProvider_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_getProvider_argsServiceID(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (string, error) {
+) (*string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("ServiceId"))
 	if tmp, ok := rawArgs["ServiceId"]; ok {
-		return ec.unmarshalNString2string(ctx, tmp)
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
 	}
 
-	var zeroVal string
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -55110,7 +55110,7 @@ func (ec *executionContext) _Query_getProvider(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetProvider(rctx, fc.Args["ServiceId"].(string))
+		return ec.resolvers.Query().GetProvider(rctx, fc.Args["ServiceId"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
