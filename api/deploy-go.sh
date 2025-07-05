@@ -14,12 +14,25 @@ read -p "🛠️  Do you want to rebuild the app before deploying? (y/n): " buil
 echo "🔍 Getting current port from Caddy..."
 CURRENT_PORT=$(ssh -i "$KEY" "$REMOTE" "grep -A 1 '$DOMAIN' $CADDYFILE | grep 'localhost:' | grep -o '[0-9]*'")
 
+echo "🌐 Current port in use is: $CURRENT_PORT"
+
+# Decide new and old port
 if [[ "$CURRENT_PORT" == "$PORT_A" ]]; then
-  NEW_PORT=$PORT_B
-  OLD_PORT=$PORT_A
+  CANDIDATE_PORT=$PORT_B
+  OTHER_PORT=$PORT_A
 else
+  CANDIDATE_PORT=$PORT_A
+  OTHER_PORT=$PORT_B
+fi
+
+# Ask if the user wants to use port 4003
+read -p "❓ Do you want to deploy on port 4003? (y/n): " use_port_4003
+if [[ "$use_port_4003" == "y" || "$use_port_4003" == "Y" ]]; then
   NEW_PORT=$PORT_A
-  OLD_PORT=$PORT_B
+  OLD_PORT=$OTHER_PORT
+else
+  NEW_PORT=$CANDIDATE_PORT
+  OLD_PORT=$OTHER_PORT
 fi
 
 echo "🚀 Deploying on port $NEW_PORT..."

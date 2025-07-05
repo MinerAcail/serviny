@@ -1,6 +1,6 @@
-import { ApolloProvider, gql, useQuery } from "@apollo/client";
+import { ApolloProvider } from "@apollo/client";
 import { createBrowserRouter, RouterProvider, useParams } from "react-router";
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense } from "react";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useProfileUpdate } from "./context/authContext";
@@ -21,7 +21,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PasswordReset } from "@/app/resetPassWord";
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import { SocialForm } from "@/components/custom/Socials/forms";
-// import { GET_PROVIDER } from "@/components/serviceProviders/profile";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -689,25 +688,8 @@ export function Navigation() {
     </ApolloProvider>
   );
 }
-export const GET_PROVIDER = gql`
-  query getProvider($serviceId: String) {
-    getProvider(ServiceId: $serviceId) {
-      id}}
-      `
-export function useGetProvider() {
-  const { data, loading, error } = useQuery(GET_PROVIDER);
 
-  useEffect(() => {
-    if (data?.getProvider?.id) {
-      localStorage.setItem("serviceId", data.getProvider.id);
-    }
-  }, [data?.getProvider?.id]);
-
-  return { data, loading, error };
-}
 export function SidebarLayoutProvider() {
-     useGetProvider();
-
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId;
 
@@ -740,8 +722,6 @@ export function SidebarLayoutProvider() {
 
 export function Layout() {
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
-     useGetProvider();
-
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId ?? updateServiceId;
 
