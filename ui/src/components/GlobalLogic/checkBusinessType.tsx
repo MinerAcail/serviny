@@ -40,6 +40,7 @@ export function useCurrentUserProfileInfo() {
 // Hook to get only current user's business type (for backward compatibility)
 export function useCurrentUserBusinessType() {
   const { businessType, loading, error, refetch } = useCurrentUserProfileInfo();
+  console.log("businessType",businessType);
   
   return {
     businessType,

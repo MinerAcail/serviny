@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Check, Info } from "lucide-react";
+import { Search, Check, Info, Package, Eye, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery, gql } from "@apollo/client";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { getImageUrl } from "../global/formatPrice";
+import { Badge } from "../ui/badge";
+import { ProductDetailDialog } from "@/vendor/AllProducts";
 
 // Define TypeScript interfaces
 interface SearchResult {
@@ -121,7 +123,6 @@ export const GET_PRICE_CARD_BY_ID = gql`
   }
 `;
 
-// Fix: Corrected GET_POLICY query to match PolicyCardItem prop structure
 const GET_POLICY = gql`
   query GetPolicy($policyId: String!) {
     getPolicy(policyId: $policyId) {
@@ -143,6 +144,49 @@ const GET_POLICY = gql`
   }
 `;
 
+// Add this GraphQL query for products
+export const GET_PRODUCT_BY_ID = gql`
+  query getProduct($productId: String!) {
+    getProduct(id: $productId) {
+      id
+      name
+      price
+      state
+      categories
+      imageUrls
+      itemsType
+      description
+      VendorId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Product State enum
+enum ProductState {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  DRAFT = "DRAFT",
+  ARCHIVED = "ARCHIVED",
+}
+
+// Product interface
+interface Product {
+  id: string;
+  name?: string | null;
+  price?: string | null;
+  state?: ProductState | null;
+  categories?: string[] | null;
+  imageUrls?: string[] | null;
+  itemsType?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  VendorId?: string | null;
+  description?: string | null;
+}
+
+// Other interfaces
 interface Price {
   id: string;
   label: string;
@@ -174,9 +218,100 @@ interface FullCard {
   amenities: Amenity[];
 }
 
+interface Policy {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string | null;
+}
+
+interface PolicyDetail {
+  id: string;
+  title: string;
+  content: string;
+  listItems: string[] | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+interface FullPolicy {
+  policy: Policy;
+  policyDetails: PolicyDetail[];
+}
+
 interface SearchDropdownProps {
   serviceId: string;
 }
+
+// Product Search Result Item (for dropdown)
+interface ProductSearchItemProps {
+  product: Product;
+  onClick: (product: Product) => void;
+}
+
+const ProductSearchItem: React.FC<ProductSearchItemProps> = ({
+  product,
+  onClick,
+}) => {
+  const primaryImage =
+    product.imageUrls && product.imageUrls.length > 0
+      ? getImageUrl(product.imageUrls[0])
+      : null;
+
+  const formatPrice = (price?: string | null) => {
+    if (!price) return "Price not set";
+    return `$${price}`;
+  };
+
+  return (
+    <div
+      className="flex items-start gap-3 rounded-md p-2 hover:bg-muted cursor-pointer"
+      onClick={() => onClick(product)}
+    >
+      {primaryImage ? (
+        <img
+          src={primaryImage}
+          alt={product.name || "Product"}
+          className="h-10 w-10 rounded-md object-cover"
+        />
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+          <Package className="h-5 w-5 text-muted-foreground" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="text-sm font-medium line-clamp-1">
+          {product.name || "Unnamed Product"}
+        </h4>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-primary">
+            {formatPrice(product.price)}
+          </span>
+          {product.state && (
+            <Badge className="text-xs" variant="secondary">
+              {product.state}
+            </Badge>
+          )}
+        </div>
+        {product.description && (
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {product.description}
+          </p>
+        )}
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-xs text-muted-foreground">Product</span>
+          {product.categories && product.categories.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              • {product.categories.slice(0, 2).join(", ")}
+              {product.categories.length > 2 &&
+                ` +${product.categories.length - 2}`}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // PriceCard component
 const PriceCardItem: React.FC<{
@@ -231,33 +366,11 @@ const PriceCardItem: React.FC<{
   </Card>
 );
 
-interface Policy {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string | null;
-}
-
-interface PolicyDetail {
-  id: string;
-  title: string;
-  content: string;
-  listItems: string[] | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-}
-
-interface FullPolicy {
-  policy: Policy;
-  policyDetails: PolicyDetail[];
-}
-
 // Individual Policy Card Component
 const PolicyCardItem: React.FC<{
   fullPolicy: FullPolicy;
   onEdit: (policy: FullPolicy) => void;
 }> = ({ fullPolicy, onEdit }) => {
-  // Format date
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString(undefined, {
@@ -267,7 +380,6 @@ const PolicyCardItem: React.FC<{
     });
   };
 
-  // Parse list items for each policy detail
   const getPolicyListItems = (detail: PolicyDetail): string[] => {
     if (!detail.listItems) return [];
 
@@ -316,7 +428,6 @@ const PolicyCardItem: React.FC<{
                     {detail.content}
                   </p>
 
-                  {/* List items if available */}
                   {policyItems.length > 0 && (
                     <ul className="ml-5 list-disc text-sm space-y-1">
                       {policyItems.map((item, index) => (
@@ -327,7 +438,6 @@ const PolicyCardItem: React.FC<{
                     </ul>
                   )}
 
-                  {/* Display the last update time */}
                   {detail.updatedAt && (
                     <div className="text-xs text-muted-foreground">
                       Last updated: {formatDate(detail.updatedAt)}
@@ -363,15 +473,16 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
   const [galleryDialogOpen, setGalleryDialogOpen] = useState<boolean>(false);
 
   // State for price card
-  const [selectedPriceCardId, setSelectedPriceCardId] = useState<string | null>(
-    null
-  );
-  const [priceCardDialogOpen, setPriceCardDialogOpen] =
-    useState<boolean>(false);
+  const [selectedPriceCardId, setSelectedPriceCardId] = useState<string | null>(null);
+  const [priceCardDialogOpen, setPriceCardDialogOpen] = useState<boolean>(false);
 
   // State for policy dialog
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [policyDialogOpen, setPolicyDialogOpen] = useState<boolean>(false);
+
+  // State for product dialog - FIXED: Properly manage product dialog state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productDialogOpen, setProductDialogOpen] = useState<boolean>(false);
 
   // Query for selected gallery details
   const { data: galleryData, refetch: refetchGallery } = useQuery(GET_GALLERY, {
@@ -382,23 +493,26 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
 
   // Query for selected price card details
   const { data: priceCardData } = useQuery(GET_PRICE_CARD_BY_ID, {
-    variables: {
-      priceCardId: selectedPriceCardId || "",
-    },
+    variables: { priceCardId: selectedPriceCardId || "" },
     skip: !selectedPriceCardId,
     fetchPolicy: "network-only",
   });
 
   // Query for selected policy details
   const { data: policyData } = useQuery(GET_POLICY, {
-    variables: {
-      policyId: selectedPolicyId || "",
-    },
+    variables: { policyId: selectedPolicyId || "" },
     skip: !selectedPolicyId,
     fetchPolicy: "network-only",
   });
 
-  // Debounce search input to avoid too many queries
+  // Query for selected product details - FIXED: Properly query product data
+  const { data: productData, refetch: refetchProduct } = useQuery(GET_PRODUCT_BY_ID, {
+    variables: { productId: selectedProduct?.id || "" },
+    skip: !selectedProduct?.id,
+    fetchPolicy: "network-only",
+  });
+
+  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.trim() !== "") {
@@ -420,7 +534,7 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
         serviceId: serviceId,
       },
       skip: debouncedQuery.trim() === "",
-      fetchPolicy: "network-only", // Ensures we always get fresh data
+      fetchPolicy: "network-only",
     }
   );
 
@@ -452,20 +566,24 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
     }
   }, [galleryData, selectedGallery]);
 
+  // FIXED: Update product when product data is fetched
+  useEffect(() => {
+    if (productData?.getProduct && selectedProduct) {
+      setSelectedProduct(productData.getProduct);
+      setProductDialogOpen(true);
+    }
+  }, [productData, selectedProduct]);
+
   // Handle editing price card
   const handleEditPriceCard = (fullCard: FullCard) => {
-    // Implement edit functionality
     console.log("Editing price card:", fullCard);
-    // Close dialog after editing
     setPriceCardDialogOpen(false);
     setSelectedPriceCardId(null);
   };
 
   // Handle editing policy
   const handleEditPolicy = (fullPolicy: FullPolicy) => {
-    // Implement edit functionality
     console.log("Editing policy:", fullPolicy);
-    // Close dialog after editing
     setPolicyDialogOpen(false);
     setSelectedPolicyId(null);
   };
@@ -473,6 +591,7 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
   // Handle item click based on model type
   const handleItemClick = (item: SearchResult, event: React.MouseEvent) => {
     event.preventDefault();
+    setIsOpen(false); // Close the dropdown
 
     if (item.modelType === "GalleryProfession") {
       setSelectedGallery({
@@ -484,56 +603,63 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       });
-      // The dialog will open when galleryData is fetched
     } else if (item.modelType === "PriceCard") {
-      // Direct PriceCard - use its own ID
       setSelectedPriceCardId(item.id);
       setPriceCardDialogOpen(true);
     } else if (["Price", "Amenity"].includes(item.modelType)) {
-      // Price and Amenity - use their relationshipId (which contains priceCardId)
       if (item.relationshipId) {
         setSelectedPriceCardId(item.relationshipId);
         setPriceCardDialogOpen(true);
       } else {
-        console.error(
-          `No relationshipId found for ${item.modelType} with id ${item.id}`
-        );
+        console.error(`No relationshipId found for ${item.modelType} with id ${item.id}`);
       }
     } else if (item.modelType === "Policy") {
-      // Handle Policy - show the policy dialog instead of navigating
       setSelectedPolicyId(item.id);
       setPolicyDialogOpen(true);
     } else if (item.modelType === "PolicyDetail") {
-      // PolicyDetail - use relationshipId to open parent policy dialog
       if (item.relationshipId) {
         setSelectedPolicyId(item.relationshipId);
         setPolicyDialogOpen(true);
       } else {
-        console.error(
-          `No relationshipId found for PolicyDetail with id ${item.id}`
-        );
+        console.error(`No relationshipId found for PolicyDetail with id ${item.id}`);
       }
-    } else {
-      // For other types, just close the search dropdown
-      setIsOpen(false);
+    } else if (item.modelType === "Product") {
+      // FIXED: Properly handle product selection
+      setSelectedProduct({
+        id: item.id,
+        name: item.title,
+        description: item.description,
+        price: item.additionalInfo,
+        imageUrls: item.imageurl ? [item.imageurl] : [],
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      });
     }
+  };
+
+  // FIXED: Handle product click from ProductSearchItem
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsOpen(false);
   };
 
   // Get URL for non-gallery types
   const getUrlForModelType = (modelType: string, id: string): string => {
     switch (modelType) {
       case "GalleryProfession":
-        return `#gallery-${id}`; // We'll prevent navigation and show dialog instead
+        return `#gallery-${id}`;
       case "Policy":
-        return `#policy-${id}`; // We'll prevent navigation and show dialog instead
+        return `#policy-${id}`;
       case "PolicyDetail":
-        return `#policy-detail-${id}`; // We'll prevent navigation and show dialog instead
+        return `#policy-detail-${id}`;
       case "PriceCard":
-        return `#price-${id}`; // We'll prevent navigation and show dialog instead
+        return `#price-${id}`;
       case "Price":
-        return `#price-item-${id}`; // We'll prevent navigation and show dialog instead
+        return `#price-item-${id}`;
       case "Amenity":
-        return `#amenity-${id}`; // We'll prevent navigation and show dialog instead
+        return `#amenity-${id}`;
+      case "Product":
+        return `#product-${id}`;
       default:
         return "#";
     }
@@ -576,44 +702,61 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
                   Error loading results
                 </div>
               ) : results.length > 0 ? (
-                <ul className="space-y-2 ">
+                <ul className="space-y-2">
                   {results.map((item) => (
                     <li key={item.id}>
-                      <a
-                        href={getUrlForModelType(item.modelType, item.id)}
-                        className="flex items-start gap-3 rounded-md p-2 hover:bg-muted"
-                        onClick={(e) => handleItemClick(item, e)}
-                      >
-                        {item.imageurl ? (
-                          <img
-                            src={getImageUrl(item.imageurl)}
-                            alt=""
-                            className="h-10 w-10 rounded-md object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
-                            <span className="text-xs font-medium">
-                              {item.modelType?.charAt(0)}
+                      {item.modelType === "Product" ? (
+                        <ProductSearchItem
+                          product={{
+                            id: item.id,
+                            name: item.title,
+                            description: item.description,
+                            price: item.additionalInfo,
+                            imageUrls: item.imageurl ? [item.imageurl] : [],
+                            createdAt: item.createdAt,
+                            updatedAt: item.updatedAt,
+                          }}
+                          onClick={handleProductClick}
+                        />
+                      ) : (
+                        <a
+                          href={getUrlForModelType(item.modelType, item.id)}
+                          className="flex items-start gap-3 rounded-md p-2 hover:bg-muted"
+                          onClick={(e) => handleItemClick(item, e)}
+                        >
+                          {item.imageurl ? (
+                            <img
+                              src={getImageUrl(item.imageurl ?? undefined)}
+                              alt=""
+                              className="h-10 w-10 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                              <span className="text-xs font-medium">
+                                {item.modelType?.charAt(0)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium">
+                              {item.title}
+                            </h4>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {item.description}
+                              </p>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {item.modelType}
                             </span>
+                            {item.additionalInfo && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {item.additionalInfo}
+                              </span>
+                            )}
                           </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium">{item.title}</h4>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {item.description}
-                            </p>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {item.modelType}
-                          </span>
-                          {item.additionalInfo && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {item.additionalInfo}
-                            </span>
-                          )}
-                        </div>
-                      </a>
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -684,6 +827,20 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
           </div>
         </div>
       )}
+
+      {/* Product Dialog - FIXED: Properly pass product data and state */}
+      <ProductDetailDialog
+        product={productData?.getProduct || selectedProduct}
+        open={productDialogOpen}
+        onOpenChange={(open) => {
+          setProductDialogOpen(open);
+          if (!open) {
+            setSelectedProduct(null);
+          }
+        }}
+        vendorId={serviceId}
+        refetch={refetchProduct}
+      />
     </>
   );
 }

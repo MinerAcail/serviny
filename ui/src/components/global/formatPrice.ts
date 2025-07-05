@@ -1,5 +1,7 @@
 import { Production } from "@/index";
+import { gql, useQuery } from "@apollo/client";
 import { type Libraries } from "@react-google-maps/api";
+import { useEffect } from "react";
 
 export const formatPrice = (price: number) => {
   return new Intl.NumberFormat("en-GH", {
@@ -33,3 +35,31 @@ export const getImageUrl = (dpfilePath: string | null | undefined): string | nul
   
   return dpfilePath;
 };
+
+export const GET_PROVIDER = gql`
+  query getProvider($serviceId: String) {
+    getProvider(ServiceId: $serviceId) {
+      id
+      name
+      businessType
+    }
+  }
+`;
+
+export function useGetProvider({ serviceId }: { serviceId: string }) {
+  const { data } = useQuery(GET_PROVIDER, {
+    variables: { serviceId }
+  });
+
+  useEffect(() => {
+    if (data?.getProvider?.id) {
+      localStorage.setItem("serviceId", data.getProvider.id);
+    }
+  }, [data?.getProvider?.id]);
+
+  return {
+    id: data?.getProvider?.id ?? null,
+    name: data?.getProvider?.name ?? null,
+    businessType: data?.getProvider?.businessType ?? null
+  };
+}

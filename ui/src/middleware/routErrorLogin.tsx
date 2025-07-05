@@ -18,6 +18,64 @@ import { ProtectType } from "./useProtect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserAuthCard from "@/components/custom/users/create";
 
+// Move LoginForm outside of the main component
+const LoginForm = React.memo(({ 
+  formData, 
+  handleInputChange, 
+  handleKeyDown, 
+  showPassword, 
+  togglePasswordVisibility, 
+  error 
+}: {
+  formData: { number: string; password: string };
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleKeyDown: (e: React.KeyboardEvent) => void;
+  showPassword: boolean;
+  togglePasswordVisibility: () => void;
+  error: string;
+}) => (
+  <form onKeyDown={handleKeyDown} className="space-y-4">
+    <div className="space-y-2">
+      <Input
+        id="number"
+        placeholder="Phone Number"
+        value={formData.number}
+        onChange={handleInputChange}
+        className="w-full"
+      />
+    </div>
+    <div className="space-y-2 relative">
+      <div className="relative">
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          placeholder="Password"
+          value={formData.password}
+          onChange={handleInputChange}
+          className="w-full"
+        />
+        <button
+          type="button"
+          onClick={togglePasswordVisibility}
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 focus:outline-none"
+        >
+          {showPassword ? (
+            <EyeOff className="h-5 w-5" />
+          ) : (
+            <Eye className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+    </div>
+    {error && (
+      <div className="text-sm text-red-500 flex items-center gap-2">
+        <AlertCircle className="h-4 w-4" />
+        <span>{error}</span>
+      </div>
+    )}
+  </form>
+));
+
 export default function ErrorLogin() {
   const navigate = useNavigate();
   const { login: Auth } = useAuth();
@@ -57,8 +115,10 @@ export default function ErrorLogin() {
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [e.target.id]: e.target.value
+    }));
   };
 
   const handleLogin = async () => {
@@ -114,49 +174,7 @@ export default function ErrorLogin() {
     setShowPassword(!showPassword);
   };
 
-  // Login form component for reuse
-  const LoginForm = () => (
-    <form onKeyDown={handleKeyDown} className="space-y-4">
-      <div className="space-y-2">
-        <Input
-          id="number"
-          placeholder="Phone Number"
-          value={formData.number}
-          onChange={handleInputChange}
-          className="w-full"
-        />
-      </div>
-      <div className="space-y-2 relative">
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleInputChange}
-            className="w-full"
-          />
-          <button
-            type="button"
-            onClick={togglePasswordVisibility}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 focus:outline-none"
-          >
-            {showPassword ? (
-              <EyeOff className="h-5 w-5" />
-            ) : (
-              <Eye className="h-5 w-5" />
-            )}
-          </button>
-        </div>
-      </div>
-      {error && (
-        <div className="text-sm text-red-500 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
-          <span>{error}</span>
-        </div>
-      )}
-    </form>
-  );
+
 
   // Register options component for reuse
   const RegisterOptions = () => (
@@ -239,7 +257,15 @@ export default function ErrorLogin() {
                 </TabsList>
 
                 <TabsContent value="login" className="space-y-4">
-                  <LoginForm />
+                  <LoginForm 
+                    formData={formData}
+                    handleInputChange={handleInputChange}
+                    handleKeyDown={handleKeyDown}
+                    showPassword={showPassword}
+                    togglePasswordVisibility={togglePasswordVisibility}
+                    error={error}
+                  />
+
                   <Button
                     onClick={handleLogin}
                     className="w-full"
@@ -286,7 +312,14 @@ export default function ErrorLogin() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <LoginForm />
+              <LoginForm 
+                formData={formData}
+                handleInputChange={handleInputChange}
+                handleKeyDown={handleKeyDown}
+                showPassword={showPassword}
+                togglePasswordVisibility={togglePasswordVisibility}
+                error={error}
+              />
             </CardContent>
             <CardFooter className="flex flex-col space-y-3">
               <Button

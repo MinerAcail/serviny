@@ -76,7 +76,7 @@ type NavItemProps = {
 export function Sidebar() {
   const { isAuthenticated, clearCache } = useAuth();
 
-  const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
+  const { isDeliveryStandardOrEnterprise, isEcommerceStandard ,isEcommerceEnterprise} =
     useProvider();
 
   useQuery(CLEAR_CLIENT_CACHE, {
@@ -96,7 +96,7 @@ export function Sidebar() {
   const navigation = [
     { name: "Home", to: `/`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
-    ...(isEcommerceStandardOrEnterprise
+    ...(isEcommerceStandard
       ? [
           { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
           { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
@@ -123,7 +123,26 @@ export function Sidebar() {
           { name: "Upload", to: "upload", icon: HardDriveUpload },
         ]
       : []),
+   ...(isEcommerceEnterprise
+      ? [
+        {
+            name: "Live Map",
+            to: `livemap`,
+            icon: Map,
+          },
+          { name: "History", to: `history`, icon: History },
+          { name: "Forms", to: "builder", icon: BookCopy },
 
+          { name: "Vendors", to: `vendors`, icon: Building2 },
+          { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+          { name: "Schedule", to: `time`, icon: CalendarSync },
+          { name: "Upload", to: "upload", icon: HardDriveUpload },
+          { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
+          { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          { name: "Contacts", to: `contacts`, icon: BookUser },
+          { name: "Orders", to: `orders`, icon: LayoutList },
+        ]
+      : []),
     { name: "Profile", to: "update", icon: Edit },
   ];
 
@@ -194,7 +213,7 @@ export function Sidebar() {
 
         <div
           className={cn(
-            "fixed inset-y-0 z-20 flex flex-col bg-background transition-all duration-300 ease-in-out lg:static",
+            "fixed inset-y-0 z-20 flex flex-col bg-background transition-all duration-300 ease-in-out lg:static h-screen",
             isCollapsed ? "w-[72px]" : "w-72",
             isMobileOpen
               ? "translate-x-0"
@@ -235,15 +254,17 @@ export function Sidebar() {
               </Button>
             </div>
           </div>
-          <RegisterOptions isCollapsed={isCollapsed} />
+          {/* <RegisterOptions isCollapsed={isCollapsed} /> */}
 
-          <div className="flex-1 overflow-auto">
-            <nav className="flex-1 space-y-1 px-2 py-4">
+          {/* Fixed: Added explicit height calculation and proper scrollable container */}
+          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <nav className="space-y-1 px-2 py-4">
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
             </nav>
           </div>
+          
           <div className="border-t border-border p-2">
             <nav className="space-y-1">
               {isAuthenticated ? (
@@ -289,6 +310,7 @@ export function Sidebar() {
 import { gql, useQuery } from "@apollo/client";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
 import { useCurrentUserHasAnyBusinessType } from "../GlobalLogic/checkBusinessType";
+import { useGetProvider } from "../global/formatPrice";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
     clearClientCache
@@ -302,7 +324,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const localServiceId = localStorage.getItem("serviceId");
   serviceId = serviceId ?? localServiceId ?? "";
   // const { isMatch } = useCheckAuthId(serviceId);
-  // const { userType } = useProvider();
+  const { id, name ,businessType} = useGetProvider({ serviceId });
   const { isAuthenticated, user, clearCache } = useAuth();
   // const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
   //   useProvider();
@@ -313,13 +335,13 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     BusinessTypeEnum.DROP_SHIPPING,
   ]);
   // const profileId = useCurrentUserProfileId();
-  //      const hasDeliveryAccess = useCurrentUserHasAnyBusinessType([
-  //     BusinessTypeEnum.DELIVERY_STANDARD,
-  //     BusinessTypeEnum.DELIVERY_ENTERPRISE,
-  //   ]);
+       const hasEntEcommerceAccess = useCurrentUserHasAnyBusinessType([
+      BusinessTypeEnum.DELIVERY_STANDARD,
+      BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+    ]);
   const location = useLocation();
   const install = location.pathname === "/install";
-  // const providers = location.pathname === "/providers";
+  const PP = location.pathname === "/pp";
   const { data } = useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
       // Always clear localStorage, regardless of server response
@@ -339,7 +361,9 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const navigation = [
     {
       name: "Home",
-      to: `/?lo`,
+      // to: `/?lo`,
+            to: PP ? `/` : `/?lo`,
+
       icon: Home,
     },
     // stays on /dbp/:serviceId
@@ -357,11 +381,11 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
           { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
           { name: "Edit", to: `update`, icon: Edit },
-
         ]
       : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
-    ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE || user?.type === "DELIVERY"
+    ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE || user?.type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ||
+    user?.type === "DELIVERY"
       ? [
           {
             name: "Dashboard",
@@ -375,9 +399,13 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
         ]
       : []),
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
-    // { name: "Message", to: "/sms", icon: MessageSquare },
-    // { name: "Merge Maps", to: `/merge/${serviceId}`, icon: Merge },
+    ...(businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+      ? [
+              { name: "Policies & Prices", to: "/pp", icon: BookCopy },
 
+        ]
+
+      : []),
     // Conditionally include items
   ];
 
@@ -457,9 +485,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
-          {/* <CartButton /> */}
+          <CartButton />
           {/* <NotificationCenter /> */}
-          {search && <SearchDropdown serviceId={serviceId ?? ""} />}
           <button
             className="lg:hidden bg-background p-2 rounded-md shadow-md"
             onClick={() => setIsMobileOpen(!isMobileOpen)}
@@ -468,6 +495,11 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             <Menu className="h-6 w-6" />
           </button>
           <ProfileProviderDialog userID={serviceId ?? ""} />
+          {hasEntEcommerceAccess &&(
+
+          <SearchDropdown serviceId={serviceId ?? ""} />
+          )}
+
         </div>
         <div
           className={cn(
@@ -486,13 +518,9 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
               )}
             >
               {!isCollapsed && (
-                // <Link to={"/"} className="flex  items-center">
-                //   <SpectaclesLogo size={"sm"} variant="primary" />
-                // </Link>
-
-                <Link to={"/all"} className="flex w-[50%] items-center">
-                  <img src="/winnefull.png" alt="Logo" className="h-4 w-full" />
-                </Link>
+                <span className="font-bold text-lg text-primary">
+                  {name && name.length > 20 ? name.slice(0, 20) + "..." : name}
+                </span>
               )}
               <Button
                 variant="ghost"
@@ -513,7 +541,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             </div>
           </div>
           <RegisterOptions isCollapsed={isCollapsed} />
-          {/* {!isCollapsed && <ProfileSwitcherContainer />} */}
+          {!isCollapsed && <ProfileSwitcherContainer />}
 
           <div className="flex-1 overflow-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
@@ -553,7 +581,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
               </Tooltip>
             )}
           </div>
-          <div className="border-t  border-border p-2 grid grid-cols-2 gap-2 items-center">
+          <div className="border-t  border-border p-4 flex justify-between items-center">
             <nav className="space-y-1">
               {isAuthenticated ? (
                 <Logout>
@@ -581,7 +609,15 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 </>
               )}
             </nav>
-            <ProfileDialog />
+            {/* <ProfileDialog /> */}
+            {!isCollapsed && (
+              <Link to={"/all"}>
+                <span> Powerd By</span>
+                <div className="flex  items-center">
+                  <img src="/winnefull.png" alt="Logo" className="h-3 w-full" />
+                </div>
+              </Link>
+            )}
           </div>
         </div>
       </div>

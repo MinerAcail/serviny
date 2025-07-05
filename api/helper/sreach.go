@@ -334,6 +334,25 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
                 LOWER(p.label) LIKE LOWER('%' || ? || '%') OR
                 LOWER(p.value) LIKE LOWER('%' || ? || '%')
             )
+        ),
+        product_results AS (
+            SELECT COUNT(*) FROM products
+            WHERE vendor_id = ? AND state != 'INACTIVE' AND (
+                search_vector @@ plainto_tsquery('english', ?) OR
+                similarity(LOWER(COALESCE(name, '')), LOWER(?)) > 0.12 OR
+                similarity(LOWER(COALESCE(description, '')), LOWER(?)) > 0.12 OR
+                LOWER(COALESCE(name, '')) LIKE LOWER('%' || ? || '%') OR
+                LOWER(COALESCE(description, '')) LIKE LOWER('%' || ? || '%') OR
+                LOWER(COALESCE(price, '')) LIKE LOWER('%' || ? || '%') OR
+                EXISTS (
+                    SELECT 1 FROM unnest(categories) as c
+                    WHERE LOWER(c) LIKE LOWER('%' || ? || '%')
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM unnest(items_type) as it
+                    WHERE LOWER(it) LIKE LOWER('%' || ? || '%')
+                )
+            )
         )
     SELECT
         (SELECT * FROM gallery_results) +
@@ -341,7 +360,8 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
         (SELECT * FROM policy_results) +
         (SELECT * FROM amenity_results) +
         (SELECT * FROM price_card_results) +
-        (SELECT * FROM price_results) AS total`
+        (SELECT * FROM price_results) +
+        (SELECT * FROM product_results) AS total`
 
 	countParams := []interface{}{
 		// gallery_professions
@@ -356,6 +376,8 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
 		serviceID, query, query, query, query, query,
 		// prices
 		serviceID, query, query, query, query, query,
+		// products
+		serviceID, query, query, query, query, query, query, query, query,
 	}
 
 	row := db.Raw(countSQL, countParams...).Row()
@@ -521,6 +543,67 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
                     LOWER(p.value) LIKE LOWER('%' || ? || '%')
                 )
         ),
+        product_results AS (
+            SELECT
+                id::text,
+                COALESCE(name, 'Untitled Product') AS title,
+                description,
+                'Product' AS model_type,
+                id::text AS relationship_id, -- Pass its own ID for Product
+                CASE 
+                    WHEN array_length(categories, 1) > 0 AND array_length(items_type, 1) > 0 THEN
+                        'Categories: ' || array_to_string(categories, ', ') || ' | Types: ' || array_to_string(items_type, ', ')
+                    WHEN array_length(categories, 1) > 0 THEN
+                        'Categories: ' || array_to_string(categories, ', ')
+                    WHEN array_length(items_type, 1) > 0 THEN
+                        'Types: ' || array_to_string(items_type, ', ')
+                    ELSE NULL
+                END AS additional_info,
+                CASE 
+                    WHEN array_length(image_urls, 1) > 0 THEN image_urls[1]
+                    ELSE NULL
+                END AS image_url,
+                ts_rank_cd(search_vector, plainto_tsquery('english', ?)) +
+                GREATEST(
+                    similarity(LOWER(COALESCE(name, '')), LOWER(?)),
+                    similarity(LOWER(COALESCE(description, '')), LOWER(?)),
+                    similarity(LOWER(COALESCE(price, '')), LOWER(?))
+                ) * 5.0 +
+                CASE 
+                    WHEN LOWER(COALESCE(name, '')) = LOWER(?) THEN 10.0
+                    WHEN LOWER(COALESCE(name, '')) LIKE LOWER(? || '%') THEN 8.0
+                    WHEN LOWER(COALESCE(name, '')) LIKE LOWER('%' || ? || '%') THEN 6.0
+                    WHEN EXISTS (
+                        SELECT 1 FROM unnest(categories) as c
+                        WHERE LOWER(c) = LOWER(?)
+                    ) THEN 7.0
+                    WHEN EXISTS (
+                        SELECT 1 FROM unnest(items_type) as it
+                        WHERE LOWER(it) = LOWER(?)
+                    ) THEN 7.0
+                    ELSE 0 
+                END AS search_score,
+                created_at,
+                updated_at
+            FROM products
+            WHERE
+                vendor_id = ? AND state != 'INACTIVE' AND (
+                    search_vector @@ plainto_tsquery('english', ?) OR
+                    similarity(LOWER(COALESCE(name, '')), LOWER(?)) > 0.12 OR
+                    similarity(LOWER(COALESCE(description, '')), LOWER(?)) > 0.12 OR
+                    LOWER(COALESCE(name, '')) LIKE LOWER('%' || ? || '%') OR
+                    LOWER(COALESCE(description, '')) LIKE LOWER('%' || ? || '%') OR
+                    LOWER(COALESCE(price, '')) LIKE LOWER('%' || ? || '%') OR
+                    EXISTS (
+                        SELECT 1 FROM unnest(categories) as c
+                        WHERE LOWER(c) LIKE LOWER('%' || ? || '%')
+                    ) OR
+                    EXISTS (
+                        SELECT 1 FROM unnest(items_type) as it
+                        WHERE LOWER(it) LIKE LOWER('%' || ? || '%')
+                    )
+                )
+        ),
         combined_results AS (
             SELECT * FROM gallery_results
             UNION ALL
@@ -533,6 +616,8 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
             SELECT * FROM price_card_results
             UNION ALL
             SELECT * FROM price_results
+            UNION ALL
+            SELECT * FROM product_results
         )
     SELECT *
     FROM combined_results
@@ -552,6 +637,8 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
         query, query, query, serviceID, query, query, query, query, query,
         // prices
         query, query, query, serviceID, query, query, query, query, query,
+        // products
+        query, query, query, query, query, query, query, query, query, serviceID, query, query, query, query, query, query, query, query,
         limit, offset,
     }
 

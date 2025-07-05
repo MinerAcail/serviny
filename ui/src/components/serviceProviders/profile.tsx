@@ -51,7 +51,7 @@ export const GET_PROVIDER = gql`
       number
       email
       profession
-      categories:profession
+      categories: profession
       aboutMe
       location
       createdAt
@@ -66,7 +66,7 @@ export const GET_PROVIDER = gql`
 //     getUseTheme(ServiceId: $serviceId)
 //   }
 // `;
-export default  function ServiceProviderProfile() {
+export default function ServiceProviderProfile() {
   const { user, isAuthenticated } = useAuth();
   const userId = user?.id;
   let { serviceId } = useParams<{ serviceId: string }>();
@@ -84,13 +84,16 @@ export default  function ServiceProviderProfile() {
   const isLtPresent = new URLSearchParams(location.search).has("lt");
   const isOpPresent = new URLSearchParams(location.search).has("lo");
 
-   const { data, loading, error } = useQuery(GET_PROVIDER, {
+  const { data, loading, error } = useQuery(GET_PROVIDER, {
     variables: { serviceId: serviceId },
   });
   const [isTabsFixed, setIsTabsFixed] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
-    return savedTab || "portfolio";
+    return savedTab ||
+      data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+      ? "delivery"
+      : "portfolio";
   });
 
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -153,9 +156,8 @@ export default  function ServiceProviderProfile() {
   }, []);
   // Show the toast only once per session
   useEffect(() => {
-    if (!isAuthenticated ) {
+    if (!isAuthenticated) {
       toast.warning("You need to be logged in to save Service profile.");
-     
     }
   }, [isAuthenticated]);
   // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
@@ -195,8 +197,7 @@ export default  function ServiceProviderProfile() {
           {error ? (
             <SpectaclesError />
           ) : (
-                       <div className="flex-col  pt-14 justify-center items-center">
-              
+            <div className="flex-col  pt-14 justify-center items-center">
               <div className="col-span-8 ">
                 <div ref={tabsPlaceholderRef}></div>
 
@@ -212,6 +213,35 @@ export default  function ServiceProviderProfile() {
                       isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""
                     }`}
                   >
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={handleTabChange}
+                      className="w-full"
+                      ref={tabsRef}
+                    >
+                      {data?.getProvider?.businessType ===
+                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE && (
+                        <>
+                          <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20   p-1">
+                            <TabsTrigger
+                              value="delivery"
+                              className="rounded-full"
+                            >
+                              Delivery
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="product"
+                              className="rounded-full"
+                            >
+                              Product
+                            </TabsTrigger>
+                            {/* <TabsTrigger value="price" className="rounded-full">
+                              services
+                            </TabsTrigger> */}
+                          </TabsList>
+                        </>
+                      )}
+                    </Tabs>
                     <Tabs
                       value={activeTab}
                       onValueChange={handleTabChange}
@@ -272,8 +302,7 @@ export default  function ServiceProviderProfile() {
                         BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
                         <AllProducts />
                       ) : (
-                        <WorkGallery                         provider={data?.getProvider}
-/>
+                        <WorkGallery provider={data?.getProvider} />
                       )}
                     </TabsContent>
                     <TabsContent value="price">
@@ -281,6 +310,13 @@ export default  function ServiceProviderProfile() {
                     </TabsContent>
                     <TabsContent value="policies">
                       <Policies />
+                    </TabsContent>
+
+                    <TabsContent value="delivery">
+                      <WorkGallery provider={data?.getProvider} />
+                    </TabsContent>
+                    <TabsContent value="product">
+                      <AllProducts />
                     </TabsContent>
                   </Tabs>
                 </div>
@@ -603,7 +639,7 @@ interface ContactInfoProps {
   className?: string;
 }
 
-export  function ContactInfo({ provider, className }: ContactInfoProps) {
+export function ContactInfo({ provider, className }: ContactInfoProps) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, type: string) => {

@@ -89,6 +89,17 @@ export function ProductDetailDialog({
   // State for shuffling badge animation
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showItemTypeDialog, setShowItemTypeDialog] = useState(false);
+
+const { addItem, getProductCount, isProductInCart, items } = useCart();
+  const { isAuthenticated } = useAuth();
+  // Use the full product ID - don't split UUIDs
+  const baseProductId = product?.id;
+
+  // Check if product is already in cart (any variant)
+  const isInCart = isProductInCart(baseProductId ?? "");
+  // Get total count across all variants
+  const productCount = getProductCount(baseProductId ?? "");
 
   // Check if there are valid item types (non-empty array and not just "Uncategorized")
   const hasValidItemTypes =
@@ -136,12 +147,49 @@ export function ProductDetailDialog({
     });
   };
 
-  const handleAddToCart = () => {
-    // Add to cart logic here
-    console.log("Adding to cart from dialog:", product.id);
-  };
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the parent onClick
 
+    // If product has multiple item types, show dialog
+    if (hasValidItemTypes && validItemTypes.length > 1) {
+      setShowItemTypeDialog(true);
+      return;
+    }
+
+    // If product has only one item type or no item types, add directly
+    const itemType = hasValidItemTypes ? validItemTypes[0] : null;
+    addToCartWithType(itemType);
+  };
+  const addToCartWithType = (itemType: string | null) => {
+    // Create a modified product with the selected item type
+    // Keep the original product ID, just add the selectedItemType property
+    const productWithType = {
+      ...product,
+      selectedItemType: itemType,
+      // Don't modify the product ID - let the cart context handle the unique cart item ID
+      name: itemType ? `${product.name} (${itemType})` : product.name,
+    };
+
+    addItem(productWithType, 1);
+
+    toast.success(
+      <div className="flex items-center gap-2">
+        <span>
+          {product.name}
+          {itemType && ` (${itemType})`} added to cart!
+        </span>
+      </div>,
+      { position: "top-center" }
+    );
+  };
+    const handleItemTypeSelect = (itemType: string) => {
+    // setSelectedItemType(itemType);
+    addToCartWithType(itemType);
+    setShowItemTypeDialog(false);
+    // setSelectedItemType("");
+  };
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1000px] p-0 overflow-hidden rounded-lg">
         {/* Main container with improved responsive layout */}
@@ -215,13 +263,16 @@ export function ProductDetailDialog({
               </div>
             </div>
 
-            <div className="flex justify-end mb-4">
+                     <div className="absolute top-2 right-2 z-10">
+
               <Button
                 variant="default"
                 size="sm"
                 className="gap-2"
                 onClick={handleAddToCart}
               >
+                  {isInCart ? "Add More" : "Buy"}
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -237,7 +288,11 @@ export function ProductDetailDialog({
                   <path d="M20 20a1 1 0 1 0 0 2 1 1 0 1 0 0-2z" />
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
-                Add to Cart
+{productCount > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                    {productCount}
+                  </span>
+                )}
               </Button>
             </div>
 
@@ -286,6 +341,43 @@ export function ProductDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
+      {/* Item Type Selection Dialog */}
+      <Dialog open={showItemTypeDialog} onOpenChange={setShowItemTypeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose Item Type</DialogTitle>
+            <DialogDescription>
+              Select the type of {product.name} you want to add to your cart.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {validItemTypes.map((itemType) => (
+              <Button
+                key={itemType}
+                variant="outline"
+                className="justify-start h-auto p-4 hover:bg-primary/10"
+                onClick={() => handleItemTypeSelect(itemType)}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-medium">{itemType}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {formatPrice(product.price)}
+                  </Badge>
+                </div>
+              </Button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowItemTypeDialog(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -661,7 +753,7 @@ export function AllProducts() {
   //   }
   // }, [vendorId]);
 
-console.log("Vendor ID:", vendorId);
+// console.log("Vendor ID:", vendorId);
 
   const [filter, setFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

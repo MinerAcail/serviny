@@ -5,6 +5,7 @@ import { useAuth } from "./authContext";
 export enum BusinessTypeEnum {
   ECOMMERCE_STANDARD = "ecommerce-standard",
   ECOMMERCE_ENTERPRISE = "ecommerce-enterprise",
+  
   PRE_ORDER = "pre-order",
   DROP_SHIPPING = "drop-shipping",
   DELIVERY_STANDARD = "delivery-standard",
@@ -38,6 +39,11 @@ type ProviderContextType = {
   isDeliveryEnterprise: boolean;
   isDeliveryStandard: boolean;
   isPreOrderOrDropShipping: boolean;
+  isEcommerceEnterprise: boolean;
+  isEcommerceStandard: boolean;
+  
+
+
 };
 
 const ProviderContext = createContext<ProviderContextType | undefined>(
@@ -116,7 +122,20 @@ export const ProviderContextProvider: React.FC<
       type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
     );
   }, [data]);
-
+ const isEcommerceStandard = useMemo(() => {
+    const type = data?.getProvider?.businessType;
+    return (
+      
+      type === BusinessTypeEnum.ECOMMERCE_STANDARD
+    );
+  }, [data]);
+    const isEcommerceEnterprise = useMemo(() => {
+    const type = data?.getProvider?.businessType;
+    return (
+    
+      type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+    );
+  }, [data]);
   const isDeliveryStandardOrEnterprise = useMemo(() => {
     const type = data?.getProvider?.businessType;
     return (
@@ -156,6 +175,8 @@ export const ProviderContextProvider: React.FC<
         isDeliveryEnterprise,
         isDeliveryStandard,
         isPreOrderOrDropShipping,
+        isEcommerceEnterprise,
+        isEcommerceStandard
       }}
     >
       {children}

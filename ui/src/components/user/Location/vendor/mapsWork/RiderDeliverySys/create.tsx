@@ -9,6 +9,7 @@ import { gql, useQuery, useMutation } from "@apollo/client"
 import { useAuth } from "@/middleware/context/authContext"
 import { cn } from "@/lib/utils"
 import { useCurrentUserProfileId } from "@/components/GlobalLogic/checkBusinessType"
+import { ZONE_COLORS } from "@/components/config/map"
 
 export const GET_PROVIDER = gql`
   query getProvider($serviceId: String!) {
@@ -459,14 +460,14 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
   const distanceOptions = [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30]
 
   // Zone colors with iOS-style pastel colors
-  const zoneColors = [
-    "#34c759", // green
-    "#ffcc00", // yellow
-    "#ff3b30", // red
-    "#007aff", // blue
-    "#af52de", // purple
-    "#ff2d55", // pink
-  ]
+  // const ZONE_COLORS = [
+  //   "#34c759", // green
+  //   "#ffcc00", // yellow
+  //   "#ff3b30", // red
+  //   "#007aff", // blue
+  //   "#af52de", // purple
+  //   "#ff2d55", // pink
+  // ]
 
   const transportModes = [
     { value: "car" as TransportMode, label: "Car", icon: "🚗", speed: "60 km/h" },
@@ -584,7 +585,7 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
       id: Date.now(),
       distance: currentRange,
       price: currentPrice,
-      color: zoneColors[ranges.length % zoneColors.length],
+      color: ZONE_COLORS[ranges.length % ZONE_COLORS.length],
     }
 
     setRanges([...ranges, newRange])
@@ -1394,14 +1395,16 @@ export function DeliveryZoneCreator({ vendor, riderId, onSave, maptilerApiKey }:
                     </div>
                   </div>
 
-                  {generatedData && (
+                  {/* {generatedData && (
                     <div className="mt-4 pt-4 border-t border-[#e5e5e7]">
                       <p className="text-xs text-[#86868b] mb-1">Generated ID</p>
-                      <p className="text-sm font-mono bg-white px-2 py-1 rounded border text-[#1d1d1f]">
-                        {generatedData.id}
-                      </p>
+                        <p className="text-sm font-mono bg-white px-2 py-1 rounded border text-[#1d1d1f]">
+                        {typeof generatedData.id === "string"
+                          ? generatedData.id.slice(0, -6)
+                          : String(generatedData.id).slice(0, -6)}
+                        </p>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">

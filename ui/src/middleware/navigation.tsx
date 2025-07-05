@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PasswordReset } from "@/app/resetPassWord";
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import { SocialForm } from "@/components/custom/Socials/forms";
+import ServiceProviderPandP from "@/components/serviceProviders/p&p";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -193,6 +194,7 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
+      
       // {
       //   path: "/sms",
       //   element: (
@@ -209,6 +211,22 @@ const router = createBrowserRouter([
       //     </LoadingWrapper>
       //   )
       // },
+       {
+        path: "/pp/:serviceId",
+        element: (
+          <LoadingWrapper>
+            <ServiceProviderPandP />
+          </LoadingWrapper>
+        ),
+      },
+       {
+        path: "/pp",
+        element: (
+          <LoadingWrapper>
+            <ServiceProviderPandP />
+          </LoadingWrapper>
+        ),
+      },
       {
         path: "/zonex/:vendorId/:orderId",
         element: (
@@ -266,7 +284,9 @@ const router = createBrowserRouter([
                 <StandardDelveryRiderServiceLiveMap />
               </LoadingWrapper>
             }
-            expectedBusinessTypes={[BusinessTypeEnum?.DELIVERY_STANDARD]}
+            expectedBusinessTypes={[
+              BusinessTypeEnum?.DELIVERY_STANDARD
+            ]}
           />
         ),
       },
@@ -479,7 +499,10 @@ const router = createBrowserRouter([
     path: "/dbp/",
     element: (
       <ProtectedIsAuthRoute
-        expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
+        expectedTypes={[
+          BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+        ]}
         element={
           <LoadingWrapper>
             <SidebarLayoutProvider />
@@ -548,7 +571,8 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-            expectedTypes={[BusinessTypeEnum.DELIVERY_ENTERPRISE]}
+            expectedTypes={[ BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE]}
             element={
               <LoadingWrapper>
                 <ProfileService />
@@ -584,7 +608,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+               BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
             ]}
           />
         ),
@@ -600,7 +625,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+               BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
             ]}
           />
         ),
@@ -616,7 +642,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+               BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
             ]}
           />
         ),
@@ -629,7 +656,8 @@ const router = createBrowserRouter([
               element={<AvailabilityPage />}
               expectedBusinessTypes={[
                 BusinessTypeEnum?.DELIVERY_STANDARD,
-                BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+                 BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
               ]}
             />
           </LoadingWrapper>
@@ -646,7 +674,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-              BusinessTypeEnum?.DELIVERY_ENTERPRISE,
+               BusinessTypeEnum.DELIVERY_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
             ]}
           />
         ),
@@ -706,7 +735,7 @@ export function SidebarLayoutProvider() {
     // </div>
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
-        <>
+        < >
           {/* <ScrollArea className="h-full border-r"> */}
           <Sidebar />
           {/* </ScrollArea> */}
