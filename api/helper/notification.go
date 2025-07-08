@@ -54,7 +54,7 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 		"title":              payload.Title,
 		"body":               payload.Body,
 		"icon":               "/pwa-64x64.png",
-		"badge":              "/pwa-64x64.png",
+		"badge":              "/logo.png", 
 		"requireInteraction": true,
 		"renotify":           true,
 		"tag":                payload.Tag + "-" + uuid.NewString(),
