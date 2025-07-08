@@ -293,6 +293,35 @@ interface Provider {
   location?: string;
   aboutMe:string;
 }
+export const TestNotificationButton = () => {
+  const triggerNotification = async () => {
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      alert('Notifications not allowed.')
+      return
+    }
+
+    const registration = await navigator.serviceWorker.ready
+    registration.showNotification('🔔 Manual Trigger', {
+      body: 'This is a manual test notification',
+      icon: '/pwa-192x192.png',
+      requireInteraction: true,
+      vibrate: [100, 50, 100],
+      tag: 'manual-' + Date.now(),
+      renotify: true,
+    })
+  }
+
+  return (
+    <button
+      onClick={triggerNotification}
+      style={{ padding: '1rem', background: '#0070f3', color: 'white', borderRadius: 6 }}
+    >
+      🔔 Trigger Manual Notification
+    </button>
+  )
+}
+
 export function WorkGallery({ provider }:{ provider:Provider }) {
   const { isAuthenticated } = useAuth();
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();

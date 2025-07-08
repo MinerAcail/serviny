@@ -24,6 +24,7 @@ import { SocialForm } from "@/components/custom/Socials/forms";
 import ServiceProviderPandP from "@/components/serviceProviders/p&p";
 import { useNotificationDialog } from "@/components/global/notification/usePushNotifications";
 import { NotificationDialog } from "@/components/global/notification/notification-dialog";
+import { PushDebugTools } from "@/components/GlobalLogic/PushDebugTools";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -197,14 +198,13 @@ const router = createBrowserRouter([
         ),
       },
 
-      // {
-      //   path: "/sms",
-      //   element: (
-      //     <LoadingWrapper>
-      //       <VendorChatSystem />
-      //     </LoadingWrapper>
-      //   )
-      // },
+      {
+        path: "/push",
+        element: (
+                      <PushDebugTools />
+
+        )
+      },
       // {
       //   path: "/mamp",
       //   element: (

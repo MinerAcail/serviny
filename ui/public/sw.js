@@ -1,31 +1,37 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst, CacheFirst, NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies';
+import {
+  NetworkFirst,
+  CacheFirst,
+  NetworkOnly,
+  StaleWhileRevalidate,
+} from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
+// Precache assets
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
-console.log('[SW] Service worker loaded and active');
+console.log('[SW] ✅ Service worker loaded and active');
 
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
 // ✅ Push notification handler
-self.addEventListener('push', event => {
+self.addEventListener('push', (event) => {
   console.log('[SW] 🔔 Push event received:', event);
 
   let notificationData = {
@@ -65,33 +71,36 @@ self.addEventListener('push', event => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      data: notificationData.data,
-      tag: notificationData.tag,
-      actions: notificationData.actions,
-      vibrate: notificationData.vibrate,
-      requireInteraction: notificationData.requireInteraction,
-    }).then(() => {
-      console.log('[SW] ✅ Notification shown successfully');
-    }).catch(error => {
-      console.error('[SW] ❌ Failed to show notification:', error);
-    })
+    self.registration
+      .showNotification(notificationData.title, {
+        body: notificationData.body,
+        icon: notificationData.icon,
+        badge: notificationData.badge,
+        data: notificationData.data,
+        tag: notificationData.tag,
+        actions: notificationData.actions,
+        vibrate: notificationData.vibrate,
+        requireInteraction: notificationData.requireInteraction,
+      })
+      .then(() => {
+        console.log('[SW] ✅ Notification shown successfully');
+      })
+      .catch((error) => {
+        console.error('[SW] ❌ Failed to show notification:', error);
+      })
   );
 });
 
 // ✅ Notification click handler
-self.addEventListener('notificationclick', event => {
+self.addEventListener('notificationclick', (event) => {
   console.log('[SW] 📲 Notification clicked:', event.notification);
   event.notification.close();
 
   const url = event.notification.data?.url || '/';
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      for (const client of clientList) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
         if (client.url.includes(url) && 'focus' in client) {
           return client.focus();
         }
@@ -103,91 +112,12 @@ self.addEventListener('notificationclick', event => {
   );
 });
 
-// ✅ Push subscription change handler
-self.addEventListener('pushsubscriptionchange', event => {
+// ✅ Push subscription change
+self.addEventListener('pushsubscriptionchange', (event) => {
   console.log('[SW] 🔄 Push subscription changed:', event);
 });
 
-// ✅ Test notification function
-self.testNotification = () => {
-  console.log('[SW] Testing notification...');
-  return self.registration.showNotification('Test Notification', {
-    body: 'This is a test notification from service worker',
-    icon: '/pwa-192x192.png',
-    badge: '/pwa-64x64.png',
-    tag: 'manual-test',
-    requireInteraction: true,
-  });
-};
-
-console.log('[SW] Notification permission:', Notification.permission);
-console.log('[SW] Service worker registration:', self.registration);
-
-// Browser-side debugging utilities
-navigator.serviceWorker.ready.then(registration => {
-  console.log('[SW] 🔍 Service worker ready:', registration);
-  console.log('[SW] 🔍 Push manager:', registration.pushManager);
-
-  return registration.pushManager.getSubscription();
-}).then(subscription => {
-  console.log('[SW] 🔍 Current subscription:', subscription);
-  if (subscription) {
-    console.log('[SW] 🔍 Endpoint:', subscription.endpoint);
-    console.log('[SW] 🔍 Keys:', {
-      p256dh: subscription.getKey('p256dh'),
-      auth: subscription.getKey('auth'),
-    });
-  }
-});
-
-const testManualNotification = () => {
-  if (Notification.permission === 'granted') {
-    new Notification('Manual Test', {
-      body: 'This is a manual test notification',
-      icon: '/pwa-192x192.png',
-    });
-  } else {
-    console.log('[SW] ❌ Notification permission not granted');
-  }
-};
-
-const testServiceWorkerNotification = () => {
-  navigator.serviceWorker.ready.then(registration => {
-    return registration.showNotification('SW Test', {
-      body: 'This is a service worker test notification',
-      icon: '/pwa-192x192.png',
-      tag: 'sw-test',
-    });
-  }).then(() => {
-    console.log('[SW] ✅ Service worker notification sent');
-  }).catch(error => {
-    console.error('[SW] ❌ Service worker notification failed:', error);
-  });
-};
-
-const checkNotificationBlock = () => {
-  if ('Notification' in window) {
-    console.log('[SW] 🔍 Notifications supported');
-    console.log('[SW] 🔍 Permission:', Notification.permission);
-
-    if (Notification.permission === 'denied') {
-      console.log('[SW] ❌ Notifications are blocked by user');
-    } else if (Notification.permission === 'default') {
-      console.log('[SW] ⚠️ Notification permission not requested yet');
-    } else {
-      console.log('[SW] ✅ Notifications are allowed');
-    }
-  } else {
-    console.log('[SW] ❌ Notifications not supported');
-  }
-};
-
-console.log('[SW] 🚀 Running notification debugging tests...');
-checkNotificationBlock();
-testManualNotification();
-testServiceWorkerNotification();
-
-// ✅ SPA Fallback
+// ✅ SPA fallback route
 registerRoute(
   new NavigationRoute(
     new NetworkFirst({
