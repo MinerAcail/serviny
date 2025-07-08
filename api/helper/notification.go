@@ -17,10 +17,10 @@ import (
 )
 
 type NotificationPayload struct {
-	Title   string
-	Body    string
-	Tag     string
-	URL     string
+	Title     string
+	Body      string
+	Tag       string
+	URL       string
 	BookingID *string
 	OrderID   *string
 }
@@ -32,11 +32,13 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 	if publicKey == "" || privateKey == "" {
 		return fmt.Errorf("missing VAPID keys")
 	}
+	log.Printf("[SW] 🔎 Sending push to userID: %s", userID)
 
 	var subscriptions []model.PushSubscription
 	if err := db.Where("user_id = ?", userID).Find(&subscriptions).Error; err != nil {
 		return fmt.Errorf("failed to fetch subscriptions: %w", err)
 	}
+	log.Printf("[SW] 🧾 Found %d subscriptions for userID: %s", len(subscriptions), userID)
 
 	data := map[string]interface{}{
 		"url": payload.URL,
@@ -49,10 +51,10 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 	}
 
 	notif := map[string]interface{}{
-		"title":             payload.Title,
-		"body":              payload.Body,
-		"icon":              "/pwa-192x192.png",
-		"badge":             "/pwa-64x64.png",
+		"title":              payload.Title,
+		"body":               payload.Body,
+		"icon":               "/pwa-192x192.png",
+		"badge":              "/pwa-64x64.png",
 		"requireInteraction": true,
 		"renotify":           true,
 		"tag":                payload.Tag + "-" + uuid.NewString(),
@@ -66,6 +68,7 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 
 	for _, sub := range subscriptions {
 		if sub.Endpoint == nil || sub.P256dh == nil || sub.Auth == nil {
+			log.Printf("[SW] ⚠️ Skipping incomplete subscription: %+v", sub)
 			continue
 		}
 

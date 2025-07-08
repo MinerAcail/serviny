@@ -62,7 +62,7 @@ func (r *mutationResolver) DeletePushSubscription(ctx context.Context, endpoint 
 }
 
 // SendBookingNotificationTest is the resolver for the sendBookingNotificationTest field.
-func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serviceID string) (*string, error) {
+func (r *mutationResolver) SendBookingNotificationTestOld(ctx context.Context, serviceID string) (*string, error) {
 	// serviceID := "7ef5886d-151b-4ec2-8297-1dffe001ccce"
 
 	// Log VAPID key for confirmation
