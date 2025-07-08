@@ -657,7 +657,7 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 				log.Printf("Goroutine panic in push notification: %v", r)
 			}
 		}()
-log.Printf("📨 Push goroutine started")
+		log.Printf("📨 Push goroutine started")
 		bookid := booking.ID.String()
 		truncate := func(s string, max int) string {
 			if len(s) <= max {
@@ -928,6 +928,47 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 		}
 
 		updatedBookings = append(updatedBookings, &booking)
+		// Send push notification for this booking
+		bk := booking // create copy for goroutine
+		log.Printf("📣 About to trigger push notification for booking %s", bk.ID)
+
+		go func(bk model.AppointmentBooking) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Goroutine panic in push notification: %v", r)
+				}
+			}()
+
+			log.Printf("📨 Push goroutine started for booking %s", bk.ID)
+
+			bookid := bk.ID.String()
+			truncate := func(s string, max int) string {
+				if len(s) <= max {
+					return s
+				}
+				return s[:max] + "..."
+			}
+
+			pickup := "Unknown"
+			if bk.PickUpAddress != nil {
+				pickup = truncate(*bk.PickUpAddress, 40)
+			}
+			drop := truncate(bk.DeliveryAddress, 40)
+
+			err := helper.SendPushNotification(r.DB, bk.ServiceID, helper.NotificationPayload{
+				Title:     "Booking Confirmed",
+				Body:      fmt.Sprintf("From %s to %s", pickup, drop),
+				Tag:       "booking-" + bookid,
+				URL:       "/dbp/livemap",
+				BookingID: &bookid,
+			})
+			if err != nil {
+				log.Printf("❌ Push notification failed for booking %s: %v", bookid, err)
+			} else {
+				log.Printf("✅ Push notification sent for booking %s", bookid)
+			}
+		}(bk)
+
 		log.Printf("Booking %s updated successfully with status: %s", booking.ID, booking.Status)
 	}
 
