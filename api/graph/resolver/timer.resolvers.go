@@ -649,7 +649,7 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			}
 		}
 	}(input.BookID, r)
-	
+	log.Printf("📣 About to trigger push notification for booking %s", booking.ID)
 	// Push notification goroutine
 	go func() {
 		defer func() {
@@ -657,7 +657,7 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 				log.Printf("Goroutine panic in push notification: %v", r)
 			}
 		}()
-
+log.Printf("📨 Push goroutine started")
 		bookid := booking.ID.String()
 		truncate := func(s string, max int) string {
 			if len(s) <= max {
