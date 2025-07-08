@@ -37,7 +37,7 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: '🛎️ New Notification',
     body: 'You have a new update',
-    icon: '/pwa-192x192.png',
+    icon: '/logo.png',
     badge: '/pwa-64x64.png',
     data: { url: '/bookings' },
     tag: 'booking-test',
