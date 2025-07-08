@@ -476,6 +476,17 @@ type ProfileInfor struct {
 	BusinessType *string `json:"businessType,omitempty"`
 }
 
+type PushSubscriptionInput struct {
+	Endpoint *string `json:"endpoint,omitempty"`
+	P256dh   *string `json:"p256dh,omitempty"`
+	Auth     *string `json:"auth,omitempty"`
+}
+
+type PushSubscriptionkey struct {
+	PrivateKey *string `json:"privateKey,omitempty"`
+	PublicKey  *string `json:"publicKey,omitempty"`
+}
+
 type Query struct {
 }
 

@@ -1036,7 +1036,7 @@ export function MultiStepNavigation({
           return (
             <div key={step.id} className="flex items-center">
               <button
-                onClick={() => isAccessible && setCurrentStep(step.id)}
+                onClick={() =>  setCurrentStep(step.id)}
                 disabled={!isAccessible}
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                   isActive

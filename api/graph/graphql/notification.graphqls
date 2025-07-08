@@ -1,0 +1,31 @@
+type PushSubscription {
+  id: String!
+  userID: String
+  endpoint: String
+  p256dh: String
+  auth: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input PushSubscriptionInput {
+  endpoint: String
+  p256dh: String
+  auth: String
+}
+
+type PushSubscriptionkey {
+  privateKey: String
+  publicKey: String
+}
+extend type Query {
+  getPushSubscription(userId: String): PushSubscription
+  getAllPushSubscription: [PushSubscription]
+  generateVAPIDkeys: PushSubscriptionkey!
+}
+
+extend type Mutation {
+  savePushSubscription(input: PushSubscriptionInput): PushSubscription!
+  deletePushSubscription(endpoint: String): Boolean!
+  sendBookingNotificationTest(serviceID:String!):String
+}

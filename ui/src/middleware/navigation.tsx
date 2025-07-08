@@ -22,6 +22,8 @@ import { PasswordReset } from "@/app/resetPassWord";
 import { ServiceProvidersDirectory } from "@/components/serviceProviders/allProviders";
 import { SocialForm } from "@/components/custom/Socials/forms";
 import ServiceProviderPandP from "@/components/serviceProviders/p&p";
+import { useNotificationDialog } from "@/components/global/notification/usePushNotifications";
+import { NotificationDialog } from "@/components/global/notification/notification-dialog";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -194,7 +196,7 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
-      
+
       // {
       //   path: "/sms",
       //   element: (
@@ -211,7 +213,7 @@ const router = createBrowserRouter([
       //     </LoadingWrapper>
       //   )
       // },
-       {
+      {
         path: "/pp/:serviceId",
         element: (
           <LoadingWrapper>
@@ -219,7 +221,7 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
-       {
+      {
         path: "/pp",
         element: (
           <LoadingWrapper>
@@ -284,9 +286,7 @@ const router = createBrowserRouter([
                 <StandardDelveryRiderServiceLiveMap />
               </LoadingWrapper>
             }
-            expectedBusinessTypes={[
-              BusinessTypeEnum?.DELIVERY_STANDARD
-            ]}
+            expectedBusinessTypes={[BusinessTypeEnum?.DELIVERY_STANDARD]}
           />
         ),
       },
@@ -471,11 +471,11 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
-       {
+      {
         path: "social/:serviceId",
         element: <SocialForm />,
       },
-       {
+      {
         path: "social",
         element: <SocialForm />,
       },
@@ -501,7 +501,7 @@ const router = createBrowserRouter([
       <ProtectedIsAuthRoute
         expectedTypes={[
           BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+          BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
         ]}
         element={
           <LoadingWrapper>
@@ -547,7 +547,7 @@ const router = createBrowserRouter([
         path: "social/:serviceId",
         element: <SocialForm />,
       },
-       {
+      {
         path: "social",
         element: <SocialForm />,
       },
@@ -571,8 +571,10 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-            expectedTypes={[ BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE]}
+            expectedTypes={[
+              BusinessTypeEnum.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+            ]}
             element={
               <LoadingWrapper>
                 <ProfileService />
@@ -608,8 +610,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-               BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+              BusinessTypeEnum.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
             ]}
           />
         ),
@@ -625,8 +627,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-               BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+              BusinessTypeEnum.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
             ]}
           />
         ),
@@ -642,8 +644,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.DELIVERY_STANDARD,
-               BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+              BusinessTypeEnum.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
             ]}
           />
         ),
@@ -656,8 +658,8 @@ const router = createBrowserRouter([
               element={<AvailabilityPage />}
               expectedBusinessTypes={[
                 BusinessTypeEnum?.DELIVERY_STANDARD,
-                 BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+                BusinessTypeEnum.DELIVERY_ENTERPRISE,
+                BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
               ]}
             />
           </LoadingWrapper>
@@ -674,8 +676,8 @@ const router = createBrowserRouter([
             }
             expectedBusinessTypes={[
               BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
-               BusinessTypeEnum.DELIVERY_ENTERPRISE,
-          BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+              BusinessTypeEnum.DELIVERY_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
             ]}
           />
         ),
@@ -721,6 +723,7 @@ export function Navigation() {
 export function SidebarLayoutProvider() {
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId;
+  const { showDialog, closeDialog, isSupported } = useNotificationDialog();
 
   return (
     // <div className="flex w-full h-screen overflow-hidden">
@@ -735,7 +738,14 @@ export function SidebarLayoutProvider() {
     // </div>
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
-        < >
+        <>
+          <div>
+            {isSupported ? (
+              <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
+            ) : (
+              <p>Push notifications are not supported in this browser.</p>
+            )}
+          </div>
           {/* <ScrollArea className="h-full border-r"> */}
           <Sidebar />
           {/* </ScrollArea> */}

@@ -72,6 +72,7 @@ type ResolverRoot interface {
 	Profiles() ProfilesResolver
 	PurchaseHistory() PurchaseHistoryResolver
 	PurchaseHistoryItem() PurchaseHistoryItemResolver
+	PushSubscription() PushSubscriptionResolver
 	Query() QueryResolver
 	RequestItem() RequestItemResolver
 	Rider() RiderResolver
@@ -527,6 +528,7 @@ type ComplexityRoot struct {
 		DeletePriceCard                              func(childComplexity int, priceCardID string) int
 		DeleteProduct                                func(childComplexity int, id string) int
 		DeleteProductByAdmin                         func(childComplexity int, productID string) int
+		DeletePushSubscription                       func(childComplexity int, endpoint *string) int
 		DeleteRentalItem                             func(childComplexity int, id string) int
 		DeleteRequestItem                            func(childComplexity int, requestID string) int
 		DeleteRider                                  func(childComplexity int, id string) int
@@ -564,6 +566,8 @@ type ComplexityRoot struct {
 		RiderGoOfflineByService                      func(childComplexity int) int
 		RiderGoOnline                                func(childComplexity int) int
 		RiderGoOnlineByService                       func(childComplexity int) int
+		SavePushSubscription                         func(childComplexity int, input *model.PushSubscriptionInput) int
+		SendBookingNotificationTest                  func(childComplexity int, serviceID string) int
 		SendChatMessage                              func(childComplexity int, input model.ChatMessageInput, orderID *string) int
 		SendChatMessageByNumber                      func(childComplexity int, input model.ChatMessageAdminInput) int
 		ServiceLogin                                 func(childComplexity int, input model.LoginInput) int
@@ -817,6 +821,21 @@ type ComplexityRoot struct {
 		Quantity func(childComplexity int) int
 	}
 
+	PushSubscription struct {
+		Auth      func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Endpoint  func(childComplexity int) int
+		ID        func(childComplexity int) int
+		P256dh    func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+		UserID    func(childComplexity int) int
+	}
+
+	PushSubscriptionkey struct {
+		PrivateKey func(childComplexity int) int
+		PublicKey  func(childComplexity int) int
+	}
+
 	Query struct {
 		AvailableSlots                                func(childComplexity int, startDate time.Time, endDate time.Time) int
 		AvailableTimeSlots                            func(childComplexity int, date time.Time) int
@@ -836,6 +855,7 @@ type ComplexityRoot struct {
 		Form                                          func(childComplexity int, id string) int
 		FormAnalytics                                 func(childComplexity int, formID string) int
 		Forms                                         func(childComplexity int, filter *model.FormsFilter, limit *int32, offset *int32, orderBy *string, orderDirection *string) int
+		GenerateVAPIDkeys                             func(childComplexity int) int
 		GetAProfileBusinessTypeByUserID               func(childComplexity int) int
 		GetAProfileIDByUserID                         func(childComplexity int, userID *string) int
 		GetARiderRange                                func(childComplexity int, rangeID string) int
@@ -862,6 +882,7 @@ type ComplexityRoot struct {
 		GetAllProducts                                func(childComplexity int, query *string, vendorID *string, limit *int32, offset *int32) int
 		GetAllProductsByAdmin                         func(childComplexity int) int
 		GetAllProfessionFromService                   func(childComplexity int) int
+		GetAllPushSubscription                        func(childComplexity int) int
 		GetAllRequestItems                            func(childComplexity int) int
 		GetAllRidersBookingAndOrdersAssignedData      func(childComplexity int) int
 		GetAllRidersOrderItemsByService               func(childComplexity int) int
@@ -933,6 +954,7 @@ type ComplexityRoot struct {
 		GetProvider                                   func(childComplexity int, serviceID *string) int
 		GetProviderByUsername                         func(childComplexity int, subDomain string) int
 		GetProvidersUsersContact                      func(childComplexity int, search *string, limit *int32, offset *int32) int
+		GetPushSubscription                           func(childComplexity int, userID *string) int
 		GetRentalItem                                 func(childComplexity int, id string) int
 		GetRentalItems                                func(childComplexity int, serviceID *string) int
 		GetRiderAssignedBookings                      func(childComplexity int, riderID string) int
@@ -1460,6 +1482,9 @@ type MutationResolver interface {
 	DeleteRiderRange(ctx context.Context, id string) (bool, error)
 	DeleteAllRouteData(ctx context.Context) (*bool, error)
 	ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error)
+	SavePushSubscription(ctx context.Context, input *model.PushSubscriptionInput) (*model.PushSubscription, error)
+	DeletePushSubscription(ctx context.Context, endpoint *string) (bool, error)
+	SendBookingNotificationTest(ctx context.Context, serviceID string) (*string, error)
 	RequestOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
 	TestRequestOtp(ctx context.Context) (bool, error)
 	RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error)
@@ -1597,6 +1622,9 @@ type PurchaseHistoryResolver interface {
 type PurchaseHistoryItemResolver interface {
 	ID(ctx context.Context, obj *model.PurchaseHistoryItem) (string, error)
 }
+type PushSubscriptionResolver interface {
+	ID(ctx context.Context, obj *model.PushSubscription) (string, error)
+}
 type QueryResolver interface {
 	GetPolicies(ctx context.Context) ([]*model.Policy, error)
 	GetPolicyByID(ctx context.Context, policyID string) (*model.Policy, error)
@@ -1655,6 +1683,9 @@ type QueryResolver interface {
 	GetVendorsFromIsochroneResult(ctx context.Context) ([]*model.VendorsMapData, error)
 	GetVendorFromIsochroneResultByServiceProdiver(ctx context.Context, vendorID string) (*model.VendorsMapData, error)
 	GetClosestIsochroneForLocation(ctx context.Context, riderID string, location []float64) (*model.IsochroneResult, error)
+	GetPushSubscription(ctx context.Context, userID *string) (*model.PushSubscription, error)
+	GetAllPushSubscription(ctx context.Context) ([]*model.PushSubscription, error)
+	GenerateVAPIDkeys(ctx context.Context) (*model.PushSubscriptionkey, error)
 	Payment(ctx context.Context, id string) (*model.Payment, error)
 	Payments(ctx context.Context, filter *model.PaymentFilter, first *int32, after *string, orderBy *model.PaymentOrderBy) (*model.PaymentConnection, error)
 	PaymentsByOrder(ctx context.Context, orderID string) ([]*model.Payment, error)
@@ -4445,6 +4476,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeleteProductByAdmin(childComplexity, args["productId"].(string)), true
 
+	case "Mutation.deletePushSubscription":
+		if e.complexity.Mutation.DeletePushSubscription == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deletePushSubscription_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeletePushSubscription(childComplexity, args["endpoint"].(*string)), true
+
 	case "Mutation.deleteRentalItem":
 		if e.complexity.Mutation.DeleteRentalItem == nil {
 			break
@@ -4858,6 +4901,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.RiderGoOnlineByService(childComplexity), true
+
+	case "Mutation.savePushSubscription":
+		if e.complexity.Mutation.SavePushSubscription == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_savePushSubscription_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SavePushSubscription(childComplexity, args["input"].(*model.PushSubscriptionInput)), true
+
+	case "Mutation.sendBookingNotificationTest":
+		if e.complexity.Mutation.SendBookingNotificationTest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendBookingNotificationTest_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SendBookingNotificationTest(childComplexity, args["serviceID"].(string)), true
 
 	case "Mutation.sendChatMessage":
 		if e.complexity.Mutation.SendChatMessage == nil {
@@ -6415,6 +6482,69 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PurchaseHistoryItem.Quantity(childComplexity), true
 
+	case "PushSubscription.auth":
+		if e.complexity.PushSubscription.Auth == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.Auth(childComplexity), true
+
+	case "PushSubscription.createdAt":
+		if e.complexity.PushSubscription.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.CreatedAt(childComplexity), true
+
+	case "PushSubscription.endpoint":
+		if e.complexity.PushSubscription.Endpoint == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.Endpoint(childComplexity), true
+
+	case "PushSubscription.id":
+		if e.complexity.PushSubscription.ID == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.ID(childComplexity), true
+
+	case "PushSubscription.p256dh":
+		if e.complexity.PushSubscription.P256dh == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.P256dh(childComplexity), true
+
+	case "PushSubscription.updatedAt":
+		if e.complexity.PushSubscription.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.UpdatedAt(childComplexity), true
+
+	case "PushSubscription.userID":
+		if e.complexity.PushSubscription.UserID == nil {
+			break
+		}
+
+		return e.complexity.PushSubscription.UserID(childComplexity), true
+
+	case "PushSubscriptionkey.privateKey":
+		if e.complexity.PushSubscriptionkey.PrivateKey == nil {
+			break
+		}
+
+		return e.complexity.PushSubscriptionkey.PrivateKey(childComplexity), true
+
+	case "PushSubscriptionkey.publicKey":
+		if e.complexity.PushSubscriptionkey.PublicKey == nil {
+			break
+		}
+
+		return e.complexity.PushSubscriptionkey.PublicKey(childComplexity), true
+
 	case "Query.availableSlots":
 		if e.complexity.Query.AvailableSlots == nil {
 			break
@@ -6625,6 +6755,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Forms(childComplexity, args["filter"].(*model.FormsFilter), args["limit"].(*int32), args["offset"].(*int32), args["orderBy"].(*string), args["orderDirection"].(*string)), true
+
+	case "Query.generateVAPIDkeys":
+		if e.complexity.Query.GenerateVAPIDkeys == nil {
+			break
+		}
+
+		return e.complexity.Query.GenerateVAPIDkeys(childComplexity), true
 
 	case "Query.getAProfileBusinessTypeByUserId":
 		if e.complexity.Query.GetAProfileBusinessTypeByUserID == nil {
@@ -6892,6 +7029,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetAllProfessionFromService(childComplexity), true
+
+	case "Query.getAllPushSubscription":
+		if e.complexity.Query.GetAllPushSubscription == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllPushSubscription(childComplexity), true
 
 	case "Query.getAllRequestItems":
 		if e.complexity.Query.GetAllRequestItems == nil {
@@ -7604,6 +7748,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetProvidersUsersContact(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
+
+	case "Query.getPushSubscription":
+		if e.complexity.Query.GetPushSubscription == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getPushSubscription_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetPushSubscription(childComplexity, args["userId"].(*string)), true
 
 	case "Query.getRentalItem":
 		if e.complexity.Query.GetRentalItem == nil {
@@ -9838,6 +9994,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputPriceInput,
 		ec.unmarshalInputProductInput,
 		ec.unmarshalInputProductInputUpdate,
+		ec.unmarshalInputPushSubscriptionInput,
 		ec.unmarshalInputRequestInput,
 		ec.unmarshalInputRequestOtpInput,
 		ec.unmarshalInputResetPassWordOtpInput,
@@ -9978,7 +10135,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/formbuilder.graphqls" "graphql/mapworks.graphqls" "graphql/otp.graphqls" "graphql/payment.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/rider.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/users.graphqls"
+//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/formbuilder.graphqls" "graphql/mapworks.graphqls" "graphql/notification.graphqls" "graphql/otp.graphqls" "graphql/payment.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/rider.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/users.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -9995,6 +10152,7 @@ var sources = []*ast.Source{
 	{Name: "graphql/event.graphqls", Input: sourceData("graphql/event.graphqls"), BuiltIn: false},
 	{Name: "graphql/formbuilder.graphqls", Input: sourceData("graphql/formbuilder.graphqls"), BuiltIn: false},
 	{Name: "graphql/mapworks.graphqls", Input: sourceData("graphql/mapworks.graphqls"), BuiltIn: false},
+	{Name: "graphql/notification.graphqls", Input: sourceData("graphql/notification.graphqls"), BuiltIn: false},
 	{Name: "graphql/otp.graphqls", Input: sourceData("graphql/otp.graphqls"), BuiltIn: false},
 	{Name: "graphql/payment.graphqls", Input: sourceData("graphql/payment.graphqls"), BuiltIn: false},
 	{Name: "graphql/products.graphqls", Input: sourceData("graphql/products.graphqls"), BuiltIn: false},
@@ -11632,6 +11790,29 @@ func (ec *executionContext) field_Mutation_deleteProduct_argsID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_deletePushSubscription_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deletePushSubscription_argsEndpoint(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["endpoint"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deletePushSubscription_argsEndpoint(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("endpoint"))
+	if tmp, ok := rawArgs["endpoint"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteRentalItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -12558,6 +12739,52 @@ func (ec *executionContext) field_Mutation_resetPassword_argsInput(
 	}
 
 	var zeroVal model.ResetPasswordInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_savePushSubscription_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_savePushSubscription_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_savePushSubscription_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.PushSubscriptionInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalOPushSubscriptionInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscriptionInput(ctx, tmp)
+	}
+
+	var zeroVal *model.PushSubscriptionInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_sendBookingNotificationTest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_sendBookingNotificationTest_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_sendBookingNotificationTest_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceID"))
+	if tmp, ok := rawArgs["serviceID"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -16580,6 +16807,29 @@ func (ec *executionContext) field_Query_getProvidersUsersContact_argsOffset(
 	}
 
 	var zeroVal *int32
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPushSubscription_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getPushSubscription_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getPushSubscription_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -33593,6 +33843,184 @@ func (ec *executionContext) fieldContext_Mutation_manageCacheIsochrone(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_savePushSubscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_savePushSubscription(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SavePushSubscription(rctx, fc.Args["input"].(*model.PushSubscriptionInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PushSubscription)
+	fc.Result = res
+	return ec.marshalNPushSubscription2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_savePushSubscription(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_PushSubscription_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_PushSubscription_userID(ctx, field)
+			case "endpoint":
+				return ec.fieldContext_PushSubscription_endpoint(ctx, field)
+			case "p256dh":
+				return ec.fieldContext_PushSubscription_p256dh(ctx, field)
+			case "auth":
+				return ec.fieldContext_PushSubscription_auth(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_PushSubscription_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_PushSubscription_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PushSubscription", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_savePushSubscription_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deletePushSubscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deletePushSubscription(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeletePushSubscription(rctx, fc.Args["endpoint"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deletePushSubscription(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deletePushSubscription_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_sendBookingNotificationTest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_sendBookingNotificationTest(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SendBookingNotificationTest(rctx, fc.Args["serviceID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_sendBookingNotificationTest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_sendBookingNotificationTest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_requestOtp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_requestOtp(ctx, field)
 	if err != nil {
@@ -46137,6 +46565,384 @@ func (ec *executionContext) fieldContext_PurchaseHistoryItem_imageUrl(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _PushSubscription_id(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.PushSubscription().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_userID(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_userID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_endpoint(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_endpoint(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Endpoint, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_p256dh(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_p256dh(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.P256dh, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_p256dh(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_auth(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_auth(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Auth, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_auth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscription_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscription) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscription_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscription_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscriptionkey_privateKey(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscriptionkey) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscriptionkey_privateKey(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PrivateKey, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscriptionkey_privateKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscriptionkey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PushSubscriptionkey_publicKey(ctx context.Context, field graphql.CollectedField, obj *model.PushSubscriptionkey) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PushSubscriptionkey_publicKey(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PublicKey, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PushSubscriptionkey_publicKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PushSubscriptionkey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getPolicies(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getPolicies(ctx, field)
 	if err != nil {
@@ -50043,6 +50849,181 @@ func (ec *executionContext) fieldContext_Query_getClosestIsochroneForLocation(ct
 	if fc.Args, err = ec.field_Query_getClosestIsochroneForLocation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getPushSubscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getPushSubscription(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetPushSubscription(rctx, fc.Args["userId"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PushSubscription)
+	fc.Result = res
+	return ec.marshalOPushSubscription2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getPushSubscription(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_PushSubscription_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_PushSubscription_userID(ctx, field)
+			case "endpoint":
+				return ec.fieldContext_PushSubscription_endpoint(ctx, field)
+			case "p256dh":
+				return ec.fieldContext_PushSubscription_p256dh(ctx, field)
+			case "auth":
+				return ec.fieldContext_PushSubscription_auth(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_PushSubscription_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_PushSubscription_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PushSubscription", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getPushSubscription_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllPushSubscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllPushSubscription(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllPushSubscription(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PushSubscription)
+	fc.Result = res
+	return ec.marshalOPushSubscription2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllPushSubscription(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_PushSubscription_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_PushSubscription_userID(ctx, field)
+			case "endpoint":
+				return ec.fieldContext_PushSubscription_endpoint(ctx, field)
+			case "p256dh":
+				return ec.fieldContext_PushSubscription_p256dh(ctx, field)
+			case "auth":
+				return ec.fieldContext_PushSubscription_auth(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_PushSubscription_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_PushSubscription_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PushSubscription", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_generateVAPIDkeys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_generateVAPIDkeys(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GenerateVAPIDkeys(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PushSubscriptionkey)
+	fc.Result = res
+	return ec.marshalNPushSubscriptionkey2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscriptionkey(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_generateVAPIDkeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "privateKey":
+				return ec.fieldContext_PushSubscriptionkey_privateKey(ctx, field)
+			case "publicKey":
+				return ec.fieldContext_PushSubscriptionkey_publicKey(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PushSubscriptionkey", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -72787,6 +73768,47 @@ func (ec *executionContext) unmarshalInputProductInputUpdate(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputPushSubscriptionInput(ctx context.Context, obj any) (model.PushSubscriptionInput, error) {
+	var it model.PushSubscriptionInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"endpoint", "p256dh", "auth"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "endpoint":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endpoint"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Endpoint = data
+		case "p256dh":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("p256dh"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.P256dh = data
+		case "auth":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("auth"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Auth = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRequestInput(ctx context.Context, obj any) (model.RequestInput, error) {
 	var it model.RequestInput
 	asMap := map[string]any{}
@@ -77775,6 +78797,24 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "savePushSubscription":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_savePushSubscription(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deletePushSubscription":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deletePushSubscription(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sendBookingNotificationTest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_sendBookingNotificationTest(ctx, field)
+			})
 		case "requestOtp":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_requestOtp(ctx, field)
@@ -80086,6 +81126,132 @@ func (ec *executionContext) _PurchaseHistoryItem(ctx context.Context, sel ast.Se
 	return out
 }
 
+var pushSubscriptionImplementors = []string{"PushSubscription"}
+
+func (ec *executionContext) _PushSubscription(ctx context.Context, sel ast.SelectionSet, obj *model.PushSubscription) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pushSubscriptionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PushSubscription")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._PushSubscription_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "userID":
+			out.Values[i] = ec._PushSubscription_userID(ctx, field, obj)
+		case "endpoint":
+			out.Values[i] = ec._PushSubscription_endpoint(ctx, field, obj)
+		case "p256dh":
+			out.Values[i] = ec._PushSubscription_p256dh(ctx, field, obj)
+		case "auth":
+			out.Values[i] = ec._PushSubscription_auth(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._PushSubscription_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._PushSubscription_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var pushSubscriptionkeyImplementors = []string{"PushSubscriptionkey"}
+
+func (ec *executionContext) _PushSubscriptionkey(ctx context.Context, sel ast.SelectionSet, obj *model.PushSubscriptionkey) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pushSubscriptionkeyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PushSubscriptionkey")
+		case "privateKey":
+			out.Values[i] = ec._PushSubscriptionkey_privateKey(ctx, field, obj)
+		case "publicKey":
+			out.Values[i] = ec._PushSubscriptionkey_publicKey(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -81269,6 +82435,66 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getClosestIsochroneForLocation(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getPushSubscription":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getPushSubscription(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllPushSubscription":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllPushSubscription(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "generateVAPIDkeys":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_generateVAPIDkeys(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -89312,6 +90538,34 @@ func (ec *executionContext) marshalNPurchaseHistoryItem2ᚖgithubᚗcomᚋlehxee
 	return ec._PurchaseHistoryItem(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNPushSubscription2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx context.Context, sel ast.SelectionSet, v model.PushSubscription) graphql.Marshaler {
+	return ec._PushSubscription(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPushSubscription2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx context.Context, sel ast.SelectionSet, v *model.PushSubscription) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PushSubscription(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPushSubscriptionkey2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscriptionkey(ctx context.Context, sel ast.SelectionSet, v model.PushSubscriptionkey) graphql.Marshaler {
+	return ec._PushSubscriptionkey(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPushSubscriptionkey2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscriptionkey(ctx context.Context, sel ast.SelectionSet, v *model.PushSubscriptionkey) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PushSubscriptionkey(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNRentalItem2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRentalItem(ctx context.Context, sel ast.SelectionSet, v model.RentalItem) graphql.Marshaler {
 	return ec._RentalItem(ctx, sel, &v)
 }
@@ -92409,6 +93663,62 @@ func (ec *executionContext) marshalOProfiles2ᚖgithubᚗcomᚋlehxeesᚋserviny
 		return graphql.Null
 	}
 	return ec._Profiles(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPushSubscription2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx context.Context, sel ast.SelectionSet, v []*model.PushSubscription) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOPushSubscription2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOPushSubscription2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscription(ctx context.Context, sel ast.SelectionSet, v *model.PushSubscription) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PushSubscription(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOPushSubscriptionInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐPushSubscriptionInput(ctx context.Context, v any) (*model.PushSubscriptionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputPushSubscriptionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalORecurringType2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRecurringType(ctx context.Context, v any) (*model.RecurringType, error) {

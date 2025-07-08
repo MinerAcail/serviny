@@ -437,7 +437,7 @@ export function RiderMultiBookingMenu({
       </Dialog>
 
       {/* Payment Modal for non-cargo deliveries only */}
-      {!isCargo && totalCalculations && createOrderDetails() && (
+      { createOrderDetails() && (
         <PaymentModal
           open={showPaymentModal}
           onOpenChange={setShowPaymentModal}

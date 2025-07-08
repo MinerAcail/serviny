@@ -324,7 +324,13 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 				cargo.ID.String(), cargo.TransportType, *cargo.BookingID)
 		}
 	}
-
+	// ✅ Send push notification ONCE using the first booking
+	go func() {
+		err := helper.SendBookingNotification(r.DB, serviceID, bookings[0])
+		if err != nil {
+			log.Printf("⚠️ Failed to send push notification: %v", err)
+		}
+	}()
 	return bookings, nil
 }
 
