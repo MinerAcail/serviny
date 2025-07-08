@@ -66,14 +66,13 @@ func (r *mutationResolver) DeletePushSubscription(ctx context.Context, endpoint 
 func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serviceID string, icon *string, badge *string) (*string, error) {
 	publicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	privateKey := os.Getenv("VAPID_PRIVATE_KEY")
-	production := os.Getenv("ENV") == "production"
-	minioURL := " https://files.winnemart.com" 
+	minioURL := "https://files.winnemart.com"
 
 	if publicKey == "" || privateKey == "" {
 		return nil, fmt.Errorf("[SW] VAPID keys are missing in environment variables")
 	}
 
-	// Get push subscriptions
+	// Get push subscriptions for service
 	var subscriptions []model.PushSubscription
 	if err := r.DB.Where("user_id = ?", serviceID).Find(&subscriptions).Error; err != nil {
 		return nil, fmt.Errorf("[SW] failed to get push subscriptions: %v", err)
@@ -88,37 +87,38 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
 
-	// Helper to replace "/minio/" with API_URL if in production
+	// Helper to convert /minio/ paths to public URL
 	getImageURL := func(path string) string {
 		if path == "" {
 			return ""
 		}
-		if !production {
-			return path
-		}
 		if strings.Contains(path, "/minio/") {
-			return strings.Replace(path, "/minio/", minioURL, 1)
+			return strings.Replace(path, "/minio/", minioURL+"/", 1)
 		}
 		return path
 	}
 
-	// Resolve icon and badge URLs
-	resolvedIcon := "/pwa-192x192.png"
-	// resolvedBadge := "/pwa-72x72.png"
-
-	if icon != nil && *icon != "" {
+	// Determine icon
+	resolvedIcon := "/winnemartWallpaper.png"
+	if service.Dpfile != nil && *service.Dpfile != "" {
 		resolvedIcon = getImageURL(*service.Dpfile)
+	} else if icon != nil && *icon != "" {
+		resolvedIcon = getImageURL(*icon)
 	}
-	// if badge != nil && *badge != "" {
-	// 	resolvedBadge = getImageURL(*badge)
-	// }
 
+	// Determine badge
+	resolvedBadge := "/logo.png"
+	if badge != nil && *badge != "" {
+		resolvedBadge = getImageURL(*badge)
+	}
+
+	// Notification payload
 	notification := map[string]interface{}{
 		"title":              "🔔 Visible Test",
 		"body":               fmt.Sprintf("Hello %s! This should stay on screen.", service.Name),
 		"requireInteraction": true,
 		"icon":               resolvedIcon,
-		"badge":              "/logo.png",
+		"badge":              resolvedBadge,
 		"renotify":           true,
 		"tag":                "unique-" + uuid.NewString(),
 	}
