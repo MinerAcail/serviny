@@ -672,11 +672,16 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			}
 		}
 	}(input.BookID, r)
+	
+	// Push notification goroutine
 	go func() {
-		// booking := booking[0]
-		bookid := booking.ID.String()
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in push notification: %v", r)
+			}
+		}()
 
-		// Truncate function for long strings
+		bookid := booking.ID.String()
 		truncate := func(s string, max int) string {
 			if len(s) <= max {
 				return s
@@ -684,16 +689,24 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			return s[:max] + "..."
 		}
 
-		pickup := truncate(*booking.PickUpAddress, 40)
+		pickup := "Unknown"
+		if booking.PickUpAddress != nil {
+			pickup = truncate(*booking.PickUpAddress, 40)
+		}
 		drop := truncate(booking.DeliveryAddress, 40)
 
-		_ = helper.SendPushNotification(r.DB, booking.ServiceID, helper.NotificationPayload{
+		err := helper.SendPushNotification(r.DB, booking.ServiceID, helper.NotificationPayload{
 			Title:     "Booking Confirmed",
 			Body:      fmt.Sprintf("From %s to %s", pickup, drop),
-			Tag:       "booking",
+			Tag:       "booking-" + bookid,
 			URL:       "/bookings",
 			BookingID: &bookid,
 		})
+		if err != nil {
+			log.Printf("❌ Push notification failed: %v", err)
+		} else {
+			log.Printf("✅ Push notification sent for booking %s", bookid)
+		}
 	}()
 	log.Printf("Booking %s updated successfully", booking.ID)
 	return &booking, nil
