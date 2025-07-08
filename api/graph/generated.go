@@ -567,7 +567,7 @@ type ComplexityRoot struct {
 		RiderGoOnline                                func(childComplexity int) int
 		RiderGoOnlineByService                       func(childComplexity int) int
 		SavePushSubscription                         func(childComplexity int, input *model.PushSubscriptionInput) int
-		SendBookingNotificationTest                  func(childComplexity int, serviceID string) int
+		SendBookingNotificationTest                  func(childComplexity int, serviceID string, icon *string, badge *string) int
 		SendChatMessage                              func(childComplexity int, input model.ChatMessageInput, orderID *string) int
 		SendChatMessageByNumber                      func(childComplexity int, input model.ChatMessageAdminInput) int
 		ServiceLogin                                 func(childComplexity int, input model.LoginInput) int
@@ -1484,7 +1484,7 @@ type MutationResolver interface {
 	ManageCacheIsochrone(ctx context.Context, input model.CacheManagementInput) (*model.CacheStats, error)
 	SavePushSubscription(ctx context.Context, input *model.PushSubscriptionInput) (*model.PushSubscription, error)
 	DeletePushSubscription(ctx context.Context, endpoint *string) (bool, error)
-	SendBookingNotificationTest(ctx context.Context, serviceID string) (*string, error)
+	SendBookingNotificationTest(ctx context.Context, serviceID string, icon *string, badge *string) (*string, error)
 	RequestOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error)
 	TestRequestOtp(ctx context.Context) (bool, error)
 	RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error)
@@ -4924,7 +4924,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SendBookingNotificationTest(childComplexity, args["serviceID"].(string)), true
+		return e.complexity.Mutation.SendBookingNotificationTest(childComplexity, args["serviceID"].(string), args["icon"].(*string), args["badge"].(*string)), true
 
 	case "Mutation.sendChatMessage":
 		if e.complexity.Mutation.SendChatMessage == nil {
@@ -12773,6 +12773,16 @@ func (ec *executionContext) field_Mutation_sendBookingNotificationTest_args(ctx 
 		return nil, err
 	}
 	args["serviceID"] = arg0
+	arg1, err := ec.field_Mutation_sendBookingNotificationTest_argsIcon(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["icon"] = arg1
+	arg2, err := ec.field_Mutation_sendBookingNotificationTest_argsBadge(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["badge"] = arg2
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_sendBookingNotificationTest_argsServiceID(
@@ -12785,6 +12795,32 @@ func (ec *executionContext) field_Mutation_sendBookingNotificationTest_argsServi
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_sendBookingNotificationTest_argsIcon(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("icon"))
+	if tmp, ok := rawArgs["icon"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_sendBookingNotificationTest_argsBadge(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("badge"))
+	if tmp, ok := rawArgs["badge"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -33983,7 +34019,7 @@ func (ec *executionContext) _Mutation_sendBookingNotificationTest(ctx context.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SendBookingNotificationTest(rctx, fc.Args["serviceID"].(string))
+		return ec.resolvers.Mutation().SendBookingNotificationTest(rctx, fc.Args["serviceID"].(string), fc.Args["icon"].(*string), fc.Args["badge"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

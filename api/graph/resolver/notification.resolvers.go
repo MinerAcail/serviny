@@ -60,12 +60,8 @@ func (r *mutationResolver) DeletePushSubscription(ctx context.Context, endpoint 
 
 	return true, nil
 }
-
 // SendBookingNotificationTest is the resolver for the sendBookingNotificationTest field.
-func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serviceID string) (*string, error) {
-	// serviceID := "7ef5886d-151b-4ec2-8297-1dffe001ccce"
-
-	// Log VAPID key for confirmation
+func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serviceID string, icon *string, badge *string) (*string, error) {
 	publicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	privateKey := os.Getenv("VAPID_PRIVATE_KEY")
 	log.Println("[SW] 🔐 VAPID_PUBLIC_KEY:", publicKey)
@@ -80,15 +76,27 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 		return nil, fmt.Errorf("[SW] failed to get push subscriptions: %v", err)
 	}
 
+	// Fallback to defaults if none provided
+	usedIcon := "/pwa-192x192.png"   // recommended icon size
+	usedBadge := "/pwa-72x72.png"    // recommended badge size
+
+	if icon != nil && *icon != "" {
+		usedIcon = *icon
+	}
+	if badge != nil && *badge != "" {
+		usedBadge = *badge
+	}
+
 	// Create notification payload
 	notification := map[string]interface{}{
-	"title": "🔔 Visible Test",
-	"body":  "Should stay on screen",
-	"requireInteraction": true,
-	"renotify": true,
-	"tag": "unique-" + uuid.NewString(),
-}
-
+		"title":              "🔔 Visible Test",
+		"body":               "Should stay on screen",
+		"requireInteraction": true,
+		"icon":               usedIcon,
+		"badge":              usedBadge,
+		"renotify":           true,
+		"tag":                "unique-" + uuid.NewString(),
+	}
 
 	payload, err := json.Marshal(notification)
 	if err != nil {
@@ -120,7 +128,6 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 
 		if err != nil {
 			log.Printf("[SW] ❌ Failed to send to %s: %v", *sub.Endpoint, err)
-
 			if resp != nil && resp.Body != nil {
 				body, _ := io.ReadAll(resp.Body)
 				log.Printf("[SW] 📭 Error response body: %s", string(body))
@@ -143,6 +150,7 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 	msg := fmt.Sprintf("[SW] Push test completed. Notifications sent to %d subscriptions.", successCount)
 	return &msg, nil
 }
+
 
 // ID is the resolver for the id field.
 func (r *pushSubscriptionResolver) ID(ctx context.Context, obj *model.PushSubscription) (string, error) {

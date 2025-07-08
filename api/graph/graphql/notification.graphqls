@@ -27,5 +27,5 @@ extend type Query {
 extend type Mutation {
   savePushSubscription(input: PushSubscriptionInput): PushSubscription!
   deletePushSubscription(endpoint: String): Boolean!
-  sendBookingNotificationTest(serviceID:String!):String
+  sendBookingNotificationTest(serviceID:String!,icon:String,badge:String):String
 }
