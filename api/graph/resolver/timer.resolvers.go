@@ -324,29 +324,6 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 				cargo.ID.String(), cargo.TransportType, *cargo.BookingID)
 		}
 	}
-	go func() {
-		booking := bookings[0]
-		bookid := booking.ID.String()
-
-		// Truncate function for long strings
-		truncate := func(s string, max int) string {
-			if len(s) <= max {
-				return s
-			}
-			return s[:max] + "..."
-		}
-
-		pickup := truncate(*booking.PickUpAddress, 40)
-		drop := truncate(booking.DeliveryAddress, 40)
-
-		_ = helper.SendPushNotification(r.DB, serviceID, helper.NotificationPayload{
-			Title:     "Booking Confirmed",
-			Body:      fmt.Sprintf("From %s to %s", pickup, drop),
-			Tag:       "booking",
-			URL:       "/bookings",
-			BookingID: &bookid,
-		})
-	}()
 
 	return bookings, nil
 }
