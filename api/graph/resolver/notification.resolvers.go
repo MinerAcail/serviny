@@ -14,6 +14,7 @@ import (
 	"os"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
+	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"gorm.io/gorm"
@@ -81,15 +82,13 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 
 	// Create notification payload
 	notification := map[string]interface{}{
-		"title": "🔔 Test Booking Notification",
-		"body":  "This is a test push notification!",
-		"icon":  "/pwa-192x192.png",
-		"badge": "/pwa-64x64.png",
-		"data": map[string]interface{}{
-			"bookingId": "test-booking-id",
-			"url":       "/bookings",
-		},
-	}
+	"title": "🔔 Visible Test",
+	"body":  "Should stay on screen",
+	"requireInteraction": true,
+	"renotify": true,
+	"tag": "unique-" + uuid.NewString(),
+}
+
 
 	payload, err := json.Marshal(notification)
 	if err != nil {

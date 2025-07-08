@@ -629,6 +629,17 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			}
 		}
 	}(input.OrderID, r)
+	go func(order model.Order) {
+		orderid := order.ID.String()
+
+		_ = helper.SendPushNotification(r.DB, order.UserID, helper.NotificationPayload{
+			Title:   "🛵 Order Updated",
+			Body:    fmt.Sprintf("Order %s has been updated", order.ID.String()),
+			Tag:     "order",
+			URL:     "/orders/" + order.ID.String(),
+			OrderID: &orderid,
+		})
+	}(updatedOrder)
 
 	log.Printf("Order %s updated successfully", updatedOrder.ID)
 	return &updatedOrder, nil

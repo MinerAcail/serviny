@@ -324,13 +324,18 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 				cargo.ID.String(), cargo.TransportType, *cargo.BookingID)
 		}
 	}
-	// ✅ Send push notification ONCE using the first booking
 	go func() {
-		err := helper.SendBookingNotification(r.DB, serviceID, bookings[0])
-		if err != nil {
-			log.Printf("⚠️ Failed to send push notification: %v", err)
-		}
+		booking := bookings[0]
+		bookid:= booking.ID.String()
+		_ = helper.SendPushNotification(r.DB, serviceID, helper.NotificationPayload{
+			Title:     "📅 New Booking Confirmed",
+			Body:      fmt.Sprintf("Your booking for %s is confirmed", booking.Day),
+			Tag:       "booking",
+			URL:       "/bookings",
+			BookingID: &bookid,
+		})
 	}()
+
 	return bookings, nil
 }
 
