@@ -53,7 +53,7 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 	notif := map[string]interface{}{
 		"title":              payload.Title,
 		"body":               payload.Body,
-		"icon":               "/pwa-64x64.png",
+		"icon":               "/pwa-192x192.png",
 		"badge":              "/logo.png", 
 		"requireInteraction": true,
 		"renotify":           true,

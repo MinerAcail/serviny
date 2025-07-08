@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/google/uuid"
@@ -60,40 +61,64 @@ func (r *mutationResolver) DeletePushSubscription(ctx context.Context, endpoint 
 
 	return true, nil
 }
+
 // SendBookingNotificationTest is the resolver for the sendBookingNotificationTest field.
 func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serviceID string, icon *string, badge *string) (*string, error) {
 	publicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	privateKey := os.Getenv("VAPID_PRIVATE_KEY")
-	log.Println("[SW] 🔐 VAPID_PUBLIC_KEY:", publicKey)
+	production := os.Getenv("ENV") == "production"
+	minioURL := " https://files.winnemart.com" 
 
 	if publicKey == "" || privateKey == "" {
 		return nil, fmt.Errorf("[SW] VAPID keys are missing in environment variables")
 	}
 
-	// Get all push subscriptions for this service provider
+	// Get push subscriptions
 	var subscriptions []model.PushSubscription
 	if err := r.DB.Where("user_id = ?", serviceID).Find(&subscriptions).Error; err != nil {
 		return nil, fmt.Errorf("[SW] failed to get push subscriptions: %v", err)
 	}
 
-	// Fallback to defaults if none provided
-	usedIcon := "/pwa-192x192.png"   // recommended icon size
-	usedBadge := "/pwa-72x72.png"    // recommended badge size
+	// Fetch service
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID %s", serviceID)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	// Helper to replace "/minio/" with API_URL if in production
+	getImageURL := func(path string) string {
+		if path == "" {
+			return ""
+		}
+		if !production {
+			return path
+		}
+		if strings.Contains(path, "/minio/") {
+			return strings.Replace(path, "/minio/", minioURL, 1)
+		}
+		return path
+	}
+
+	// Resolve icon and badge URLs
+	resolvedIcon := "/pwa-192x192.png"
+	// resolvedBadge := "/pwa-72x72.png"
 
 	if icon != nil && *icon != "" {
-		usedIcon = *icon
+		resolvedIcon = getImageURL(*service.Dpfile)
 	}
-	if badge != nil && *badge != "" {
-		usedBadge = *badge
-	}
+	// if badge != nil && *badge != "" {
+	// 	resolvedBadge = getImageURL(*badge)
+	// }
 
-	// Create notification payload
 	notification := map[string]interface{}{
 		"title":              "🔔 Visible Test",
-		"body":               "Should stay on screen",
+		"body":               fmt.Sprintf("Hello %s! This should stay on screen.", service.Name),
 		"requireInteraction": true,
-		"icon":               usedIcon,
-		"badge":              usedBadge,
+		"icon":               resolvedIcon,
+		"badge":              "/logo.png",
 		"renotify":           true,
 		"tag":                "unique-" + uuid.NewString(),
 	}
@@ -102,7 +127,6 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 	if err != nil {
 		return nil, fmt.Errorf("[SW] failed to marshal notification: %w", err)
 	}
-	log.Printf("[SW] 📦 Payload: %s", payload)
 
 	successCount := 0
 	for _, sub := range subscriptions {
@@ -130,19 +154,16 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 			log.Printf("[SW] ❌ Failed to send to %s: %v", *sub.Endpoint, err)
 			if resp != nil && resp.Body != nil {
 				body, _ := io.ReadAll(resp.Body)
-				log.Printf("[SW] 📭 Error response body: %s", string(body))
+				log.Printf("[SW] 📭 Response body: %s", string(body))
 				resp.Body.Close()
 			}
 			continue
 		}
 
 		log.Printf("[SW] ✅ Push sent to: %s (status: %s)", *sub.Endpoint, resp.Status)
-
 		if resp.StatusCode == 404 || resp.StatusCode == 410 {
-			log.Printf("[SW] 🧹 Removing expired subscription: %s", *sub.Endpoint)
 			r.DB.Delete(&sub)
 		}
-
 		resp.Body.Close()
 		successCount++
 	}
@@ -150,7 +171,6 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 	msg := fmt.Sprintf("[SW] Push test completed. Notifications sent to %d subscriptions.", successCount)
 	return &msg, nil
 }
-
 
 // ID is the resolver for the id field.
 func (r *pushSubscriptionResolver) ID(ctx context.Context, obj *model.PushSubscription) (string, error) {
