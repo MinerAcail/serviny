@@ -326,10 +326,22 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 	}
 	go func() {
 		booking := bookings[0]
-		bookid:= booking.ID.String()
+		bookid := booking.ID.String()
+
+		// Truncate function for long strings
+		truncate := func(s string, max int) string {
+			if len(s) <= max {
+				return s
+			}
+			return s[:max] + "..."
+		}
+
+		pickup := truncate(*booking.PickUpAddress, 40)
+		drop := truncate(booking.DeliveryAddress, 40)
+
 		_ = helper.SendPushNotification(r.DB, serviceID, helper.NotificationPayload{
-			Title:     "📅 New Booking Confirmed",
-			Body:      fmt.Sprintf("Your booking for %s is confirmed", booking.Day),
+			Title:     "Booking Confirmed",
+			Body:      fmt.Sprintf("From %s to %s", pickup, drop),
 			Tag:       "booking",
 			URL:       "/bookings",
 			BookingID: &bookid,
@@ -494,8 +506,6 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 		log.Printf("Updated pickup coordinates: [%.6f, %.6f]", lng, lat)
 	}
 
-	// Update rider ID if provided
-	// Update rider ID if provided
 	// Update rider ID if provided
 	if input.RidersID != nil && *input.RidersID != "" {
 		// Validate rider ID format
@@ -662,7 +672,29 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 			}
 		}
 	}(input.BookID, r)
+	go func() {
+		// booking := booking[0]
+		bookid := booking.ID.String()
 
+		// Truncate function for long strings
+		truncate := func(s string, max int) string {
+			if len(s) <= max {
+				return s
+			}
+			return s[:max] + "..."
+		}
+
+		pickup := truncate(*booking.PickUpAddress, 40)
+		drop := truncate(booking.DeliveryAddress, 40)
+
+		_ = helper.SendPushNotification(r.DB, booking.ServiceID, helper.NotificationPayload{
+			Title:     "Booking Confirmed",
+			Body:      fmt.Sprintf("From %s to %s", pickup, drop),
+			Tag:       "booking",
+			URL:       "/bookings",
+			BookingID: &bookid,
+		})
+	}()
 	log.Printf("Booking %s updated successfully", booking.ID)
 	return &booking, nil
 }
