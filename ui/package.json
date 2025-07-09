@@ -78,6 +78,7 @@
     "tailwindcss-animate": "^1.0.7",
     "use-places-autocomplete": "^4.0.1",
     "vite-plugin-ssr": "^0.4.142",
+    "workbox-precaching": "^7.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
