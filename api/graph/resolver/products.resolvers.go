@@ -629,17 +629,41 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			}
 		}
 	}(input.OrderID, r)
-	go func(order model.Order) {
+	// Notify all involved parties except the caller
+	go func(order model.Order, resolver *mutationResolver, ctx context.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("🛑 Panic in push goroutine: %v", r)
+			}
+		}()
 		orderid := order.ID.String()
-
-		_ = helper.SendPushNotification(r.DB, order.UserID, helper.NotificationPayload{
-			Title:   "🛵 Order Updated",
-			Body:    fmt.Sprintf("Order %s has been updated", order.ID.String()),
-			Tag:     "order",
+		callerID, _ := resolver.Query().GetID(ctx)
+		payload := helper.NotificationPayload{
+			Title:   "📦 Order Location Updated",
+			Body:    fmt.Sprintf("Order %s has been updated with location or rider", order.ID),
+			Tag:     "order-location-update",
 			URL:     "/orders/" + order.ID.String(),
 			OrderID: &orderid,
-		})
-	}(updatedOrder)
+		}
+
+		notified := map[string]bool{}
+		if callerID != nil {
+			notified[*callerID] = true
+		}
+
+		if order.UserID != "" && !notified[order.UserID] {
+			_ = helper.SendPushNotification(resolver.DB, order.UserID, payload)
+			notified[order.UserID] = true
+		}
+		if order.VendorID != nil && *order.VendorID != "" && !notified[*order.VendorID] {
+			_ = helper.SendPushNotification(resolver.DB, *order.VendorID, payload)
+			notified[*order.VendorID] = true
+		}
+		if order.RiderID != nil && *order.RiderID != "" && !notified[*order.RiderID] {
+			_ = helper.SendPushNotification(resolver.DB, *order.RiderID, payload)
+			notified[*order.RiderID] = true
+		}
+	}(updatedOrder, r, ctx)
 
 	log.Printf("Order %s updated successfully", updatedOrder.ID)
 	return &updatedOrder, nil
@@ -698,7 +722,13 @@ func (r *mutationResolver) UpdateOrderStatus(ctx context.Context, orderID *strin
 		return nil, fmt.Errorf("failed to start transaction: %v", tx.Error)
 	}
 
-	if err := tx.Model(&model.Order{}).Where("id = ?", *orderID).Update("status", status).Error; err != nil {
+	var order model.Order
+	if err := tx.Where("id = ?", *orderID).First(&order).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("order not found: %v", err)
+	}
+
+	if err := tx.Model(&order).Update("status", status).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to update order status: %v", err)
 	}
@@ -707,13 +737,49 @@ func (r *mutationResolver) UpdateOrderStatus(ctx context.Context, orderID *strin
 		// middleware.ClearOrderTrackingCookie()
 	}
 	tx.Commit()
+	// 🔔 Notify all parties except the caller
+	go func(order model.Order, resolver *mutationResolver, ctx context.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("🛑 Panic in push goroutine: %v", r)
+			}
+		}()
+
+		callerID, _ := resolver.Query().GetID(ctx)
+		orderid := order.ID.String()
+		payload := helper.NotificationPayload{
+			Title:   "📦 Order Status Updated",
+			Body:    fmt.Sprintf("Order %s is now %s", order.ID, status),
+			Tag:     "order-status-update",
+			URL:     "/orders/" + order.ID.String(),
+			OrderID: &orderid,
+		}
+
+		notified := map[string]bool{}
+		if callerID != nil {
+			notified[*callerID] = true
+		}
+
+		if order.UserID != "" && !notified[order.UserID] {
+			_ = helper.SendPushNotification(resolver.DB, order.UserID, payload)
+			notified[order.UserID] = true
+		}
+		if order.VendorID != nil && *order.VendorID != "" && !notified[*order.VendorID] {
+			_ = helper.SendPushNotification(resolver.DB, *order.VendorID, payload)
+			notified[*order.VendorID] = true
+		}
+		if order.RiderID != nil && *order.RiderID != "" && !notified[*order.RiderID] {
+			_ = helper.SendPushNotification(resolver.DB, *order.RiderID, payload)
+			notified[*order.RiderID] = true
+		}
+	}(order, r, ctx)
 	result := true
 	return &result, nil
 }
 
 // UpdateOrderOrBookingStatus is the resolver for the updateOrderOrBookingStatus field.
 func (r *mutationResolver) UpdateOrderOrBookingStatus(ctx context.Context, orderID *string, status string) (string, error) {
-	// Get rider ID from context for authorization
+	// Get rider ID from context
 	riderIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get rider ID from context: %w", err)
@@ -725,23 +791,50 @@ func (r *mutationResolver) UpdateOrderOrBookingStatus(ctx context.Context, order
 	// Try to update Order first
 	var order model.Order
 	if err := r.DB.Where("id = ? AND rider_id = ?", *orderID, *riderIDStr).First(&order).Error; err == nil {
-		// Found order, update status
 		if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
 			return "", fmt.Errorf("failed to update order status: %w", err)
 		}
-		return order.Status, nil
+
+		// Send notification
+		go func(order model.Order) {
+			orderIDStr := order.ID.String()
+			payload := helper.NotificationPayload{
+				Title:   "📦 Order Status Updated",
+				Body:    fmt.Sprintf("Your order %s status is now: %s", orderIDStr, status),
+				Tag:     "order-status-" + orderIDStr,
+				URL:     "/orders/" + orderIDStr,
+				OrderID: &orderIDStr,
+			}
+			_ = helper.SendPushNotification(r.DB, order.UserID, payload)
+		}(order)
+
+		return "Order status updated successfully", nil
 	}
 
-	// If not found, try AppointmentBooking
+	// Try AppointmentBooking if not an Order
 	var booking model.AppointmentBooking
 	if err := r.DB.Where("id = ? AND rider_id = ?", *orderID, *riderIDStr).First(&booking).Error; err == nil {
 		if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
 			return "", fmt.Errorf("failed to update booking status: %w", err)
 		}
+
+		// Send notification
+		go func(booking model.AppointmentBooking) {
+			bookingIDStr := booking.ID.String()
+			payload := helper.NotificationPayload{
+				Title:     "📦 Booking Status Updated",
+				Body:      fmt.Sprintf("Your booking %s status is now: %s", bookingIDStr, status),
+				Tag:       "booking-status-" + bookingIDStr,
+				URL:       "/bookings/" + bookingIDStr,
+				BookingID: &bookingIDStr,
+			}
+			_ = helper.SendPushNotification(r.DB, booking.UserID, payload)
+		}(booking)
+
 		return "Booking status updated successfully", nil
 	}
 
-	return booking.Status, fmt.Errorf("no order or booking found with ID: %s", *orderID)
+	return "", fmt.Errorf("no order or booking found with ID: %s", *orderID)
 }
 
 // SendChatMessage is the resolver for the sendChatMessage field.
@@ -1193,22 +1286,198 @@ func (r *mutationResolver) ClearLocalStore(ctx context.Context, orderID *string)
 
 // CreateCategoryBox is the resolver for the createCategoryBox field.
 func (r *mutationResolver) CreateCategoryBox(ctx context.Context, name *string) (*model.CategoryBox, error) {
-	panic(fmt.Errorf("not implemented: CreateCategoryBox - createCategoryBox"))
+	if name == nil {
+		return nil, fmt.Errorf("category name cannot be empty")
+	}
+
+	categoryBox := &model.CategoryBox{
+		Name: *name,
+	}
+
+	if err := r.DB.Create(categoryBox).Error; err != nil {
+		return nil, err
+	}
+
+	return categoryBox, nil
 }
 
 // DeleteCategoryBox is the resolver for the deleteCategoryBox field.
 func (r *mutationResolver) DeleteCategoryBox(ctx context.Context, categoryID string) (*bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteCategoryBox - deleteCategoryBox"))
+	
+		// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	// Parse UUID from string
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+	bucketName := fmt.Sprintf("service-%s-bucket", serviceID)
+
+	// Retrieve the category box before deleting it
+	var categoryBox model.CategoryBox
+	if err := r.DB.Where("id = ?", categoryID).First(&categoryBox).Error; err != nil {
+		return nil, err
+	}
+
+	// Delete the category box
+	result := r.DB.Delete(&categoryBox)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Generate the bucket name from the category name
+	// bucketName := fmt.Sprintf("vendor-%s-bucket", categoryBox.Name)
+	
+	// if len(bucketName) > 63 {
+	// 	bucketName = bucketName[:63] // Truncate if necessary
+	// }
+
+	// Delete the bucket from MinIO
+	err = helper.DeleteBucketFromMinio(ctx, r.MinIOClient, bucketName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete bucket %s: %v", bucketName, err)
+	}
+
+	// Return success status
+	success := result.RowsAffected > 0
+	return &success, nil
 }
 
 // AddProductToCategoryBox is the resolver for the addProductToCategoryBox field.
 func (r *mutationResolver) AddProductToCategoryBox(ctx context.Context, input []*model.CategoryBoxInput) ([]*model.CategoryBox, error) {
-	panic(fmt.Errorf("not implemented: AddProductToCategoryBox - addProductToCategoryBox"))
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	// Parse UUID from string
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+	var updatedCategoryBoxes []*model.CategoryBox
+
+	for _, boxInput := range input {
+		if boxInput.CategoryName == nil {
+			return nil, errors.New("categoryName is required")
+		}
+
+		var categoryBox model.CategoryBox
+		err := r.DB.Where("name = ?", *boxInput.CategoryName).First(&categoryBox).Error
+		initialState := "ACTIVE"
+
+		// Variable to store image URL
+		var imageURL string
+
+		// Handle image upload if provided
+		if boxInput.Files != nil {
+			// Generate bucket name similar to your product upload
+
+			bucketName := fmt.Sprintf("service-%s-bucket", serviceID)
+
+			// Create bucket
+			if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+				return nil, err
+			}
+
+			// Upload file
+			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "category", boxInput.Files)
+			if err != nil {
+				return nil, fmt.Errorf("failed to upload category image: %v", err)
+			}
+			imageURL = fileURL
+		}
+
+		if err != nil {
+			// If not found, create a new category box
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				newBox := model.CategoryBox{
+					Name:     *boxInput.CategoryName,
+					ItemsIds: pq.StringArray{}, // Initialize an empty array
+					ImageUrl: imageURL,         // Set the image URL
+					State:    (*model.ProductState)(&initialState),
+					VendorID: serviceIDStr,
+				}
+
+				// Append new products if provided
+				if boxInput.ProductID != nil {
+					for _, id := range boxInput.ProductID {
+						if id != nil {
+							newBox.ItemsIds = append(newBox.ItemsIds, *id)
+						}
+					}
+				}
+
+				if saveErr := r.DB.Create(&newBox).Error; saveErr != nil {
+					return nil, saveErr
+				}
+
+				updatedCategoryBoxes = append(updatedCategoryBoxes, &newBox)
+				continue
+			}
+			return nil, err
+		}
+
+		// Update existing category box with new image if provided
+		if boxInput.Files != nil {
+			categoryBox.ImageUrl = imageURL
+		}
+
+		// Check if product already exists in the category box
+		existingProducts := make(map[string]bool)
+		for _, id := range categoryBox.ItemsIds {
+			existingProducts[id] = true
+		}
+
+		// Add new products that are not already in the list
+		updated := false
+		for _, newID := range boxInput.ProductID {
+			if newID != nil {
+				if _, exists := existingProducts[*newID]; !exists {
+					categoryBox.ItemsIds = append(categoryBox.ItemsIds, *newID)
+					updated = true
+				}
+			}
+		}
+
+		if updated || boxInput.Files != nil {
+			if saveErr := r.DB.Save(&categoryBox).Error; saveErr != nil {
+				return nil, saveErr
+			}
+		}
+
+		updatedCategoryBoxes = append(updatedCategoryBoxes, &categoryBox)
+	}
+
+	return updatedCategoryBoxes, nil
 }
 
 // RemoveProductFromCategoryBox is the resolver for the removeProductFromCategoryBox field.
 func (r *mutationResolver) RemoveProductFromCategoryBox(ctx context.Context, categoryID string, productID string) ([]*model.CategoryBox, error) {
-	panic(fmt.Errorf("not implemented: RemoveProductFromCategoryBox - removeProductFromCategoryBox"))
+	var categoryBox model.CategoryBox
+	if err := r.DB.First(&categoryBox, "id = ?", categoryID).Error; err != nil {
+		return nil, err
+	}
+
+	// Remove the product ID from the array
+	var updatedItems pq.StringArray
+	for _, id := range categoryBox.ItemsIds {
+		if id != productID {
+			updatedItems = append(updatedItems, id)
+		}
+	}
+
+	categoryBox.ItemsIds = updatedItems
+	categoryBox.UpdatedAt = time.Now()
+
+	if err := r.DB.Save(&categoryBox).Error; err != nil {
+		return nil, err
+	}
+
+	return []*model.CategoryBox{&categoryBox}, nil
 }
 
 // ID is the resolver for the id field.
@@ -1848,22 +2117,112 @@ func (r *queryResolver) GetAllRequestItems(ctx context.Context) ([]*model.Reques
 
 // GetAllCategoryBox is the resolver for the getAllCategoryBox field.
 func (r *queryResolver) GetAllCategoryBox(ctx context.Context, query *string) ([]*model.ViewcategoryBox, error) {
-	panic(fmt.Errorf("not implemented: GetAllCategoryBox - getAllCategoryBox"))
+	var categoryBoxes []*model.CategoryBox
+	var products []*model.Product
+
+	// Apply search if query is provided
+	if query != nil && *query != "" {
+		searchedCategories, err := helper.ExecuteCategorySearchQuery(r.DB, *query)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(searchedCategories) > 0 {
+			categoryBoxes = searchedCategories
+		} else {
+			// No categories found, search in products
+			searchedProducts, err := helper.ExecuteSearchProductQuery(r.DB, *query)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(searchedProducts) > 0 {
+				products = searchedProducts
+
+				// Get all categories that contain any of these products
+				var productIDs []string
+				for _, product := range products {
+					productIDs = append(productIDs, product.ID.String())
+				}
+
+				if err := r.DB.Where("items_ids && ?", pq.Array(productIDs)).Find(&categoryBoxes).Error; err != nil {
+					return nil, err
+				}
+			}
+		}
+	} else {
+		// Fetch all categories if no search query
+		if err := r.DB.Find(&categoryBoxes).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	var result []*model.ViewcategoryBox
+	for _, categoryBox := range categoryBoxes {
+		var categoryProducts []*model.Product
+		if len(categoryBox.ItemsIds) > 0 {
+			if err := r.DB.Where("id = ANY(?)", pq.Array(categoryBox.ItemsIds)).Find(&categoryProducts).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		viewCategoryBox := &model.ViewcategoryBox{
+			CategoryBox: categoryBox,
+			Products:    categoryProducts,
+		}
+		result = append(result, viewCategoryBox)
+	}
+
+	return result, nil
 }
 
 // GetNewAddedCategoryBox is the resolver for the getNewAddedCategoryBox field.
 func (r *queryResolver) GetNewAddedCategoryBox(ctx context.Context) ([]*model.CategoryBox, error) {
-	panic(fmt.Errorf("not implemented: GetNewAddedCategoryBox - getNewAddedCategoryBox"))
+	var categoryBoxes []*model.CategoryBox
+	addedDayAgo := time.Now().AddDate(0, 0, -1)
+
+	if err := r.DB.Where("created_at >= ?", addedDayAgo).Order("created_at DESC").Find(&categoryBoxes).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %v", err)
+	}
+	return categoryBoxes, nil
 }
 
 // GetCategoryBox is the resolver for the getCategoryBox field.
 func (r *queryResolver) GetCategoryBox(ctx context.Context, categoryID string) (*model.CategoryBox, error) {
-	panic(fmt.Errorf("not implemented: GetCategoryBox - getCategoryBox"))
+	var categoryBox model.CategoryBox
+	if err := r.DB.First(&categoryBox, "id = ?", categoryID).Error; err != nil {
+		return nil, err
+	}
+	return &categoryBox, nil
 }
 
 // GetProductsByCategory is the resolver for the getProductsByCategory field.
-func (r *queryResolver) GetProductsByCategory(ctx context.Context, categoryID string) ([]*model.Product, error) {
-	panic(fmt.Errorf("not implemented: GetProductsByCategory - getProductsByCategory"))
+func (r *queryResolver) GetProductsByCategory(ctx context.Context, categoryID string) (*model.ViewcategoryBox, error) {
+	var categoryBox model.CategoryBox
+	if err := r.DB.First(&categoryBox, "id = ?", categoryID).Error; err != nil {
+		return &model.ViewcategoryBox{}, err
+	}
+
+	var products []*model.Product
+	if len(categoryBox.ItemsIds) > 0 {
+		ids := make([]uuid.UUID, 0, len(categoryBox.ItemsIds))
+		for _, idStr := range categoryBox.ItemsIds {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				return &model.ViewcategoryBox{}, fmt.Errorf("invalid UUID in ItemsIds: %v", err)
+			}
+			ids = append(ids, id)
+		}
+
+		if err := r.DB.Where("id IN (?)", ids).Find(&products).Error; err != nil {
+			return &model.ViewcategoryBox{}, err
+		}
+	}
+
+	return &model.ViewcategoryBox{
+		CategoryBox: &categoryBox,
+		Products:    products,
+	}, nil
 }
 
 // ID is the resolver for the id field.

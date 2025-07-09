@@ -25,6 +25,11 @@ import ServiceProviderPandP from "@/components/serviceProviders/p&p";
 import { useNotificationDialog } from "@/components/global/notification/usePushNotifications";
 import { NotificationDialog } from "@/components/global/notification/notification-dialog";
 import { PushDebugTools } from "@/components/GlobalLogic/PushDebugTools";
+import LucideIconPicker from "@/app/vendors/icons";
+import InventoryItemForm from "@/app/vendors/rentalBasedBooking/createRentals";
+import RequestItems from "@/vendor/products/requestItem";
+import DragDropBoxes from "@/vendor/products/cate";
+import CategoryDetailPage from "@/vendor/products/cate/categoryDetail";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -197,13 +202,13 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
-
+      {
+        path: "/category/:categoryId",
+        element: <CategoryDetailPage />,
+      },
       {
         path: "/push",
-        element: (
-                      <PushDebugTools />
-
-        )
+        element: <PushDebugTools />,
       },
       // {
       //   path: "/mamp",
@@ -591,6 +596,8 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
+      { path: "cate", element: <DragDropBoxes /> },
+
       {
         path: "orders",
         element: (

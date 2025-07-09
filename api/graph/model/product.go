@@ -24,6 +24,7 @@ type CategoryBox struct {
 	ImageUrl string         `json:"imageUrl"`
 	State    *ProductState  `json:"state,omitempty"`
 	ItemsIds pq.StringArray `gorm:"type:text[]" json:"itemsIds,omitempty"`
+	VendorID        *string         `json:"vendorId,omitempty"`
 
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`

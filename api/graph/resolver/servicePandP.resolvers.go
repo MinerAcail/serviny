@@ -716,7 +716,35 @@ func (r *mutationResolver) CreateInvoice(ctx context.Context, input *model.Invoi
 	if err := r.DB.Create(&invoice).Error; err != nil {
 		return nil, fmt.Errorf("failed to create invoice: %w", err)
 	}
+	// 🔔 Push Notification for Invoice Creation
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in push notification: %v", r)
+			}
+		}()
+		log.Printf("📨 Push goroutine started for invoice %s", invoice.ID.String())
 
+		body := "An invoice has been added"
+		if invoice.CargoID != nil {
+			body = fmt.Sprintf("An invoice has been added to this cargo: %s", *invoice.CargoID)
+		}
+
+		payload := helper.NotificationPayload{
+			Title: "Invoice Added",
+			Body:  body,
+			Tag:   "invoice-" + invoice.ID.String(),
+			URL:   "/invoices",
+		}
+
+		if invoice.UserID != nil && *invoice.UserID != "" {
+			if err := helper.SendPushNotification(r.DB, *invoice.UserID, payload); err != nil {
+				log.Printf("❌ Push notification to user %s failed: %v", *invoice.UserID, err)
+			} else {
+				log.Printf("✅ Push notification sent to user %s", *invoice.UserID)
+			}
+		}
+	}()
 	return &invoice, nil
 }
 

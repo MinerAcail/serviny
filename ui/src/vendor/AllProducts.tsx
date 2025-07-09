@@ -1,4 +1,4 @@
-import { Loader2, MoveRight, X } from "lucide-react";
+import { Loader2,  X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -319,21 +319,7 @@ const { addItem, getProductCount, isProductInCart, items } = useCart();
                   >
                     Close
                   </Button>
-                  <UpdateProductDialog
-                    product={product}
-                    onSuccess={() => {
-                      onOpenChange(false);
-                      refetch();
-                    }}
-                  >
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                    >
-                      Edit Product
-                    </Button>
-                  </UpdateProductDialog>
+                 
                 </div>
               </DialogFooter>
             )}
@@ -815,7 +801,7 @@ export function AllProducts() {
   return (
     <div>
       <div className="mb-3 flex flex-col items-end justify-between gap-4 sm:flex-row sm:items-center">
-        <CategoryFilter
+        {/* <CategoryFilter
           value={filter}
           onChange={(value) => {
             const normalizedFilter = value.toLowerCase();
@@ -832,7 +818,7 @@ export function AllProducts() {
             });
           }}
           vendorId={vendorId ?? ""}
-        />
+        /> */}
       </div>
 
       {productItems.length === 0 ? (
@@ -876,9 +862,4 @@ export function AllProducts() {
       />
     </div>
   );
-}
-
-// For demo/placeholder purposes - replace with actual implementation
-function UpdateProductDialog({ product, onSuccess, children }) {
-  return <div onClick={onSuccess}>{children}</div>;
 }

@@ -98,8 +98,8 @@ export function Sidebar() {
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
     ...(isEcommerceStandard
       ? [
-          { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
-          { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          // { name: "Products Categr", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
           { name: "Contacts", to: `contacts`, icon: BookUser },
           { name: "Orders", to: `orders`, icon: LayoutList },
         ]
@@ -137,8 +137,9 @@ export function Sidebar() {
           { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
           { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
-          { name: "Add Products", to: "new", icon: BaggageClaim }, // stays on /dbp/:serviceId
-          { name: "Products", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
+                   { name: "Products Categroy", to: "cate", icon: BaggageClaim }, // stays on /dbp/:serviceId
+
           { name: "Contacts", to: `contacts`, icon: BookUser },
           { name: "Orders", to: `orders`, icon: LayoutList },
         ]
@@ -311,6 +312,7 @@ import { gql, useQuery } from "@apollo/client";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
 import { useCurrentUserHasAnyBusinessType } from "../GlobalLogic/checkBusinessType";
 import { useGetProvider } from "../global/formatPrice";
+import NotificationDialog from "../global/notification/view-notification-dialog";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
     clearClientCache
@@ -463,7 +465,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     );
   };
 
-  const search = location.pathname.startsWith("/providers/");
+  // const search = location.pathname.startsWith("/providers/");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -487,6 +489,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
         <div className="flex fixed top-4 right-4 z-50 gap-2 rounded-md shadow-md">
           <CartButton />
           {/* <NotificationCenter /> */}
+          {/* <NotificationDialog/> */}
           <button
             className="lg:hidden bg-background p-2 rounded-md shadow-md"
             onClick={() => setIsMobileOpen(!isMobileOpen)}

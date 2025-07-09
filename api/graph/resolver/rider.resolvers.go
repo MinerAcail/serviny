@@ -345,6 +345,7 @@ func (r *mutationResolver) JobRequest(ctx context.Context, serviceID string, inp
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rider ID: %v", err)
 	}
+
 	var service model.Service
 	if err := r.DB.First(&service, "id = ?", serviceID).Error; err != nil {
 		return nil, fmt.Errorf("failed to find service: %w", err)
@@ -354,24 +355,23 @@ func (r *mutationResolver) JobRequest(ctx context.Context, serviceID string, inp
 	if service.BusinessType != nil {
 		businessType = *service.BusinessType
 	} else {
-		return nil, fmt.Errorf("service business type most be upgraded to use this feature")
+		return nil, fmt.Errorf("service business type must be upgraded to use this feature")
 	}
 
 	switch businessType {
-	case "delivery-standard", "delivery-enterprise", "ecommerce-enterprise":
-		// Business type is one of the allowed types, continue
+	case "delivery-enterprise", "ecommerce-enterprise":
+		// Valid types
 	default:
 		return nil, fmt.Errorf("unsupported business type: %s", businessType)
 	}
 
-	// Check if request already exists
 	var existing model.RidersRequest
 	existsErr := r.DB.Where("rider_id = ? AND service_id = ?", *riderId, serviceID).First(&existing).Error
 
-	// Handle different states
+	var result *model.RidersRequest
+
 	switch input.State {
 	case "deleted":
-		// Delete operation
 		if existsErr != nil {
 			if errors.Is(existsErr, gorm.ErrRecordNotFound) {
 				return nil, fmt.Errorf("no existing request found to delete")
@@ -379,34 +379,26 @@ func (r *mutationResolver) JobRequest(ctx context.Context, serviceID string, inp
 			return nil, fmt.Errorf("failed to check existing request: %v", existsErr)
 		}
 
-		// Soft delete by updating state to "deleted"
 		existing.State = "deleted"
-
 		if err := r.DB.Delete(&existing).Error; err != nil {
 			return nil, fmt.Errorf("failed to delete job request: %w", err)
 		}
-
-		return &existing, nil
+		result = &existing
 
 	default:
-		// Create or Update operation
 		if existsErr == nil {
-			// Record exists - update it
+			// Update
 			existing.TermsConditions = input.TermsConditions
 			existing.State = input.State
-
-			// Update message if provided, otherwise keep existing
 			if input.Message != nil {
 				existing.Message = input.Message
 			}
-
 			if err := r.DB.Save(&existing).Error; err != nil {
 				return nil, fmt.Errorf("failed to update job request: %w", err)
 			}
-
-			return &existing, nil
+			result = &existing
 		} else if errors.Is(existsErr, gorm.ErrRecordNotFound) {
-			// Record doesn't exist - create new one
+			// Create
 			req := &model.RidersRequest{
 				RiderID:         *riderId,
 				TermsConditions: input.TermsConditions,
@@ -414,17 +406,47 @@ func (r *mutationResolver) JobRequest(ctx context.Context, serviceID string, inp
 				ServiceID:       serviceID,
 				State:           input.State,
 			}
-
 			if err := r.DB.Create(req).Error; err != nil {
 				return nil, fmt.Errorf("failed to create job request: %w", err)
 			}
-
-			return req, nil
+			result = req
 		} else {
-			// Some other database error
 			return nil, fmt.Errorf("failed to check existing request: %v", existsErr)
 		}
 	}
+
+	// Send notification async
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in push notification: %v", r)
+			}
+		}()
+		log.Printf("📨 Push goroutine started for rider job request")
+
+		body := "A new rider has requested to join your service"
+		if input.State == "accepted" {
+			body = "A rider request has been accepted"
+		} else if input.State == "declined" {
+			body = "A rider request has been declined"
+		} else if input.State == "pending" {
+			body = "Rider request is pending review"
+		}
+
+		err := helper.SendPushNotification(r.DB, serviceID, helper.NotificationPayload{
+			Title: "Rider Request",
+			Body:  body,
+			Tag:   "rider-request-" + result.ID.String(),
+			URL:   "/rider-requests",
+		})
+		if err != nil {
+			log.Printf("❌ Push notification failed: %v", err)
+		} else {
+			log.Printf("✅ Push notification sent for rider request %s", result.ID.String())
+		}
+	}()
+
+	return result, nil
 }
 
 // UpdateStateByServiceProvider is the resolver for the updateStateByServiceProvider field.

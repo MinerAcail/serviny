@@ -214,6 +214,24 @@ type DateRange struct {
 	To   *time.Time `json:"to,omitempty"`
 }
 
+type DeliveryNotification struct {
+	ID            string    `json:"id"`
+	Type          string    `json:"type"`
+	Pickup        string    `json:"pickup"`
+	Dropoff       string    `json:"dropoff"`
+	CompletedTime string    `json:"completedTime"`
+	Status        string    `json:"status"`
+	EntityID      *string   `json:"entityId,omitempty"`
+	EntityType    *string   `json:"entityType,omitempty"`
+	CargoID       *bool     `json:"cargoId,omitempty"`
+	MultiGroupID  *bool     `json:"multiGroupId,omitempty"`
+	UserID        *string   `json:"userId,omitempty"`
+	ServiceID     *string   `json:"serviceId,omitempty"`
+	RiderID       *string   `json:"riderId,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
 type EventBookedData struct {
 	UserID           string        `json:"userId"`
 	UserName         string        `json:"userName"`
@@ -351,6 +369,11 @@ type NewRiderRangeInput struct {
 	StartKm float64 `json:"startKm"`
 	EndKm   float64 `json:"endKm"`
 	Price   float64 `json:"price"`
+}
+
+type NotificationData struct {
+	DeliveryNotification     *DeliveryNotification `json:"deliveryNotification,omitempty"`
+	RiderRequestNotification *DeliveryNotification `json:"riderRequestNotification,omitempty"`
 }
 
 type OrderChat struct {
@@ -566,6 +589,15 @@ type RiderProfile struct {
 	VehicleType  *string   `json:"vehicleType,omitempty"`
 	Rating       *float64  `json:"rating,omitempty"`
 	IsOnline     bool      `json:"isOnline"`
+}
+
+type RiderRequest struct {
+	ID          string  `json:"id"`
+	RiderName   string  `json:"riderName"`
+	Avatar      *string `json:"avatar,omitempty"`
+	ServiceID   string  `json:"serviceId"`
+	Status      string  `json:"status"`
+	RequestTime string  `json:"requestTime"`
 }
 
 type RiderUpateInput struct {

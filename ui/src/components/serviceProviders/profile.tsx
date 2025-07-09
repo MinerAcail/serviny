@@ -38,10 +38,13 @@ import { useCheckAuthId } from "@/middleware/context/checkID";
 // import MainNaveBar from "./menuBar";
 import { Badge } from "../ui/badge";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
-// import Socials from "../custom/Socials";
-// import SocialDialog from "../custom/Socials/social-dialog";
-// import SocialMediaManager from "../custom/Socials/forms";
-
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 export const GET_PROVIDER = gql`
   query getProvider($serviceId: String) {
     getProvider(ServiceId: $serviceId) {
@@ -74,8 +77,8 @@ export default function ServiceProviderProfile() {
   const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
   serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
   const location = useLocation();
+  const [selectedView, setSelectedView] = useState<string>("category");
 
-  // Use consistent localStorage key for dialog state
   const [dialogState, setDialogState] = useState(() => {
     const savedState = localStorage.getItem("isDialogOpen");
     return savedState !== null ? JSON.parse(savedState) : true;
@@ -85,22 +88,15 @@ export default function ServiceProviderProfile() {
   const isOpPresent = new URLSearchParams(location.search).has("lo");
 
   const { data, loading, error } = useQuery(GET_PROVIDER, {
-    variables: { serviceId: serviceId },
+    variables: { serviceId },
   });
+
   const [isTabsFixed, setIsTabsFixed] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
-    return savedTab ||
-      data?.getProvider?.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
-      ? "delivery"
-      : "portfolio";
-  });
+  const [activeTab, setActiveTab] = useState<string | null>(null);
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabsPlaceholderRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  // Remove the separate dialogStateLandingPage state since we're using dialogState
 
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
@@ -127,18 +123,24 @@ export default function ServiceProviderProfile() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (serviceId) {
-      const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
-      if (savedTab) {
-        setActiveTab(savedTab);
-      } else {
-        setActiveTab("portfolio");
-      }
+    if (!serviceId || !data?.getProvider?.businessType) return;
+
+    const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+    if (savedTab) {
+      setActiveTab(savedTab);
+    } else if (
+      data.getProvider.businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+    ) {
+      setActiveTab("delivery");
+    } else {
+      setActiveTab("portfolio");
     }
-  }, [serviceId]);
+  }, [serviceId, data?.getProvider?.businessType]);
 
   useEffect(() => {
     if (serviceId) {
+      const savedTab = localStorage.getItem(`activeTab_${serviceId}`);
+      setActiveTab(savedTab ?? "portfolio");
       localStorage.setItem("serviceId", serviceId);
     }
   }, [serviceId]);
@@ -154,23 +156,22 @@ export default function ServiceProviderProfile() {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
-  // Show the toast only once per session
+
   useEffect(() => {
     if (!isAuthenticated) {
       toast.warning("You need to be logged in to save Service profile.");
     }
   }, [isAuthenticated]);
-  // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
+
   if (!isAuthenticated && !localServiceId && dialogState) {
     return <LandingPage onClose={() => setDialogState(false)} />;
   }
 
   const showLandingPage = (dialogState && !isLtPresent) || isOpPresent;
-
   if (showLandingPage) {
     return (
       <ServiceLandingPage
-        serviceId={serviceId ?? ""}
+        serviceId={serviceId}
         businessType={data?.getProvider?.businessType}
         onClose={() => {
           setDialogState(false);
@@ -180,161 +181,132 @@ export default function ServiceProviderProfile() {
           params.delete("lo");
 
           const newUrl = `${location.pathname}?${params.toString()}`;
-          window.location.href = newUrl; // Triggers full page reload
+          window.location.href = newUrl;
         }}
       />
     );
   }
 
-  return (
-    // <div className="flex py-8 w-full">
+  const businessType = data?.getProvider?.businessType;
 
-    <div className="px-4 lg:flex gap-4 py-12 mx-auto ">
+  return (
+    <div className="px-4 lg:flex gap-4 py-12 mx-auto">
       {loading && !data?.getProvider ? (
         <SpectaclesLoading />
+      ) : error ? (
+        <SpectaclesError />
       ) : (
-        <>
-          {error ? (
-            <SpectaclesError />
-          ) : (
-            <div className="flex-col  pt-14 justify-center items-center">
-              <div className="col-span-8 ">
-                <div ref={tabsPlaceholderRef}></div>
-
-                <div
-                  className={`${
-                    isTabsFixed
-                      ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
-                      : ""
-                  }`}
+        <div className="flex-col pt-14 justify-center items-center">
+          <div className="col-span-8">
+            <div ref={tabsPlaceholderRef}></div>
+            <div
+              className={`${
+                isTabsFixed
+                  ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
+                  : ""
+              }`}
+            >
+              <div className={isTabsFixed ? "container mx-auto px-4" : ""}>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={handleTabChange}
+                  className="w-full"
+                  ref={tabsRef}
                 >
-                  <div
-                    className={`${
-                      isTabsFixed ? "container mx-auto px-4 bg-red-700" : ""
-                    }`}
-                  >
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={handleTabChange}
-                      className="w-full"
-                      ref={tabsRef}
-                    >
-                      {data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE && (
-                        <>
-                          <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20   p-1">
-                            <TabsTrigger
-                              value="delivery"
-                              className="rounded-full"
-                            >
-                              Delivery
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="product"
-                              className="rounded-full"
-                            >
-                              Product
-                            </TabsTrigger>
-                            {/* <TabsTrigger value="price" className="rounded-full">
-                              services
-                            </TabsTrigger> */}
-                          </TabsList>
-                        </>
-                      )}
-                    </Tabs>
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={handleTabChange}
-                      className="w-full"
-                      ref={tabsRef}
-                    >
-                      {data?.getProvider?.businessType ===
-                        BusinessTypeEnum.PRE_ORDER ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.DROP_SHIPPING ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                        <></>
-                      ) : (
-                        <>
-                          <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20   p-1">
-                            <TabsTrigger
-                              value="portfolio"
-                              className="rounded-full"
-                            >
-                              Portfolio
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="policies"
-                              className="rounded-full"
-                            >
-                              Policies
-                            </TabsTrigger>
-                            <TabsTrigger value="price" className="rounded-full">
-                              Price
-                            </TabsTrigger>
-                          </TabsList>
-                        </>
-                      )}
-                    </Tabs>
-                  </div>
-                </div>
+                  {businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE && (
+                    <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
+                      <TabsTrigger value="delivery" className="rounded-full">
+                        Delivery
+                      </TabsTrigger>
+                      <TabsTrigger value="product" className="rounded-full">
+                        Product
+                      </TabsTrigger>
+                    </TabsList>
+                  )}
 
-                <div
-                  ref={contentRef}
-                  className={`${isTabsFixed ? "mt-16" : "mt-6"}`}
-                >
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={handleTabChange}
-                    className="w-full "
-                  >
-                    <TabsContent value="portfolio">
-                      {data?.getProvider?.businessType ===
-                        BusinessTypeEnum.PRE_ORDER ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.DROP_SHIPPING ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_STANDARD ||
-                      data?.getProvider?.businessType ===
-                        BusinessTypeEnum.ECOMMERCE_ENTERPRISE ? (
-                        <AllProducts />
-                      ) : (
-                        <WorkGallery provider={data?.getProvider} />
-                      )}
-                    </TabsContent>
-                    <TabsContent value="price">
-                      <Price />
-                    </TabsContent>
-                    <TabsContent value="policies">
-                      <Policies />
-                    </TabsContent>
-
-                    <TabsContent value="delivery">
-                      <WorkGallery provider={data?.getProvider} />
-                    </TabsContent>
-                    <TabsContent value="product">
-                      <AllProducts />
-                    </TabsContent>
-                  </Tabs>
-                </div>
+                  {!(
+                    businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ||
+                    businessType === BusinessTypeEnum.ECOMMERCE_STANDARD ||
+                    businessType === BusinessTypeEnum.PRE_ORDER ||
+                    businessType === BusinessTypeEnum.DROP_SHIPPING
+                  ) && (
+                    <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                      <TabsTrigger value="portfolio" className="rounded-full">
+                        Portfolio
+                      </TabsTrigger>
+                      <TabsTrigger value="policies" className="rounded-full">
+                        Policies
+                      </TabsTrigger>
+                      <TabsTrigger value="price" className="rounded-full">
+                        Price
+                      </TabsTrigger>
+                    </TabsList>
+                  )}
+                </Tabs>
               </div>
             </div>
-          )}
-        </>
-      )}
 
-      {/* <ItemChatWidget
-        itemId="product-123"
-        itemName="Wireless Headphones"
-        itemImage="/placeholder.svg?height=40&width=40"
-        sellerName="John Smith"
-      /> */}
+            <div ref={contentRef} className={isTabsFixed ? "mt-16" : "mt-6"}>
+              <Tabs
+                value={activeTab}
+                onValueChange={handleTabChange}
+                className="w-full"
+              >
+                <TabsContent value="portfolio">
+                  {[
+                    BusinessTypeEnum.PRE_ORDER,
+                    BusinessTypeEnum.DROP_SHIPPING,
+                    BusinessTypeEnum.ECOMMERCE_STANDARD,
+                    BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+                  ].includes(businessType) ? (
+                    <AllProducts />
+                  ) : (
+                    <WorkGallery provider={data?.getProvider} />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="price">
+                  <Price />
+                </TabsContent>
+
+                <TabsContent value="policies">
+                  <Policies />
+                </TabsContent>
+
+                <TabsContent value="delivery">
+                  <WorkGallery provider={data?.getProvider} />
+                </TabsContent>
+                <TabsContent value="product">
+                  <div>
+                    <Select
+                      value={selectedView}
+                      onValueChange={(value) => setSelectedView(value)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="w-[140px] rounded-full">
+                        <SelectValue placeholder="View all or by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="category">By Category</SelectItem>
+                        <SelectItem value="all">All Products</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <div className="mt-4">
+                      {selectedView === "category" && <ProductCategories />}
+                      {selectedView === "all" && <AllProducts />}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 //  {
 //                           data?.getProvider?.businessType ===
 //                             BusinessTypeEnum.PRE_ORDER && (
@@ -630,6 +602,7 @@ import Policies from "./pandp/policies";
 import LandingPage from "./page";
 import { toast } from "sonner";
 import { getImageUrl } from "../global/formatPrice";
+import ProductCategories from "@/vendor/products/cate/product-categories";
 interface ContactInfoProps {
   provider?: {
     number?: string;

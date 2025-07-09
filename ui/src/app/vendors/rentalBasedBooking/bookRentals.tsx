@@ -502,23 +502,7 @@ export function InventoryListDialog({
             <DialogTitle>Manage Inventory</DialogTitle>
           </DialogHeader>
 
-          {loading ? (
-            <div className="text-center py-8">Loading inventory items...</div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">
-              Error loading inventory: {error.message}
-            </div>
-          ) : categories.length === 0 ? (
-            <div className="text-center p-8">
-              <h3 className="text-xl font-medium mb-2">
-                No inventory items found
-              </h3>
-              <p className="text-muted-foreground">
-                Add items to your inventory to see them here.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 mt-4">
+        <div className="space-y-4 mt-4">
               <Tabs
                 defaultValue={activeTab}
                 value={activeTab}
@@ -550,7 +534,6 @@ export function InventoryListDialog({
                 ))}
               </Tabs>
             </div>
-          )}
         </DialogContent>
       </Dialog>
 

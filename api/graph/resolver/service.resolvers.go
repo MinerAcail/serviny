@@ -1066,7 +1066,45 @@ func (r *mutationResolver) ReAssignRider(ctx context.Context, entityID *string, 
 	// Log the successful reassignment
 	log.Printf("Successfully reassigned %s %s from rider %v to rider %s",
 		response.EntityType, response.EntityID, response.PreviousRiderID, response.Rider.ID)
+	// 🔔 Push Notifications
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Push notification panic: %v", r)
+			}
+		}()
 
+		tag := fmt.Sprintf("reassign-%s", response.EntityID)
+		url := fmt.Sprintf("/%ss/%s", strings.ToLower(response.EntityType), response.EntityID)
+
+		// Notify the new rider
+		payload := helper.NotificationPayload{
+			Title: "New Assignment",
+			Body:  fmt.Sprintf("You’ve been assigned a new %s", response.EntityType),
+			Tag:   tag,
+			URL:   url,
+		}
+		if err := helper.SendPushNotification(r.DB, response.Rider.ID, payload); err != nil {
+			log.Printf("❌ Failed to notify new rider %s: %v", response.Rider.ID, err)
+		} else {
+			log.Printf("✅ Notification sent to new rider %s", response.Rider.ID)
+		}
+
+		// Notify the previous rider (if any)
+		if response.PreviousRiderID != nil && *response.PreviousRiderID != "" {
+			payload := helper.NotificationPayload{
+				Title: "Assignment Removed",
+				Body:  fmt.Sprintf("You’ve been unassigned from a %s", response.EntityType),
+				Tag:   tag,
+				URL:   url,
+			}
+			if err := helper.SendPushNotification(r.DB, *response.PreviousRiderID, payload); err != nil {
+				log.Printf("❌ Failed to notify previous rider %s: %v", *response.PreviousRiderID, err)
+			} else {
+				log.Printf("✅ Notification sent to previous rider %s", *response.PreviousRiderID)
+			}
+		}
+	}()
 	// Return the assigned rider information
 	return response.Rider, nil
 }

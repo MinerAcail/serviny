@@ -318,10 +318,10 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 	}
 
 	// Debug logging
-	log.Printf("📝 Form submission debug:")
-	log.Printf("   - Form ID: %s", formID)
-	log.Printf("   - Number of signature files: %d", len(signImage))
-	log.Printf("   - Form data keys: %v", helper.GetKeys(formData))
+	// log.Printf("📝 Form submission debug:")
+	// log.Printf("   - Form ID: %s", formID)
+	// log.Printf("   - Number of signature files: %d", len(signImage))
+	// log.Printf("   - Form data keys: %v", helper.GetKeys(formData))
 
 	// Handle signature image uploads if provided
 	var signatureURLs []string
@@ -424,6 +424,32 @@ func (r *mutationResolver) SubmitForm(ctx context.Context, input model.FormSubmi
 		// Log warning but don't fail the submission
 		log.Printf("Warning: failed to update submission status to submitted: %v", err)
 	}
+	// 🔔 Notify parties involved (User, Service)
+	go func(sub model.FormSubmission, form model.Form) {
+		formIDStr := sub.FormID
+		// userID := sub.UserID
+		serviceID := form.ServiceID
+
+		payload := helper.NotificationPayload{
+			Title:  "📋 Form Submitted",
+			Body:   fmt.Sprintf("A new form has been submitted (Form ID: %s)", formIDStr),
+			Tag:    "form-submission-" + formIDStr,
+			URL:    "/forms/" + formIDStr,
+			FormID: &formIDStr,
+		}
+
+		// Avoid duplicate notifications
+		notified := make(map[string]bool)
+
+		// if userID != nil && !notified[*userID] {
+		// 	_ = helper.SendPushNotification(r.DB, *userID, payload)
+		// 	notified[*userID] = true
+		// }
+		if serviceID != nil && *serviceID != "" && !notified[*serviceID] {
+			_ = helper.SendPushNotification(r.DB, *serviceID, payload)
+			notified[*serviceID] = true
+		}
+	}(submission, form)
 
 	log.Printf("✅ Form submission completed successfully: %s", submission.ID)
 	return &submission, nil

@@ -377,6 +377,53 @@ func (r *mutationResolver) UpdateCargoWithRider(ctx context.Context, riderID *st
 	if err := r.DB.Save(&booking).Error; err != nil {
 		return nil, fmt.Errorf("failed to update booking with rider: %w", err)
 	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in push notification: %v", r)
+			}
+		}()
+		log.Printf("📨 Push goroutine started for booking %s", booking.ID.String())
+
+		truncate := func(s string, max int) string {
+			if len(s) <= max {
+				return s
+			}
+			return s[:max] + "..."
+		}
+
+		pickup := "Unknown"
+		if booking.PickUpAddress != nil {
+			pickup = truncate(*booking.PickUpAddress, 40)
+		}
+		drop := truncate(booking.DeliveryAddress, 40)
+		bookid := booking.ID.String()
+		payload := helper.NotificationPayload{
+			Title:     "Assigned Cargo Rider",
+			Body:      fmt.Sprintf("From %s to %s", pickup, drop),
+			Tag:       "booking-" + bookid,
+			URL:       "/bookings",
+			BookingID: &bookid,
+		}
+
+		// 🔔 Notify Rider
+		err := helper.SendPushNotification(r.DB, riderUUID.String(), payload)
+		if err != nil {
+			log.Printf("❌ Push notification to rider failed: %v", err)
+		} else {
+			log.Printf("✅ Push notification sent to rider %s", riderUUID.String())
+		}
+
+		// 🔔 Notify User (customer who booked)
+		if booking.UserID != "" {
+			err = helper.SendPushNotification(r.DB, booking.UserID, payload)
+			if err != nil {
+				log.Printf("❌ Push notification to user failed: %v", err)
+			} else {
+				log.Printf("✅ Push notification sent to user %s", booking.UserID)
+			}
+		}
+	}()
 
 	return &booking, nil
 }

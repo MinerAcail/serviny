@@ -22,10 +22,48 @@ extend type Query {
   getPushSubscription(userId: String): PushSubscription
   getAllPushSubscription: [PushSubscription]
   generateVAPIDkeys: PushSubscriptionkey!
+  getNotifications: NotificationData!
 }
 
 extend type Mutation {
   savePushSubscription(input: PushSubscriptionInput): PushSubscription!
   deletePushSubscription(endpoint: String): Boolean!
-  sendBookingNotificationTest(serviceID:String!,icon:String,badge:String):String
+  sendBookingNotificationTest(
+    serviceID: String!
+    icon: String
+    badge: String
+  ): String
+
+  createNotifications: NotificationData!
+}
+
+type RiderRequest {
+  id: String!
+  riderName: String!
+  avatar: String
+  serviceId: String!
+  status: String!
+  requestTime: String!
+}
+
+type DeliveryNotification {
+  id: String!
+  type: String!
+  pickup: String!
+  dropoff: String!
+  completedTime: String!
+  status: String!
+  entityId: String
+  entityType: String
+  cargoId: Boolean
+  multiGroupId: Boolean
+  userId: String
+  serviceId: String
+  riderId: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+type NotificationData {
+  deliveryNotification: DeliveryNotification
+  riderRequestNotification: DeliveryNotification
 }

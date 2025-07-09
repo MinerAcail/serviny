@@ -8,10 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lehxees/serviny/helper"
 	"github.com/lehxees/serviny/middleware"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -299,43 +301,41 @@ func (r *mutationResolver) Profiles(ctx context.Context, profileID string, remov
 
 // UpdateBookingOrderPaymentStatus is the resolver for the updateBookingOrderPaymentStatus field.
 func (r *mutationResolver) UpdateBookingOrderPaymentStatus(ctx context.Context, id string, serviceID *string, userID *string, riderID *string, status string, entityID string, entityType string, statusType string) (string, error) {
-	// Validate entityID
 	if entityID == "" {
 		return "", fmt.Errorf("entityID is required")
 	}
 
-	// Update Order status if statusType is "ORDER"
+	var updatedStatus string
+
+	// Handle ORDER status
 	if statusType == "ORDER" {
 		var order model.Order
 		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err == nil {
 			if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
 				return "", fmt.Errorf("failed to update order status: %w", err)
 			}
-			return order.Status, nil
+			updatedStatus = order.Status
 		}
 	}
 
-	// Update AppointmentBooking status if statusType is "APPOINTMENT"
+	// Handle APPOINTMENT status
 	if statusType == "APPOINTMENT" {
 		var booking model.AppointmentBooking
 		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err == nil {
 			if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
 				return "", fmt.Errorf("failed to update booking status: %w", err)
 			}
-			return booking.Status, nil
+			updatedStatus = booking.Status
 		}
 	}
 
-	// For PAYMENT statusType, update or create BookingOrderPaymentStatus
+	// Handle PAYMENT status
 	if statusType == "PAYMENT" {
 		var paymentStatus model.BookingOrderPaymentStatus
 		err := r.DB.Where("entity_id = ? AND entity_type = ?", entityID, entityType).First(&paymentStatus).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new
 				newPaymentStatus := model.BookingOrderPaymentStatus{
-					// ServiceID:  "",
-					// UserID:     "",
 					RiderID:    nil,
 					Status:     status,
 					Method:     "",
@@ -354,18 +354,53 @@ func (r *mutationResolver) UpdateBookingOrderPaymentStatus(ctx context.Context, 
 				if err := r.DB.Create(&newPaymentStatus).Error; err != nil {
 					return "", fmt.Errorf("failed to create payment status: %w", err)
 				}
-				return newPaymentStatus.Status, nil
+				updatedStatus = newPaymentStatus.Status
+			} else {
+				return "", fmt.Errorf("failed to fetch payment status: %w", err)
 			}
-			return "", fmt.Errorf("failed to fetch payment status: %w", err)
+		} else {
+			if err := r.DB.Model(&paymentStatus).Update("status", status).Error; err != nil {
+				return "", fmt.Errorf("failed to update payment status: %w", err)
+			}
+			updatedStatus = paymentStatus.Status
 		}
-		// Update existing
-		if err := r.DB.Model(&paymentStatus).Update("status", status).Error; err != nil {
-			return "", fmt.Errorf("failed to update payment status: %w", err)
-		}
-		return paymentStatus.Status, nil
 	}
 
-	return "", fmt.Errorf("no matching entity found or invalid statusType")
+	if updatedStatus == "" {
+		return "", fmt.Errorf("no matching entity found or invalid statusType")
+	}
+
+	// 🔔 Notify others
+	go func() {
+		callerID, _ := r.Query().GetID(ctx)
+		payload := helper.NotificationPayload{
+			Title: fmt.Sprintf("%s Status Changed", statusType),
+			Body:  fmt.Sprintf("%s status for %s is now %s", statusType, entityType, status),
+			Tag:   fmt.Sprintf("%s-%s", strings.ToLower(statusType), entityID),
+			URL:   fmt.Sprintf("/%ss", strings.ToLower(statusType)),
+		}
+
+		sid := helper.DerefString(serviceID)
+		rid := helper.DerefString(riderID)
+		uid := helper.DerefString(userID)
+
+		notified := map[string]bool{*callerID: true}
+
+		if sid != "" && !notified[sid] {
+			_ = helper.SendPushNotification(r.DB, sid, payload)
+			notified[sid] = true
+		}
+		if rid != "" && !notified[rid] {
+			_ = helper.SendPushNotification(r.DB, rid, payload)
+			notified[rid] = true
+		}
+		if uid != "" && !notified[uid] {
+			_ = helper.SendPushNotification(r.DB, uid, payload)
+			notified[uid] = true
+		}
+	}()
+
+	return updatedStatus, nil
 }
 
 // OrderOrBookingPayment is the resolver for the orderOrBookingPayment field.
@@ -379,41 +414,85 @@ func (r *mutationResolver) OrderOrBookingPayment(ctx context.Context, entityID s
 		return nil, fmt.Errorf("entityID, entityType, and method are required")
 	}
 
-	//if entityType is booking, then entityID should be booking ID
-	var order model.Order
+	status := "PROCESSING"
+	var serviceID, riderID, userID *string
+
+	// Fetch and update status
 	if entityType == "ORDER" {
+		var order model.Order
 		if err := r.DB.Where("id = ?", entityID).First(&order).Error; err == nil {
-			// Optionally update order status here if needed
-			order.Status = "PROCESSING"
+			order.Status = status
 			if err := r.DB.Save(&order).Error; err != nil {
 				return nil, fmt.Errorf("failed to update order status: %w", err)
 			}
+			serviceID = order.VendorID
+			userID = &order.UserID
+			riderID = order.RiderID
 		}
 	}
 
-	var booking model.AppointmentBooking
 	if entityType == "BOOKING" {
+		var booking model.AppointmentBooking
 		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err == nil {
-			// Optionally update booking status here if needed
-			booking.Status = "PROCESSING"
+			booking.Status = status
 			if err := r.DB.Save(&booking).Error; err != nil {
 				return nil, fmt.Errorf("failed to update booking status: %w", err)
 			}
+			serviceID = &booking.ServiceID
+			userID = &booking.UserID
+			riderID = &booking.RiderID
 		}
 	}
 
-	// Create new payment status
+	// Create new payment status record
 	newPaymentStatus := model.BookingOrderPaymentStatus{
 		EntityID:   entityID,
 		EntityType: entityType,
 		Method:     method,
 		Reference:  &reference,
-		Status:     "PROCESSING",
+		Status:     status,
 		UserID:     userId,
 	}
 	if err := r.DB.Create(&newPaymentStatus).Error; err != nil {
 		return nil, fmt.Errorf("failed to create payment status: %w", err)
 	}
+
+	// 🔔 Push Notification to the other two parties
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("⚠️ Panic in push notification goroutine: %v", r)
+			}
+		}()
+
+		payload := helper.NotificationPayload{
+			Title: "Payment Status Changed",
+			Body:  fmt.Sprintf("Payment status for %s is now %s", entityType, status),
+			Tag:   "payment-" + entityID,
+			URL:   "/payments",
+		}
+
+		// Safe string dereference
+		sid := helper.DerefString(serviceID)
+		rid := helper.DerefString(riderID)
+		uid := helper.DerefString(userID)
+
+		notified := map[string]bool{*userID: true} // Don't send to the initiator
+
+		if sid != "" && !notified[sid] {
+			_ = helper.SendPushNotification(r.DB, sid, payload)
+			notified[sid] = true
+		}
+		if rid != "" && !notified[rid] {
+			_ = helper.SendPushNotification(r.DB, rid, payload)
+			notified[rid] = true
+		}
+		if uid != "" && !notified[uid] {
+			_ = helper.SendPushNotification(r.DB, uid, payload)
+			notified[uid] = true
+		}
+	}()
+
 	return &newPaymentStatus, nil
 }
 
@@ -422,6 +501,8 @@ func (r *mutationResolver) UpdateOrderBookStatus(ctx context.Context, entityID s
 	if entityID == "" || entityType == "" || status == "" {
 		return nil, fmt.Errorf("entityID, entityType, and status are required")
 	}
+
+	var serviceID, riderID, userID *string
 
 	switch entityType {
 	case "ORDER":
@@ -432,7 +513,10 @@ func (r *mutationResolver) UpdateOrderBookStatus(ctx context.Context, entityID s
 		if err := r.DB.Model(&order).Update("status", status).Error; err != nil {
 			return nil, fmt.Errorf("failed to update order status: %w", err)
 		}
-		return &status, nil
+		serviceID = order.VendorID
+		userID = &order.UserID
+		riderID = order.RiderID
+
 	case "APPOINTMENT":
 		var booking model.AppointmentBooking
 		if err := r.DB.Where("id = ?", entityID).First(&booking).Error; err != nil {
@@ -441,10 +525,45 @@ func (r *mutationResolver) UpdateOrderBookStatus(ctx context.Context, entityID s
 		if err := r.DB.Model(&booking).Update("status", status).Error; err != nil {
 			return nil, fmt.Errorf("failed to update appointment status: %w", err)
 		}
-		return &status, nil
+		serviceID = &booking.ServiceID
+		userID = &booking.UserID
+		riderID = &booking.RiderID
+
 	default:
 		return nil, fmt.Errorf("invalid entityType: %s", entityType)
 	}
+
+	// 🔔 Notify others
+	go func() {
+		callerID, _ := r.Query().GetID(ctx)
+		payload := helper.NotificationPayload{
+			Title: fmt.Sprintf("%s Status Changed", entityType),
+			Body:  fmt.Sprintf("%s status is now %s", entityType, status),
+			Tag:   fmt.Sprintf("%s-%s", strings.ToLower(entityType), entityID),
+			URL:   fmt.Sprintf("/%ss", strings.ToLower(entityType)),
+		}
+
+		sid := helper.DerefString(serviceID)
+		rid := helper.DerefString(riderID)
+		uid := helper.DerefString(userID)
+
+		notified := map[string]bool{*callerID: true}
+
+		if sid != "" && !notified[sid] {
+			_ = helper.SendPushNotification(r.DB, sid, payload)
+			notified[sid] = true
+		}
+		if rid != "" && !notified[rid] {
+			_ = helper.SendPushNotification(r.DB, rid, payload)
+			notified[rid] = true
+		}
+		if uid != "" && !notified[uid] {
+			_ = helper.SendPushNotification(r.DB, uid, payload)
+			notified[uid] = true
+		}
+	}()
+
+	return &status, nil
 }
 
 // ID is the resolver for the id field.

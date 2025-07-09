@@ -174,7 +174,7 @@ extend type Query {
   getAllCategoryBox(query: String): [ViewcategoryBox!]!
   getNewAddedCategoryBox: [categoryBox!]!
   getCategoryBox(categoryId: String!): categoryBox
-  getProductsByCategory(categoryId: String!): [Product!]!
+  getProductsByCategory(categoryId: String!): ViewcategoryBox
 }
 input addCoordinateInput {
   orderId: String!
@@ -249,7 +249,7 @@ type categoryBox {
   id: String
   name: String
   imageUrl: String
-
+  vendorId:String
   state: ProductState
   itemsIds: [String]
   createdAt: Time!

@@ -172,6 +172,11 @@ func (r *mutationResolver) SendBookingNotificationTest(ctx context.Context, serv
 	return &msg, nil
 }
 
+// CreateNotifications is the resolver for the createNotifications field.
+func (r *mutationResolver) CreateNotifications(ctx context.Context) (*model.NotificationData, error) {
+	panic(fmt.Errorf("not implemented: CreateNotifications - createNotifications"))
+}
+
 // ID is the resolver for the id field.
 func (r *pushSubscriptionResolver) ID(ctx context.Context, obj *model.PushSubscription) (string, error) {
 	id := obj.ID.String()
@@ -218,6 +223,11 @@ func (r *queryResolver) GenerateVAPIDkeys(ctx context.Context) (*model.PushSubsc
 		PrivateKey: &privateKey,
 		PublicKey:  &publicKey,
 	}, nil
+}
+
+// Notifications is the resolver for the notifications field.
+func (r *queryResolver) GetNotifications(ctx context.Context) (*model.NotificationData, error) {
+	return nil, nil
 }
 
 // PushSubscription returns graph.PushSubscriptionResolver implementation.

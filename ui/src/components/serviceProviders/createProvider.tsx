@@ -57,7 +57,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Import country data
 // import { countries } from "./data/countries";
-import { useJsApiLoader, GoogleMap, type Libraries } from "@react-google-maps/api";
+import {
+  useJsApiLoader,
+  GoogleMap,
+  type Libraries,
+} from "@react-google-maps/api";
 import { useNavigate } from "react-router";
 import { formatPrice } from "../global/formatPrice";
 
@@ -355,7 +359,7 @@ const BusinessTypeSelector: React.FC<{
       label: "Standard E-commerce",
       description: "Essential features for small businesses",
       icon: <Store className="h-5 w-5" />,
-           price: 50,
+      price: 50,
 
       category: "ecommerce",
     },
@@ -364,26 +368,26 @@ const BusinessTypeSelector: React.FC<{
       label: "Enterprise E-commerce",
       description: "Advanced features for large businesses",
       icon: <Building2 className="h-5 w-5" />,
-           price: 500,
+      price: 500,
 
       category: "ecommerce",
     },
     {
-            value: "drop-shipping",
+      value: "drop-shipping",
       label: "Drop-Shipping / Pre-Order",
       description: "Accept orders before product availability",
       icon: <Calendar className="h-5 w-5" />,
-            price: 40,
+      price: 40,
 
       category: "ecommerce",
     },
-   
+
     {
       value: "delivery-standard",
       label: "Standard Delivery",
       description: "For small to medium logistics needs",
       icon: <Truck className="h-5 w-5" />,
-            price: 40,
+      price: 40,
 
       category: "delivery",
     },
@@ -392,7 +396,7 @@ const BusinessTypeSelector: React.FC<{
       label: "Enterprise Delivery",
       description: "For large-scale delivery operations",
       icon: <Truck className="h-5 w-5" />,
-       price: 450,
+      price: 450,
 
       category: "delivery",
     },
@@ -670,7 +674,7 @@ export default function ImprovedServiceProvider() {
   const [businessLabel, setBusinessLabel] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
-const navigate =useNavigate()
+  const navigate = useNavigate();
   // Google Maps and location states
   const [coordinates, setCoordinates] = useState<number[]>([]);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -697,12 +701,13 @@ const navigate =useNavigate()
 
   // Refs for Google services and map
   const searchInputRef = useRef<HTMLDivElement>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const autocompleteServiceRef =
+    useRef<google.maps.places.AutocompleteService | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Default map center (you can change this to your preferred location)
-  const defaultCenter = { lat: 5.6037, lng: -0.1870 }; // Accra, Ghana
+  const defaultCenter = { lat: 5.6037, lng: -0.187 }; // Accra, Ghana
 
   // Form handling
   const {
@@ -742,7 +747,8 @@ const navigate =useNavigate()
     if (!isLoaded || loadError) return;
 
     try {
-      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+      autocompleteServiceRef.current =
+        new window.google.maps.places.AutocompleteService();
       geocoderRef.current = new window.google.maps.Geocoder();
     } catch (error) {
       console.error("Error initializing Google Maps services:", error);
@@ -855,10 +861,13 @@ const navigate =useNavigate()
   };
 
   // Handle pin dropper location selection
-  const handlePinDropperLocationSelected = (coords: { lng: number; lat: number }) => {
+  const handlePinDropperLocationSelected = (coords: {
+    lng: number;
+    lat: number;
+  }) => {
     setCoordinates([coords.lng, coords.lat]);
     setIsPinDropperActive(false);
-    
+
     // Reverse geocode to get address
     if (geocoderRef.current) {
       geocoderRef.current.geocode(
@@ -873,7 +882,7 @@ const navigate =useNavigate()
         }
       );
     }
-    
+
     toast.success("Location selected", {
       description: "Location has been set successfully",
     });
@@ -1033,7 +1042,6 @@ const navigate =useNavigate()
           description: "Your email has been verified successfully",
         });
 
-
         // Submit the form data after successful verification
         if (formData && formData.password && formData.confirmPassword) {
           submitFormData(formData);
@@ -1042,7 +1050,7 @@ const navigate =useNavigate()
             description: "Password and Confirm Password are required.",
           });
         }
-        navigate(`login`)
+        navigate(`login`);
       } else {
         toast.error("Verification Failed", {
           description:
@@ -1379,7 +1387,7 @@ const navigate =useNavigate()
                             <MapPin className="h-4 w-4" />
                             Location / Service Area
                           </Label>
-                          
+
                           {/* Location Search */}
                           <div className="space-y-4">
                             <div className="relative" ref={searchInputRef}>
@@ -1456,7 +1464,7 @@ const navigate =useNavigate()
                                 <Map className="h-4 w-4" />
                                 {showMap ? "Hide Map" : "Show Map"}
                               </Button>
-                              
+
                               {showMap && (
                                 <Button
                                   type="button"
@@ -1475,10 +1483,16 @@ const navigate =useNavigate()
                             {showMap && isLoaded && (
                               <div className="h-[400px] w-full rounded-lg border border-gray-200 relative overflow-hidden">
                                 <GoogleMap
-                                  mapContainerStyle={{ width: "100%", height: "100%" }}
+                                  mapContainerStyle={{
+                                    width: "100%",
+                                    height: "100%",
+                                  }}
                                   center={
                                     coordinates.length === 2
-                                      ? { lat: coordinates[1], lng: coordinates[0] }
+                                      ? {
+                                          lat: coordinates[1],
+                                          lng: coordinates[0],
+                                        }
                                       : defaultCenter
                                   }
                                   zoom={13}
@@ -1491,12 +1505,14 @@ const navigate =useNavigate()
                                     fullscreenControl: false,
                                   }}
                                 />
-                                
+
                                 {/* Pin Dropper Overlay */}
                                 {isPinDropperActive && mapRef.current && (
                                   <GoogleMapPinDropper
                                     map={mapRef.current}
-                                    onLocationSelected={handlePinDropperLocationSelected}
+                                    onLocationSelected={
+                                      handlePinDropperLocationSelected
+                                    }
                                     onCancel={handlePinDropperCancel}
                                   />
                                 )}
@@ -1508,7 +1524,9 @@ const navigate =useNavigate()
                               <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-2">
                                 <div className="flex items-center">
                                   <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />
-                                  <h3 className="font-medium">Location Confirmed</h3>
+                                  <h3 className="font-medium">
+                                    Location Confirmed
+                                  </h3>
                                 </div>
                                 <p className="text-sm text-gray-600">
                                   {watchedLocation}

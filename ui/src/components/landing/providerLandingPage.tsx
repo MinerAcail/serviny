@@ -452,7 +452,6 @@ const isEcommerceBusinessType = (businessType: string) => {
     BusinessTypeEnum.PRE_ORDER,
     BusinessTypeEnum.DROP_SHIPPING,
     BusinessTypeEnum.ECOMMERCE_STANDARD,
-    BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
   ];
   return ecommerceTypes.includes(businessType);
 };

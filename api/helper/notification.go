@@ -25,6 +25,14 @@ type NotificationPayload struct {
 	URL       string
 	BookingID *string
 	OrderID   *string
+	FormID   *string
+
+}
+func DerefString(ptr *string) string {
+    if ptr != nil {
+        return *ptr
+    }
+    return ""
 }
 
 func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayload) error {
@@ -83,7 +91,9 @@ func SendPushNotification(db *gorm.DB, userID string, payload NotificationPayloa
 	if payload.OrderID != nil {
 		data["orderId"] = *payload.OrderID
 	}
-
+if payload.FormID != nil {
+		data["FormID"] = *payload.FormID
+	}
 	notif := map[string]interface{}{
 		"title":              payload.Title,
 		"body":               payload.Body,
