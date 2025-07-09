@@ -1154,11 +1154,17 @@ func (r *queryResolver) GetService(ctx context.Context) (*model.Service, error) 
 
 // GetProvider is the resolver for the getProvider field.
 func (r *queryResolver) GetProvider(ctx context.Context, serviceID *string) (*model.Service, error) {
+	// Ensure serviceID is not nil
+	if serviceID == nil {
+		return nil, fmt.Errorf("serviceID is required")
+	}
+
 	// Parse the UUID from string
 	ServiceID, err := uuid.Parse(*serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Service ID: %w", err)
 	}
+
 	var Service model.Service
 	if err := r.DB.Where("id = ?", ServiceID).First(&Service).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
