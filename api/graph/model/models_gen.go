@@ -601,19 +601,19 @@ type RiderRequest struct {
 }
 
 type RiderUpateInput struct {
-	Name         *string    `json:"name,omitempty"`
-	Email        *string    `json:"email,omitempty"`
-	Type         *string    `json:"type,omitempty"`
-	Number       *string    `json:"number,omitempty"`
-	State        *string    `json:"state,omitempty"`
-	Password     *string    `json:"password,omitempty"`
-	Availability *bool      `json:"availability,omitempty"`
-	Dpfile       *string    `json:"dpfile,omitempty"`
-	IDCard       []*string  `json:"idCard,omitempty"`
-	Location     *string    `json:"location,omitempty"`
-	Coordinates  []*float64 `json:"coordinates,omitempty"`
-	H3Indexes    []*string  `json:"h3Indexes,omitempty"`
-	Experience   *string    `json:"experience,omitempty"`
+	Name         *string         `json:"name,omitempty"`
+	Email        *string         `json:"email,omitempty"`
+	Type         *string         `json:"type,omitempty"`
+	Number       *string         `json:"number,omitempty"`
+	State        *string         `json:"state,omitempty"`
+	Password     *string         `json:"password,omitempty"`
+	Availability *bool           `json:"availability,omitempty"`
+	Dpfile       *graphql.Upload `json:"dpfile,omitempty"`
+	IDCard       []*string       `json:"idCard,omitempty"`
+	Location     *string         `json:"location,omitempty"`
+	Coordinates  []*float64      `json:"coordinates,omitempty"`
+	H3Indexes    []*string       `json:"h3Indexes,omitempty"`
+	Experience   *string         `json:"experience,omitempty"`
 }
 
 type RiderWithMapData struct {

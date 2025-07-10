@@ -30,6 +30,8 @@ import InventoryItemForm from "@/app/vendors/rentalBasedBooking/createRentals";
 import RequestItems from "@/vendor/products/requestItem";
 import DragDropBoxes from "@/vendor/products/cate";
 import CategoryDetailPage from "@/vendor/products/cate/categoryDetail";
+import UpdateRiderProfile from "@/components/rider/updateRiderProfile";
+import CheckUserAndRiderUpdates from "@/components/GlobalLogic/UserAndRiderUpdates";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -328,6 +330,15 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
+      {
+        path: "/update",
+        element: (
+          <>
+            <CheckUserAndRiderUpdates />
+          </>
+        ),
+      },
+     
       {
         path: "/vob",
         element: (
@@ -770,6 +781,7 @@ export function Layout() {
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId ?? updateServiceId;
+  const { showDialog, closeDialog, isSupported } = useNotificationDialog();
 
   console.log("Service ID in Layout:", serviceId);
 
@@ -780,6 +792,13 @@ export function Layout() {
           {/* <ScrollArea className="h-full border-r"> */}
           <SidebarMain serviceId={serviceId} />
           {/* </ScrollArea> */}
+           <div>
+            {isSupported ? (
+              <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
+            ) : (
+              <p>Push notifications are not supported in this browser.</p>
+            )}
+          </div>
           <CartDrawer />
           <ScrollArea className="flex-1">
             <Outlet />

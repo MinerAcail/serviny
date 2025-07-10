@@ -76,8 +76,11 @@ type NavItemProps = {
 export function Sidebar() {
   const { isAuthenticated, clearCache } = useAuth();
 
-  const { isDeliveryStandardOrEnterprise, isEcommerceStandard ,isEcommerceEnterprise} =
-    useProvider();
+  const {
+    isDeliveryStandardOrEnterprise,
+    isEcommerceStandard,
+    isEcommerceEnterprise,
+  } = useProvider();
 
   useQuery(CLEAR_CLIENT_CACHE, {
     onCompleted: (data) => {
@@ -123,9 +126,9 @@ export function Sidebar() {
           { name: "Upload", to: "upload", icon: HardDriveUpload },
         ]
       : []),
-   ...(isEcommerceEnterprise
+    ...(isEcommerceEnterprise
       ? [
-        {
+          {
             name: "Live Map",
             to: `livemap`,
             icon: Map,
@@ -138,7 +141,7 @@ export function Sidebar() {
           { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
           { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
-                   { name: "Products Categroy", to: "cate", icon: BaggageClaim }, // stays on /dbp/:serviceId
+          { name: "Products Categroy", to: "cate", icon: BaggageClaim }, // stays on /dbp/:serviceId
 
           { name: "Contacts", to: `contacts`, icon: BookUser },
           { name: "Orders", to: `orders`, icon: LayoutList },
@@ -258,14 +261,17 @@ export function Sidebar() {
           {/* <RegisterOptions isCollapsed={isCollapsed} /> */}
 
           {/* Fixed: Added explicit height calculation and proper scrollable container */}
-          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ maxHeight: "calc(100vh - 200px)" }}
+          >
             <nav className="space-y-1 px-2 py-4">
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
             </nav>
           </div>
-          
+
           <div className="border-t border-border p-2">
             <nav className="space-y-1">
               {isAuthenticated ? (
@@ -326,7 +332,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const localServiceId = localStorage.getItem("serviceId");
   serviceId = serviceId ?? localServiceId ?? "";
   // const { isMatch } = useCheckAuthId(serviceId);
-  const { id, name ,businessType} = useGetProvider({ serviceId });
+  const { id, name, businessType } = useGetProvider({ serviceId });
   const { isAuthenticated, user, clearCache } = useAuth();
   // const { isDeliveryStandardOrEnterprise, isEcommerceStandardOrEnterprise } =
   //   useProvider();
@@ -337,10 +343,10 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     BusinessTypeEnum.DROP_SHIPPING,
   ]);
   // const profileId = useCurrentUserProfileId();
-       const hasEntEcommerceAccess = useCurrentUserHasAnyBusinessType([
-      BusinessTypeEnum.DELIVERY_STANDARD,
-      BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
-    ]);
+  const hasEntEcommerceAccess = useCurrentUserHasAnyBusinessType([
+    BusinessTypeEnum.DELIVERY_STANDARD,
+    BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+  ]);
   const location = useLocation();
   const install = location.pathname === "/install";
   const PP = location.pathname === "/pp";
@@ -364,7 +370,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
     {
       name: "Home",
       // to: `/?lo`,
-            to: PP ? `/` : `/?lo`,
+      to: PP ? `/` : `/?lo`,
 
       icon: Home,
     },
@@ -382,12 +388,12 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
           { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
           { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
-          { name: "Edit", to: `update`, icon: Edit },
+          { name: "Profile", to: "update", icon: Edit }
         ]
       : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
-    ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE || user?.type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ||
-    user?.type === "DELIVERY"
+    ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE ||
+    user?.type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
       ? [
           {
             name: "Dashboard",
@@ -402,13 +408,12 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       : []),
     { name: "Download", to: "/install", icon: ArrowBigDownDash },
     ...(businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
-      ? [
-              { name: "Policies & Prices", to: "/pp", icon: BookCopy },
-
-        ]
-
+      ? [{ name: "Policies & Prices", to: "/pp", icon: BookCopy }]
       : []),
-    // Conditionally include items
+    ...(user?.type === "USER" || user?.type === "DELIVERY"
+      ? [{ name: "Edit", to: `update`, icon: Edit }]
+      : []),
+       
   ];
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -498,11 +503,9 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             <Menu className="h-6 w-6" />
           </button>
           <ProfileProviderDialog userID={serviceId ?? ""} />
-          {hasEntEcommerceAccess &&(
-
-          <SearchDropdown serviceId={serviceId ?? ""} />
+          {hasEntEcommerceAccess && (
+            <SearchDropdown serviceId={serviceId ?? ""} />
           )}
-
         </div>
         <div
           className={cn(
@@ -612,7 +615,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 </>
               )}
             </nav>
-            {/* <ProfileDialog /> */}
+            <ProfileDialog />
             {!isCollapsed && (
               <Link to={"/all"}>
                 <span> Powerd By</span>

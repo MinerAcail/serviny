@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Trash, Plus, ShoppingCart, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 interface Item {
   id: string;
@@ -42,7 +43,7 @@ export function CardPreview({ isOpen, category, onClose, onDeleteItem }: CardPre
         {/* Hero image with overlay and back button */}
         <div className="relative h-40 w-full">
           <img 
-            src={category.imageUrl || "/placeholder.svg"} 
+            src={getImageUrl(category.imageUrl) || "/placeholder.svg"} 
             alt={category.name}
             className="w-full h-full object-cover"
           />
@@ -76,7 +77,7 @@ export function CardPreview({ isOpen, category, onClose, onDeleteItem }: CardPre
               <Card key={item.id} className="overflow-hidden">
                 <div className="relative">
                   <img 
-                    src={item.imageUrl || "/placeholder.svg"} 
+                    src={getImageUrl(item.imageUrl) || "/placeholder.svg"} 
                     alt={item.name} 
                     className="w-full h-24 object-cover"
                   />

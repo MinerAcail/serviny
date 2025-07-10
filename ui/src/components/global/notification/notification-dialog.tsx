@@ -78,11 +78,10 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
           </div>
           <div className="flex-1">
             <DialogTitle id="notification-dialog-title" className="text-lg font-semibold text-gray-900 mb-2">
-              Stay Updated on Bookings
+              Stay Updated 
             </DialogTitle>
             <DialogDescription id="notification-dialog-description" className="text-sm text-muted-foreground mb-4">
-              Get instant notifications when customers book your services, even when the app is closed. Never miss a
-              booking opportunity!
+              Get instant notifications for your service, even when the app is closed. Never miss an opportunity!
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -93,22 +92,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
           </Alert>
         )}
 
-        <div className="mb-6">
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Instant booking alerts
-            </li>
-            <li className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Works even when app is closed
-            </li>
-            <li className="flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Faster response times
-            </li>
-          </ul>
-        </div>
+       
 
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:space-x-3 space-y-3 sm:space-y-0">
           <Button onClick={handleEnable} disabled={isLoading} className="w-full sm:w-auto">

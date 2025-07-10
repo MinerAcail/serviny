@@ -13,7 +13,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatPrice } from "@/components/global/formatPrice";
+import { formatPrice, getImageUrl } from "@/components/global/formatPrice";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { gql, useMutation } from "@apollo/client";
@@ -177,7 +177,7 @@ export function CartDrawer() {
                   <div key={item.id} className="flex gap-4 py-2 border-b">
                     <div className="relative h-20 w-20 rounded-md overflow-hidden flex-shrink-0">
                       <img
-                        src={item.imageUrl || "/placeholder.svg"}
+                        src={getImageUrl(item.imageUrl) || "/placeholder.svg"}
                         alt={item.name}
                         className="object-cover w-full h-full"
                       />

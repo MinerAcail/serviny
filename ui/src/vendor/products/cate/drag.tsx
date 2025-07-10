@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Box } from "./types";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 interface DroppableBoxProps {
   box: Box;
@@ -36,7 +37,7 @@ const DroppableBox: React.FC<DroppableBoxProps> = ({
             <img
                src={
                 box.imageFile
-                  ? URL.createObjectURL(box.imageFile)
+                  ? URL.createObjectURL(box?.imageFile)
                   : "/placeholder.svg"
              }
               alt={box.name}
@@ -74,7 +75,7 @@ const DroppableBox: React.FC<DroppableBoxProps> = ({
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 bg-primary/10 rounded">
                     <img
-                      src={item.imageUrls[0]}
+                      src={getImageUrl(item.imageUrls[0])}
                       alt={item.name}
                       className="h-full w-full object-cover rounded"
                     />

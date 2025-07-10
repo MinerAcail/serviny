@@ -18,6 +18,7 @@ const logLink = new ApolloLink((operation, forward) => {
 });
 
 // Combine logger + upload
+
 const link = logLink.concat(uploadLink);
 
 const Client = new ApolloClient({

@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react"
 import { useMutation } from "@apollo/client"
 import { gql } from "@apollo/client"
+import { useAuth } from "@/middleware/context/authContext"
 
 export const SAVE_PUSH_SUBSCRIPTION = gql`
   mutation SavePushSubscription($input: PushSubscriptionInput!) {
@@ -42,7 +43,7 @@ const PUBLIC_VAPID_KEY = "BD2ECGHRLC4G8XpuFS2DKakMf0e3vwA6HpOHDsZvO9oIUb3rzp3U8_
       checkSubscription()
     }
   }, [])
-console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
+// console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
 
   const checkSubscription = async () => {
     try {
@@ -67,7 +68,7 @@ console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
   }
 
   const subscribe = async () => {
-    console.log("🔔 Starting subscription process...")
+    // console.log("🔔 Starting subscription process...")
     setIsLoading(true)
 
     try {
@@ -75,28 +76,28 @@ console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
       if (!PUBLIC_VAPID_KEY) {
         throw new Error("VAPID public key is not configured")
       }
-      console.log("✅ VAPID key found")
+      // console.log("✅ VAPID key found")
 
       // Step 2: Request permission
-      console.log("🔒 Requesting permission...")
+      // console.log("🔒 Requesting permission...")
       const hasPermission = await requestPermission()
       if (!hasPermission) {
         throw new Error("Notification permission denied")
       }
-      console.log("✅ Permission granted")
+      // console.log("✅ Permission granted")
 
       // Step 3: Get service worker registration
-      console.log("🔧 Getting service worker registration...")
+      // console.log("🔧 Getting service worker registration...")
       const registration = await navigator.serviceWorker.ready
-      console.log("✅ Service worker ready")
+      // console.log("✅ Service worker ready")
 
       // Step 4: Subscribe to push manager
-      console.log("📡 Subscribing to push manager...")
+      // console.log("📡 Subscribing to push manager...")
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
       })
-      console.log("✅ Push subscription created:", pushSubscription.endpoint)
+      // console.log("✅ Push subscription created:", pushSubscription.endpoint)
 
       // Step 5: Prepare subscription data
       const p256dhKey = pushSubscription.getKey("p256dh")
@@ -112,27 +113,27 @@ console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
         auth: btoa(String.fromCharCode(...new Uint8Array(authKey))),
       }
       
-      console.log("📦 Subscription data prepared:", {
-        endpoint: subscriptionData.endpoint,
-        hasP256dh: !!subscriptionData.p256dh,
-        hasAuth: !!subscriptionData.auth
-      })
+      // console.log("📦 Subscription data prepared:", {
+      //   endpoint: subscriptionData.endpoint,
+      //   hasP256dh: !!subscriptionData.p256dh,
+      //   hasAuth: !!subscriptionData.auth
+      // })
 
       // Step 6: Save to backend
-      console.log("💾 Saving to backend...")
-      const result = await savePushSubscription({
+      // console.log("💾 Saving to backend...")
+       await savePushSubscription({
         variables: {
           input: subscriptionData,
         },
       })
-      console.log("✅ Saved to backend:", result.data)
+      // console.log("✅ Saved to backend:", result.data)
 
       // Step 7: Update state
       setIsSubscribed(true)
       setSubscription(pushSubscription)
       localStorage.setItem("pushNotificationStatus", "granted")
       
-      console.log("🎉 Subscription process completed successfully")
+      // console.log("🎉 Subscription process completed successfully")
       return true
     } catch (error) {
       console.error("❌ Error in subscription process:", error)
@@ -156,7 +157,7 @@ console.log("PUBLIC_VAPID_KEY",PUBLIC_VAPID_KEY);
       localStorage.setItem("pushNotificationStatus", "denied")
       throw error
     } finally {
-      console.log("🔄 Setting loading to false")
+      // console.log("🔄 Setting loading to false")
       setIsLoading(false)
     }
   }
@@ -223,19 +224,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export const useNotificationDialog = () => {
   const { shouldShowPrompt, isSupported } = usePushNotifications()
   const [showDialog, setShowDialog] = useState(false)
-
+  const {isAuthenticated}=useAuth()
   useEffect(() => {
     const checkAndShowDialog = () => {
       const dismissed = localStorage.getItem("pushNotificationStatus") === "dismissed"
-      if (shouldShowPrompt() && !dismissed && isSupported) {
+      if (isAuthenticated &&shouldShowPrompt() && !dismissed && isSupported) {
         const timer = setTimeout(() => {
           setShowDialog(true)
-        }, 5000) // 5 seconds delay
+        }, 7000) // 7 seconds delay
         return () => clearTimeout(timer)
       }
     }
     checkAndShowDialog()
-  }, [shouldShowPrompt, isSupported])
+  }, [shouldShowPrompt, isSupported,isAuthenticated])
 
   const closeDialog = () => {
     setShowDialog(false)

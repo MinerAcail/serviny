@@ -1303,8 +1303,7 @@ func (r *mutationResolver) CreateCategoryBox(ctx context.Context, name *string) 
 
 // DeleteCategoryBox is the resolver for the deleteCategoryBox field.
 func (r *mutationResolver) DeleteCategoryBox(ctx context.Context, categoryID string) (*bool, error) {
-	
-		// Retrieve the service ID from the context
+	// Retrieve the service ID from the context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
@@ -1330,7 +1329,7 @@ func (r *mutationResolver) DeleteCategoryBox(ctx context.Context, categoryID str
 
 	// Generate the bucket name from the category name
 	// bucketName := fmt.Sprintf("vendor-%s-bucket", categoryBox.Name)
-	
+
 	// if len(bucketName) > 63 {
 	// 	bucketName = bucketName[:63] // Truncate if necessary
 	// }

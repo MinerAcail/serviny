@@ -41,7 +41,7 @@ input RiderUpateInput {
   state: String
   password: String
   availability: Boolean
-  dpfile: String
+  dpfile: Upload
   idCard: [String]
   location: String
   coordinates: [Float]
@@ -85,7 +85,7 @@ extend type Query {
 extend type Mutation {
   craeteRider(dpfile: Upload, idCardfiles: [Upload], input: RiderInput): Rider
   updateRiderStatus(id: String!, status: String!): Rider
-  updateRider(id: String!, input: RiderUpateInput!): Rider
+  updateRider( idCardfiles: [Upload],input: RiderUpateInput!): Rider
   deleteRider(id: String!): Boolean
   useGetRiderTracking: Rider
   updateRiderOnlineStatus(status: RiderStatus!): Rider

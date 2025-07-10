@@ -6,7 +6,9 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
@@ -58,9 +60,20 @@ func (r *mutationResolver) DeleteUserByID(ctx context.Context, id string) (*bool
 }
 
 // UpdateUserByID is the resolver for the updateUserById field.
-func (r *mutationResolver) UpdateUserByID(ctx context.Context, id string, input *model.InputUpdateUser) (*model.User, error) {
+func (r *mutationResolver) UpdateUser(ctx context.Context, input *model.InputUpdateUser) (*model.User, error) {
+	userId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse the UUID from input
+	UUID, err := uuid.Parse(*userId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
 	var user model.User
-	if err := r.DB.First(&user, "id = ?", id).Error; err != nil {
+	if err := r.DB.First(&user, "id = ?", UUID).Error; err != nil {
 		return nil, err
 	}
 

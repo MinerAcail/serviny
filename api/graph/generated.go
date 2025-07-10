@@ -620,7 +620,7 @@ type ComplexityRoot struct {
 		UpdateProductByAdmin                         func(childComplexity int, productID string, input model.ProductInputUpdate) int
 		UpdateRentalItem                             func(childComplexity int, id string, input model.RentalInput) int
 		UpdateRequestItemStatus                      func(childComplexity int, requestID string, status model.ProductState) int
-		UpdateRider                                  func(childComplexity int, id string, input model.RiderUpateInput) int
+		UpdateRider                                  func(childComplexity int, idCardfiles []*graphql.Upload, input model.RiderUpateInput) int
 		UpdateRiderLocation                          func(childComplexity int, coordinates []float64) int
 		UpdateRiderLocationByService                 func(childComplexity int, coordinates []float64) int
 		UpdateRiderOnlineStatus                      func(childComplexity int, status model.RiderStatus) int
@@ -630,7 +630,7 @@ type ComplexityRoot struct {
 		UpdateService                                func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
 		UpdateStateByServiceProvider                 func(childComplexity int, riderID string, state *string) int
 		UpdateSubmissionStatus                       func(childComplexity int, id string, status model.SubmissionStatus) int
-		UpdateUserByID                               func(childComplexity int, id string, input *model.InputUpdateUser) int
+		UpdateUser                                   func(childComplexity int, input *model.InputUpdateUser) int
 		UpdateWithLocation                           func(childComplexity int, input model.AddCoordinateInput) int
 		UseGetRiderTracking                          func(childComplexity int) int
 		UseTheme                                     func(childComplexity int, serviceID string, theme *string) int
@@ -1563,7 +1563,7 @@ type MutationResolver interface {
 	DeleteInventoryItem(ctx context.Context, id string) (bool, error)
 	CraeteRider(ctx context.Context, dpfile *graphql.Upload, idCardfiles []*graphql.Upload, input *model.RiderInput) (*model.Rider, error)
 	UpdateRiderStatus(ctx context.Context, id string, status string) (*model.Rider, error)
-	UpdateRider(ctx context.Context, id string, input model.RiderUpateInput) (*model.Rider, error)
+	UpdateRider(ctx context.Context, idCardfiles []*graphql.Upload, input model.RiderUpateInput) (*model.Rider, error)
 	DeleteRider(ctx context.Context, id string) (*bool, error)
 	UseGetRiderTracking(ctx context.Context) (*model.Rider, error)
 	UpdateRiderOnlineStatus(ctx context.Context, status model.RiderStatus) (*model.Rider, error)
@@ -1612,7 +1612,7 @@ type MutationResolver interface {
 	DeleteBooking(ctx context.Context, id string) (*bool, error)
 	CreateUser(ctx context.Context, input model.InputUser) (*model.User, error)
 	DeleteUserByID(ctx context.Context, id string) (*bool, error)
-	UpdateUserByID(ctx context.Context, id string, input *model.InputUpdateUser) (*model.User, error)
+	UpdateUser(ctx context.Context, input *model.InputUpdateUser) (*model.User, error)
 }
 type OrderResolver interface {
 	ID(ctx context.Context, obj *model.Order) (string, error)
@@ -5476,7 +5476,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateRider(childComplexity, args["id"].(string), args["input"].(model.RiderUpateInput)), true
+		return e.complexity.Mutation.UpdateRider(childComplexity, args["idCardfiles"].([]*graphql.Upload), args["input"].(model.RiderUpateInput)), true
 
 	case "Mutation.updateRiderLocation":
 		if e.complexity.Mutation.UpdateRiderLocation == nil {
@@ -5586,17 +5586,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateSubmissionStatus(childComplexity, args["id"].(string), args["status"].(model.SubmissionStatus)), true
 
-	case "Mutation.updateUserById":
-		if e.complexity.Mutation.UpdateUserByID == nil {
+	case "Mutation.updateUser":
+		if e.complexity.Mutation.UpdateUser == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_updateUserById_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_updateUser_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateUserByID(childComplexity, args["id"].(string), args["input"].(*model.InputUpdateUser)), true
+		return e.complexity.Mutation.UpdateUser(childComplexity, args["input"].(*model.InputUpdateUser)), true
 
 	case "Mutation.updateWithLocation":
 		if e.complexity.Mutation.UpdateWithLocation == nil {
@@ -14586,11 +14586,11 @@ func (ec *executionContext) field_Mutation_updateRiderStatus_argsStatus(
 func (ec *executionContext) field_Mutation_updateRider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_updateRider_argsID(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_updateRider_argsIDCardfiles(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["id"] = arg0
+	args["idCardfiles"] = arg0
 	arg1, err := ec.field_Mutation_updateRider_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
@@ -14598,16 +14598,16 @@ func (ec *executionContext) field_Mutation_updateRider_args(ctx context.Context,
 	args["input"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_updateRider_argsID(
+func (ec *executionContext) field_Mutation_updateRider_argsIDCardfiles(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	if tmp, ok := rawArgs["id"]; ok {
-		return ec.unmarshalNString2string(ctx, tmp)
+) ([]*graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("idCardfiles"))
+	if tmp, ok := rawArgs["idCardfiles"]; ok {
+		return ec.unmarshalOUpload2ᚕᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
 	}
 
-	var zeroVal string
+	var zeroVal []*graphql.Upload
 	return zeroVal, nil
 }
 
@@ -14765,35 +14765,17 @@ func (ec *executionContext) field_Mutation_updateSubmissionStatus_argsStatus(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_updateUserById_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_updateUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_updateUserById_argsID(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_updateUser_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["id"] = arg0
-	arg1, err := ec.field_Mutation_updateUserById_argsInput(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg1
+	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_updateUserById_argsID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	if tmp, ok := rawArgs["id"]; ok {
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	var zeroVal string
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Mutation_updateUserById_argsInput(
+func (ec *executionContext) field_Mutation_updateUser_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*model.InputUpdateUser, error) {
@@ -37710,7 +37692,7 @@ func (ec *executionContext) _Mutation_updateRider(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateRider(rctx, fc.Args["id"].(string), fc.Args["input"].(model.RiderUpateInput))
+		return ec.resolvers.Mutation().UpdateRider(rctx, fc.Args["idCardfiles"].([]*graphql.Upload), fc.Args["input"].(model.RiderUpateInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -41294,8 +41276,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteUserById(ctx context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateUserById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_updateUserById(ctx, field)
+func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateUser(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -41308,7 +41290,7 @@ func (ec *executionContext) _Mutation_updateUserById(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateUserByID(rctx, fc.Args["id"].(string), fc.Args["input"].(*model.InputUpdateUser))
+		return ec.resolvers.Mutation().UpdateUser(rctx, fc.Args["input"].(*model.InputUpdateUser))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -41325,7 +41307,7 @@ func (ec *executionContext) _Mutation_updateUserById(ctx context.Context, field 
 	return ec.marshalNUser2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateUserById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -41362,7 +41344,7 @@ func (ec *executionContext) fieldContext_Mutation_updateUserById(ctx context.Con
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateUserById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -75603,7 +75585,7 @@ func (ec *executionContext) unmarshalInputRiderUpateInput(ctx context.Context, o
 			it.Availability = data
 		case "dpfile":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dpfile"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			data, err := ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -80812,9 +80794,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteUserById(ctx, field)
 			})
-		case "updateUserById":
+		case "updateUser":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateUserById(ctx, field)
+				return ec._Mutation_updateUser(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

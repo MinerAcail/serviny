@@ -113,25 +113,9 @@ export default function ProfileDialog() {
                   </h2>
 
                   <div className="w-full space-y-3">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(userInfo?.name || "", "Name")
-                            }
-                            className="flex w-full items-center gap-2 text-muted-foreground p-2 rounded-md hover:bg-muted transition-colors"
-                          >
-                            <User className="h-4 w-4" />
-                            <span>{userInfo?.name || "N/A"}</span>
-                            <Copy className="h-3 w-3 ml-auto opacity-50" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Click to copy</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  
+{
+  userInfo?.location &&(
 
                     <TooltipProvider>
                       <Tooltip>
@@ -155,6 +139,10 @@ export default function ProfileDialog() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+  )
+}
+{
+  userInfo?.number &&(
 
                     <TooltipProvider>
                       <Tooltip>
@@ -178,6 +166,10 @@ export default function ProfileDialog() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+  )
+}
+{
+  userInfo?.email&&(
 
                     <TooltipProvider>
                       <Tooltip>
@@ -198,31 +190,12 @@ export default function ProfileDialog() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+  )
+}
                   </div>
 
-                  <div className="w-full flex gap-2 mt-4">
-                    <Button
-                      className="flex-1"
-                      variant={active ? "default" : "outline"}
-                      onClick={() => navigation(`/providers/${user?.id}`)}
-                    >
-                      Home
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      variant={active ? "default" : "outline"}
-                      onClick={() => setActive(!active)}
-                    >
-                      {active ? (
-                        <>
-                          Active{" "}
-                          <Badge className="ml-2 bg-green-500">Online</Badge>
-                        </>
-                      ) : (
-                        "Set Active"
-                      )}
-                    </Button>
-
+                  {/* <div className="w-full flex gap-2 mt-4">
+                   
                     <Button
                       variant="outline"
                       className="px-3"
@@ -240,7 +213,7 @@ Email: ${userInfo?.email || "N/A"}
                       <Share2 className="h-4 w-4 mr-2" />
                       Share
                     </Button>
-                  </div>
+                  </div> */}
                 </div>
               )}
             </>

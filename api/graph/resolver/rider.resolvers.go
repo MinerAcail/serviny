@@ -115,11 +115,16 @@ func (r *mutationResolver) UpdateRiderStatus(ctx context.Context, id string, sta
 }
 
 // UpdateRider is the resolver for the updateRider field.
-func (r *mutationResolver) UpdateRider(ctx context.Context, id string, input model.RiderUpateInput) (*model.Rider, error) {
-	// Parse the UUID from input
-	UUID, err := uuid.Parse(id)
+func (r *mutationResolver) UpdateRider(ctx context.Context, idCardfiles []*graphql.Upload, input model.RiderUpateInput) (*model.Rider, error) {
+	riderId, err := r.Query().GetID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("invalid service ID: %w", err)
+		return nil, fmt.Errorf("failed to get rider ID: %v", err)
+	}
+
+	// Parse the UUID from input
+	UUID, err := uuid.Parse(*riderId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid rider ID: %w", err)
 	}
 
 	var rider model.Rider
@@ -127,22 +132,35 @@ func (r *mutationResolver) UpdateRider(ctx context.Context, id string, input mod
 		return nil, fmt.Errorf("failed to find rider: %w", err)
 	}
 
+	// Check and update the rider number
+	if input.Number != nil && rider.Number != *input.Number {
+		cleanedNumber := helper.CleanPhoneNumber(*input.Number)
+		var existingRider model.Rider
+		if err := r.DB.Where("number = ? AND id != ?", cleanedNumber, UUID).First(&existingRider).Error; err == nil {
+			return nil, fmt.Errorf("a rider with the same number already exists")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check for existing rider: %w", err)
+		}
+
+		rider.Number = cleanedNumber
+	}
+
+	// Check and update the rider email
+	if input.Email != nil && rider.Email != *input.Email {
+		var existingRider model.Rider
+		if err := r.DB.Where("email = ? AND id != ?", *input.Email, UUID).First(&existingRider).Error; err == nil {
+			return nil, fmt.Errorf("a rider with the same email already exists")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check for existing rider: %w", err)
+		}
+		rider.Email = *input.Email
+	}
+
 	// Update fields if provided
 	if input.Name != nil {
 		rider.Name = *input.Name
 	}
-	if input.Email != nil {
-		rider.Email = *input.Email
-	}
-	if input.Type != nil {
-		rider.Type = *input.Type
-	}
-	if input.Number != nil {
-		rider.Number = helper.CleanPhoneNumber(*input.Number)
-	}
-	if input.State != nil {
-		rider.State = input.State
-	}
+
 	if input.Password != nil {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -154,42 +172,44 @@ func (r *mutationResolver) UpdateRider(ctx context.Context, id string, input mod
 	if input.Availability != nil {
 		rider.Availability = input.Availability
 	}
+
+	bucketName := fmt.Sprintf("rider-%s-bucket", rider.ID.String())
 	if input.Dpfile != nil {
-		rider.Dpfile = input.Dpfile
-	}
-	if input.IDCard != nil {
-		// Convert []*string to []string
-		var idCards []string
-		for _, s := range input.IDCard {
-			if s != nil {
-				idCards = append(idCards, *s)
-			}
+		// Use rider ID based bucket naming (consistent with Createrider)
+
+		// Ensure the bucket exists
+		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+			return nil, err
 		}
-		rider.IDCard = idCards
-	}
-	if input.Location != nil {
-		rider.Location = input.Location
-	}
-	if input.Coordinates != nil {
-		// Convert []*float64 to []float64
-		var coords []float64
-		for _, f := range input.Coordinates {
-			if f != nil {
-				coords = append(coords, *f)
-			}
+
+		// Upload file to MinIO
+		fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "dpfile", input.Dpfile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upload dpfile %s: %v", input.Dpfile.Filename, err)
 		}
-		rider.Coordinates = coords
-	}
-	if input.H3Indexes != nil {
-		// Convert []*string to []string
-		var h3s []string
-		for _, s := range input.H3Indexes {
-			if s != nil {
-				h3s = append(h3s, *s)
-			}
+
+		// Only update if the URL is different
+		if rider.Dpfile == nil || *rider.Dpfile != fileURL {
+			rider.Dpfile = &fileURL
 		}
-		rider.H3Indexes = h3s
 	}
+
+	var idCardsURLs []string
+
+	for _, file := range idCardfiles {
+		// Ensure the bucket exists
+		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+			return nil, err
+		}
+		fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "idCards", file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upload file %s: %v", file.Filename, err)
+		}
+		idCardsURLs = append(idCardsURLs, fileURL)
+	}
+	// Save the uploaded file URL
+	rider.IDCard = idCardsURLs
+
 	if input.Experience != nil {
 		rider.Experience = *input.Experience
 	}

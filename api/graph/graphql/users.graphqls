@@ -33,5 +33,5 @@ extend type Query {
 extend type Mutation {
   createUser(input: inputUser!): User!
   deleteUserById(id: String!): Boolean
-  updateUserById(id: String!, input: inputUpdateUser): User!
+  updateUser(input: inputUpdateUser): User!
 }

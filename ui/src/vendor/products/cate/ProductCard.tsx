@@ -23,7 +23,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({ product }) => {
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 bg-primary/10 p-[3px] rounded-md">
           <img
-            src={product.imageUrls[0]}
+            src={getImageUrl(product?.imageUrls[0])}
             alt={product.name}
             className="h-full w-full object-cover"
           />
@@ -40,6 +40,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({ product }) => {
 
 
 import { useDroppable } from '@dnd-kit/core';
+import { getImageUrl } from '@/components/global/formatPrice';
 
 interface ProductsContainerProps {
   children: React.ReactNode;

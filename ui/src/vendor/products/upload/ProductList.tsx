@@ -4,6 +4,7 @@ import type { Product } from "./types";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 const GET_NEW_ADDED_PRODUCTS = gql`
   query getNewAddedProducts {
@@ -79,7 +80,7 @@ export default function ProductList() {
                   <div className="md:w-1/3 p-4">
                     {product.imageUrls?.length > 0 ? (
                       <img
-                        src={product.imageUrls[0]}
+                        src={getImageUrl(product.imageUrls[0])}
                         alt={product.name}
                         width={300}
                         height={300}
@@ -109,7 +110,7 @@ export default function ProductList() {
                         {product.imageUrls.slice(1).map((image, index) => (
                           <img
                             key={index}
-                            src={image || "/placeholder.svg"}
+                            src={getImageUrl(image) || "/placeholder.svg"}
                             alt={`${product.name} - ${index + 2}`}
                             width={80}
                             height={80}
