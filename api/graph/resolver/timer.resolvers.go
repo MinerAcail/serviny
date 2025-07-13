@@ -156,15 +156,15 @@ func (r *mutationResolver) GetGrowthData(ctx context.Context, id string) (*model
 
 // CreateMultipleBookings is the resolver for the createMultipleBookings field.
 func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string) ([]*model.AppointmentBooking, error) {
-	UserIDStr, err := r.Query().GetID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Service ID: %v", err)
-	}
+	// UserIDStr, err := r.Query().GetID(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get Service ID: %v", err)
+	// }
 
-	USERID, err := uuid.Parse(*UserIDStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid user ID: %w", err)
-	}
+	// USERID, err := uuid.Parse(*UserIDStr)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("invalid user ID: %w", err)
+	// }
 
 	// Parse service ID
 	svcID, err := uuid.Parse(serviceID)
@@ -250,16 +250,34 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 					day, period.StartTime, period.EndTime)
 			}
 		}
-		// Get users assigned to this specific rider
-		userResults, userErr := r.Query().GetUserInforFromContextForBasedType(ctx)
-		if userErr != nil {
-			log.Printf("Warning: failed to get user Type")
+		// // Get users assigned to this specific rider
+		// userResults, userErr := r.Query().GetUserInforFromContextForBasedType(ctx)
+		// if userErr != nil {
+		// 	log.Printf("Warning: failed to get user Type")
+		// }
+
+		user, err := r.Query().GetUserInfor(ctx, bookerInput.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user info: %v", err)
 		}
+		if user == nil {
+			return nil, fmt.Errorf("user not found for ID: %v", bookerInput.UserID)
+		}
+
+		// Validate user type
+		var userType model.UserType
+		switch model.UserType(user.Type) {
+		case model.UserTypeAdmin, model.UserTypeUser, model.UserTypeDelivery:
+			userType = model.UserType(user.Type)
+		default:
+			userType = "SERVICE"
+		}
+
 		// Create a new booking
 		booking := &model.AppointmentBooking{
 			ServiceID:    serviceID,
-			UserID:       USERID.String(),
-			UserType:     model.UserType(userResults.Type),
+			UserID:       bookerInput.UserID,
+			UserType:     userType,
 			StartTime:    bookerInput.StartTime,
 			EndTime:      *bookerInput.EndTime,
 			Day:          day,
@@ -281,7 +299,7 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 			bookid := booking.ID.String()
 			cargoRecord := &model.BookingCargo{
 				ServiceID:     &serviceID,
-				UserID:        UserIDStr,
+				UserID:        &bookerInput.UserID,
 				TransportType: *bookerInput.TransportType,
 				BookingID:     &bookid,
 				MultiGroupID:  multiGroupId,
@@ -785,7 +803,7 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 
 		// Find and verify booking ownership
 		var booking model.AppointmentBooking
-		if err := tx.Where("id = ? AND user_id = ?", bookingID, *userIDStr).First(&booking).Error; err != nil {
+		if err := tx.Where("id = ?", bookingID).First(&booking).Error; err != nil {
 			tx.Rollback()
 			if err == gorm.ErrRecordNotFound {
 				return nil, fmt.Errorf("booking not found or access denied for booking %s", in.BookID)
@@ -793,7 +811,7 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 			return nil, fmt.Errorf("failed to fetch booking %s: %w", in.BookID, err)
 		}
 
-		log.Printf("Updating booking %s with location for user %s", bookingID, *userIDStr)
+		// log.Printf("Updating booking %s with location for user %s", bookingID, *userIDStr)
 
 		// Update delivery address if provided
 		if in.DeliveryAddress != nil && *in.DeliveryAddress != "" {
@@ -930,7 +948,7 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 				routeInfo := &model.RouteInfo{
 					OrderID: bookingID.String(),
 					Geojson: &geoJSONStr,
-					UserID:  *userIDStr,
+					UserID:  booking.UserID,
 				}
 				if err := tx.Create(routeInfo).Error; err != nil {
 					log.Printf("Warning: failed to save route info for booking %s: %v", in.BookID, err)

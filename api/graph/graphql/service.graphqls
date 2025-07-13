@@ -91,13 +91,17 @@ extend type Query {
   getSocialMedia(serviceId: String!): SocialMedia
 
   getAllRidersServiceData: [ServiceData!]!
+  getAllServiceDataByUserId(userId:String!): [ServiceData!]!
   getBookingServiceData: [ServiceData!]!
-  getOrderServiceData: [ServiceData!]!
 
+  getOrderServiceDataByUserIdFromServiceId(userId:String): [ServiceData!]!
+  getBookingServiceDataByUserIdFromServiceId(userId:String): [ServiceData!]!
+
+  getOrderServiceData: [ServiceData!]!
   getAllUserServiceData: [ServiceData!]!
-  getBookingServiceDataByUserId: [ServiceData!]!
+  getBookingServiceDataByUserId(userId:String): [ServiceData!]!
   getBookingServiceDataByBookingId(bookingId: String!): AppointmentBookingData!
-  getOrderServiceDataByUserId: [ServiceData!]!
+  getOrderServiceDataByUserId(userId:String): [ServiceData!]!
 
   getBusinessType:BusinessType
 

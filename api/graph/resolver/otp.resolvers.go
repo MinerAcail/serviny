@@ -102,13 +102,21 @@ func (r *mutationResolver) RequestOtp(ctx context.Context, input model.RequestOt
 // TestRequestOtp is the resolver for the testRequestOtp field.
 func (r *mutationResolver) TestRequestOtp(ctx context.Context) (bool, error) {
 	// Example test values
-	email := "kobbimensahgh@gmail.com"
-	generatedOTP := "123456"
+	// email := "+233555961728"
+	// generatedOTP := "123456"
 
-	err := otp.SendOTPEmail(email, generatedOTP)
+	// err := otp.SendBulkSMS(ctx, email, generatedOTP)
+	// if err != nil {
+	// 	return false, err
+	// }
+	err := otp.SendBulkSMS(ctx, []string{
+		"+233555961728",
+		// "+2331",
+	}, "Test message to multiple recipients.")
 	if err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
 

@@ -1,14 +1,18 @@
 package otp
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
+	"net/http"
 	"net/mail"
 	"net/smtp"
 	"os"
@@ -43,7 +47,7 @@ type OTPConfig struct {
 
 	// Rate limit: maximum number of OTPs that can be generated per identifier per time window
 	RateLimit int
-	
+
 	// Rate limit time window
 	RateLimitWindow time.Duration
 }
@@ -113,11 +117,11 @@ func (s *OtpService) GenerateOTP(ctx context.Context, identifier string) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to check rate limit: %w", err)
 	}
-	
+
 	if isLimited {
 		return "", fmt.Errorf("rate limit exceeded for this identifier")
 	}
-	
+
 	// Generate a random 6-digit number
 	max := big.NewInt(1000000)
 	n, err := rand.Int(rand.Reader, max)
@@ -134,7 +138,7 @@ func (s *OtpService) GenerateOTP(ctx context.Context, identifier string) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to store OTP: %w", err)
 	}
-	
+
 	// Reset attempts counter for this OTP
 	attemptsKey := s.getAttemptsKey(identifier)
 	err = s.redisClient.Set(ctx, attemptsKey, 0, s.expiration).Err()
@@ -142,7 +146,7 @@ func (s *OtpService) GenerateOTP(ctx context.Context, identifier string) (string
 		// Non-critical error, just log and continue
 		fmt.Printf("Warning: Failed to reset attempts counter: %v\n", err)
 	}
-	
+
 	// Increment rate limit counter
 	rateLimitKey := s.getRateLimitKey(identifier)
 	count, err := s.redisClient.Incr(ctx, rateLimitKey).Result()
@@ -150,7 +154,7 @@ func (s *OtpService) GenerateOTP(ctx context.Context, identifier string) (string
 		// Non-critical error, just log and continue
 		fmt.Printf("Warning: Failed to increment rate limit counter: %v\n", err)
 	}
-	
+
 	// Set expiration on rate limit key if it's the first attempt in this window
 	if count == 1 {
 		s.redisClient.Expire(ctx, rateLimitKey, s.rateLimitWindow)
@@ -164,16 +168,16 @@ func (s *OtpService) VerifyOTP(ctx context.Context, identifier, otp string) (boo
 	// Get hashed key
 	key := s.getRedisKey(identifier)
 	attemptsKey := s.getAttemptsKey(identifier)
-	
+
 	// Check if too many attempts
 	attempts, err := s.redisClient.Get(ctx, attemptsKey).Int()
 	if err == nil && attempts >= s.maxAttempts {
 		return false, fmt.Errorf("maximum verification attempts exceeded")
 	}
-	
+
 	// Increment attempt counter
 	s.redisClient.Incr(ctx, attemptsKey)
-	
+
 	// Get OTP from Redis
 	storedOTP, err := s.redisClient.Get(ctx, key).Result()
 	if err != nil {
@@ -198,7 +202,7 @@ func (s *OtpService) VerifyOTP(ctx context.Context, identifier, otp string) (boo
 // IsRateLimited checks if the identifier has exceeded the rate limit
 func (s *OtpService) IsRateLimited(ctx context.Context, identifier string) (bool, time.Duration, error) {
 	rateLimitKey := s.getRateLimitKey(identifier)
-	
+
 	// Get current count
 	count, err := s.redisClient.Get(ctx, rateLimitKey).Int64()
 	if err == redis.Nil {
@@ -208,7 +212,7 @@ func (s *OtpService) IsRateLimited(ctx context.Context, identifier string) (bool
 	if err != nil {
 		return false, 0, err
 	}
-	
+
 	// Check if over limit
 	if count >= int64(s.rateLimit) {
 		// Get remaining time
@@ -218,8 +222,64 @@ func (s *OtpService) IsRateLimited(ctx context.Context, identifier string) (bool
 		}
 		return true, ttl, nil
 	}
-	
+
 	return false, 0, nil
+}
+
+// SendBulkSMS sends an SMS message to multiple recipients via Africa's Talking
+func SendBulkSMS(ctx context.Context, phoneNumbers []string, message string) error {
+	apiKey := os.Getenv("AFRICAS_TALKING_API_KEY")
+	env := "production" // "sandbox" or "production"
+
+	// Use appropriate username and sender ID
+	username := "sandbox"
+	if env != "sandbox" {
+		username = os.Getenv("AFRICAS_TALKING_USERNAME")
+	}
+	senderId := "AFRICASTALKING" // default for sandbox
+	// if env != "sandbox" {
+	// 	senderId = os.Getenv("AFRICAS_TALKING_SENDER_ID")
+	// }
+
+	if apiKey == "" || username == "" || senderId == "" {
+		return fmt.Errorf("Africa's Talking credentials not set properly in environment")
+	}
+
+	payload := map[string]interface{}{
+		"username":     username,
+		"message":      message,
+		"senderId":     senderId,
+		"phoneNumbers": phoneNumbers,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal bulk SMS payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.africastalking.com/version1/messaging/bulk", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("apiKey", apiKey)
+
+	client := http.DefaultClient
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send bulk SMS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return fmt.Errorf("bulk SMS failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Println("Bulk SMS response:", string(body))
+	return nil
 }
 
 // SendOTPEmail sends OTP via Gmail

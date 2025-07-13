@@ -21,6 +21,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.InputUser
 	if err != nil {
 		return nil, err
 	}
+
 	cleanedNumber := helper.CleanPhoneNumber(input.Number)
 	err = helper.CheckDuplicateRecords(r.DB, &model.User{}, input.Name, cleanedNumber)
 	if err != nil {
