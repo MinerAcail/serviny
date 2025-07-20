@@ -141,17 +141,27 @@ func (r *mutationResolver) RequestForResetOtp(ctx context.Context, input model.R
 	var user model.User
 
 	// Check if the number exists in Service, Rider, or User
-	serviceErr := r.DB.Where("number = ?", cleanedNumber).First(&service).Error
-	riderErr := r.DB.Where("number = ?", cleanedNumber).First(&rider).Error
-	userErr := r.DB.Where("number = ?", cleanedNumber).First(&user).Error
+	// Check if number exists in at least one account type
+found := false
 
-	if serviceErr != nil && riderErr != nil && userErr != nil {
-		return &model.OtpResponse{
-			Success: false,
-			Message: "No account found with this number",
-			OtpSent: false,
-		}, nil
-	}
+if err := r.DB.Where("number = ?", cleanedNumber).First(&service).Error; err == nil {
+	found = true
+}
+if err := r.DB.Where("number = ?", cleanedNumber).First(&rider).Error; err == nil {
+	found = true
+}
+if err := r.DB.Where("number = ?", cleanedNumber).First(&user).Error; err == nil {
+	found = true
+}
+
+if !found {
+	return &model.OtpResponse{
+		Success: false,
+		Message: "No account found with this number",
+		OtpSent: false,
+	}, nil
+}
+
 
 	// Initialize OTP service
 	otpService := otp.NewOtpService(r.RedisClient)
