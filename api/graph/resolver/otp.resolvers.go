@@ -362,7 +362,7 @@ func (r *mutationResolver) ResendOtp(ctx context.Context, input model.RequestOtp
 
 // ReSetPasswordORUpdateOtp is the resolver for the reSetPasswordORUpdateOTP field.
 func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error) {
-		originalNumber := input.Number
+	originalNumber := input.Number
 	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
 
 	if cleanedNumber == "" && originalNumber == "" {

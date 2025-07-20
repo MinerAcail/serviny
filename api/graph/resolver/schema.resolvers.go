@@ -118,8 +118,53 @@ func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginIn
 }
 
 // UpdateNumber is the resolver for the updateNumber field.
-func (r *mutationResolver) UpdateNumber(ctx context.Context, id string) (model.Returns, error) {
-	panic(fmt.Errorf("not implemented: UpdateNumber - updateNumber"))
+func (r *mutationResolver) UpdateNumber(ctx context.Context, number string, password *string) (*model.Rider, error) {
+	originalNumber := number
+	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
+
+	var rider model.Rider
+	found := false
+
+	tryCheck := func(num string) bool {
+		if err := r.DB.Where("number = ?", num).First(&rider).Error; err == nil {
+			return true
+		}
+		return false
+	}
+
+	// Try cleaned number first
+	if tryCheck(cleanedNumber) {
+		found = true
+	} else {
+		// Fallback: Replace leading "233" with "0"
+		if strings.HasPrefix(originalNumber, "233") && len(originalNumber) > 3 {
+			fallbackNumber := "0" + originalNumber[3:]
+			if tryCheck(fallbackNumber) {
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		return nil, errors.New("rider not found with the provided number")
+	}
+
+	// Update password if provided
+	if password != nil && *password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		hashedPasswordStr := string(hashedPassword)
+		rider.Password = &hashedPasswordStr
+	}
+
+	// Save rider
+	if err := r.DB.Save(&rider).Error; err != nil {
+		return nil, fmt.Errorf("failed to update rider: %w", err)
+	}
+
+	return &rider, nil
 }
 
 // AdminLogin is the resolver for the adminLogin field.

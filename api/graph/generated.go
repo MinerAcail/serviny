@@ -618,7 +618,7 @@ type ComplexityRoot struct {
 		UpdateInventoryItem                          func(childComplexity int, id string, input model.InventoryItemInput, file graphql.Upload) int
 		UpdateMultiGroupBookingsWithLocationBybookID func(childComplexity int, input []*model.AddBookCoordinateInput) int
 		UpdateMultipleBookingsWithLocation           func(childComplexity int, input model.AddBookCoordinateInput) int
-		UpdateNumber                                 func(childComplexity int, id string) int
+		UpdateNumber                                 func(childComplexity int, number string, password *string) int
 		UpdateOrderBookStatus                        func(childComplexity int, entityID string, entityType string, status string) int
 		UpdateOrderOrBookingStatus                   func(childComplexity int, orderID *string, status string) int
 		UpdateOrderRoute                             func(childComplexity int, orderID string, status string) int
@@ -1638,7 +1638,7 @@ type MutationResolver interface {
 	UpdateStateByServiceProvider(ctx context.Context, riderID string, state *string) (*model.RiderRequestInfor, error)
 	DeleteTable(ctx context.Context) (bool, error)
 	ServiceLogin(ctx context.Context, input model.LoginInput, entityID *string) (model.Returns, error)
-	UpdateNumber(ctx context.Context, id string) (model.Returns, error)
+	UpdateNumber(ctx context.Context, number string, password *string) (*model.Rider, error)
 	AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error)
 	DeliveryLogin(ctx context.Context, input *model.LoginInput) (model.Returns, error)
 	LogOut(ctx context.Context) (bool, error)
@@ -5460,7 +5460,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateNumber(childComplexity, args["id"].(string)), true
+		return e.complexity.Mutation.UpdateNumber(childComplexity, args["number"].(string), args["password"].(*string)), true
 
 	case "Mutation.updateOrderBookStatus":
 		if e.complexity.Mutation.UpdateOrderBookStatus == nil {
@@ -14516,23 +14516,41 @@ func (ec *executionContext) field_Mutation_updateMultipleBookingsWithLocation_ar
 func (ec *executionContext) field_Mutation_updateNumber_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_updateNumber_argsID(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_updateNumber_argsNumber(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["id"] = arg0
+	args["number"] = arg0
+	arg1, err := ec.field_Mutation_updateNumber_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_updateNumber_argsID(
+func (ec *executionContext) field_Mutation_updateNumber_argsNumber(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	if tmp, ok := rawArgs["id"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("number"))
+	if tmp, ok := rawArgs["number"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateNumber_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -40285,7 +40303,7 @@ func (ec *executionContext) _Mutation_updateNumber(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateNumber(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Mutation().UpdateNumber(rctx, fc.Args["number"].(string), fc.Args["password"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -40294,9 +40312,9 @@ func (ec *executionContext) _Mutation_updateNumber(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(model.Returns)
+	res := resTmp.(*model.Rider)
 	fc.Result = res
-	return ec.marshalOReturns2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐReturns(ctx, field.Selections, res)
+	return ec.marshalORider2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRider(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateNumber(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -40306,7 +40324,45 @@ func (ec *executionContext) fieldContext_Mutation_updateNumber(ctx context.Conte
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Returns does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Rider_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Rider_name(ctx, field)
+			case "email":
+				return ec.fieldContext_Rider_email(ctx, field)
+			case "type":
+				return ec.fieldContext_Rider_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Rider_number(ctx, field)
+			case "state":
+				return ec.fieldContext_Rider_state(ctx, field)
+			case "password":
+				return ec.fieldContext_Rider_password(ctx, field)
+			case "availability":
+				return ec.fieldContext_Rider_availability(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Rider_dpfile(ctx, field)
+			case "idCard":
+				return ec.fieldContext_Rider_idCard(ctx, field)
+			case "location":
+				return ec.fieldContext_Rider_location(ctx, field)
+			case "IsochroneID":
+				return ec.fieldContext_Rider_IsochroneID(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Rider_coordinates(ctx, field)
+			case "isTracking":
+				return ec.fieldContext_Rider_isTracking(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Rider_h3Indexes(ctx, field)
+			case "experience":
+				return ec.fieldContext_Rider_experience(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Rider_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Rider_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Rider", field.Name)
 		},
 	}
 	defer func() {
