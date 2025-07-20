@@ -124,7 +124,7 @@ func (r *mutationResolver) TestRequestOtp(ctx context.Context, numbers []*string
 
 // RequestForResetOtp is the resolver for the requestForResetOtp field.
 func (r *mutationResolver) RequestForResetOtp(ctx context.Context, input model.ResetPassWordOtpInput) (*model.OtpResponse, error) {
-originalNumber := input.Number
+	originalNumber := input.Number
 	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
 
 	if cleanedNumber == "" && originalNumber == "" {
@@ -139,6 +139,7 @@ originalNumber := input.Number
 	var rider model.Rider
 	var user model.User
 
+	var finalNumber string // The number used for DB lookup, rate limiting, and OTP generation
 	found := false
 
 	tryCheck := func(number string) bool {
@@ -154,12 +155,19 @@ originalNumber := input.Number
 		return false
 	}
 
-	// Try cleaned number first, then fallback to original
+	// Step 1: Try cleaned international number
 	if tryCheck(cleanedNumber) {
 		found = true
-	} else if tryCheck(originalNumber) {
-		found = true
-		cleanedNumber = originalNumber // Use original if that's the valid one
+		finalNumber = cleanedNumber
+	} else {
+		// Step 2: Try local format by replacing 233 with 0
+		if strings.HasPrefix(cleanedNumber, "233") && len(cleanedNumber) > 3 {
+			localVersion := "0" + cleanedNumber[3:]
+			if tryCheck(localVersion) {
+				found = true
+				finalNumber = localVersion
+			}
+		}
 	}
 
 	if !found {
@@ -170,11 +178,10 @@ originalNumber := input.Number
 		}, nil
 	}
 
-	// Initialize OTP service
+	// Step 3: Initialize OTP service
 	otpService := otp.NewOtpService(r.RedisClient)
 
-	// Rate limiting
-	isLimited, remainingTime, err := otpService.IsRateLimited(ctx, cleanedNumber)
+	isLimited, remainingTime, err := otpService.IsRateLimited(ctx, finalNumber)
 	if err != nil {
 		log.Printf("Error checking rate limit: %v", err)
 		return &model.OtpResponse{
@@ -183,6 +190,7 @@ originalNumber := input.Number
 			OtpSent: false,
 		}, nil
 	}
+
 	if isLimited {
 		minutes := int(remainingTime.Minutes()) + 1
 		return &model.OtpResponse{
@@ -192,8 +200,8 @@ originalNumber := input.Number
 		}, nil
 	}
 
-	// Generate and send OTP
-	generatedOTP, err := otpService.GenerateOTP(ctx, cleanedNumber)
+	// Step 4: Generate OTP using finalNumber
+	generatedOTP, err := otpService.GenerateOTP(ctx, finalNumber)
 	if err != nil {
 		log.Printf("Error generating OTP: %v", err)
 		return &model.OtpResponse{
@@ -203,6 +211,7 @@ originalNumber := input.Number
 		}, nil
 	}
 
+	// Step 5: Always send OTP SMS to cleanedNumber
 	smsMessage := fmt.Sprintf("Your password reset OTP is: %s. If you didn't request this password reset, ignore this SMS.", generatedOTP)
 	err = otp.SendBulkSMS(ctx, []string{cleanedNumber}, smsMessage)
 	if err != nil {
@@ -218,7 +227,7 @@ originalNumber := input.Number
 		Success: true,
 		Message: "Password reset OTP sent successfully",
 		OtpSent: true,
-		Email:   &cleanedNumber,
+		Email:   &cleanedNumber, // cleanedNumber was used for sending
 	}, nil
 }
 
@@ -353,11 +362,10 @@ func (r *mutationResolver) ResendOtp(ctx context.Context, input model.RequestOtp
 
 // ReSetPasswordORUpdateOtp is the resolver for the reSetPasswordORUpdateOTP field.
 func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input model.RequestOtpInput) (*model.OtpResponse, error) {
-	// Clean and validate email
-	// email := strings.TrimSpace(strings.ToLower(input.Email))
-	cleanedNumber := helper.CleanPhoneNumber(input.Number)
+		originalNumber := input.Number
+	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
 
-	if cleanedNumber == "" {
+	if cleanedNumber == "" && originalNumber == "" {
 		return &model.OtpResponse{
 			Success: false,
 			Message: "Phone number is required",
@@ -365,25 +373,33 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 		}, nil
 	}
 
-	// Check if the service exists with this email
-	// var service model.Service
-	// if err := r.DB.Where("number = ?", cleanedNumber).First(&service).Error; err != nil {
-	// 	return &model.OtpResponse{
-	// 		Success: false,
-	// 		Message: "No account found with this number",
-	// 		OtpSent: false,
-	// 	}, nil
-	// }
 	var service model.Service
 	var rider model.Rider
 	var user model.User
 
-	// Check if the number exists in Service, Rider, or User
-	serviceErr := r.DB.Where("number = ?", cleanedNumber).First(&service).Error
-	riderErr := r.DB.Where("number = ?", cleanedNumber).First(&rider).Error
-	userErr := r.DB.Where("number = ?", cleanedNumber).First(&user).Error
+	found := false
 
-	if serviceErr != nil && riderErr != nil && userErr != nil {
+	tryCheck := func(number string) bool {
+		if err := r.DB.Where("number = ?", number).First(&service).Error; err == nil {
+			return true
+		}
+		if err := r.DB.Where("number = ?", number).First(&rider).Error; err == nil {
+			return true
+		}
+		if err := r.DB.Where("number = ?", number).First(&user).Error; err == nil {
+			return true
+		}
+		return false
+	}
+
+	if tryCheck(cleanedNumber) {
+		found = true
+	} else if tryCheck(originalNumber) {
+		found = true
+		cleanedNumber = originalNumber // fallback to original if that's what exists
+	}
+
+	if !found {
 		return &model.OtpResponse{
 			Success: false,
 			Message: "No account found with this number",
@@ -394,7 +410,6 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 	// Initialize OTP service
 	otpService := otp.NewOtpService(r.RedisClient)
 
-	// Check if the email is rate limited
 	isLimited, remainingTime, err := otpService.IsRateLimited(ctx, cleanedNumber)
 	if err != nil {
 		log.Printf("Error checking rate limit: %v", err)
@@ -414,7 +429,6 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 		}, nil
 	}
 
-	// Generate OTP for password reset/update
 	generatedOTP, err := otpService.GenerateOTP(ctx, cleanedNumber)
 	if err != nil {
 		log.Printf("Error generating OTP: %v", err)
@@ -425,7 +439,6 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 		}, nil
 	}
 
-	// Send OTP via email with reset password context
 	err = otp.SendBulkSMS(ctx, []string{cleanedNumber}, generatedOTP)
 	if err != nil {
 		log.Printf("Error sending password reset OTP number: %v", err)
@@ -435,16 +448,6 @@ func (r *mutationResolver) ReSetPasswordORUpdateOtp(ctx context.Context, input m
 			OtpSent: false,
 		}, nil
 	}
-
-	// Mark the service as in password reset process if needed
-	// if service.IsAuth != nil {
-	// 	resetStatus := model.IsAuthUnauthenticated
-	// 	service.IsAuth = &resetStatus
-	// 	if err := r.DB.Save(&service).Error; err != nil {
-	// 		log.Printf("Warning: Failed to update service status: %v", err)
-	// 		// Continue anyway since OTP is sent
-	// 	}
-	// }
 
 	return &model.OtpResponse{
 		Success: true,
