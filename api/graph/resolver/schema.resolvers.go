@@ -158,6 +158,7 @@ func (r *mutationResolver) UpdateNumber(ctx context.Context, number string, pass
 		hashedPasswordStr := string(hashedPassword)
 		rider.Password = &hashedPasswordStr
 	}
+	rider.Type = "DELIVERY"
 
 	// Save rider
 	if err := r.DB.Save(&rider).Error; err != nil {
