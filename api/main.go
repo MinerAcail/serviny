@@ -67,6 +67,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.InventoryItem{},
 		&model.UnavailablePeriod{},
 		&model.User{},
+		&model.UserManager{},
+		&model.SmsRecord{},
 		&model.EventBookings{},
 		&model.Event{},
 		&model.Service{},

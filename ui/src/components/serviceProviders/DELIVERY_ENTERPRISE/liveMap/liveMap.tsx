@@ -1757,7 +1757,7 @@ const riderNames = uniqueRiderNames
               deliveryAddress: service.bookingData?.deliveryAddress,
               pickupAddress: service.bookingData?.pickUpAddress,
               tableSize: service.bookingData?.tableSize
-                ? `${service.bookingData.tableSize} people`
+                ? `${service.bookingData.tableSize} ${Number(service.bookingData.tableSize) === 1 ? 'item' : 'items'}`
                 : "N/A",
               day: service.bookingData?.day,
               startTime: service.bookingData?.startTime
@@ -1901,7 +1901,8 @@ const riderNames = uniqueRiderNames
               Amount: `GH₵${bookingService.bookingData?.deliveryFee || 0}`,
               "Pickup Address": bookingService.bookingData?.pickUpAddress,
               "Delivery Address": bookingService.bookingData?.deliveryAddress,
-              "Table Size": bookingService.bookingData?.tableSize ? `${bookingService.bookingData.tableSize} people` : "N/A",
+              "Package ": bookingService.bookingData?.tableSize ? `${bookingService.bookingData.tableSize}   ${Number(bookingService.bookingData.tableSize) === 1 ? 'item' : 'items'}
+` : "N/A",
               Day: bookingService.bookingData?.day,
               "Start Time": bookingService.bookingData?.startTime ? new Date(bookingService.bookingData.startTime).toLocaleString() : "N/A",
               "End Time": bookingService.bookingData?.endTime ? new Date(bookingService.bookingData.endTime).toLocaleString() : "N/A",

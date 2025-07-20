@@ -54,41 +54,72 @@ func (r *mutationResolver) DeleteTable(ctx context.Context) (bool, error) {
 }
 
 // ServiceLogin is the resolver for the serviceLogin field.
-func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginInput) (model.Returns, error) {
-	// Try to find a service first
-	service := &model.Service{}
-	if err := r.DB.Where("number = ?", input.Number).First(service).Error; err == nil {
-		if service.Password != nil {
-			if err := bcrypt.CompareHashAndPassword([]byte(*service.Password), []byte(input.Password)); err == nil {
+func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginInput, entityID *string) (model.Returns, error) {
+	originalNumber := *input.Number
+	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
+
+	// Try cleaned number first
+	tryLogin := func(number string) (model.Returns, bool) {
+		// Try service
+		service := &model.Service{}
+		if err := r.DB.Where("number = ?", number).First(service).Error; err == nil {
+			if service.Password != nil &&
+				bcrypt.CompareHashAndPassword([]byte(*service.Password), []byte(input.Password)) == nil {
 				middleware.SetTokenForContext(ctx, service.Type, service.ID.String())
-				return service, nil
+				return service, true
 			}
 		}
-	}
 
-	// Fallback: Try to find a user
-	user := &model.User{}
-	if err := r.DB.Where("number = ?", input.Number).First(user).Error; err == nil {
-		if user.Password != nil {
-			if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(input.Password)); err == nil {
+		// Try user
+		user := &model.User{}
+		if err := r.DB.Where("number = ?", number).First(user).Error; err == nil {
+			// If entityID is provided, check UserManager.Password (plain text)
+			if entityID != nil && strings.TrimSpace(*entityID) != "" {
+				var userManager model.UserManager
+				if err := r.DB.Where("user_id = ? AND entity_id = ?", user.ID, *entityID).First(&userManager).Error; err == nil {
+					if userManager.Password != nil && *userManager.Password == input.Password {
+						middleware.SetTokenForContext(ctx, user.Type, user.ID.String())
+						return user, true
+					}
+				}
+				// Fall back to user.Password bcrypt even if UserManager.Password failed
+			}
 
+			// Fallback to User.Password (bcrypt)
+			if user.Password != nil &&
+				bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(input.Password)) == nil {
 				middleware.SetTokenForContext(ctx, user.Type, user.ID.String())
-				return user, nil
+				return user, true
 			}
 		}
-	}
-	rider := &model.Rider{}
-	if err := r.DB.Where("number = ?", input.Number).First(rider).Error; err == nil {
-		if rider.Password != nil {
-			if err := bcrypt.CompareHashAndPassword([]byte(*rider.Password), []byte(input.Password)); err == nil {
 
+		// Try rider
+		rider := &model.Rider{}
+		if err := r.DB.Where("number = ?", number).First(rider).Error; err == nil {
+			if rider.Password != nil &&
+				bcrypt.CompareHashAndPassword([]byte(*rider.Password), []byte(input.Password)) == nil {
 				middleware.SetTokenForContext(ctx, rider.Type, rider.ID.String())
-				return rider, nil
+				return rider, true
 			}
 		}
+
+		return nil, false
+	}
+
+	if result, ok := tryLogin(cleanedNumber); ok {
+		return result, nil
+	}
+
+	if result, ok := tryLogin(originalNumber); ok {
+		return result, nil
 	}
 
 	return nil, fmt.Errorf("invalid number or password")
+}
+
+// UpdateNumber is the resolver for the updateNumber field.
+func (r *mutationResolver) UpdateNumber(ctx context.Context, id string) (model.Returns, error) {
+	panic(fmt.Errorf("not implemented: UpdateNumber - updateNumber"))
 }
 
 // AdminLogin is the resolver for the adminLogin field.
@@ -1050,6 +1081,12 @@ func (r *userBookingsResolver) ID(ctx context.Context, obj *model.UserBookings) 
 	return id, nil
 }
 
+// ID is the resolver for the id field.
+func (r *userManagerResolver) ID(ctx context.Context, obj *model.UserManager) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
 // Coordinates is the resolver for the coordinates field.
 func (r *usersInforResolver) Coordinates(ctx context.Context, obj *model.UsersInfor) ([]*float64, error) {
 	result := make([]*float64, 0, len(obj.Coordinates))
@@ -1081,6 +1118,9 @@ func (r *Resolver) PurchaseHistoryItem() graph.PurchaseHistoryItemResolver {
 // UserBookings returns graph.UserBookingsResolver implementation.
 func (r *Resolver) UserBookings() graph.UserBookingsResolver { return &userBookingsResolver{r} }
 
+// UserManager returns graph.UserManagerResolver implementation.
+func (r *Resolver) UserManager() graph.UserManagerResolver { return &userManagerResolver{r} }
+
 // UsersInfor returns graph.UsersInforResolver implementation.
 func (r *Resolver) UsersInfor() graph.UsersInforResolver { return &usersInforResolver{r} }
 
@@ -1089,4 +1129,5 @@ type profilesResolver struct{ *Resolver }
 type purchaseHistoryResolver struct{ *Resolver }
 type purchaseHistoryItemResolver struct{ *Resolver }
 type userBookingsResolver struct{ *Resolver }
+type userManagerResolver struct{ *Resolver }
 type usersInforResolver struct{ *Resolver }

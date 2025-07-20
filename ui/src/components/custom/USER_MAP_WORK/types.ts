@@ -2,8 +2,8 @@ import { gql } from "@apollo/client"
 
 // GraphQL Query for User Service Data
 export const GET_ALL_USER_SERVICE_DATA = gql`
-  query GetAllUserServiceData {
-    getAllUserServiceData {
+  query GetAllUserServiceData($entityId: String) {
+    getAllUserServiceData(entityId: $entityId) {
       id
       serviceId
       type

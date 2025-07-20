@@ -107,22 +107,25 @@ function MultiDeliverySummaryCard({
   );
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-100 transition-all max-w-sm">
+    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-100 transition-all max-w-sm mt-11" >
       {/* Header with toggle */}
       <div 
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" 
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 " 
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
             <Package className="h-4 w-4 text-blue-600" />
           </div>
+          {isExpanded &&(
+
           <div>
-            <h3 className="font-semibold text-gray-900">Delivery Infor</h3>
+            <h3 className="font-semibold text-gray-900">Delivery Info</h3>
             <p className="text-xs text-gray-600">
               {completedItems.length}/{deliveryItems.length} destinations ready
             </p>
           </div>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           {!isCargo && totalCalculations && (
@@ -130,7 +133,7 @@ function MultiDeliverySummaryCard({
               <div className="text-lg font-bold text-green-600">
                 GH₵{totalCalculations.totalPrice.toFixed(2)}
               </div>
-              <div className="text-xs text-gray-500">Total</div>
+              
             </div>
           )}
           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />

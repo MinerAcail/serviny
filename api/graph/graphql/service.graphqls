@@ -86,27 +86,52 @@ extend type Query {
     search: String
     limit: Int = 10
     offset: Int = 0
+    searchExternal: Boolean
   ): [UserData!]!
-
+  getConnectedContactIDs(serviceId: String!): ConnectedContactIDs
+  searchExternalContacts(
+    search: String!
+    limit: Int! = 10
+    offset: Int! = 0
+    serviceId: String!
+    connected: ConnectedContactIDsInput
+  ): [UserData!]!
   getSocialMedia(serviceId: String!): SocialMedia
 
   getAllRidersServiceData: [ServiceData!]!
-  getAllServiceDataByUserId(userId:String!): [ServiceData!]!
+  getAllServiceDataByUserId(userId: String!): [ServiceData!]!
   getBookingServiceData: [ServiceData!]!
 
-  getOrderServiceDataByUserIdFromServiceId(userId:String): [ServiceData!]!
-  getBookingServiceDataByUserIdFromServiceId(userId:String): [ServiceData!]!
+  getOrderServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
+  getBookingServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
+
 
   getOrderServiceData: [ServiceData!]!
-  getAllUserServiceData: [ServiceData!]!
-  getBookingServiceDataByUserId(userId:String): [ServiceData!]!
+  getAllUserServiceData(entityId: String): [ServiceData!]!
+  getSpecificOrderServiceData(
+    userId: String
+    entityId: String
+  ): ServiceData
+  getSpecificBookingServiceData(
+    userId: String
+    entityId: String
+  ): ServiceData
+  getBookingServiceDataByUserId(userId: String): [ServiceData!]!
+  getOrderServiceDataByUserId(userId: String): [ServiceData!]!
   getBookingServiceDataByBookingId(bookingId: String!): AppointmentBookingData!
-  getOrderServiceDataByUserId(userId:String): [ServiceData!]!
 
-  getBusinessType:BusinessType
-
+  getBusinessType: BusinessType
 }
-
+input ConnectedContactIDsInput {
+  userIDs: [String!]!
+  serviceIDs: [String!]!
+  riderIDs: [String!]!
+}
+type ConnectedContactIDs {
+  userIDs: [String!]!
+  serviceIDs: [String!]!
+  riderIDs: [String!]!
+}
 extend type Mutation {
   createService(dpfile: Upload, input: CreateServiceInput!): Service
   updateService(
@@ -114,7 +139,7 @@ extend type Mutation {
     input: UpdateServiceInput!
     removeProfession: [String]
   ): Service
-  updateBusinessType(businessType:String):BusinessType
+  updateBusinessType(businessType: String): BusinessType
   generateSubDomain(serviceId: String!): Service
   useTheme(ServiceId: String!, theme: String): String
 
@@ -258,7 +283,7 @@ enum ServiceType {
 type BusinessType {
   id: String!
   status: String
-  serviceId:String!
+  serviceId: String!
   paymentStatus: String
   paymentMethod: String
   businessType: String

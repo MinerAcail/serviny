@@ -30,7 +30,7 @@ func ReadFile(filePath string) ([]byte, error) {
 	}
 	return content, nil
 }
-	func GetKeys(m map[string]interface{}) []string {
+func GetKeys(m map[string]interface{}) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -64,7 +64,14 @@ func GetAllByModel(db *gorm.DB, model interface{}, preloads ...string) error {
 
 	return nil
 }
-
+func GenerateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(result)
+}
 func CheckDuplicateRecords(db *gorm.DB, model interface{}, inputName, inputPhoneNumber string) error {
 	// Check if a user with the same name and number already exists
 	err := db.Where("name = ? AND number = ?", inputName, inputPhoneNumber).First(model).Error
@@ -140,17 +147,27 @@ func CheckAllDuplicateRecords(db *gorm.DB, model interface{}, inputName, email, 
 	return nil
 }
 func CleanPhoneNumber(phoneNumber string) string {
-	cleanedPhoneNumber := strings.ReplaceAll(phoneNumber, " ", "")
-	cleanedPhoneNumber = strings.TrimPrefix(cleanedPhoneNumber, "+233")
-	cleanedPhoneNumber = strings.TrimPrefix(cleanedPhoneNumber, "233")
+	// Remove all non-digit characters (e.g. "+233", spaces, dashes)
+	re := regexp.MustCompile(`\D`)
+	digitsOnly := re.ReplaceAllString(phoneNumber, "")
 
-	// Check if the cleaned phone number has fewer than 10 digits
-	if len(cleanedPhoneNumber) < 10 {
-		// Add a leading "0" to make it 10 digits
-		cleanedPhoneNumber = "0" + cleanedPhoneNumber
+	// Remove Ghana country code if present
+	if strings.HasPrefix(digitsOnly, "233") {
+		digitsOnly = digitsOnly[3:]
 	}
 
-	return cleanedPhoneNumber
+	// Remove leading zero if present
+	if strings.HasPrefix(digitsOnly, "0") {
+		digitsOnly = digitsOnly[1:]
+	}
+
+	// Ensure we now have exactly 9 digits
+	if len(digitsOnly) != 9 {
+		return ""
+	}
+
+	// Return in international format
+	return "233" + digitsOnly
 }
 
 func UploadFileToMinio(ctx context.Context, minioClient *minio.Client, bucketName, fileType string, file *graphql.Upload) (string, error) {
@@ -310,7 +327,12 @@ func GetStringValue(s *string) string {
 	}
 	return *s
 }
-
+func BoolPtr(b bool) *bool {
+	if !b {
+		return nil
+	}
+	return &b
+}
 // Helper function to remove duplicate strings from a slice
 func RemoveDuplicates(strSlice []string) []string {
 	keys := make(map[string]bool)
@@ -325,8 +347,7 @@ func RemoveDuplicates(strSlice []string) []string {
 	return list
 }
 
-
-func FetchAllProducts(db *gorm.DB, limit int, offset int,vendorID string) ([]*model.Product, error) {
+func FetchAllProducts(db *gorm.DB, limit int, offset int, vendorID string) ([]*model.Product, error) {
 	var products []*model.Product
 
 	query := db.
@@ -358,7 +379,6 @@ func FetchAllProduct(db *gorm.DB) ([]*model.Product, error) {
 	}
 	return products, nil
 }
-
 
 func ExecuteSearchQueryWithVendorPriority(db *gorm.DB, query string, vendorID string) ([]*model.Product, error) {
 	var products []*model.Product

@@ -143,6 +143,18 @@ type ChatMessageInput struct {
 	Content string     `json:"content"`
 }
 
+type ConnectedContactIDs struct {
+	UserIDs    []string `json:"userIDs"`
+	ServiceIDs []string `json:"serviceIDs"`
+	RiderIDs   []string `json:"riderIDs"`
+}
+
+type ConnectedContactIDsInput struct {
+	UserIDs    []string `json:"userIDs"`
+	ServiceIDs []string `json:"serviceIDs"`
+	RiderIDs   []string `json:"riderIDs"`
+}
+
 type CoordinateInput struct {
 	Name string  `json:"name"`
 	Lat  float64 `json:"lat"`
@@ -399,11 +411,14 @@ type OrderWithRoute struct {
 }
 
 type OtpResponse struct {
-	Success bool    `json:"success"`
-	Message string  `json:"message"`
-	OtpSent bool    `json:"otpSent"`
-	IsValid bool    `json:"IsValid"`
-	Email   *string `json:"email,omitempty"`
+	Success     bool    `json:"success"`
+	Message     string  `json:"message"`
+	OtpSent     bool    `json:"otpSent"`
+	IsValid     bool    `json:"IsValid"`
+	EntityID    *string `json:"entityId,omitempty"`
+	EntityType  *string `json:"entityType,omitempty"`
+	MessageType string  `json:"messageType"`
+	Email       *string `json:"email,omitempty"`
 }
 
 type PaymentConnection struct {
@@ -543,11 +558,11 @@ type RequestOtpInput struct {
 }
 
 type ResetPassWordOtpInput struct {
-	Email string `json:"email"`
+	Number string `json:"number"`
 }
 
 type ResetPasswordInput struct {
-	Email           string `json:"email"`
+	Number          string `json:"number"`
 	Otp             string `json:"otp"`
 	NewPassword     string `json:"newPassword"`
 	ConfirmPassword string `json:"confirmPassword"`
@@ -777,6 +792,7 @@ type UserData struct {
 	Number     string `json:"number"`
 	NumberType string `json:"numberType"`
 	Type       string `json:"type"`
+	External   *bool  `json:"external,omitempty"`
 }
 
 type UserInfor struct {
@@ -785,6 +801,12 @@ type UserInfor struct {
 	TotalitemsOrdered  int32    `json:"totalitemsOrdered"`
 	TotalOrders        int32    `json:"totalOrders"`
 	FirstlastOrderDate string   `json:"firstlastOrderDate"`
+}
+
+type UserManagerData struct {
+	User     *UsersInfor         `json:"user,omitempty"`
+	TempUser *UserManager        `json:"tempUser,omitempty"`
+	Book     *AppointmentBooking `json:"book,omitempty"`
 }
 
 type VendorMapData struct {
@@ -797,9 +819,9 @@ type VendorsMapData struct {
 }
 
 type VerifyOtpInput struct {
-	Email string `json:"email"`
-	Otp   string `json:"otp"`
-	Type  string `json:"type"`
+	Number string `json:"number"`
+	Otp    string `json:"otp"`
+	Type   string `json:"type"`
 }
 
 type ViewInvoice struct {
@@ -893,6 +915,14 @@ type RentalInput struct {
 type RiderRequestInfor struct {
 	Rider   *Rider         `json:"rider"`
 	Request *RidersRequest `json:"request"`
+}
+
+type SmsInput struct {
+	Number     string  `json:"number"`
+	Message    string  `json:"message"`
+	EntityID   *string `json:"entityId,omitempty"`
+	EntityType string  `json:"entityType"`
+	UserID     *string `json:"userId,omitempty"`
 }
 
 type WorksInput struct {

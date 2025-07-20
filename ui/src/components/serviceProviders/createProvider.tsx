@@ -1030,7 +1030,7 @@ export default function ImprovedServiceProvider() {
       const result = await verifyOtp({
         variables: {
           input: {
-            email: formData?.email,
+            number: formData?.number,
             otp: otpCode,
             type: "SERVICE",
           },
@@ -1050,7 +1050,8 @@ export default function ImprovedServiceProvider() {
             description: "Password and Confirm Password are required.",
           });
         }
-        navigate(`login`);
+        navigate(`/login`);
+        
       } else {
         toast.error("Verification Failed", {
           description:
@@ -1216,8 +1217,8 @@ export default function ImprovedServiceProvider() {
           {showOtpVerification ? (
             <div className="space-y-6">
               <OtpCard
-                title="Email Verification"
-                email={formData?.email}
+                title="Number Verification"
+                email={formData?.number}
                 onSubmit={handleVerifyOtp}
                 onResend={handleResendOtp}
                 loading={verifyingOtp}

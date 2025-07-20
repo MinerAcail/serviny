@@ -1616,7 +1616,7 @@ function CompleteBooking({
           <div className="space-y-3">
             <div className="grid gap-2">
               <Label htmlFor="tableSize" className="text-sm">
-                Table Size (People)
+                 Item Count
               </Label>
               <select
                 id="tableSize"
@@ -1626,7 +1626,7 @@ function CompleteBooking({
               >
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((size) => (
                   <option key={size} value={size}>
-                    {size} {size === 1 ? "person" : "people"}
+                    {size} {size === 1 ? "item" : "items"}
                   </option>
                 ))}
               </select>

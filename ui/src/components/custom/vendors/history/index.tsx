@@ -1,7 +1,4 @@
-"use client"
-
 import type React from "react"
-
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -432,8 +429,8 @@ export default function ServiceHistory(): React.ReactElement {
                                 <span className="ml-1 font-medium">{service.vendor}</span>
                               </div>
                               <div>
-                                <span className="text-gray-600">Table:</span>
-                                <span className="ml-1 font-medium">{service.tableSize || "N/A"} people</span>
+                                <span className="text-gray-600">Item Count:</span>
+                                <span className="ml-1 font-medium">{service.tableSize || "N/A"} ${Number(service?.tableSize) === 1 ? 'item' : 'items'}</span>
                               </div>
                               <div>
                                 <span className="text-gray-600">Day:</span>
@@ -974,8 +971,7 @@ export default function ServiceHistory(): React.ReactElement {
                       <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
                         {order.tableSize && (
                           <div>
-                            <span className="font-medium text-gray-700">Table Size: </span>
-                            <span className="text-gray-900">{order.tableSize} people</span>
+                            <span className="text-gray-900">{order.tableSize} Items</span>
                           </div>
                         )}
                         {order.bookingDay && (

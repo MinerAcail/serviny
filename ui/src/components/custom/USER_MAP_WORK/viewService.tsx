@@ -16,6 +16,7 @@ import {
   ChevronUp,
   BarChart3,
   Clipboard,
+  LogIn,
 } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ import ServiceListDialog from "./serviceListDialog";
 
 const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
-export default function UserServiceViewer() {
+export default function UserServiceViewer({entityId = ""}: { entityId?: string }) {
   // State management
   const [showDialog, setShowDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -99,6 +100,7 @@ export default function UserServiceViewer() {
   const { loading, error, data, refetch } = useQuery(
     GET_ALL_USER_SERVICE_DATA,
     {
+      variables: { entityId },
       pollInterval: 60000,
       errorPolicy: "all",
       notifyOnNetworkStatusChange: true,
@@ -500,34 +502,13 @@ export default function UserServiceViewer() {
     );
   }
 
-  // Error state
-  if (error && !data) {
-    return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-red-100 via-white to-orange-100 flex items-center justify-center">
-        <div className="text-center backdrop-blur-xl bg-white/30 rounded-3xl p-8 border border-white/20 shadow-2xl max-w-md">
-          <div className="w-20 h-20 bg-red-100/50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-xl">
-            <X className="w-10 h-10 text-red-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            Failed to Load Data
-          </h3>
-          <p className="text-sm text-gray-500 mb-4">{error.message}</p>
-          <Button
-            onClick={handleRefresh}
-            className="bg-red-500 hover:bg-red-600 text-white"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className=" z-5">
       {/* Full Screen Map */}
-      
+      {error && !data && <ErrorState entityId={entityId} handleRefresh={handleRefresh} />}
+
       <div className="absolute inset-0">
         <div ref={mapRefCallback} className="w-full h-full " />
         {!mapLoaded && (
@@ -547,7 +528,7 @@ export default function UserServiceViewer() {
               </p>
 
               {/* Debug info in development */}
-              {process.env.NODE_ENV === "development" && (
+              {/* {process.env.NODE_ENV === "development" && (
                 <div className="text-xs text-gray-400 space-y-1">
                   <p>
                     API Key: {maptilerApiKey ? "✅ Provided" : "❌ Using Demo"}
@@ -555,7 +536,7 @@ export default function UserServiceViewer() {
                   <p>Container: {mapContainer ? "✅ Ready" : "❌ Not Ready"}</p>
                   <p>State: {mapStateRef.current ? "✅ Created" : "❌ Null"}</p>
                 </div>
-              )}
+              )} */}
 
               {/* Force show button after 10 seconds */}
               <Button
@@ -1074,6 +1055,8 @@ import { AlertCircle, CreditCard, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { PaymentStatusSection } from "./PaymentStatusSection";
+import Login from "@/app/Login";
+import { ErrorState } from "../loading";
 
 interface PaymentStatus {
   method: string;

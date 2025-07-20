@@ -549,9 +549,9 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-gray-600">Table Size: </span>
+                  <span className="text-gray-600"> Item Count: </span>
                   <span className="font-medium">
-                    {service.bookingData.tableSize} people
+                    {service.bookingData.tableSize} ${Number(service.bookingData.tableSize) === 1 ? 'item' : 'items'}
                   </span>
                 </div>
                 <div>

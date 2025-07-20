@@ -236,7 +236,7 @@ func SendBulkSMS(ctx context.Context, phoneNumbers []string, message string) err
 	if env != "sandbox" {
 		username = os.Getenv("AFRICAS_TALKING_USERNAME")
 	}
-	senderId := "AFRICASTALKING" // default for sandbox
+	senderId := "WINNEMART" // default for sandbox
 	// if env != "sandbox" {
 	// 	senderId = os.Getenv("AFRICAS_TALKING_SENDER_ID")
 	// }

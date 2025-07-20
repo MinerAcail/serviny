@@ -515,7 +515,7 @@ useEffect(() => {
                   <h3 class="font-bold">Dropoff - Booking #${service.bookingData.bookingId.slice(-6)}</h3>
                   <p class="text-sm font-medium">${service.customer.name}</p>
                   <p class="text-xs text-gray-600">${service.bookingData.deliveryAddress}</p>
-                  <p class="text-xs font-medium mt-1">Table: ${service.bookingData.tableSize} people</p>
+                  <p class="text-xs font-medium mt-1"> ${service.bookingData.tableSize}   ${service.bookingData.tableSize === 1 ? 'item' : 'items'}</p>
                   <p class="text-xs font-medium">Day: ${service.bookingData.day}</p>
                   ${service.bookingData.multiGroupId ? `<p class="text-xs font-medium">Multi-Group: #${service.bookingData.multiGroupId.slice(-6)}</p>` : ''}
                 </div>

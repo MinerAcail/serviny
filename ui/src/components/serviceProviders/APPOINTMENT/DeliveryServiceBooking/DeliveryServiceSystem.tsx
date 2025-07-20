@@ -32,7 +32,6 @@ import { DeliveryTimeDialog } from "../delivery-time-dialog";
 
 const GET_ALL_UNAVAILABLE_PERIODS = gql`
   query GetAllUnavailablePeriods {
-  
     getConfirmedBookingsAsUnavailable {
       id
       day
@@ -42,17 +41,15 @@ const GET_ALL_UNAVAILABLE_PERIODS = gql`
   }
 `;
 const GET_ALL_UNAVAILABLE_PERIODS_PROFILE = gql`
-     query getUnavailablePeriodsByCurrectProfile ($serviceId:String!){
-    getUnavailablePeriodsByCurrectProfile(serviceId:$serviceId) {
+  query getUnavailablePeriodsByCurrectProfile($serviceId: String!) {
+    getUnavailablePeriodsByCurrectProfile(serviceId: $serviceId) {
       id
       day
       endTime
       startTime
     }
-
-  
   }
-  `
+`;
 // Updated mutation to include cargo parameters
 const CREATE_MULTIPLE_BOOKINGS = gql`
   mutation CreateMultipleBookings(
@@ -60,12 +57,15 @@ const CREATE_MULTIPLE_BOOKINGS = gql`
     $isMulti: Boolean
     $isCargo: Boolean
     $serviceId: String!
+    $updateTemp:Boolean
   ) {
     createMultipleBookings(
       input: $input
       isMulti: $isMulti
       isCargo: $isCargo
       serviceId: $serviceId
+      updateTemp: $updateTemp
+
     ) {
       id
       startTime
@@ -177,26 +177,33 @@ const parseTimeString = (timeString: string): number => {
   const [hours, minutes] = timeString.split(":").map(Number);
   return hours * 100 + minutes;
 };
-
+///
 export const DeliveryServiceSystem = ({
   isDialogOpenMain,
   setDialogOpenMain,
   serviceId,
+  isService,
+  userDataId,
+  updateTemp
 }: {
   isDialogOpenMain: boolean;
   setDialogOpenMain: React.Dispatch<React.SetStateAction<boolean>>;
   serviceId?: string;
+  isService?: boolean;
+  userDataId?: string;
+  updateTemp?: boolean;
+
 }) => {
   const today = startOfDay(new Date());
   const [currentDate, setCurrentDate] = useState<Date>(today);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = !isService ? user?.id : userDataId;
   const navigate = useNavigate();
 
-//  const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
+  //  const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
   // const { firstProfileId } = useProfileUpdate();
-    // const localServiceId = localStorage.getItem("serviceId");
+  // const localServiceId = localStorage.getItem("serviceId");
 
   // const serviceId = firstProfileId  ??  localServiceId ?? "";
   // States for the delivery system
@@ -249,14 +256,15 @@ export const DeliveryServiceSystem = ({
   const [isDialogOpenDeliverySetting, setDeliverySettingDialog] =
     useState(false);
   const { data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS);
-  const { data:Data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS_PROFILE,{
-    variables:{serviceId:serviceId}
+  const { data: Data } = useQuery(GET_ALL_UNAVAILABLE_PERIODS_PROFILE, {
+    variables: { serviceId: serviceId },
   });
 
   // Process unavailable periods from API
   useEffect(() => {
     if (data) {
-      const manualUnavailablePeriods = Data?.getUnavailablePeriodsByCurrectProfile || [];
+      const manualUnavailablePeriods =
+        Data?.getUnavailablePeriodsByCurrectProfile || [];
       const bookingUnavailablePeriods: UnavailablePeriod[] = (
         data.getConfirmedBookingsAsUnavailable || []
       ).map((booking: any): UnavailablePeriod => {
@@ -339,7 +347,7 @@ export const DeliveryServiceSystem = ({
         setSelectedStartTime(null);
         setDeliveryDates([]);
         setDialogOpenMain(false);
-        
+
         // Reset cargo state
         setIsCargo(false);
         setCargoType("");
@@ -347,29 +355,28 @@ export const DeliveryServiceSystem = ({
 
         if (firstBookingId) {
           // Build URL with conditional parameters
-          
-          let navigationUrl = `/dd/${serviceId}/${firstBookingId}`;
 
-          
+          let navigationUrl = `/dd/${serviceId}/${firstBookingId}/?${isService && "service=ture"}`;
+
           // Add URL parameters for special delivery types
           const params = new URLSearchParams();
           if (isMultiLocation) {
-            params.append('isMultiLocation', 'true');
+            params.append("isMultiLocation", "true");
           }
           if (isCargo) {
-            params.append('cargo', 'true');
+            params.append("cargo", "true");
             if (cargoType) {
-              params.append('cargoType', cargoType);
+              params.append("cargoType", cargoType);
             }
             if (isMultiLocation && splitCargo) {
-              params.append('splitCargo', 'true');
+              params.append("splitCargo", "true");
             }
           }
-          
+
           if (params.toString()) {
             navigationUrl += `?${params.toString()}`;
           }
-          
+
           navigate(navigationUrl, {
             replace: true,
           });
@@ -620,44 +627,47 @@ export const DeliveryServiceSystem = ({
     let deliveryInputs;
 
     if (isMultiLocation && orderSize > 1) {
-      // Multi-location: Create separate booking for each item with different addresses
+     // Multi-location: Create separate booking for each item with different addresses
+      // This is the ONLY case where we create multiple bookings
       deliveryInputs = deliveryItems.slice(0, orderSize).map((item) => ({
-        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
+        startTime: timeToISOString(
+          deliverySegments[0].startDate,
+          deliverySegments[0].startTime
+        ),
+        endTime: timeToISOString(
+          deliverySegments[0].endDate,
+          deliverySegments[0].endTime
+        ),
         notes: item.notes || userData.notes,
         tableSize: 1, // Each item is individual
         userId: userId,
         userType: user.type,
         item: item.itemDescription || userData.itemType,
         // Add cargo-specific fields - use individual cargo type if set, otherwise use default
-        transportType: isCargo ? (item.customCargoType || cargoType) : undefined,
-      }));
-    } else if (orderSize > 1) {
-      // Multiple items, same location: Create multiple bookings with same details
-      deliveryInputs = Array.from({ length: orderSize }, (_, index) => ({
-        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-        notes: userData.notes,
-        tableSize: 1, // Each booking represents 1 item
-        userId: userId,
-        userType: user.type,
-        item: userData.itemType,
-        // Add cargo-specific fields
-        transportType: isCargo ? cargoType : undefined,
+        transportType: isCargo ? item.customCargoType || cargoType : undefined,
       }));
     } else {
-      // Single item: One booking
-      deliveryInputs = [{
-        startTime: timeToISOString(deliverySegments[0].startDate, deliverySegments[0].startTime),
-        endTime: timeToISOString(deliverySegments[0].endDate, deliverySegments[0].endTime),
-        notes: userData.notes,
-        tableSize: orderSize, // Total quantity in single booking
-        userId: userId,
-        userType: user.type,
-        item: userData.itemType,
-        // Add cargo-specific fields
-        transportType: isCargo ? cargoType : undefined,
-      }];
+       // Single location delivery: Create ONE booking with total quantity
+      // This applies whether orderSize is 1 or more - it's still the same location
+      deliveryInputs = [
+        {
+          startTime: timeToISOString(
+            deliverySegments[0].startDate,
+            deliverySegments[0].startTime
+          ),
+          endTime: timeToISOString(
+            deliverySegments[0].endDate,
+            deliverySegments[0].endTime
+          ),
+          notes: userData.notes,
+          tableSize: orderSize, // Total quantity in single booking
+          userId: userId,
+          userType: user.type,
+          item: userData.itemType,
+          // Add cargo-specific fields
+          transportType: isCargo ? cargoType : undefined,
+        },
+      ];
     }
 
     // Call the mutation with cargo parameters
@@ -667,6 +677,7 @@ export const DeliveryServiceSystem = ({
         isMulti: isMultiLocation,
         isCargo: isCargo,
         serviceId: serviceId,
+        updateTemp: !updateTemp ? null : true,
       },
     });
 
@@ -679,7 +690,7 @@ export const DeliveryServiceSystem = ({
         <DialogContent className="sm:max-w-lg max-h-[90%] overflow-y-auto bg-white/95 backdrop-blur-sm border border-gray-100 shadow-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-gray-900">
-             Pick a time for delivery
+              Pick a time for delivery
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">

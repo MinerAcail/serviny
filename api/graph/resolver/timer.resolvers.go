@@ -155,17 +155,7 @@ func (r *mutationResolver) GetGrowthData(ctx context.Context, id string) (*model
 }
 
 // CreateMultipleBookings is the resolver for the createMultipleBookings field.
-func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string) ([]*model.AppointmentBooking, error) {
-	// UserIDStr, err := r.Query().GetID(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get Service ID: %v", err)
-	// }
-
-	// USERID, err := uuid.Parse(*UserIDStr)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("invalid user ID: %w", err)
-	// }
-
+func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string, updateTemp *bool) ([]*model.AppointmentBooking, error) {
 	// Parse service ID
 	svcID, err := uuid.Parse(serviceID)
 	if err != nil {
@@ -340,6 +330,37 @@ func (r *mutationResolver) CreateMultipleBookings(ctx context.Context, input []*
 		for _, cargo := range cargoRecords {
 			fmt.Printf("Cargo ID: %s, Transport Type: %s, Booking ID: %s\n",
 				cargo.ID.String(), cargo.TransportType, *cargo.BookingID)
+		}
+	}
+	if updateTemp != nil && *updateTemp {
+		if len(bookings) == 0 {
+			return nil, fmt.Errorf("no bookings to use for user manager update")
+		}
+
+		// We'll use the first booking's user ID and booking ID
+		userID := bookings[0].UserID
+		entityID := bookings[0].ID.String()
+		entityType := "NORMAL"
+
+		if isCargo != nil && *isCargo {
+			entityType = "CARGO"
+		} else if isMulti != nil && *isMulti {
+			entityType = "MULTI"
+			if multiGroupId != nil {
+				entityID = *multiGroupId
+			}
+		}
+
+		var manager model.UserManager
+		if err := r.DB.Where("user_id = ? AND service_id = ?", userID, serviceID).First(&manager).Error; err != nil {
+			return nil, fmt.Errorf("failed to find user manager: %w", err)
+		}
+
+		manager.EntityID = &entityID
+		manager.EntityType = &entityType
+
+		if err := r.DB.Save(&manager).Error; err != nil {
+			return nil, fmt.Errorf("failed to update user manager with entity info: %w", err)
 		}
 	}
 

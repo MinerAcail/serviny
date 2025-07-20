@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -105,7 +104,7 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	service := model.Service{
 		Name:         input.Name,
 		Type:         "SERVICE",
-		Number:       input.Number,
+		Number:       cleanedNumber,
 		Email:        input.Email,
 		Profession:   Professions,
 		Location:     input.Location,
@@ -129,26 +128,26 @@ func (r *mutationResolver) CreateService(ctx context.Context, dpfile *graphql.Up
 	// Save the service to database
 	if err := r.DB.Create(&service).Error; err != nil {
 		// Check if it's the unique constraint error for our test email
-		if strings.Contains(err.Error(), "uni_services_email") &&
-			service.Email == "winnemart360@gmail.com" {
-			// This is our test email and we want to allow it
-			// Fetch the existing service with this email
-			var existingService model.Service
-			if fetchErr := r.DB.Where("email = ?", service.Email).First(&existingService).Error; fetchErr == nil {
-				// Create a new service with a slightly modified email to avoid the constraint
-				modifiedEmail := fmt.Sprintf("%s+%d@%s",
-					strings.Split(service.Email, "@")[0],
-					time.Now().UnixNano(),
-					strings.Split(service.Email, "@")[1])
-				service.Email = modifiedEmail
+		// if strings.Contains(err.Error(), "uni_services_email") &&
+		// 	service.Email == "winnemart360@gmail.com" {
+		// 	// This is our test email and we want to allow it
+		// 	// Fetch the existing service with this email
+		// 	var existingService model.Service
+		// 	if fetchErr := r.DB.Where("email = ?", service.Email).First(&existingService).Error; fetchErr == nil {
+		// 		// Create a new service with a slightly modified email to avoid the constraint
+		// 		modifiedEmail := fmt.Sprintf("%s+%d@%s",
+		// 			strings.Split(service.Email, "@")[0],
+		// 			time.Now().UnixNano(),
+		// 			strings.Split(service.Email, "@")[1])
+		// 		service.Email = modifiedEmail
 
-				// Try to create again with the modified email
-				if createErr := r.DB.Create(&service).Error; createErr != nil {
-					return nil, fmt.Errorf("failed to create service with modified email: %w", createErr)
-				}
-				return &service, nil
-			}
-		}
+		// 		// Try to create again with the modified email
+		// 		if createErr := r.DB.Create(&service).Error; createErr != nil {
+		// 			return nil, fmt.Errorf("failed to create service with modified email: %w", createErr)
+		// 		}
+		// 		return &service, nil
+		// 	}
+		// }
 		return nil, fmt.Errorf("failed to create service: %w", err)
 	}
 
@@ -1456,7 +1455,7 @@ func (r *queryResolver) GetFavorites(ctx context.Context) ([]*model.Favorite, er
 }
 
 // GetProvidersUsersContact is the resolver for the getProvidersUsersContact field.
-func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *string, limit *int32, offset *int32) ([]*model.UserData, error) {
+func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *string, limit *int32, offset *int32, searchExternal *bool) ([]*model.UserData, error) {
 	// Get service ID from context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
@@ -1481,6 +1480,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 	// Set default values if not provided
 	limitValue := int32(10)
 	offsetValue := int32(0)
+	searchExternalValue := false
 
 	if limit != nil {
 		limitValue = *limit
@@ -1490,70 +1490,35 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 		offsetValue = *offset
 	}
 
+	if searchExternal != nil {
+		searchExternalValue = *searchExternal
+	}
+	// For internal search, we need to first get the connected contact IDs
+	connectedContactIDs, _ := r.GetConnectedContactIDs(ctx, *serviceIDStr)
+	// If external search is requested, search all users/services/riders
+	if searchExternalValue {
+		return r.SearchExternalContacts(ctx, *search, limitValue, offsetValue, *serviceIDStr, (*model.ConnectedContactIDsInput)(connectedContactIDs))
+	}
+
 	// Initialize result and tracking map
 	var result []*model.UserData
 	uniqueContacts := make(map[string]bool)
-
-	// Get all bookings where this service is involved
-	var bookings []model.AppointmentBooking
-	if err := r.DB.Where("service_id = ? OR (user_id = ? AND user_type = ?)",
-		serviceID.String(), serviceID.String(), model.UserTypeService).
-		Find(&bookings).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
-	}
-
-	// Get all approved riders for this service
-	var approvedRiders []model.RidersRequest
-	if err := r.DB.Where("service_id = ? AND state = ?", serviceID.String(), "approved").Find(&approvedRiders).Error; err != nil {
-		return nil, fmt.Errorf("failed to get approved riders: %w", err)
-	}
-
-	// Extract all contact IDs from different sources
-	userIDs := make([]string, 0)
-	serviceIDs := make([]string, 0)
-	riderIDs := make([]string, 0)
-
-	// Process bookings to extract user and service IDs
-	for _, booking := range bookings {
-		if booking.UserType == model.UserTypeUser {
-			userIDs = append(userIDs, booking.UserID)
-		} else if booking.UserType == model.UserTypeService {
-			// If the booking's service_id is our service ID, then we want the user_id
-			// Otherwise, we want the service_id
-			if booking.ServiceID == serviceID.String() {
-				serviceIDs = append(serviceIDs, booking.UserID)
-			} else {
-				serviceIDs = append(serviceIDs, booking.ServiceID)
-			}
-		}
-	}
-
-	// Extract rider IDs from approved riders
-	for _, req := range approvedRiders {
-		riderIDs = append(riderIDs, req.RiderID)
-	}
-
-	// Remove duplicates
-	userIDs = helper.RemoveDuplicates(userIDs)
-	serviceIDs = helper.RemoveDuplicates(serviceIDs)
-	riderIDs = helper.RemoveDuplicates(riderIDs)
 
 	// Apply search if provided
 	if search != nil && *search != "" {
 		searchTerm := "%" + *search + "%"
 
-		// Search users
-		if len(userIDs) > 0 {
+		// Search connected users
+		if len(connectedContactIDs.UserIDs) > 0 {
 			var users []model.User
 			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
-				userIDs, searchTerm, searchTerm, searchTerm).
+				connectedContactIDs.UserIDs, searchTerm, searchTerm, searchTerm).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&users).Error; err != nil {
 				return nil, fmt.Errorf("failed to search users: %w", err)
 			}
 
-			// Process matching users
 			for _, user := range users {
 				userData := &model.UserData{
 					ID:         user.ID.String(),
@@ -1561,6 +1526,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     user.Number,
 					NumberType: helper.GetStringValue(&user.NumberType),
 					Type:       string(model.UserTypeUser),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1571,18 +1537,17 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 		}
 
-		// Search services
-		if len(serviceIDs) > 0 {
+		// Search connected services
+		if len(connectedContactIDs.ServiceIDs) > 0 {
 			var services []model.Service
 			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR CAST(type AS TEXT) ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
-				serviceIDs, searchTerm, searchTerm, searchTerm, searchTerm).
+				connectedContactIDs.ServiceIDs, searchTerm, searchTerm, searchTerm, searchTerm).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&services).Error; err != nil {
 				return nil, fmt.Errorf("failed to search services: %w", err)
 			}
 
-			// Process matching services
 			for _, contactService := range services {
 				// Skip the current service
 				if contactService.ID == serviceID {
@@ -1595,6 +1560,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     contactService.Number,
 					NumberType: helper.GetStringValue(contactService.NumberType),
 					Type:       string(model.UserTypeService),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1605,18 +1571,17 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 		}
 
-		// Search riders
-		if len(riderIDs) > 0 {
+		// Search connected riders
+		if len(connectedContactIDs.RiderIDs) > 0 {
 			var riders []model.Rider
-			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
-				riderIDs, searchTerm, searchTerm, searchTerm).
+			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ?)",
+				connectedContactIDs.RiderIDs, searchTerm, searchTerm).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&riders).Error; err != nil {
 				return nil, fmt.Errorf("failed to search riders: %w", err)
 			}
 
-			// Process matching riders
 			for _, rider := range riders {
 				userData := &model.UserData{
 					ID:         rider.ID.String(),
@@ -1624,6 +1589,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     rider.Number,
 					NumberType: "not Given",
 					Type:       string(rider.Type),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1634,12 +1600,12 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 		}
 	} else {
-		// If no search term, get all contacts directly
+		// If no search term, get all connected contacts directly
 
-		// Get users
-		if len(userIDs) > 0 {
+		// Get connected users
+		if len(connectedContactIDs.UserIDs) > 0 {
 			var users []model.User
-			if err := r.DB.Where("id IN (?)", userIDs).
+			if err := r.DB.Where("id IN (?)", connectedContactIDs.UserIDs).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&users).Error; err != nil {
@@ -1653,6 +1619,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     user.Number,
 					NumberType: helper.GetStringValue(&user.NumberType),
 					Type:       string(model.UserTypeUser),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1663,10 +1630,10 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 		}
 
-		// Get services
-		if len(serviceIDs) > 0 {
+		// Get connected services
+		if len(connectedContactIDs.ServiceIDs) > 0 {
 			var services []model.Service
-			if err := r.DB.Where("id IN (?)", serviceIDs).
+			if err := r.DB.Where("id IN (?)", connectedContactIDs.ServiceIDs).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&services).Error; err != nil {
@@ -1685,6 +1652,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     contactService.Number,
 					NumberType: helper.GetStringValue(contactService.NumberType),
 					Type:       string(model.UserTypeService),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1695,10 +1663,10 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 		}
 
-		// Get riders
-		if len(riderIDs) > 0 {
+		// Get connected riders
+		if len(connectedContactIDs.RiderIDs) > 0 {
 			var riders []model.Rider
-			if err := r.DB.Where("id IN (?)", riderIDs).
+			if err := r.DB.Where("id IN (?)", connectedContactIDs.RiderIDs).
 				Limit(int(limitValue)).
 				Offset(int(offsetValue)).
 				Find(&riders).Error; err != nil {
@@ -1712,6 +1680,7 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					Number:     rider.Number,
 					NumberType: "not Given",
 					Type:       string(rider.Type),
+					External:   helper.BoolPtr(false), // Internal contact
 				}
 
 				key := userData.Type + ":" + userData.ID
@@ -1720,6 +1689,165 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 					result = append(result, userData)
 				}
 			}
+		}
+	}
+
+	return result, nil
+}
+
+// GetConnectedContactIDs is the resolver for the getConnectedContactIDs field.
+func (r *queryResolver) GetConnectedContactIDs(ctx context.Context, serviceID string) (*model.ConnectedContactIDs, error) {
+	var contactIDs model.ConnectedContactIDs
+
+	// Get all bookings where this service is involved
+	var bookings []model.AppointmentBooking
+	if err := r.DB.Where("service_id = ? OR (user_id = ? AND user_type = ?)",
+		serviceID, serviceID, model.UserTypeService).
+		Find(&bookings).Error; err != nil {
+		// Log error but continue
+		fmt.Printf("Error fetching bookings: %v\n", err)
+		return &contactIDs, nil
+	}
+
+	// Get all approved riders for this service
+	var approvedRiders []model.RidersRequest
+	if err := r.DB.Where("service_id = ? AND state = ?", serviceID, "approved").Find(&approvedRiders).Error; err != nil {
+		// Log error but continue
+		fmt.Printf("Error fetching approved riders: %v\n", err)
+		return &contactIDs, nil
+	}
+
+	// Extract all contact IDs from different sources
+	userIDs := make([]string, 0)
+	serviceIDs := make([]string, 0)
+	riderIDs := make([]string, 0)
+
+	// Process bookings to extract user and service IDs
+	for _, booking := range bookings {
+		if booking.UserType == model.UserTypeUser {
+			userIDs = append(userIDs, booking.UserID)
+		} else if booking.UserType == model.UserTypeService {
+			// If the booking's service_id is our service ID, then we want the user_id
+			// Otherwise, we want the service_id
+			if booking.ServiceID == serviceID {
+				serviceIDs = append(serviceIDs, booking.UserID)
+			} else {
+				serviceIDs = append(serviceIDs, booking.ServiceID)
+			}
+		}
+	}
+
+	// Extract rider IDs from approved riders
+	for _, req := range approvedRiders {
+		riderIDs = append(riderIDs, req.RiderID)
+	}
+
+	// Remove duplicates
+	contactIDs.UserIDs = helper.RemoveDuplicates(userIDs)
+	contactIDs.ServiceIDs = helper.RemoveDuplicates(serviceIDs)
+	contactIDs.RiderIDs = helper.RemoveDuplicates(riderIDs)
+
+	return &contactIDs, nil
+}
+
+// SearchExternalContacts is the resolver for the searchExternalContacts field.
+func (r *queryResolver) SearchExternalContacts(ctx context.Context, search string, limit int32, offset int32, serviceID string, connected *model.ConnectedContactIDsInput) ([]*model.UserData, error) {
+	var result []*model.UserData
+	uniqueContacts := make(map[string]bool)
+	searchPattern := "%" + search + "%"
+	External := helper.BoolPtr(true)
+
+	// 1. External Users (exclude connected ones)
+	var users []model.User
+	userQuery := r.DB
+	if len(connected.UserIDs) > 0 {
+		userQuery = userQuery.Where("id NOT IN (?)", connected.UserIDs)
+	}
+	if err := userQuery.
+		Where("name ILIKE ? OR number ILIKE ? OR COALESCE(number_type, '') ILIKE ?",
+			searchPattern, searchPattern, searchPattern).
+		Limit(int(limit)).
+		Offset(int(offset)).
+		Find(&users).Error; err != nil {
+		return nil, fmt.Errorf("failed to search external users: %w", err)
+	}
+
+	for _, user := range users {
+		userData := &model.UserData{
+			ID:         user.ID.String(),
+			Name:       user.Name,
+			Number:     user.Number,
+			NumberType: helper.GetStringValue(&user.NumberType),
+			Type:       string(model.UserTypeUser),
+			External:   External,
+		}
+		key := userData.Type + ":" + userData.ID
+		if _, exists := uniqueContacts[key]; !exists {
+			uniqueContacts[key] = true
+			result = append(result, userData)
+		}
+	}
+
+	// 2. External Services (exclude current and connected)
+	var services []model.Service
+	serviceQuery := r.DB
+	excludeServiceIDs := append(connected.ServiceIDs, serviceID)
+	if len(excludeServiceIDs) > 0 {
+		serviceQuery = serviceQuery.Where("id NOT IN (?)", excludeServiceIDs)
+	}
+	if err := serviceQuery.
+		Where("name ILIKE ? OR number ILIKE ? OR CAST(type AS TEXT) ILIKE ? OR COALESCE(number_type, '') ILIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern).
+		Limit(int(limit)).
+		Offset(int(offset)).
+		Find(&services).Error; err != nil {
+		return nil, fmt.Errorf("failed to search external services: %w", err)
+	}
+
+	for _, service := range services {
+		userData := &model.UserData{
+			ID:         service.ID.String(),
+			Name:       service.Name,
+			Number:     service.Number,
+			NumberType: helper.GetStringValue(service.NumberType),
+			Type:       string(model.UserTypeService),
+			External:   External,
+		}
+		key := userData.Type + ":" + userData.ID
+		if _, exists := uniqueContacts[key]; !exists {
+			uniqueContacts[key] = true
+			result = append(result, userData)
+		}
+	}
+
+	// 3. External Riders (exclude connected)
+	var riders []model.Rider
+	riderQuery := r.DB
+	if len(connected.RiderIDs) > 0 {
+		riderQuery = riderQuery.Where("id NOT IN (?)", connected.RiderIDs)
+	}
+	if err := riderQuery.
+		Where("name ILIKE ? OR number ILIKE ?",
+			searchPattern, searchPattern).
+		Limit(int(limit)).
+		Offset(int(offset)).
+		Find(&riders).Error; err != nil {
+		return nil, fmt.Errorf("failed to search external riders: %w", err)
+	}
+
+	for _, rider := range riders {
+		userData := &model.UserData{
+			ID:         rider.ID.String(),
+			Name:       rider.Name,
+			Number:     rider.Number,
+			NumberType: "not Given",
+			Type:       string(rider.Type),
+			External:   External,
+		}
+		key := userData.Type + ":" + userData.ID
+		if _, exists := uniqueContacts[key]; !exists {
+			uniqueContacts[key] = true
+			result = append(result, userData)
 		}
 	}
 
@@ -1838,8 +1966,6 @@ func (r *queryResolver) GetAllServiceDataByUserID(ctx context.Context, userID st
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].CreatedAt.After(results[j].CreatedAt)
 	})
-
-
 
 	return results, nil
 }
@@ -2597,7 +2723,7 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 }
 
 // GetAllUserServiceData is the resolver for the getAllUserServiceData field.
-func (r *queryResolver) GetAllUserServiceData(ctx context.Context) ([]*model.ServiceData, error) {
+func (r *queryResolver) GetAllUserServiceData(ctx context.Context, entityID *string) ([]*model.ServiceData, error) {
 	// Get user ID from context
 	userIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
@@ -2607,6 +2733,42 @@ func (r *queryResolver) GetAllUserServiceData(ctx context.Context) ([]*model.Ser
 	var results []*model.ServiceData
 	var orderErr, bookingErr error
 
+	// If entityID is provided, search for specific order or booking
+	if entityID != nil && *entityID != "" {
+		log.Printf("Searching for specific entity with ID: %s for user %s", *entityID, *userIDStr)
+
+		// First try to find it as a booking
+		// Fix: Pass userIDStr and entityID in correct order
+		bookingResult, bookingErr := r.GetSpecificBookingServiceData(ctx, userIDStr, entityID)
+		if bookingErr == nil && bookingResult != nil {
+			results = append(results, bookingResult)
+			log.Printf("Found booking with ID %s for user %s", *entityID, *userIDStr)
+			return results, nil
+		}
+
+		// If not found as booking, try as order
+		// Fix: Pass userIDStr and entityID in correct order
+		orderResult, orderErr := r.GetSpecificOrderServiceData(ctx, userIDStr, entityID)
+		if orderErr == nil && orderResult != nil {
+			results = append(results, orderResult)
+			log.Printf("Found order with ID %s for user %s", *entityID, *userIDStr)
+			return results, nil
+		}
+
+		// Log errors for debugging
+		if bookingErr != nil {
+			log.Printf("Booking search error for ID %s: %v", *entityID, bookingErr)
+		}
+		if orderErr != nil {
+			log.Printf("Order search error for ID %s: %v", *entityID, orderErr)
+		}
+
+		// If neither found, return empty results
+		log.Printf("Entity with ID %s not found for user %s", *entityID, *userIDStr)
+		return results, nil
+	}
+
+	// If no entityID provided, get all orders and bookings (existing logic)
 	// Get orders for this user
 	orderResults, orderErr := r.GetOrderServiceDataByUserID(ctx, nil)
 	if orderErr != nil {
@@ -2654,6 +2816,294 @@ func (r *queryResolver) GetAllUserServiceData(ctx context.Context) ([]*model.Ser
 		*userIDStr)
 
 	return results, nil
+}
+
+// GetSpecificOrderServiceData is the resolver for the getSpecificOrderServiceData field.
+func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID *string, entityID *string) (*model.ServiceData, error) {
+	// Get user ID from context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get User ID: %v", err)
+	}
+
+	// Use the provided userID parameter if available, otherwise use context userID
+	var targetUserID string
+	if userID != nil && *userID != "" {
+		targetUserID = *userID
+	} else {
+		targetUserID = *userIDStr
+	}
+
+	// Fetch specific order for this user
+	var order model.Order
+	if err := r.DB.Preload("Items").
+		Where("id = ? AND user_id = ?", entityID, targetUserID).
+		First(&order).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Not found, but not an error
+		}
+		return nil, fmt.Errorf("failed to fetch order %s for user %s: %w", *entityID, targetUserID, err)
+	}
+
+	// Map productID to product
+	productMap := make(map[string]*model.Product)
+	var productIDs []string
+	for _, item := range order.Items {
+		if _, exists := productMap[item.ProductID]; !exists {
+			productIDs = append(productIDs, item.ProductID)
+		}
+	}
+
+	// Fetch all products in bulk
+	var products []*model.Product
+	if err := r.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
+	}
+	for _, product := range products {
+		productMap[product.ID.String()] = product
+	}
+
+	// Get vendor from first product
+	var vendor *model.Service
+	var vendorErr error
+	for _, item := range order.Items {
+		if product, exists := productMap[item.ProductID]; exists {
+			if product.VendorID != nil {
+				var vendorModel model.Service
+				if err := r.DB.Where("id = ?", *product.VendorID).First(&vendorModel).Error; err == nil {
+					vendor = &vendorModel
+					break
+				} else {
+					vendorErr = err
+				}
+			}
+		}
+	}
+
+	if vendor == nil {
+		return nil, fmt.Errorf("no vendor found for order %s: %v", *entityID, vendorErr)
+	}
+
+	// Get customer information
+	customer, err := r.Query().GetUserInfor(ctx, order.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer info for order %s: %v", order.ID, err)
+	}
+
+	// Get rider information if assigned
+	var rider *model.UsersInfor
+	if order.RiderID != nil {
+		rider, err = r.Query().GetUserInfor(ctx, *order.RiderID)
+		if err != nil {
+			log.Printf("Warning: failed to get rider info for order %s: %v", order.ID, err)
+		}
+	}
+
+	// Get zone metadata
+	var zoneMetaData *model.ZoneMetaData
+	if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+		zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+		if err != nil {
+			log.Printf("Warning: failed to get delivery metadata for order %s: %v", order.ID, err)
+		}
+	}
+
+	// Get route data
+	var routeData *model.RouteInfo
+	if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			log.Printf("Warning: failed to get route data for order %s: %v", order.ID, err)
+		}
+		routeData = nil
+	} else {
+		if routeData.CreatedAt.IsZero() {
+			routeData.CreatedAt = order.CreatedAt
+		}
+		if routeData.UpdatedAt.IsZero() {
+			routeData.UpdatedAt = order.CreatedAt
+		}
+	}
+
+	// Process product information
+	var productInfor []*model.OrderproductInfor
+	for _, item := range order.Items {
+		if product, exists := productMap[item.ProductID]; exists {
+			productInfor = append(productInfor, &model.OrderproductInfor{
+				Product:  []*model.Product{product},
+				Quantity: item.Quantity,
+			})
+		}
+	}
+
+	// Create ServiceData for order
+	serviceData := &model.ServiceData{
+		ID:        order.ID.String(),
+		ServiceID: vendor.ID.String(),
+		Type:      model.ServiceTypeOrder,
+		Rider:     rider,
+		Customer:  customer,
+		Vendor:    vendor,
+		CreatedAt: order.CreatedAt,
+
+		OrderData: &model.CartItemOrder{
+			OrderID:               order.ID.String(),
+			ProductInfor:          productInfor,
+			Customer:              customer,
+			Rider:                 rider,
+			Order:                 &order,
+			Vendor:                vendor,
+			DeliveryAddress:       order.DeliveryAddress,
+			Status:                order.Status,
+			EstimatedDeliveryDate: order.EstimatedDeliveryDate,
+			DeliveryMetaData:      zoneMetaData,
+			RouteData:             routeData,
+			ServiceFee:            order.DeliveryFee,
+			CreatedAt:             order.CreatedAt,
+		},
+		BookingData: nil,
+	}
+
+	return serviceData, nil
+}
+
+// GetSpecificBookingServiceData is the resolver for the getSpecificBookingServiceData field.
+func (r *queryResolver) GetSpecificBookingServiceData(ctx context.Context, userID *string, entityID *string) (*model.ServiceData, error) {
+	// Get user ID from context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get User ID: %v", err)
+	}
+
+	// Use the provided userID parameter if available, otherwise use context userID
+	var targetUserID string
+	if userID != nil && *userID != "" {
+		targetUserID = *userID
+	} else {
+		targetUserID = *userIDStr
+	}
+
+	// Fetch specific booking for this user
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ? AND user_id = ?", entityID, targetUserID).
+		First(&booking).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Not found, but not an error
+		}
+		return nil, fmt.Errorf("failed to fetch booking %s for user %s: %w", *entityID, targetUserID, err)
+	}
+
+	// Get customer information
+	customer, err := r.Query().GetUserInfor(ctx, booking.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer info for booking %s: %v", booking.ID, err)
+	}
+
+	// Get rider information if assigned
+	var rider *model.UsersInfor
+	if booking.RiderID != "" {
+		rider, err = r.Query().GetUserInfor(ctx, booking.RiderID)
+		if err != nil {
+			log.Printf("Warning: failed to get rider info for booking %s: %v", booking.ID, err)
+		}
+	}
+
+	// Get service information
+	var service model.Service
+	if err := r.DB.Where("id = ?", booking.ServiceID).First(&service).Error; err != nil {
+		return nil, fmt.Errorf("service not found for booking %s: %v", booking.ID, err)
+	}
+
+	// Get route data
+	var routeData *model.RouteInfo
+	if err := r.DB.Where("order_id = ?", booking.ID.String()).First(&routeData).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			log.Printf("Warning: failed to get route data for booking %s: %v", booking.ID, err)
+		}
+		routeData = nil
+	} else {
+		if routeData.CreatedAt.IsZero() {
+			routeData.CreatedAt = booking.CreatedAt
+		}
+		if routeData.UpdatedAt.IsZero() {
+			routeData.UpdatedAt = booking.CreatedAt
+		}
+	}
+
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if booking.RiderID != "" {
+		if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
+			}
+		}
+	}
+
+	// Convert coordinates
+	var pickupLocation []float64
+	var dropoffLocation []float64
+
+	if len(booking.PickupLocation) >= 2 {
+		pickupLocation = []float64{booking.PickupLocation[0], booking.PickupLocation[1]}
+	}
+
+	if len(booking.DropoffLocation) >= 2 {
+		dropoffLocation = []float64{booking.DropoffLocation[0], booking.DropoffLocation[1]}
+	}
+
+	// Get cargo data if exists
+	var cargoData *model.BookingCargo
+	var transportType *string
+	if booking.CargoID != nil && *booking.CargoID != "" {
+		if err := r.DB.Where("booking_id = ?", booking.ID).First(&cargoData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get cargo data for booking %s: %v", booking.ID, err)
+			}
+		}
+		if cargoData != nil {
+			transportType = &cargoData.TransportType
+		}
+	}
+
+	// Create ServiceData for booking
+	serviceData := &model.ServiceData{
+		ID:        booking.ID.String(),
+		ServiceID: booking.ServiceID,
+		Type:      model.ServiceTypeBooking,
+		Rider:     rider,
+		Customer:  customer,
+		Vendor:    &service,
+		CreatedAt: booking.CreatedAt,
+
+		BookingData: &model.AppointmentBookingData{
+			BookingID:             booking.ID.String(),
+			StartTime:             booking.StartTime,
+			EndTime:               booking.EndTime,
+			Day:                   booking.Day,
+			Notes:                 booking.Notes,
+			Item:                  booking.Item,
+			TableSize:             booking.TableSize,
+			UserType:              string(booking.UserType),
+			IsConfirmed:           booking.IsConfirmed,
+			PickupLocation:        pickupLocation,
+			DropoffLocation:       dropoffLocation,
+			DeliveryAddress:       booking.DeliveryAddress,
+			PickUpAddress:         booking.PickUpAddress,
+			DeliveryFee:           booking.DeliveryFee,
+			Distance:              booking.Distance,
+			Duration:              booking.Duration,
+			EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
+			RouteData:             routeData,
+			RangeMetaData:         rangeMetaData,
+			MultiGroupID:          booking.MultiGroupID,
+			Status:                &booking.Status,
+			CargoID:               booking.CargoID,
+			TransportType:         transportType,
+		},
+		OrderData: nil,
+	}
+
+	return serviceData, nil
 }
 
 // GetBookingServiceDataByUserID is the resolver for the getBookingServiceDataByUserId field.
@@ -2797,124 +3247,6 @@ func (r *queryResolver) GetBookingServiceDataByUserID(ctx context.Context, userI
 
 	log.Printf("Retrieved %d bookings for user %s", len(results), *userIDStr)
 	return results, nil
-}
-
-// GetBookingServiceDataByBookingID is the resolver for the getBookingServiceDataByBookingId field.
-func (r *queryResolver) GetBookingServiceDataByBookingID(ctx context.Context, bookingID string) (*model.AppointmentBookingData, error) {
-	// Fetch the specific booking by ID
-	var booking model.AppointmentBooking
-	if err := r.DB.Where("id = ?", bookingID).First(&booking).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("booking not found with ID: %s", bookingID)
-		}
-		return nil, fmt.Errorf("failed to fetch booking %s: %w", bookingID, err)
-	}
-
-	// Get customer information
-	// customer, err := r.Query().GetUserInfor(ctx, booking.UserID)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get customer info for booking %s: %w", bookingID, err)
-	// }
-
-	// Get rider information if assigned
-	// var rider *model.UsersInfor
-	// if booking.RiderID != "" {
-	// 	rider, err := r.Query().GetUserInfor(ctx, booking.RiderID)
-	// 	if err != nil {
-	// 		log.Printf("Warning: failed to get rider info for booking %s: %v", bookingID, err)
-	// 		// Don't return error, rider might be optional for some bookings
-	// 	}
-	// }
-
-	// Get service information
-	var service model.Service
-	if err := r.DB.Where("id = ?", booking.ServiceID).First(&service).Error; err != nil {
-		return nil, fmt.Errorf("failed to get service info for booking %s: %w", bookingID, err)
-	}
-
-	// Get route data
-	var routeData *model.RouteInfo
-	if err := r.DB.Where("order_id = ?", booking.ID.String()).First(&routeData).Error; err != nil {
-		if err != gorm.ErrRecordNotFound {
-			log.Printf("Warning: failed to get route data for booking %s: %v", bookingID, err)
-		}
-		routeData = nil // Explicitly set to nil if not found
-	} else {
-		// Validate the route data has required fields
-		if routeData.CreatedAt.IsZero() {
-			log.Printf("Warning: route data for booking %s has invalid createdAt, setting to booking createdAt", bookingID)
-			routeData.CreatedAt = booking.CreatedAt
-		}
-		if routeData.UpdatedAt.IsZero() {
-			routeData.UpdatedAt = booking.CreatedAt
-		}
-	}
-
-	// Get range metadata (booking-specific pricing)
-	var rangeMetaData *model.RiderRange
-	if booking.RiderID != "" {
-		if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				log.Printf("Warning: failed to get range metadata for booking %s: %v", bookingID, err)
-			}
-		}
-	}
-
-	// Convert coordinates if they exist
-	var pickupLocation []float64
-	var dropoffLocation []float64
-
-	if len(booking.PickupLocation) >= 2 {
-		pickupLocation = []float64{booking.PickupLocation[0], booking.PickupLocation[1]}
-	}
-
-	if len(booking.DropoffLocation) >= 2 {
-		dropoffLocation = []float64{booking.DropoffLocation[0], booking.DropoffLocation[1]}
-	}
-
-	// Only query cargo if CargoID exists
-	var cargoData *model.BookingCargo
-	var transportType *string
-	if booking.CargoID != nil && *booking.CargoID != "" {
-		if err := r.DB.Where("booking_id = ?", booking.ID).First(&cargoData).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				log.Printf("Warning: failed to get cargo data for booking %s: %v", bookingID, err)
-			}
-		}
-		if cargoData != nil {
-			transportType = &cargoData.TransportType
-		}
-	}
-
-	// Create and return AppointmentBookingData
-	bookingData := &model.AppointmentBookingData{
-		BookingID:             booking.ID.String(),
-		StartTime:             booking.StartTime,
-		EndTime:               booking.EndTime,
-		Day:                   booking.Day,
-		Notes:                 booking.Notes,
-		Item:                  booking.Item,
-		TableSize:             booking.TableSize,
-		UserType:              string(booking.UserType),
-		IsConfirmed:           booking.IsConfirmed,
-		PickupLocation:        pickupLocation,
-		DropoffLocation:       dropoffLocation,
-		DeliveryAddress:       booking.DeliveryAddress,
-		PickUpAddress:         booking.PickUpAddress,
-		DeliveryFee:           booking.DeliveryFee,
-		Distance:              booking.Distance,
-		Duration:              booking.Duration,
-		EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
-		RouteData:             routeData,
-		RangeMetaData:         rangeMetaData,
-		MultiGroupID:          booking.MultiGroupID,
-		Status:                &booking.Status,
-		CargoID:               booking.CargoID,
-		TransportType:         transportType,
-	}
-
-	log.Printf("Successfully retrieved booking data for booking %s", bookingID)
-	return bookingData, nil
 }
 
 // GetOrderServiceDataByUserID is the resolver for the getOrderServiceDataByUserId field.
@@ -3084,6 +3416,124 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 
 	log.Printf("Retrieved %d orders for user %s", len(results), *userIDStr)
 	return results, nil
+}
+
+// GetBookingServiceDataByBookingID is the resolver for the getBookingServiceDataByBookingId field.
+func (r *queryResolver) GetBookingServiceDataByBookingID(ctx context.Context, bookingID string) (*model.AppointmentBookingData, error) {
+	// Fetch the specific booking by ID
+	var booking model.AppointmentBooking
+	if err := r.DB.Where("id = ?", bookingID).First(&booking).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("booking not found with ID: %s", bookingID)
+		}
+		return nil, fmt.Errorf("failed to fetch booking %s: %w", bookingID, err)
+	}
+
+	// Get customer information
+	// customer, err := r.Query().GetUserInfor(ctx, booking.UserID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get customer info for booking %s: %w", bookingID, err)
+	// }
+
+	// Get rider information if assigned
+	// var rider *model.UsersInfor
+	// if booking.RiderID != "" {
+	// 	rider, err := r.Query().GetUserInfor(ctx, booking.RiderID)
+	// 	if err != nil {
+	// 		log.Printf("Warning: failed to get rider info for booking %s: %v", bookingID, err)
+	// 		// Don't return error, rider might be optional for some bookings
+	// 	}
+	// }
+
+	// Get service information
+	var service model.Service
+	if err := r.DB.Where("id = ?", booking.ServiceID).First(&service).Error; err != nil {
+		return nil, fmt.Errorf("failed to get service info for booking %s: %w", bookingID, err)
+	}
+
+	// Get route data
+	var routeData *model.RouteInfo
+	if err := r.DB.Where("order_id = ?", booking.ID.String()).First(&routeData).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			log.Printf("Warning: failed to get route data for booking %s: %v", bookingID, err)
+		}
+		routeData = nil // Explicitly set to nil if not found
+	} else {
+		// Validate the route data has required fields
+		if routeData.CreatedAt.IsZero() {
+			log.Printf("Warning: route data for booking %s has invalid createdAt, setting to booking createdAt", bookingID)
+			routeData.CreatedAt = booking.CreatedAt
+		}
+		if routeData.UpdatedAt.IsZero() {
+			routeData.UpdatedAt = booking.CreatedAt
+		}
+	}
+
+	// Get range metadata (booking-specific pricing)
+	var rangeMetaData *model.RiderRange
+	if booking.RiderID != "" {
+		if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for booking %s: %v", bookingID, err)
+			}
+		}
+	}
+
+	// Convert coordinates if they exist
+	var pickupLocation []float64
+	var dropoffLocation []float64
+
+	if len(booking.PickupLocation) >= 2 {
+		pickupLocation = []float64{booking.PickupLocation[0], booking.PickupLocation[1]}
+	}
+
+	if len(booking.DropoffLocation) >= 2 {
+		dropoffLocation = []float64{booking.DropoffLocation[0], booking.DropoffLocation[1]}
+	}
+
+	// Only query cargo if CargoID exists
+	var cargoData *model.BookingCargo
+	var transportType *string
+	if booking.CargoID != nil && *booking.CargoID != "" {
+		if err := r.DB.Where("booking_id = ?", booking.ID).First(&cargoData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get cargo data for booking %s: %v", bookingID, err)
+			}
+		}
+		if cargoData != nil {
+			transportType = &cargoData.TransportType
+		}
+	}
+
+	// Create and return AppointmentBookingData
+	bookingData := &model.AppointmentBookingData{
+		BookingID:             booking.ID.String(),
+		StartTime:             booking.StartTime,
+		EndTime:               booking.EndTime,
+		Day:                   booking.Day,
+		Notes:                 booking.Notes,
+		Item:                  booking.Item,
+		TableSize:             booking.TableSize,
+		UserType:              string(booking.UserType),
+		IsConfirmed:           booking.IsConfirmed,
+		PickupLocation:        pickupLocation,
+		DropoffLocation:       dropoffLocation,
+		DeliveryAddress:       booking.DeliveryAddress,
+		PickUpAddress:         booking.PickUpAddress,
+		DeliveryFee:           booking.DeliveryFee,
+		Distance:              booking.Distance,
+		Duration:              booking.Duration,
+		EstimatedDeliveryDate: booking.EstimatedDeliveryDate,
+		RouteData:             routeData,
+		RangeMetaData:         rangeMetaData,
+		MultiGroupID:          booking.MultiGroupID,
+		Status:                &booking.Status,
+		CargoID:               booking.CargoID,
+		TransportType:         transportType,
+	}
+
+	log.Printf("Successfully retrieved booking data for booking %s", bookingID)
+	return bookingData, nil
 }
 
 // GetBusinessType is the resolver for the getBusinessType field.

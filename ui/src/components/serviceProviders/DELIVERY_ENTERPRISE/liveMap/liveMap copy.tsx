@@ -1791,7 +1791,7 @@ const LiveMap: React.FC = () => {
                 deliveryAddress: service.bookingData?.deliveryAddress,
                 pickupAddress: service.bookingData?.pickUpAddress,
                 tableSize: service.bookingData?.tableSize
-                  ? `${service.bookingData.tableSize} people`
+                  ? `${service.bookingData.tableSize} ${Number(service.bookingData.tableSize) === 1 ? 'item' : 'items'}`
                   : "N/A",
                 day: service.bookingData?.day,
                 startTime: service.bookingData?.startTime

@@ -107,6 +107,7 @@ type UserData {
   number: String!
   numberType: String!
   type: String!
+  external:Boolean
 }
 
 type BookedData {

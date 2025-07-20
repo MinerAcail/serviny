@@ -14,7 +14,72 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CustomOTPInput } from "./otpinput";
+
+// Custom OTP Input Component
+interface CustomOTPInputProps {
+  length: number;
+  value: string;
+  onChange: (value: string) => void;
+  onComplete: (value: string) => void;
+  className?: string;
+}
+
+const CustomOTPInput: React.FC<CustomOTPInputProps> = ({ 
+  length, 
+  value, 
+  onChange, 
+  onComplete, 
+  className = "" 
+}) => {
+  const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
+
+  const handleChange = (element: HTMLInputElement, index: number) => {
+    const newOtp = [...otp];
+    newOtp[index] = element.value;
+    setOtp(newOtp);
+    
+    const otpValue = newOtp.join("");
+    onChange(otpValue);
+    
+    // Move to next input
+    if (element.value && index < length - 1) {
+      const nextSibling = element.nextElementSibling as HTMLInputElement;
+      if (nextSibling) {
+        nextSibling.focus();
+      }
+    }
+    
+    // Call onComplete when all digits are entered
+    if (otpValue.length === length) {
+      onComplete(otpValue);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevSibling = (e.target as HTMLInputElement).previousElementSibling as HTMLInputElement;
+      if (prevSibling) {
+        prevSibling.focus();
+      }
+    }
+  };
+
+  return (
+    <div className={`flex gap-2 ${className}`}>
+      {Array(length).fill(null).map((_, index) => (
+        <Input
+          key={index}
+          type="text"
+          maxLength={1}
+          className="w-12 h-12 text-center text-lg font-semibold"
+          value={otp[index]}
+          onChange={(e) => handleChange(e.target, index)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+        />
+      ))}
+    </div>
+  );
+};
 
 // GraphQL mutation for requesting password reset OTP
 const REQUEST_PASSWORD_MUTATION = gql`
@@ -41,27 +106,30 @@ const RESET_PASSWORD_MUTATION = gql`
   }
 `;
 
-// Define status type
-type StatusType = {
+// Define types
+interface StatusType {
   type: "success" | "error";
   message: string;
-} | null;
+}
+
 type UserType = "USER" | "SERVICE";
 
-export function PasswordReset(): JSX.Element {
+interface ErrorsType {
+  phoneNumber?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+export  function PasswordReset(): JSX.Element {
   const [step, setStep] = useState<number>(1);
-  const [email, setEmail] = useState<string>("");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [status, setStatus] = useState<StatusType>(null);
+  const [status, setStatus] = useState<StatusType | null>(null);
   const [usertype, setUsertype] = useState<UserType>("USER");
 
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
+  const [errors, setErrors] = useState<ErrorsType>({});
 
   // Request password reset OTP mutation
   const [requestForResetOtp, { loading: requestLoading }] = useMutation(
@@ -73,7 +141,7 @@ export function PasswordReset(): JSX.Element {
             type: "success",
             message:
               data.requestForResetOtp.message ||
-              "Verification code sent to your email",
+              "Verification code sent to your phone",
           });
           setTimeout(() => {
             setStatus(null);
@@ -111,8 +179,8 @@ export function PasswordReset(): JSX.Element {
               data.resetPassword.message || "Password reset successfully",
           });
 
-          // Store in localStorage that user has reset their password
-          localStorage.setItem("passwordReset", "true");
+          // Store in memory that user has reset their password
+          // Note: localStorage is not available in Claude.ai artifacts
 
           // Redirect to login after success
           setTimeout(() => {
@@ -135,24 +203,45 @@ export function PasswordReset(): JSX.Element {
     }
   );
 
-  // Validate email format
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  // Validate phone number format - accepts 0..., 233..., +233...
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Remove all spaces and non-digit characters except +
+    const cleaned = phone.replace(/\s/g, "");
+    
+    // Check for valid patterns:
+    // 1. Starting with 0 followed by 9 digits (0xxxxxxxxx)
+    // 2. Starting with 233 followed by 9 digits (233xxxxxxxxx)
+    // 3. Starting with +233 followed by 9 digits (+233xxxxxxxxx)
+    const patterns = [
+      /^0\d{9}$/,           // 0xxxxxxxxx (10 digits total)
+      /^233\d{9}$/,         // 233xxxxxxxxx (12 digits total)
+      /^\+233\d{9}$/        // +233xxxxxxxxx (13 characters total)
+    ];
+    
+    return patterns.some(pattern => pattern.test(cleaned));
+  };
+
+  // Format phone number - clean and standardize
+  const formatPhoneNumber = (phone: string): string => {
+    // Remove all spaces and non-digit characters except +
+    const cleaned = phone.replace(/[^\d+]/g, "");
+    return cleaned;
   };
 
   // Handle request password reset
-  const handleRequestReset = (e: React.FormEvent): void => {
-    e.preventDefault();
-
-    // Validate email
-    if (!email) {
-      setErrors({ ...errors, email: "Email is required" });
+  const handleRequestReset = (): void => {
+    // Validate phone number
+    if (!phoneNumber) {
+      setErrors({ ...errors, phoneNumber: "Phone number is required" });
       return;
     }
 
-    if (!validateEmail(email)) {
-      setErrors({ ...errors, email: "Please enter a valid email address" });
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    if (!validatePhoneNumber(formattedPhone)) {
+      setErrors({ 
+        ...errors, 
+        phoneNumber: "Please enter a valid phone number (0xxxxxxxxx, 233xxxxxxxxx, or +233xxxxxxxxx)" 
+      });
       return;
     }
 
@@ -162,7 +251,7 @@ export function PasswordReset(): JSX.Element {
     requestForResetOtp({
       variables: {
         input: {
-          email,
+          number: formattedPhone,
         },
       },
     });
@@ -189,11 +278,9 @@ export function PasswordReset(): JSX.Element {
   };
 
   // Handle password reset submission
-  const handleResetPassword = (e: React.FormEvent): void => {
-    e.preventDefault();
-
+  const handleResetPassword = (): void => {
     // Validate password
-    let newErrors = {};
+    let newErrors: ErrorsType = {};
 
     if (password.length < 8) {
       newErrors = {
@@ -217,7 +304,7 @@ export function PasswordReset(): JSX.Element {
     resetPassword({
       variables: {
         input: {
-          email,
+          number: formatPhoneNumber(phoneNumber),
           otp,
           newPassword: password,
           confirmPassword,
@@ -232,7 +319,7 @@ export function PasswordReset(): JSX.Element {
     requestForResetOtp({
       variables: {
         input: {
-          email,
+          number: formatPhoneNumber(phoneNumber),
         },
       },
     });
@@ -243,8 +330,8 @@ export function PasswordReset(): JSX.Element {
       <CardHeader>
         <CardTitle className="text-xl">Reset Your Password</CardTitle>
         <CardDescription>
-          {step === 1 && "Enter your email to receive a verification code"}
-          {step === 2 && "Enter the 6-digit code sent to your email"}
+          {step === 1 && "Enter your phone number to receive a verification code"}
+          {step === 2 && "Enter the 6-digit code sent to your phone"}
           {step === 3 && "Create a new password for your account"}
         </CardDescription>
       </CardHeader>
@@ -269,18 +356,18 @@ export function PasswordReset(): JSX.Element {
         )}
 
         {step === 1 && (
-          <form onSubmit={handleRequestReset} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="phoneNumber"
+                type="tel"
+                placeholder="Enter your phone number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
               />
-              {errors.email && (
-                <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+              {errors.phoneNumber && (
+                <p className="text-sm text-red-500 mt-1">{errors.phoneNumber}</p>
               )}
               <div className="space-y-2">
                 <Label htmlFor="usertype">User Type</Label>
@@ -317,14 +404,14 @@ export function PasswordReset(): JSX.Element {
               </div>
             </div>
             <Button
-              type="submit"
+              onClick={handleRequestReset}
               className="w-full rounded-full"
               disabled={requestLoading}
             >
               {requestLoading ? "Sending..." : "Send Verification Code"}
               {!requestLoading && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
-          </form>
+          </div>
         )}
 
         {step === 2 && (
@@ -360,7 +447,7 @@ export function PasswordReset(): JSX.Element {
                 onClick={() => setStep(1)}
                 className="underline text-primary hover:text-primary/80"
               >
-                Change email address
+                Change phone number
               </button>
               <span className="mx-2">•</span>
               <button
@@ -375,7 +462,7 @@ export function PasswordReset(): JSX.Element {
         )}
 
         {step === 3 && (
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
               <Input
@@ -405,14 +492,14 @@ export function PasswordReset(): JSX.Element {
               )}
             </div>
             <Button
-              type="submit"
+              onClick={handleResetPassword}
               className="w-full rounded-full"
               disabled={resetLoading}
             >
               {resetLoading ? "Processing..." : "Reset Password"}
               {!resetLoading && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
-          </form>
+          </div>
         )}
       </CardContent>
       <CardFooter className="flex justify-center gap-10 border-t pt-4">

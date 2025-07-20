@@ -16,35 +16,58 @@ import (
 )
 
 // CreateUser is the resolver for the createUser field.
-func (r *mutationResolver) CreateUser(ctx context.Context, input model.InputUser) (*model.User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
-	}
-
+func (r *mutationResolver) CreateUser(ctx context.Context, input model.InputUser, isService *bool) (*model.User, error) {
 	cleanedNumber := helper.CleanPhoneNumber(input.Number)
-	err = helper.CheckDuplicateRecords(r.DB, &model.User{}, input.Name, cleanedNumber)
-	if err != nil {
+
+	if err := helper.CheckDuplicateRecords(r.DB, &model.User{}, input.Name, cleanedNumber); err != nil {
 		return nil, err
 	}
 
-	err = helper.CheckDuplicateRecordsEmailNumber(r.DB, &model.Service{}, *input.Email, input.Number)
-	if err != nil {
+	if err := helper.CheckDuplicateRecordsEmailNumber(r.DB, &model.Service{}, *input.Email, input.Number); err != nil {
 		return nil, err
 	}
 
-	Usertype := "USER"
+	userType := "USER"
 	user := &model.User{
 		Name:       input.Name,
-		Number:     input.Number,
-		Password:   func(s string) *string { return &s }(string(hashedPassword)),
-		Type:       Usertype,
+		Number:     cleanedNumber,
+		Type:       userType,
 		NumberType: *input.NumberType,
 		Email:      input.Email,
 	}
 
+	// Only hash and assign password if not a service
+	if isService == nil || !*isService {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		hashed := string(hashedPassword)
+		user.Password = &hashed
+	}
+
+	// Save user record
 	if err := r.DB.Create(user).Error; err != nil {
 		return nil, err
+	}
+
+	// If user is being created by a service, create UserManager
+	if isService != nil && *isService {
+		serviceID, err := r.Query().GetID(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get service ID: %v", err)
+		}
+
+		userM := &model.UserManager{
+			UserID:    user.ID.String(),
+			Password:  &input.Password, // Store raw (or consider hashing separately)
+			ServiceID: serviceID,
+			Type:      userType,
+		}
+
+		if err := r.DB.Create(userM).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	return user, nil
@@ -121,6 +144,105 @@ func (r *queryResolver) GetAllUsers(ctx context.Context) ([]*model.User, error) 
 		return nil, err
 	}
 	return users, nil
+}
+
+// GetUserManager is the resolver for the getUserManager field.
+func (r *queryResolver) GetUserManager(ctx context.Context, userID string, entityID *string) (*model.UserManagerData, error) {
+	serviceId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %w", err)
+	}
+
+	// var user model.User
+	// if err := r.DB.First(&user, "id = ?", userID).Error; err != nil {
+	// 	return nil, fmt.Errorf("failed to find user with ID %s: %w", userID, err)
+	// }
+	customer, err := r.Query().GetUserInfor(ctx, userID)
+	if err != nil {
+		// log.Printf("Warning: failed to get customer info for booking %s: %v", userID, err)
+		return nil, fmt.Errorf("failed to get customer info: %w", err)
+	}
+	var tempUser model.UserManager
+	query := r.DB.Where("service_id = ? AND user_id = ?", serviceId, userID)
+	if entityID != nil {
+		query = query.Or("entity_id = ?", *entityID)
+	}
+	err = query.First(&tempUser).Error
+
+	if err != nil {
+		// No existing UserManager, so create one
+		Password := helper.GenerateRandomString(6)
+		tempUser = model.UserManager{
+			UserID:    customer.ID,
+			Password:  &Password,
+			ServiceID: serviceId,
+			Type:      customer.Type,
+			EntityID:  entityID,
+		}
+
+		if err := r.DB.Create(&tempUser).Error; err != nil {
+			return nil, fmt.Errorf("failed to create user manager: %w", err)
+		}
+	}
+
+	// if tempUser.EntityType == nil || entityID == nil {
+	// 	return nil, fmt.Errorf("entityType or entityID is nil")
+	// }
+
+	var booking model.AppointmentBooking
+	// switch *tempUser.EntityType {
+	// case "CARGO":
+	// 	err = r.DB.First(&booking, "cargo_id = ?", *entityID).Error
+	// case "MULTI":
+	// 	err = r.DB.First(&booking, "multi_id = ?", *entityID).Error
+	// default:
+	// 	err = r.DB.First(&booking, "id = ?", *entityID).Error
+	// }
+	err = r.DB.First(&booking, "id = ?", entityID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find booking  %s: ", err)
+	}
+
+	return &model.UserManagerData{
+		User:     customer,
+		TempUser: &tempUser,
+		Book:     &booking,
+	}, nil
+}
+
+// GetUserManagerData is the resolver for the getUserManagerData field.
+func (r *queryResolver) GetUserManagerData(ctx context.Context, userID string) (*model.UserManager, error) {
+	serviceId, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	var tempUser model.UserManager
+	if err := r.DB.First(&tempUser, "service_id = ? AND user_id = ?", serviceId, userID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find user manager with ID %s: %v", serviceId, err)
+	}
+	return &tempUser, nil
+}
+
+// GetAllUserManagerData is the resolver for the getAllUserManagerData field.
+func (r *queryResolver) GetAllUserManagerData(ctx context.Context) ([]*model.UserManager, error) {
+	// Step 1: Get service ID from context
+	serviceID, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Step 2: Query UserManagers with matching serviceID
+	var userManagers []*model.UserManager
+	if err := r.DB.Where("service_id = ?", serviceID).Find(&userManagers).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch user managers: %w", err)
+	}
+	// 	var managers []*model.UserManager
+
+	// if err := r.DB.Find(&managers).Error; err != nil {
+	// 	return nil, fmt.Errorf("failed to retrieve user managers: %w", err)
+	// }
+
+	return userManagers, nil
 }
 
 // ID is the resolver for the id field.

@@ -753,7 +753,8 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                                   : "N/A"}
                               </p>
                               <p className="text-xs text-black/50">
-                                👥 {booking.bookingData?.tableSize} people
+                               {booking.bookingData?.tableSize}   ${Number(booking.bookingData?.tableSize) === 1 ? 'item' : 'items'}
+
                               </p>
                             </div>
                           </div>
@@ -1151,7 +1152,8 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                           Table Size
                         </p>
                         <p className="text-sm text-black">
-                          {selectedItem.bookingData?.tableSize} people
+                          {selectedItem.bookingData?.tableSize}   ${selectedItem.bookingData?.tableSize === 1 ? 'item' : 'items'}
+
                         </p>
                       </div>
                       <div>

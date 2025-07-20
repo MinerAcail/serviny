@@ -27,3 +27,14 @@ type Profiles struct {
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 }
+type UserManager struct {
+	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	Type       string    `json:"type"`
+	UserID     string    `json:"userId"`
+	Password   *string   `json:"password,omitempty"`
+	ServiceID  *string   `json:"serviceId,omitempty"`
+	EntityID   *string   `json:"entityId,omitempty"`
+	EntityType *string   `json:"entityType,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}

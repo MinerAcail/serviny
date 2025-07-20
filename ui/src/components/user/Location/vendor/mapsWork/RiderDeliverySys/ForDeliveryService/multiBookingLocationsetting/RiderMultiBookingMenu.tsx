@@ -171,13 +171,13 @@ export function RiderMultiBookingMenu({
     } else {
       switch (currentStep) {
         case "locations":
-          return "Setup Multi-Delivery";
+          return "Setup Delivery";
         case "review":
-          return "Review Multi-Delivery";
+          return "Review Delivery";
         case "complete":
-          return "Multi-Delivery Complete";
+          return "Delivery Complete";
         default:
-          return "Multi-Delivery Booking";
+          return "Delivery Booking";
       }
     }
   };

@@ -86,7 +86,9 @@ type UsersInfor {
 }
 extend type Mutation {
   deleteTable: Boolean!
-  serviceLogin(input: LoginInput!): Returns
+  serviceLogin(input: LoginInput!,entityId:String): Returns
+  updateNumber(id: String!): Returns
+
   adminLogin(input: LoginInput!): Admin
   # workersLogin(input: LoginInput!): jobRequest
   deliveryLogin(input: LoginInput): Returns
@@ -128,12 +130,10 @@ extend type Mutation {
   ): BookingOrderPaymentStatus!
 
   updateOrderBookStatus(
-      entityId: String!
+    entityId: String!
     entityType: String!
     status: String!
-
-  ):String
-  # deleteBookingOrderPaymentStatus(id: String!): Boolean
+  ): String
 }
 type Profiles {
   id: String!
@@ -180,4 +180,14 @@ type BookingOrderPaymentStatus {
   updatedAt: Time!
 }
 
-
+type UserManager {
+  id: String!
+  type: String!
+  userId: String!
+  password: String
+  serviceId: String
+  entityId: String
+  entityType: String
+  createdAt: Time!
+  updatedAt: Time!
+}

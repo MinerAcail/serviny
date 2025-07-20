@@ -4,7 +4,7 @@ import { useAuth } from "@/middleware/context/authContext";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
 import Logout from "@/app/LogOut";
 import { Button } from "../ui/button";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, RefreshCw } from "lucide-react";
 import Login from "@/app/Login";
 
 export function SpectaclesLoading() {
@@ -175,7 +175,7 @@ export function SpectaclesError() {
             {/* <div className="mt-4 text-red-600 dark:text-red-500 font-semibold text-center"> */}
             <div className="mt-4 gap-2 flex flex-col justify-center items-center text-red-600 dark:text-red-500 font-semibold text-center">
               <p className="mb-2">Something went wrong!</p>
-      {isAuthenticated && <ProfileSwitcherContainer />}
+              {isAuthenticated && <ProfileSwitcherContainer />}
 
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Please check your connection and try sign out and sign in again
@@ -225,64 +225,6 @@ export function SpectaclesError() {
     </div>
   );
 }
-//      {/* Loading text */}
-//      <div className="mt-4 text-blue-600 dark:text-blue-400 font-semibold">
-//      <span className="inline-block animate-bounce">L</span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.1s" }}
-//      >
-//        o
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.2s" }}
-//      >
-//        a
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.3s" }}
-//      >
-//        d
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.4s" }}
-//      >
-//        i
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.5s" }}
-//      >
-//        n
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.6s" }}
-//      >
-//        g
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.7s" }}
-//      >
-//        .
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.8s" }}
-//      >
-//        .
-//      </span>
-//      <span
-//        className="inline-block animate-bounce"
-//        style={{ animationDelay: "0.9s" }}
-//      >
-//        .
-//      </span>
-//    </div>
 
 export function ItemNotFound() {
   const [shake, setShake] = useState(true);
@@ -359,6 +301,118 @@ export function ItemNotFound() {
         }
         .animate-float {
           animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export function ErrorState({
+  handleRefresh,
+  entityId,
+}: {
+  handleRefresh: () => void;
+  entityId?: string;
+}) {
+  const [shake, setShake] = useState(true);
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShake(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-red-100 via-white to-orange-100 flex items-center justify-center">
+      <div className="text-center backdrop-blur-xl bg-white/30 rounded-3xl p-8 border border-white/20 shadow-2xl max-w-md w-full">
+        {/* Spectacles Icon */}
+        <div
+          className={`relative w-32 h-32 mx-auto flex items-center justify-center mb-6 ${
+            shake ? "animate-shake" : ""
+          }`}
+        >
+          <svg
+            viewBox="0 0 60 20"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-full h-full"
+          >
+            <g>
+              {/* Left spectacle lens - broken */}
+              <path
+                className="fill-red-500 dark:fill-red-600 opacity-70"
+                d="m 293.50361,92.096156 c -0.14552,-0.0469 -0.91943,-0.28715 -1.71979,-0.53383 -0.80037,-0.24669 -2.265,-0.98602 -3.25474,-1.64295 -5.25013,-3.48475 -6.56338,-9.78176 -2.93788,-14.08704 1.04626,-1.24244 11.15116,-10.0615 12.71649,-11.09833 2.54669,-1.68685 6.8941,-2.37258 10.03221,-1.58239 1.42616,0.35911 1.68623,0.69405 0.97879,1.26053 -1.62429,1.30066 -15.99154,13.88493 -16.93956,14.83738 -0.96082,0.96529 -1.12448,1.28954 -1.12448,2.2278 0,2.34536 2.44437,4.31971 5.03938,4.07036 1.57045,-0.1509 1.55487,-0.1393 10.13098,-7.54306 9.32419,-8.04958 10.00319,-8.60326 10.24904,-8.3574 0.50266,0.50266 1.07953,3.59184 0.90615,4.85251 -0.27781,2.01988 -1.46275,4.18965 -3.20196,5.86319 -2.1832,2.10077 -10.05286,8.8416 -11.45373,9.8108 -1.94032,1.34243 -4.3242,2.04063 -6.90736,2.02304 -1.23693,-0.008 -2.36802,-0.0537 -2.51354,-0.10061 z"
+                transform="translate(-270, -75)"
+              />
+
+              <path
+                className="fill-red-500 dark:fill-red-600 opacity-70"
+                d="m 313.78578,88.439956 c 1.3457,-0.67465 3.31481,-2.14281 6.32031,-4.7124 8.90586,-7.61416 8.28307,-6.96012 9.38954,-11.886667 0.2942,-1.309916 -0.0718,-2.3873 -0.9053,-3.92458 -2.81706,-5.19589 -9.92972,-7.59091 -15.20798,-5.12091 -1.16133,0.54345 -3.11974,2.02732 -6.3986,4.84817 -8.37313,7.203517 -9.24803,8.228157 -9.55358,11.188647 -0.16264,1.57581 0.0764,3.32742 0.45408,3.32742 0.13407,0 3.96749,-3.17443 8.51871,-7.05429 4.55123,-3.879857 8.62922,-7.269717 9.0622,-7.533037 2.69934,-1.64156 6.68106,-0.26726 7.93482,2.73873 0.53237,1.27641 0.51764,1.6704 -0.11099,2.96767 -0.5422,1.118917 -0.91904,1.466657 -11.62526,10.727627 -4.98165,4.30918 -5.84816,5.16248 -5.42395,5.34131 0.27767,0.11705 1.64931,0.1812 3.04808,0.14254 2.33405,-0.0645 2.70399,-0.15088 4.49792,-1.05023 z"
+                transform="translate(-270, -75)"
+              />
+            </g>
+          </svg>
+        </div>
+
+        {/* Title */}
+        {entityId ? (
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            We couldn't load your data.
+          </h3>
+        ) : (
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            Something went wrong!
+          </h3>
+        )}
+
+        {/* Error Message */}
+        {entityId ? (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Check your SMS or WhatsApp for the password. <br />
+            This link shows one package. <br />
+            Use "Forgot Password" to access all.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            Please check your connection. If the issue persists, try refreshing
+            or signing in again.
+          </p>
+        )}
+
+        {/* Buttons & Auth Actions */}
+        <div className="space-y-3">
+          {/* {!entityId and !isAuthenticated && ( */}
+          {!entityId && !isAuthenticated && (
+
+          <Button
+            onClick={handleRefresh}
+            className="w-full bg-red-500 hover:bg-red-600 text-white"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+          )}
+
+          <Login entityId={entityId}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full flex items-center justify-center gap-2 text-red-600 border-red-300"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </Button>
+          </Login>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+          animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
         }
       `}</style>
     </div>

@@ -49,6 +49,7 @@ extend type Mutation {
     isMulti:Boolean
     isCargo:Boolean
     serviceId: String!
+    updateTemp:Boolean
   ): [AppointmentBooking!]!
   updateCargoWithRider(riderId:String,cargoId:String):AppointmentBooking
   updateMultipleBookingsWithLocation(

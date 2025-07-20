@@ -144,10 +144,10 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
           
           if (newProgress >= 100) {
             // Different redirect paths for cargo vs regular bookings
-            const redirectPath = isCargo ? '/vob' : '/vob'
-            console.log("Redirecting to:", redirectPath)
+            // const redirectPath = isCargo ? '/vob' : '/vob'
+            // console.log("Redirecting to:", redirectPath)
             
-            navigate(redirectPath)
+            // navigate(redirectPath)
             
             // Close modal after a brief delay to allow navigation
             setTimeout(() => {

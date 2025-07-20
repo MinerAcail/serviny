@@ -3,7 +3,7 @@ import { createBrowserRouter, RouterProvider, useParams } from "react-router";
 import React, { Suspense } from "react";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider, useProfileUpdate } from "./context/authContext";
+import { AuthProvider, useAuth, useProfileUpdate } from "./context/authContext";
 import { OrderTrackingProvider } from "@/hooks/orderTrackingContext";
 import { ProtectType } from "./useProtect";
 import { ThemeProvider } from "./context/theme-provider";
@@ -32,6 +32,7 @@ import DragDropBoxes from "@/vendor/products/cate";
 import CategoryDetailPage from "@/vendor/products/cate/categoryDetail";
 import UpdateRiderProfile from "@/components/rider/updateRiderProfile";
 import CheckUserAndRiderUpdates from "@/components/GlobalLogic/UserAndRiderUpdates";
+import { ErrorBoundary } from "@/components/GlobalLogic/ErrorBoundary";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -338,9 +339,17 @@ const router = createBrowserRouter([
           </>
         ),
       },
-     
+
       {
         path: "/vob",
+        element: (
+          <LoadingWrapper>
+            <CheckBookingOrderDelivery />
+          </LoadingWrapper>
+        ),
+      },
+       {
+        path: "/vob/:entityId",
         element: (
           <LoadingWrapper>
             <CheckBookingOrderDelivery />
@@ -742,6 +751,7 @@ export function SidebarLayoutProvider() {
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId;
   const { showDialog, closeDialog, isSupported } = useNotificationDialog();
+  const { isAuthenticated } = useAuth();
 
   return (
     // <div className="flex w-full h-screen overflow-hidden">
@@ -758,10 +768,8 @@ export function SidebarLayoutProvider() {
       <ProviderContextProvider serviceId={serviceId ?? ""}>
         <>
           <div>
-            {isSupported ? (
+            {isAuthenticated && (
               <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
-            ) : (
-              <p>Push notifications are not supported in this browser.</p>
             )}
           </div>
           {/* <ScrollArea className="h-full border-r"> */}
@@ -782,21 +790,20 @@ export function Layout() {
   const { firstProfileId } = useProfileUpdate(null);
   const serviceId = firstProfileId ?? updateServiceId;
   const { showDialog, closeDialog, isSupported } = useNotificationDialog();
-
-  console.log("Service ID in Layout:", serviceId);
+  const { isAuthenticated } = useAuth();
+  // console.log("Service ID in Layout:", serviceId);
 
   return (
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
+        <ErrorBoundary>
         <CartProvider>
           {/* <ScrollArea className="h-full border-r"> */}
           <SidebarMain serviceId={serviceId} />
           {/* </ScrollArea> */}
-           <div>
-            {isSupported ? (
+          <div>
+            {isAuthenticated && (
               <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
-            ) : (
-              <p>Push notifications are not supported in this browser.</p>
             )}
           </div>
           <CartDrawer />
@@ -805,6 +812,7 @@ export function Layout() {
           </ScrollArea>
           {/* </div> */}
         </CartProvider>
+        </ErrorBoundary>
       </ProviderContextProvider>
     </div>
   );

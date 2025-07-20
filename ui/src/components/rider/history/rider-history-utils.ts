@@ -2,7 +2,7 @@ import { ServiceData, Stats } from "./types"
 
 // Utility functions for payment information
 export const getPaymentStatusColor = (paymentStatus: string): string => {
-  switch (paymentStatus?.toUpperCase()) {
+  switch (paymentStatus) {
     case "PAID":
     case "COMPLETED":
     case "SUCCESS":
@@ -210,17 +210,17 @@ export const filterServices = (
       item.status?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.item?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.note?.toLowerCase().includes(searchQuery.toLowerCase())
+      item.notes?.toLowerCase().includes(searchQuery.toLowerCase())
 
     // Type filter
     const matchesType = typeFilter === "all" || item.type === typeFilter
 
     // Status filter
-    const matchesStatus = statusFilter === "all" || item.status?.toUpperCase() === statusFilter.toUpperCase()
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter
 
     // Payment status filter
     const matchesPaymentStatus =
-      paymentStatusFilter === "all" || item.paymentStatus?.toUpperCase() === paymentStatusFilter.toUpperCase()
+      paymentStatusFilter === "all" || item.paymentStatus === paymentStatusFilter
 
     return matchesSearch && matchesType && matchesStatus && matchesPaymentStatus
   })
@@ -249,11 +249,11 @@ export const filterServices = (
       const matchesType = typeFilter === "all" || item.type === typeFilter
 
       // Status filter
-      const matchesStatus = statusFilter === "all" || item.status?.toUpperCase() === statusFilter.toUpperCase()
+      const matchesStatus = statusFilter === "all" || item.status === statusFilter
 
       // Payment status filter
       const matchesPaymentStatus =
-        paymentStatusFilter === "all" || item.paymentStatus?.toUpperCase() === paymentStatusFilter.toUpperCase()
+        paymentStatusFilter === "all" || item.paymentStatus === paymentStatusFilter
 
       return matchesType && matchesStatus && matchesPaymentStatus
     })
@@ -301,13 +301,13 @@ export const calculateStats = (historyData: ServiceData[], groupedData: Map<stri
   const multiGroups = groupedData.size
 
   const delivered = historyData.filter(
-    (item: ServiceData) => item.status?.toUpperCase() === "DELIVERED" || item.status?.toUpperCase() === "CONFIRMED",
+    (item: ServiceData) => item.status === "DELIVERED" || item.status === "CONFIRMED",
   ).length
 
   const revenue = historyData.reduce((sum: number, item: ServiceData) => sum + item.serviceAmount, 0)
 
   const paidServices = historyData.filter(
-    (item) => item.paymentStatus?.toUpperCase() === "PAID" || item.paymentStatus?.toUpperCase() === "COMPLETED",
+    (item) => item.paymentStatus === "PAID" || item.paymentStatus === "COMPLETED",
   )
 
   const paidRevenue = paidServices.reduce((sum: number, item: ServiceData) => sum + item.serviceAmount, 0)

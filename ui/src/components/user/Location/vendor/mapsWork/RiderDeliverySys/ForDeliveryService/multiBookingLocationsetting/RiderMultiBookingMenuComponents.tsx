@@ -469,6 +469,47 @@ export function MultiReviewStep({
             </div>
           )}
 
+      {/* Action Buttons */}
+      <div className="flex space-x-3">
+        <Button
+          variant="outline"
+          onClick={onBack}
+          className="flex-1"
+          disabled={isBooking}
+        >
+          Back
+        </Button>
+        <Button 
+          onClick={onBooking} 
+          disabled={isBooking || completedItems.length === 0 || (isCargo && cargoLoading)} 
+          className={`flex-1 ${
+            isCargo 
+              ? "bg-orange-500 hover:bg-orange-600" 
+              : "bg-blue-500 hover:bg-blue-600"
+          }`}
+        >
+          {isBooking ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {isCargo ? "Submitting..." : paymentCompleted ? "Confirming..." : "Processing..."}
+            </>
+          ) : (
+            <>
+              {isCargo ? (
+                <FileText className="w-4 h-4 mr-2" />
+              ) : (
+                <Truck className="w-4 h-4 mr-2" />
+              )}
+              {isCargo 
+                ? cargoLoading ? "Loading..." : "Confirm Booking" 
+                : paymentCompleted 
+                ? "Confirm Delivery" 
+                : "Choose Payment Method"
+              }
+            </>
+          )}
+        </Button>
+      </div>
           {/* Duration estimate - for both cargo and regular */}
           {totalCalculations?.averageDuration && (
             <div className="flex items-center justify-center space-x-2 p-3 bg-gray-50 rounded-lg">
@@ -522,6 +563,7 @@ export function MultiReviewStep({
             </div>
           )}
 
+  
           {/* Delivery Items Toggle */}
           <button
             onClick={() => setShowItemDetails(!showItemDetails)}
@@ -631,47 +673,7 @@ export function MultiReviewStep({
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="flex-1"
-          disabled={isBooking}
-        >
-          Back
-        </Button>
-        <Button 
-          onClick={onBooking} 
-          disabled={isBooking || completedItems.length === 0 || (isCargo && cargoLoading)} 
-          className={`flex-1 ${
-            isCargo 
-              ? "bg-orange-500 hover:bg-orange-600" 
-              : "bg-blue-500 hover:bg-blue-600"
-          }`}
-        >
-          {isBooking ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {isCargo ? "Submitting..." : paymentCompleted ? "Confirming..." : "Processing..."}
-            </>
-          ) : (
-            <>
-              {isCargo ? (
-                <FileText className="w-4 h-4 mr-2" />
-              ) : (
-                <Truck className="w-4 h-4 mr-2" />
-              )}
-              {isCargo 
-                ? cargoLoading ? "Loading..." : "Confirm Booking" 
-                : paymentCompleted 
-                ? "Confirm Multi-Delivery" 
-                : "Choose Payment Method"
-              }
-            </>
-          )}
-        </Button>
-      </div>
+     
     </div>
   );
 }

@@ -13,10 +13,11 @@ import { useMutation, gql } from "@apollo/client";
 import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import { Eye, EyeOff } from "lucide-react";
 import { ProtectType } from "@/middleware/useProtect";
+import RegisterOptions from "./checkUserCreateUI";
 
 export const LOGIN = gql`
-  mutation serviceLogin($input: LoginInput!) {
-    serviceLogin(input: $input) {
+    mutation serviceLogin($input: LoginInput!,$entityId:String) {
+    serviceLogin(input: $input,entityId:$entityId) {
       __typename
       ... on Service {
         id
@@ -41,7 +42,13 @@ export const LOGIN = gql`
   }
 `;
 
-const Login = ({ children }: { children: ReactNode }) => {
+const Login = ({
+  children,
+  entityId,
+}: {
+  children: ReactNode;
+  entityId?: string;
+}) => {
   const navigate = useNavigate();
   const { login: Auth } = useAuth();
 
@@ -50,6 +57,7 @@ const Login = ({ children }: { children: ReactNode }) => {
   // const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
   // serviceId = firstProfileId ?? serviceId;
   const { triggerUpdate, triggerUpdateByUserId } = useProfileUpdate(null);
+console.log("entityIdll",entityId);
 
   const [number, setNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -75,6 +83,7 @@ const Login = ({ children }: { children: ReactNode }) => {
             number,
             password,
           },
+          entityId
         },
       });
       console.log("result", result);
@@ -109,6 +118,11 @@ const Login = ({ children }: { children: ReactNode }) => {
         }
       } else {
         setError("Login failed. Please try again.");
+      }
+      if (entityId) {
+        // navigate(-1);
+        // reload the page to reflect the new login state
+        window.location.reload();
       }
       navigate(`/`);
     } catch (err) {
@@ -174,57 +188,34 @@ const Login = ({ children }: { children: ReactNode }) => {
             <Link
               to={"/reset"}
               onClick={(e) => {
-              // Prevent navigation so dialog closes first
-              e.preventDefault();
-              // Find the closest dialog and close it
-              const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
-              if (dialog) {
-                // Simulate clicking the close button if exists
-                const closeBtn = dialog.querySelector('[data-state="open"] [aria-label="Close"]') as HTMLElement | null;
-                if (closeBtn) closeBtn.click();
-              }
-              // Navigate after closing dialog
-              setTimeout(() => {
-                window.location.href = "/reset";
-              }, 100);
+                // Prevent navigation so dialog closes first
+                e.preventDefault();
+                // Find the closest dialog and close it
+                const dialog = document.querySelector(
+                  '[role="dialog"]'
+                ) as HTMLElement | null;
+                if (dialog) {
+                  // Simulate clicking the close button if exists
+                  const closeBtn = dialog.querySelector(
+                    '[data-state="open"] [aria-label="Close"]'
+                  ) as HTMLElement | null;
+                  if (closeBtn) closeBtn.click();
+                }
+                // Navigate after closing dialog
+                setTimeout(() => {
+                  window.location.href = "/reset";
+                }, 100);
               }}
             >
               <Button variant={"link"} type="button" className="w-full">
-              Forget Password
+                Forget Password
               </Button>
             </Link>
 
             {/* //create a account btn */}
 
-            <Link
-            //  to={""}
-             to={"/provider/new"}
-              onClick={(e) => {
-              // Prevent navigation so dialog closes first
-              e.preventDefault();
-              // Find the closest dialog and close it
-              const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
-              if (dialog) {
-                // Simulate clicking the close button if exists
-                const closeBtn = dialog.querySelector('[data-state="open"] [aria-label="Close"]') as HTMLElement | null;
-                if (closeBtn) closeBtn.click();
-              }
-              // Navigate after closing dialog
-              setTimeout(() => {
-                window.location.href = "/provider/new";
-              }, 100);
-              }}
-             >
-              <Button
-              //      onClick={(e) => {
+                                   <RegisterOptions  />
 
-              // e.preventDefault()
-              //      }
-              // }
-              variant={"link"} type="button" className="w-full">
-                Create
-              </Button>
-            </Link>
           </div>
         </form>
       </DialogContent>

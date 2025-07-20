@@ -29,10 +29,18 @@ input inputUpdateUser {
 extend type Query {
   getUserById(id: String!): User!
   getAllUsers: [User!]!
+  getUserManager(userId:String!,entityID:String):UserManagerData
+  getUserManagerData(userId:String!):UserManager
+  getAllUserManagerData:[UserManager]
 }
-
+type UserManagerData{
+  user:UsersInfor
+  tempUser:UserManager
+  book:AppointmentBooking
+}
 extend type Mutation {
-  createUser(input: inputUser!): User!
+  createUser(input: inputUser!,isService:Boolean): User!
   deleteUserById(id: String!): Boolean
   updateUser(input: inputUpdateUser): User!
+
 }

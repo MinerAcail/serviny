@@ -28,8 +28,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/middleware/context/authContext";
-import OtpCard from "@/components/serviceProviders/createOTP";
+// import OtpCard from "@/components/serviceProviders/createOTP";
 import { RegisterOption } from "@/app/checkUserCreateUI";
+import { OtpCard } from "@/components/serviceProviders/createOTP";
+import { NotificationAlertDialog } from "@/components/GlobalLogic/ErrorBoundary";
 // import OtpCard from "./createOTP"; // Reusing the OTP component
 // Define GraphQL mutations
 const SERVICE_LOGIN = gql`
@@ -372,7 +374,15 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [passwordError, setPasswordError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-
+ const [dialogState, setDialogState] = useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    type: "success" | "error" | "warning" | "info"
+  } | null>(null)
+   const closeDialog = () => {
+    setDialogState(null)
+  }
   // OTP verification states
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -384,9 +394,15 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
   const [createUser] = useMutation(CREATE_USER, {
     onCompleted: (data) => {
       console.log("Account created:", data);
-      toast.success("Account created successfully!", {
-        description:
-          "Please kindly use the information to log in and continue.",
+      // toast.success("Account created successfully!", {
+      //   description:
+      //     "Please kindly use the information to log in and continue.",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Account Created",
+        description: "Please use the information to log in and continue.",
+        type: "success",
       });
 
       // Move the user to the login tab
@@ -407,9 +423,16 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
     },
     onError: (error) => {
       console.error("Create account error:", error);
-      toast.error("Account creation failed", {
+      // toast.error("Account creation failed", {
+      //   description:
+      //     "A user with the same email or phone number already exists.",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Account Creation Failed",
         description:
           "A user with the same email or phone number already exists.",
+        type: "error",
       });
     },
   });
@@ -447,22 +470,38 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       if (result.data?.requestOtp?.success) {
         // setOtpSent(true);
         setShowOtpVerification(true);
-        toast.success("OTP Sent", {
-          description: `Verification code sent to ${data.email}`,
-        });
-      } else {
-        toast.error("Error", {
-          description:
-            result.data?.requestOtp?.message ||
-            "Failed to send verification code",
+        // toast.success("OTP Sent", {
+        //   description: `Verification code sent to ${data.email}`,
+        // });
+        setDialogState({
+          isOpen: true,
+          title: "OTP Sent",
+          description: `Verification code sent to ${data.number}`,
+          type: "success",
         });
       }
+      //  else {
+      //   toast.error("Error", {
+      //     description:
+      //       result.data?.requestOtp?.message ||
+      //       "Failed to send verification code",
+      //   });
+      // }
     } catch (error) {
-      toast.error("Error", {
+      // toast.error("Error", {
+      //   description:
+      //     error instanceof Error
+      //       ? error.message
+      //       : "Failed to send verification code",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Error",
         description:
           error instanceof Error
             ? error.message
             : "Failed to send verification code",
+        type: "error",
       });
     } finally {
       setIsLoading(false);
@@ -477,7 +516,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       const result = await verifyOtp({
         variables: {
           input: {
-            email: formData?.email,
+            number: formData?.number,
             otp: otpCode,
             type: "USER", // Using USER type for regular users
           },
@@ -485,24 +524,46 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       });
 
       if (result.data?.verifyOtp?.success && result.data?.verifyOtp?.IsValid) {
-        toast.success("Verification Successful", {
-          description: "Your email has been verified successfully",
+        // toast.success("Verification Successful", {
+        //   description: "Your number has been verified successfully",
+        // });
+        setDialogState({
+          isOpen: true,
+          title: "Verification Successful",
+          description: "Your number has been verified successfully",
+          type: "success",
         });
 
         // Submit the form data after successful verification
         if (formData) {
           submitFormData(formData);
         }
+        setShowOtpVerification(false);
+        setFormData(null);
       } else {
-        toast.error("Verification Failed", {
+        // toast.error("Verification Failed", {
+        //   description:
+        //     result.data?.verifyOtp?.message || "Invalid verification code",
+        // });
+        setDialogState({
+          isOpen: true,
+          title: "Verification Failed",
           description:
             result.data?.verifyOtp?.message || "Invalid verification code",
+          type: "error",
         });
       }
     } catch (error) {
-      toast.error("Error", {
+      // toast.error("Error", {
+      //   description:
+      //     error instanceof Error ? error.message : "Verification failed",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Error",
         description:
           error instanceof Error ? error.message : "Verification failed",
+        type: "error",
       });
     } finally {
       setVerifyingOtp(false);
@@ -524,22 +585,45 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
       });
 
       if (result.data?.resendOTP?.success) {
-        toast.success("OTP Resent", {
-          description: `New verification code sent to ${formData?.email}`,
+        // toast.success("OTP Resent", {
+        //   description: `New verification code sent to ${formData?.email}`,
+        // });
+        setDialogState({
+          isOpen: true,
+          title: "OTP Resent",
+          description: `New verification code sent to ${formData?.number}`,
+          type: "success",
         });
       } else {
-        toast.error("Error", {
+        // toast.error("Error", {
+        //   description:
+        //     result.data?.resendOTP?.message ||
+        //     "Failed to resend verification code",
+        // });
+        setDialogState({
+          isOpen: true,
+          title: "Error",
           description:
             result.data?.resendOTP?.message ||
             "Failed to resend verification code",
+          type: "error",
         });
       }
     } catch (error) {
-      toast.error("Error", {
+      // toast.error("Error", {
+      //   description:
+      //     error instanceof Error
+      //       ? error.message
+      //       : "Failed to resend verification code",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Error",
         description:
           error instanceof Error
             ? error.message
             : "Failed to resend verification code",
+        type: "error",
       });
     }
   };
@@ -561,12 +645,22 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         },
       });
     } catch (error) {
-      toast.error("Error", {
+      // toast.error("Error", {
+      //   description:
+          // error instanceof Error
+          //   ? error.message
+          //   : "An unexpected error occurred",
+      // });
+      setDialogState({
+        isOpen: true,
+        title: "Error",
         description:
           error instanceof Error
             ? error.message
             : "An unexpected error occurred",
+        type: "error",
       });
+
     } finally {
       setIsLoading(false);
     }
@@ -598,8 +692,8 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
     return (
       <div className="space-y-6">
         <OtpCard
-          title="Email Verification"
-          email={formData?.email}
+          title="Number Verification"
+          email={formData?.number}
           onSubmit={handleVerifyOtp}
           onResend={handleResendOtp}
           loading={verifyingOtp}
@@ -639,7 +733,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone-create">Phone Number</Label>
+          <Label htmlFor="phone-create">Phone Number (Required for verification)</Label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -655,7 +749,7 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="email-create">
-            Email (Required for verification)
+            Email 
           </Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -741,6 +835,15 @@ function CreateUser({ switchToLoginTab }: { switchToLoginTab: () => void }) {
           )}
         </Button>
       </CardFooter>
+       {dialogState && (
+        <NotificationAlertDialog
+          isOpen={dialogState.isOpen}
+          onClose={closeDialog}
+          title={dialogState.title}
+          description={dialogState.description}
+          type={dialogState.type}
+        />
+      )}
     </form>
   );
 }

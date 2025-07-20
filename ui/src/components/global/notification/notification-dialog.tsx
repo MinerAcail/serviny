@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import type * as React from "react"
-import { useState } from "react"
-import { Bell, Check } from "lucide-react"
+import type * as React from "react";
+import { useState } from "react";
+import { Bell, Check } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,60 +12,67 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { usePushNotifications } from "./usePushNotifications"
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { usePushNotifications } from "./usePushNotifications";
 
 interface NotificationDialogProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, onClose }) => {
-  const { subscribe, isLoading } = usePushNotifications()
-  const [error, setError] = useState<string | null>(null)
+export const NotificationDialog: React.FC<NotificationDialogProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const { subscribe, isLoading } = usePushNotifications();
+  const [error, setError] = useState<string | null>(null);
 
   const handleEnable = async () => {
     try {
-      console.log("🚀 Starting handleEnable...")
-      setError(null)
-      
-      const result = await subscribe()
-      console.log("✅ Subscribe result:", result)
-      
-      if (result) {
-        console.log("🎉 Subscription successful, closing dialog")
-        onClose()
-      }
+      console.log("🚀 Starting handleEnable...");
+      setError(null);
+
+      const result = await subscribe();
+      console.log("✅ Subscribe result:", result);
+
+      console.log("🎉 Subscription attempt completed");
+      onClose();
     } catch (error) {
-      console.error("❌ Failed to enable notifications:", error)
-      
-      let errorMessage = "Failed to enable notifications. Please try again."
-      
+      console.error("❌ Failed to enable notifications:", error);
+
+      let errorMessage = "Failed to enable notifications. Please try again.";
+
       if (error instanceof Error) {
         // Handle specific error types
         if (error.message.includes("denied")) {
-          errorMessage = "Notification permission was denied. Please enable notifications in your browser settings."
+          errorMessage =
+            "Notification permission was denied. Please enable notifications in your browser settings.";
         } else if (error.message.includes("VAPID")) {
-          errorMessage = "Configuration error. Please contact support."
+          errorMessage = "Configuration error. Please contact support.";
         } else if (error.message.includes("not supported")) {
-          errorMessage = "Push notifications are not supported in this browser."
-        } else if (error.message.includes("network") || error.message.includes("fetch")) {
-          errorMessage = "Network error. Please check your internet connection and try again."
+          errorMessage =
+            "Push notifications are not supported in this browser.";
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("fetch")
+        ) {
+          errorMessage =
+            "Network error. Please check your internet connection and try again.";
         } else {
-          errorMessage = `Error: ${error.message}`
+          errorMessage = `Error: ${error.message}`;
         }
       }
-      
-      setError(errorMessage)
+
+      setError(errorMessage);
     }
-  }
+  };
 
   const handleDismiss = () => {
-    console.log("📝 Dismissing dialog...")
-    localStorage.setItem("pushNotificationStatus", "dismissed")
-    onClose()
-  }
+    console.log("📝 Dismissing dialog...");
+    localStorage.setItem("pushNotificationStatus", "dismissed");
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
@@ -77,11 +84,18 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
             </div>
           </div>
           <div className="flex-1">
-            <DialogTitle id="notification-dialog-title" className="text-lg font-semibold text-gray-900 mb-2">
-              Stay Updated 
+            <DialogTitle
+              id="notification-dialog-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Stay Updated
             </DialogTitle>
-            <DialogDescription id="notification-dialog-description" className="text-sm text-muted-foreground mb-4">
-              Get instant notifications for your service, even when the app is closed. Never miss an opportunity!
+            <DialogDescription
+              id="notification-dialog-description"
+              className="text-sm text-muted-foreground mb-4"
+            >
+              Get instant notifications for your service, even when the app is
+              closed. Never miss an opportunity!
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -92,10 +106,12 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
           </Alert>
         )}
 
-       
-
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:space-x-3 space-y-3 sm:space-y-0">
-          <Button onClick={handleEnable} disabled={isLoading} className="w-full sm:w-auto">
+          <Button
+            onClick={handleEnable}
+            disabled={isLoading}
+            className="w-full sm:w-auto"
+          >
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg
@@ -104,7 +120,14 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
                   <path
                     className="opacity-75"
                     fill="currentColor"
@@ -117,11 +140,15 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({ isOpen, 
               "Enable Notifications"
             )}
           </Button>
-          <Button variant="outline" onClick={handleDismiss} className="w-full sm:w-auto bg-transparent">
+          <Button
+            variant="outline"
+            onClick={handleDismiss}
+            className="w-full sm:w-auto bg-transparent"
+          >
             Maybe Later
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};

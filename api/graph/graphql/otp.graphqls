@@ -3,7 +3,9 @@ type OtpResponse {
   message: String!
   otpSent: Boolean!
   IsValid: Boolean!
-
+  entityId: String
+  entityType: String
+  messageType: String!
   email: String
 }
 
@@ -25,39 +27,64 @@ type ResetPasswordResponse {
 ## Inputs
 
 input ResetPasswordInput {
-  email: String!
+  number: String!
   otp: String!
   newPassword: String!
   confirmPassword: String!
-  type:String!
-
+  type: String!
 }
 
 input RequestOtpInput {
   email: String!
   number: String!
   name: String!
-  type:String!
+  type: String!
 }
 
 input VerifyOtpInput {
-  email: String!
+  number: String!
   otp: String!
-  type:String!
+  type: String!
 }
 input ResetPassWordOtpInput {
-  email: String!
+  number: String!
   # name: String!
+}
+extend type Query {
+  getSms(number: String!,entityId:String): SmsRecord!
+  getSmsHistory(number: String!, entityID: String, limit: Int): [SmsRecord!]!
 }
 extend type Mutation {
   requestOtp(input: RequestOtpInput!): OtpResponse!
-  testRequestOtp: Boolean!
+  testRequestOtp(numbers: [String]): Boolean!
   requestForResetOtp(input: ResetPassWordOtpInput!): OtpResponse!
   verifyOtp(input: VerifyOtpInput!): OtpResponse
   resendOTP(input: RequestOtpInput!): OtpResponse
   reSetPasswordORUpdateOTP(input: RequestOtpInput!): OtpResponse
 
-
-   # Reset password with OTP verification
+  # Reset password with OTP verification
   resetPassword(input: ResetPasswordInput!): ResetPasswordResponse!
+
+  smsMessageBook(input: smsInput!): SmsRecord!
+}
+input smsInput {
+  number: String!
+  message: String!
+  entityId:String
+  entityType: String!
+  userId: String
+}
+# SMS Record type for database storage
+type SmsRecord {
+  id: String!
+  number: String!
+  message: String!
+  entityId: String
+  entityType: String
+  messageType: String!
+  status: String!
+  serviceId: String
+  userId: String
+  createdAt: Time!
+  updatedAt: Time!
 }

@@ -201,7 +201,7 @@ export const FilterControlPanel: React.FC<FilterControlPanelProps> = ({
               "Payment Method": bookingService.bookingData?.paymentMethod || "Unknown",
               "Pickup Address": bookingService.bookingData?.pickUpAddress,
               "Delivery Address": bookingService.bookingData?.deliveryAddress,
-              "Table Size": bookingService.bookingData?.tableSize ? `${bookingService.bookingData.tableSize} people` : "N/A",
+              "Item Count": bookingService.bookingData?.tableSize ? `${bookingService.bookingData.tableSize} ${Number(bookingService.bookingData?.tableSize) === 1 ? 'item' : 'items'}` : "N/A",
               "User Type": bookingService.bookingData?.userType || "N/A",
               Day: bookingService.bookingData?.day,
               "Start Time": bookingService.bookingData?.startTime ? new Date(bookingService.bookingData.startTime).toLocaleString() : "N/A",
@@ -294,7 +294,7 @@ export const FilterControlPanel: React.FC<FilterControlPanelProps> = ({
               date: new Date(service.createdAt).toLocaleDateString(),
               deliveryAddress: service.bookingData?.deliveryAddress,
               pickupAddress: service.bookingData?.pickUpAddress,
-              tableSize: service.bookingData?.tableSize ? `${service.bookingData.tableSize} people` : "N/A",
+              tableSize: service.bookingData?.tableSize ? `${service.bookingData.tableSize} ${Number(service.bookingData.tableSize) === 1 ? 'item' : 'items'}` : "N/A",
               day: service.bookingData?.day,
               startTime: service.bookingData?.startTime ? new Date(service.bookingData.startTime).toLocaleTimeString() : "N/A",
               endTime: service.bookingData?.endTime ? new Date(service.bookingData.endTime).toLocaleTimeString() : "N/A",
@@ -636,7 +636,7 @@ export const FilterControlPanel: React.FC<FilterControlPanelProps> = ({
                           )}
                           {service.tableSize && (
                             <div>
-                              <span className="text-black/60">Table:</span>
+                              <span className="text-black/60">Item Count:</span>
                               <span className="ml-1 font-semibold text-black">
                                 {service.tableSize}
                               </span>

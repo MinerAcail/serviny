@@ -830,7 +830,8 @@ export const createAllMarkersWithLocations = (
         addedPickupDropoff.add(pickupKey);
         
         // Enhanced popup info for multigroup
-        let extraInfo = `Table for ${booking.tableSize} • ${booking.day}`;
+        let extraInfo = ` ${booking.tableSize}   ${booking.tableSize === 1 ? 'item' : 'items'} for
+ • ${booking.day}`;
         if (booking.multiGroupId) {
           extraInfo += ` • Multi-Group #${booking.multiGroupId.slice(-6)}`;
         }

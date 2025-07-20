@@ -155,7 +155,6 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
           <RegisterOption
             value="service"
             icon={<Truck className="h-8 w-8" />}
-            
             title="Service Provider Account"
             description="Offer your services to customers"
             buttonText="Create Provider Account"
@@ -173,7 +172,11 @@ export const RegisterGetSartBtn = ({ children }: { children: ReactNode }) => {
     </Dialog>
   );
 };
-const RegisterOptionsForFormsTypes = ({ isCollapsed }: { isCollapsed?: boolean }) => {
+const RegisterOptionsForFormsTypes = ({
+  isCollapsed,
+}: {
+  isCollapsed?: boolean;
+}) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -238,7 +241,7 @@ const RegisterOptionsForFormsTypes = ({ isCollapsed }: { isCollapsed?: boolean }
               }
             }}
           />
-          
+
           <RegisterOption
             value="service"
             icon={<Building2 className="h-8 w-8" />}
@@ -347,19 +350,17 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               "Access exclusive offers and discounts",
             ]}
             onCloseDialog={() => {
-              // Find the dialog element and close it
               const dialog = document.querySelector(
                 '[role="dialog"]'
               ) as HTMLElement | null;
               if (dialog) {
-                // If using shadcn/ui dialog, trigger close via Escape key event
                 dialog.dispatchEvent(
                   new KeyboardEvent("keydown", { key: "Escape" })
                 );
               }
             }}
           />
-          
+
           <RegisterOption
             value="service"
             icon={<Building2 className="h-8 w-8" />}
@@ -374,12 +375,12 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               "Build your reputation with verified reviews",
             ]}
             onCloseDialog={() => {
-              // Find the dialog element and close it
               const dialog = document.querySelector(
                 '[role="dialog"]'
               ) as HTMLElement | null;
+              window.location.reload();
+
               if (dialog) {
-                // If using shadcn/ui dialog, trigger close via Escape key event
                 dialog.dispatchEvent(
                   new KeyboardEvent("keydown", { key: "Escape" })
                 );
@@ -400,9 +401,9 @@ const RegisterOptions = ({ isCollapsed }: { isCollapsed?: boolean }) => {
               "Grow your reputation through customer ratings and feedback",
             ]}
             onCloseDialog={() => {
-              const dialog = document.querySelector(
-                '[role="dialog"]'
-              ) as HTMLElement | null;
+              const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
+              window.location.reload();
+
               if (dialog) {
                 dialog.dispatchEvent(
                   new KeyboardEvent("keydown", { key: "Escape" })

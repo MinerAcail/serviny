@@ -1655,6 +1655,7 @@ export const UPDATE_BOOKING_WITH_LOCATION = gql`
       riderId
       serviceId
       updatedAt
+      userId
     }
   }
 `;
@@ -1681,6 +1682,7 @@ export const GET_APPOINTMENT_BOOKING = gql`
       riderId
       serviceId
       updatedAt
+      userId
     }
   }
 `;
@@ -2586,6 +2588,7 @@ export const GET_MULTI_GROUPED_BOOKINGS = gql`
       riderId
       isConfirmed
       updatedAt
+      userId
     }
   }
 `;
@@ -2612,6 +2615,7 @@ export const UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION = gql`
       riderId
       serviceId
       updatedAt
+      userId                
     }
   }
 `;
@@ -2647,6 +2651,8 @@ export interface UpdateBookingLocationInput {
   pickupLocation?: number[]; // [lng, lat]
   rangeMetaId?: string;
   ridersId?: string;
+  userId?: string;
+  
 }
 
 // ==========================================
@@ -2983,12 +2989,12 @@ export function useMultiDeliveryCalculation() {
 
           setTotalCalculations(result);
 
-          toast.success("Multi-delivery calculated!", {
-            description: `${
-              itemCalculations.length
-            } items • Total: $${totalPrice.toFixed(2)}`,
-            duration: 3000,
-          });
+          // toast.success("Multi-delivery calculated!", {
+          //   description: `${
+          //     itemCalculations.length
+          //   } items • Total: $${totalPrice.toFixed(2)}`,
+          //   duration: 3000,
+          // });
 
           return result;
         }

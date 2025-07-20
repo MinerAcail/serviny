@@ -1,30 +1,22 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useMutation, gql } from "@apollo/client";
-import { useForm } from "react-hook-form";
-import { useJsApiLoader, Libraries } from "@react-google-maps/api";
+"use client"
+
+import type React from "react"
+import { useState, useRef, useEffect } from "react"
+import { useMutation, gql } from "@apollo/client"
+import { useForm } from "react-hook-form"
+import { useJsApiLoader, type Libraries } from "@react-google-maps/api"
+import { useNavigate } from "react-router"
 
 // UI Components
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+// import { NotificationAlertDialog } from "@/components/ui/notification-alert-dialog" // New import for AlertDialog
 import {
   Loader2,
   X,
@@ -42,8 +34,11 @@ import {
   Calendar,
   Star,
   AlertTriangle,
-} from "lucide-react";
-import { toast } from "sonner";
+} from "lucide-react"
+
+import { OtpCard } from "@/components/serviceProviders/createOTP"
+import { ErrorBoundary, NotificationAlertDialog } from "../GlobalLogic/ErrorBoundary"
+// import { ErrorBoundary } from "@/components/error-boundary" // Updated import path
 
 // Fixed GraphQL Mutation with proper file upload parameters
 const CREATE_RIDER = gql`
@@ -64,132 +59,126 @@ const CREATE_RIDER = gql`
       createdAt
     }
   }
-`;
+`
+const REQUEST_OTP = gql`
+  mutation RequestOtp($input: RequestOtpInput!) {
+    requestOtp(input: $input) {
+      success
+      message
+      otpSent
+      email
+    }
+  }
+`
+const VERIFY_OTP = gql`
+  mutation VerifyOtp($input: VerifyOtpInput!) {
+    verifyOtp(input: $input) {
+      success
+      message
+      IsValid
+      otpSent
+      email
+    }
+  }
+`
+const RESEND_OTP = gql`
+  mutation ResendOtp($input: RequestOtpInput!) {
+    resendOTP(input: $input) {
+      success
+      message
+      IsValid
+      otpSent
+      email
+    }
+  }
+`
 
 // Types
 interface FormData {
-  name: string;
-  email: string;
-  password?: string;
-  confirmPassword?: string;
-  number: string;
-  location?: string;
-  experience: string;
-  type: string;
-  availability?: boolean;
+  name: string
+  email: string
+  password?: string
+  confirmPassword?: string
+  number: string
+  location?: string
+  experience: string
+  type: string
+  availability?: boolean
 }
-
 interface PlacePrediction {
-  description: string;
-  place_id: string;
+  description: string
+  place_id: string
   structured_formatting: {
-    main_text: string;
-    secondary_text: string;
-  };
+    main_text: string
+    secondary_text: string
+  }
 }
-
 interface ExperienceOption {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
-// Error Boundary Component
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: {
-    children: React.ReactNode;
-    fallback?: React.ReactNode;
-  }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Rider registration error:", error, errorInfo);
-    toast.error("Something went wrong", {
-      description: "Please refresh the page and try again.",
-    });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        this.props.fallback || (
-          <div className="p-6 text-center">
-            <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
-            <p className="text-gray-600 mb-4">
-              Please refresh the page and try again.
-            </p>
-            <Button onClick={() => window.location.reload()}>
-              Refresh Page
-            </Button>
-          </div>
-        )
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-const riderTypes: string[] = ["DELIVERY", "COURIER", "TAXI"];
+const riderTypes: string[] = ["DELIVERY", "COURIER", "TAXI"]
 const experienceOptions: ExperienceOption[] = [
   { value: "0-1", label: "0-1 years" },
   { value: "1-2", label: "1-2 years" },
   { value: "2-5", label: "2-5 years" },
   { value: "5+", label: "5+ years" },
-];
+]
 
-// Main Component wrapped in Error Boundary
-export default function RiderRegistration(): JSX.Element {
+// The actual RiderRegistration component content
+function RiderRegistrationContent(): JSX.Element {
   // Google Maps API configuration
-  const libraries: Libraries = ["places"];
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-
-  // Google Maps API loader with error handling
+  const libraries: Libraries = ["places"]
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey,
     libraries,
-  });
+  })
 
   // State for active tab
-  const [activeTab, setActiveTab] = useState<string>("personal");
-
+  const [activeTab, setActiveTab] = useState<string>("personal")
   // State for form fields
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [idCardPreviews, setIdCardPreviews] = useState<string[]>([]);
-  const [coordinates, setCoordinates] = useState<number[]>([]);
-
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [idCardPreviews, setIdCardPreviews] = useState<string[]>([])
+  const [coordinates, setCoordinates] = useState<number[]>([])
   // State for password visibility
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState<boolean>(false);
-
+  const [showPassword, setShowPassword] = useState<boolean>(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
   // Loading state
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   // Refs
-  const searchInputRef = useRef<HTMLDivElement>(null);
-  const autocompleteServiceRef =
-    useRef<google.maps.places.AutocompleteService | null>(null);
-  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
-
+  const searchInputRef = useRef<HTMLDivElement>(null)
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null)
   // State for location search
-  const [searchValue, setSearchValue] = useState<string>("");
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
-  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
-  const [showPredictions, setShowPredictions] = useState<boolean>(false);
-
+  const [searchValue, setSearchValue] = useState<string>("")
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([])
+  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false)
+  const [showPredictions, setShowPredictions] = useState<boolean>(false)
+  // State to store form data before OTP verification
+  const [formDataToSubmit, setFormDataToSubmit] = useState<FormData | null>(null)
+  const [showOtpVerification, setShowOtpVerification] = useState(false)
+  const navigate = useNavigate()
   // Fixed file upload state - moved inside component
-  const [profilePic, setProfilePic] = useState<File | null>(null);
-  const [idCards, setIdCards] = useState<File[]>([]);
+  const [profilePic, setProfilePic] = useState<File | null>(null)
+  const [idCards, setIdCards] = useState<File[]>([])
+
+  // State for NotificationAlertDialog
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    type: "success" | "error" | "warning" | "info"
+  } | null>(null)
+
+  const showDialog = (title: string, description: string, type: "success" | "error" | "warning" | "info") => {
+    setDialogState({ isOpen: true, title, description, type })
+  }
+
+  const closeDialog = () => {
+    setDialogState(null)
+  }
 
   // Form validation
   const {
@@ -208,369 +197,300 @@ export default function RiderRegistration(): JSX.Element {
       type: "DELIVERY",
       availability: true,
     },
-  });
+  })
 
   // Watch form values
-  const watchedName = watch("name");
-  const watchedEmail = watch("email");
-  const watchedNumber = watch("number");
-  const watchedPassword = watch("password");
-  const watchedConfirmPassword = watch("confirmPassword");
-  const watchedLocation = watch("location");
+  const watchedName = watch("name")
+  const watchedEmail = watch("email")
+  const watchedNumber = watch("number")
+  const watchedPassword = watch("password")
+  const watchedConfirmPassword = watch("confirmPassword")
+  const watchedLocation = watch("location")
 
   // GraphQL mutations with error handling
-  const [craeteRider] = useMutation(CREATE_RIDER, {
+  const [createRiderMutation] = useMutation(CREATE_RIDER, {
     errorPolicy: "all",
     onError: (error) => {
-      console.error("GraphQL mutation error:", error);
-      toast.error("Registration failed", {
-        description: error.message || "Please try again later.",
-      });
+      console.error("GraphQL mutation error:", error)
+      showDialog("Registration Failed", error.message || "Please try again later.", "error")
     },
-  });
+  })
+  const [requestOtpMutation] = useMutation(REQUEST_OTP)
+  const [verifyOtpMutation] = useMutation(VERIFY_OTP)
+  const [resendOtpMutation] = useMutation(RESEND_OTP)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
 
   // Handle Google Maps load error
   useEffect(() => {
     if (loadError) {
-      console.error("Google Maps failed to load:", loadError);
-      toast.error("Maps service unavailable", {
-        description: "Location search may not work properly.",
-      });
+      console.error("Google Maps failed to load:", loadError)
+      showDialog("Maps Service Unavailable", "Location search may not work properly.", "warning")
     }
-  }, [loadError]);
+  }, [loadError])
 
   // Initialize Google services when API is loaded
   useEffect(() => {
-    if (!isLoaded || loadError) return;
-
+    if (!isLoaded || loadError) return
     try {
-      autocompleteServiceRef.current =
-        new window.google.maps.places.AutocompleteService();
-      geocoderRef.current = new window.google.maps.Geocoder();
+      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService()
+      geocoderRef.current = new window.google.maps.Geocoder()
     } catch (error) {
-      console.error("Error initializing Google Maps services:", error);
-      toast.error("Location services unavailable", {
-        description: "You can still register but location search won't work.",
-      });
+      console.error("Error initializing Google Maps services:", error)
+      showDialog("Location Services Unavailable", "You can still register but location search won't work.", "warning")
     }
-  }, [isLoaded, loadError]);
+  }, [isLoaded, loadError])
 
   // Handle search input change with error handling
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchValue(value);
-
+    const value = e.target.value
+    setSearchValue(value)
     if (value.length > 2 && autocompleteServiceRef.current) {
-      setShowPredictions(true);
-      fetchPredictions(value);
+      setShowPredictions(true)
+      fetchPredictions(value)
     } else {
-      setPredictions([]);
-      setShowPredictions(false);
+      setPredictions([])
+      setShowPredictions(false)
     }
-  };
+  }
 
   // Fetch predictions from Google Places API with error handling
   const fetchPredictions = async (input: string) => {
-    if (!autocompleteServiceRef.current) return;
-
+    if (!autocompleteServiceRef.current) return
     try {
-      setIsSearchLoading(true);
-
-      autocompleteServiceRef.current.getPlacePredictions(
-        { input },
-        (predictions, status) => {
-          setIsSearchLoading(false);
-
-          if (
-            status !== window.google.maps.places.PlacesServiceStatus.OK ||
-            !predictions
-          ) {
-            if (
-              status !==
-              window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS
-            ) {
-              console.error("Error fetching predictions:", status);
-              toast.error("Location search error", {
-                description: "Unable to search locations. Please try again.",
-              });
-            }
-            setPredictions([]);
-            return;
+      setIsSearchLoading(true)
+      autocompleteServiceRef.current.getPlacePredictions({ input }, (predictions, status) => {
+        setIsSearchLoading(false)
+        if (status !== window.google.maps.places.PlacesServiceStatus.OK || !predictions) {
+          if (status !== window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            console.error("Error fetching predictions:", status)
+            showDialog("Location Search Error", "Unable to search locations. Please try again.", "error")
           }
-
-          setPredictions(
-            predictions.map((p) => ({
-              description: p.description,
-              place_id: p.place_id,
-              structured_formatting: {
-                main_text: p.structured_formatting?.main_text || p.description,
-                secondary_text: p.structured_formatting?.secondary_text || "",
-              },
-            }))
-          );
+          setPredictions([])
+          return
         }
-      );
+        setPredictions(
+          predictions.map((p) => ({
+            description: p.description,
+            place_id: p.place_id,
+            structured_formatting: {
+              main_text: p.structured_formatting?.main_text || p.description,
+              secondary_text: p.structured_formatting?.secondary_text || "",
+            },
+          })),
+        )
+      })
     } catch (error) {
-      console.error("Error fetching predictions:", error);
-      setIsSearchLoading(false);
-      setPredictions([]);
-      toast.error("Location search failed", {
-        description: "Please try typing your location manually.",
-      });
+      console.error("Error fetching predictions:", error)
+      setIsSearchLoading(false)
+      setPredictions([])
+      showDialog("Location Search Failed", "Please try typing your location manually.", "error")
     }
-  };
+  }
 
   // Handle prediction selection with error handling
   const handlePredictionSelect = (place: PlacePrediction) => {
-    setSearchValue(place.description);
-    setShowPredictions(false);
-
+    setSearchValue(place.description)
+    setShowPredictions(false)
     // Store the location description for form submission
-    setValue("location", place.description);
-
+    setValue("location", place.description)
     // Get coordinates from place_id
     if (geocoderRef.current) {
-      geocoderRef.current.geocode(
-        { placeId: place.place_id },
-        (results, status) => {
-          if (
-            status === window.google.maps.GeocoderStatus.OK &&
-            results &&
-            results[0] &&
-            results[0].geometry
-          ) {
-            const lat = results[0].geometry.location.lat();
-            const lng = results[0].geometry.location.lng();
-            setCoordinates([lng, lat]);
-          } else {
-            console.error("Geocoding failed:", status);
-            toast.warning("Location coordinates unavailable", {
-              description:
-                "Location saved but coordinates couldn't be determined.",
-            });
-          }
+      geocoderRef.current.geocode({ placeId: place.place_id }, (results, status) => {
+        if (status === window.google.maps.GeocoderStatus.OK && results && results[0] && results[0].geometry) {
+          const lat = results[0].geometry.location.lat()
+          const lng = results[0].geometry.location.lng()
+          setCoordinates([lng, lat])
+        } else {
+          console.error("Geocoding failed:", status)
+          showDialog(
+            "Location Coordinates Unavailable",
+            "Location saved but coordinates couldn't be determined.",
+            "warning",
+          )
         }
-      );
+      })
     }
-  };
+  }
 
   // Close predictions when clicking outside search input
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchInputRef.current &&
-        !searchInputRef.current.contains(event.target as Node)
-      ) {
-        setShowPredictions(false);
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowPredictions(false)
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   // Handle profile picture upload with better error handling
-  const handleProfilePicChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleProfilePicChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (event.target.files && event.target.files[0]) {
-        const file = event.target.files[0];
-
+        const file = event.target.files[0]
         // Validate file type
         if (!file.type.startsWith("image/")) {
-          toast.error("Invalid file type", {
-            description: "Please select an image file (JPG, PNG, WebP).",
-          });
-          return;
+          showDialog("Invalid File Type", "Please select an image file (JPG, PNG, WebP).", "error")
+          return
         }
-
         // Check file size (5MB limit)
         if (file.size > 5 * 1024 * 1024) {
-          toast.error("File too large", {
-            description: "Image must be less than 5MB in size",
-          });
-          return;
+          showDialog("File Too Large", "Image must be less than 5MB in size", "error")
+          return
         }
-
-        setProfilePic(file);
-
+        setProfilePic(file)
         // Generate preview URL
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewImage(objectUrl);
-
-        toast.success("Profile picture uploaded", {
-          description: "Image ready for submission.",
-        });
+        const objectUrl = URL.createObjectURL(file)
+        setPreviewImage(objectUrl)
+        // showDialog("Profile Picture Uploaded", "Image ready for submission.", "success")
       }
     } catch (error) {
-      console.error("Error handling profile picture:", error);
-      toast.error("Upload failed", {
-        description: "Failed to process profile picture. Please try again.",
-      });
+      console.error("Error handling profile picture:", error)
+      showDialog("Upload Failed", "Failed to process profile picture. Please try again.", "error")
     }
-  };
+  }
 
   // Handle ID card uploads with better error handling
   const handleIdCardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (event.target.files && event.target.files.length > 0) {
-        const newFiles = Array.from(event.target.files);
-
+        const newFiles = Array.from(event.target.files)
         // Validate file types
         const invalidFiles = newFiles.filter(
-          (file) =>
-            !file.type.startsWith("image/") && file.type !== "application/pdf"
-        );
-
+          (file) => !file.type.startsWith("image/") && file.type !== "application/pdf",
+        )
         if (invalidFiles.length > 0) {
-          toast.error("Invalid file types", {
-            description:
-              "Please select only image files (JPG, PNG) or PDF documents.",
-          });
-          return;
+          showDialog("Invalid File Types", "Please select only image files (JPG, PNG) or PDF documents.", "error")
+          return
         }
-
         // Check file sizes
-        const largeFiles = newFiles.filter(
-          (file) => file.size > 5 * 1024 * 1024
-        );
+        const largeFiles = newFiles.filter((file) => file.size > 5 * 1024 * 1024)
         if (largeFiles.length > 0) {
-          toast.error("Files too large", {
-            description: "ID card files must be less than 5MB in size each",
-          });
-          return;
+          showDialog("Files Too Large", "ID card files must be less than 5MB in size each", "error")
+          return
         }
-
         // Add to existing ID cards
-        setIdCards((prev) => [...prev, ...newFiles]);
-
+        setIdCards((prev) => [...prev, ...newFiles])
         // Generate previews for image files only
         const newPreviews = newFiles
           .filter((file) => file.type.startsWith("image/"))
-          .map((file) => URL.createObjectURL(file));
-        setIdCardPreviews((prev) => [...prev, ...newPreviews]);
-
-        toast.success(`${newFiles.length} ID document(s) uploaded`, {
-          description: "Documents ready for submission.",
-        });
+          .map((file) => URL.createObjectURL(file))
+        setIdCardPreviews((prev) => [...prev, ...newPreviews])
+        // showDialog(
+        //   "Documents Uploaded",
+        //   `${newFiles.length} ID document(s) uploaded. Documents ready for submission.`,
+        //   "success",
+        // )
       }
     } catch (error) {
-      console.error("Error handling ID cards:", error);
-      toast.error("Upload failed", {
-        description: "Failed to process ID documents. Please try again.",
-      });
+      console.error("Error handling ID cards:", error)
+      showDialog("Upload Failed", "Failed to process ID documents. Please try again.", "error")
     }
-  };
+  }
 
   // Remove a specific ID card
   const removeIdCard = (index: number) => {
     try {
-      setIdCards((prev) => prev.filter((_, i) => i !== index));
-
+      setIdCards((prev) => prev.filter((_, i) => i !== index))
       // Revoke the object URL to avoid memory leaks
       if (idCardPreviews[index]) {
-        URL.revokeObjectURL(idCardPreviews[index]);
+        URL.revokeObjectURL(idCardPreviews[index])
       }
-      setIdCardPreviews((prev) => prev.filter((_, i) => i !== index));
-
-      toast.success("Document removed", {
-        description: "ID document has been removed from upload queue.",
-      });
+      setIdCardPreviews((prev) => prev.filter((_, i) => i !== index))
+      showDialog("Document Removed", "ID document has been removed from upload queue.", "success")
     } catch (error) {
-      console.error("Error removing ID card:", error);
-      toast.error("Remove failed", {
-        description: "Failed to remove document. Please try again.",
-      });
+      console.error("Error removing ID card:", error)
+      showDialog("Remove Failed", "Failed to remove document. Please try again.", "error")
     }
-  };
+  }
 
   // Remove profile picture
   const handleRemoveProfilePic = () => {
     try {
-      setProfilePic(null);
+      setProfilePic(null)
       if (previewImage) {
-        URL.revokeObjectURL(previewImage);
-        setPreviewImage(null);
+        URL.revokeObjectURL(previewImage)
+        setPreviewImage(null)
       }
-
-      toast.success("Profile picture removed", {
-        description: "You can upload a new profile picture if needed.",
-      });
+      showDialog("Profile Picture Removed", "You can upload a new profile picture if needed.", "success")
     } catch (error) {
-      console.error("Error removing profile picture:", error);
-      toast.error("Remove failed", {
-        description: "Failed to remove profile picture. Please try again.",
-      });
+      console.error("Error removing profile picture:", error)
+      showDialog("Remove Failed", "Failed to remove profile picture. Please try again.", "error")
     }
-  };
+  }
 
   // Clear all form data
   const handleClearForm = () => {
     try {
       // Reset form and state
-      reset();
-      setProfilePic(null);
-      setIdCards([]);
-      setCoordinates([]);
-      setSearchValue("");
-      setActiveTab("personal");
-
+      reset()
+      setProfilePic(null)
+      setIdCards([])
+      setCoordinates([])
+      setSearchValue("")
+      setActiveTab("personal")
+      setFormDataToSubmit(null) // Clear stored form data
+      setShowOtpVerification(false) // Hide OTP verification
       // Clear previews and revoke URLs
-      if (previewImage) URL.revokeObjectURL(previewImage);
-      idCardPreviews.forEach((url) => URL.revokeObjectURL(url));
-
-      setPreviewImage(null);
-      setIdCardPreviews([]);
-
-      toast.success("Form cleared", {
-        description: "All data has been reset.",
-      });
+      if (previewImage) URL.revokeObjectURL(previewImage)
+      idCardPreviews.forEach((url) => URL.revokeObjectURL(url))
+      setPreviewImage(null)
+      setIdCardPreviews([])
+      showDialog("Form Cleared", "All data has been reset.", "info")
     } catch (error) {
-      console.error("Error clearing form:", error);
-      toast.error("Clear failed", {
-        description: "Failed to clear form. Please refresh the page.",
-      });
+      console.error("Error clearing form:", error)
+      showDialog("Clear Failed", "Failed to clear form. Please refresh the page.", "error")
     }
-  };
+  }
 
   // Form validation for each step
   const isPersonalInfoComplete = Boolean(
-    watchedName &&
-      watchedEmail &&
-      watchedNumber &&
-      !errors.name &&
-      !errors.email &&
-      !errors.number
-  );
-
-  const isLocationInfoComplete = Boolean(
-    watchedLocation && coordinates.length === 2
-  );
-
+    watchedName && watchedEmail && watchedNumber && !errors.name && !errors.email && !errors.number,
+  )
+  const isLocationInfoComplete = Boolean(watchedLocation && coordinates.length === 2)
   const isPasswordValid = Boolean(
     watchedPassword &&
       watchedConfirmPassword &&
       watchedPassword === watchedConfirmPassword &&
       watchedPassword.length >= 8 &&
       !errors.password &&
-      !errors.confirmPassword
-  );
+      !errors.confirmPassword,
+  )
 
-  // Fixed form submission handler
-  const onSubmit = async (data: FormData) => {
-    // Check if password and confirm password match
-    if (data.password !== data.confirmPassword) {
-      toast.error("Error", {
-        description: "Passwords do not match",
-      });
-      return;
+  // Send OTP
+  const handleSendOtp = async (data: FormData) => {
+    setIsLoading(true)
+    setFormDataToSubmit(data) // Store data for later submission
+    try {
+      const result = await requestOtpMutation({
+        variables: {
+          input: {
+            email: data.email,
+            name: data.name,
+            number: data.number,
+            type: "SERVICE", // Assuming 'SERVICE' type for OTP request
+          },
+        },
+      })
+      if (result.data?.requestOtp?.success) {
+        setShowOtpVerification(true) // Show OTP verification component
+        showDialog("OTP Sent", `Verification code sent to ${data.number}`, "success")
+      } else {
+        showDialog("Error", result.data?.requestOtp?.message || "Failed to send verification code", "error")
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to send verification code"
+      showDialog("Error", errorMessage, "error")
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    setIsLoading(true);
-
+  // Submit the actual rider registration after OTP verification
+  const submitRiderRegistration = async (data: FormData) => {
+    setIsLoading(true)
     try {
       // Prepare the input data
       const riderInput = {
@@ -583,51 +503,120 @@ export default function RiderRegistration(): JSX.Element {
         availability: data.availability ?? true,
         experience: data.experience,
         coordinates: coordinates.length === 2 ? coordinates : null,
-      };
-
+      }
       // Execute the mutation with proper file handling
-      const result = await craeteRider({
+      const result = await createRiderMutation({
         variables: {
           input: riderInput,
           dpfile: profilePic, // Pass the file directly, not FormData
           idCardfiles: idCards, // Pass the file array directly
         },
-      });
-
+      })
       if (result.data?.craeteRider) {
         // Show success message
-        toast.success("Rider registered successfully", {
-          description: `${data.name} has been registered as a rider`,
-        });
-
-        // Reset form
-        handleClearForm();
-      } else {
-        throw new Error("Registration failed - no data returned");
+        showDialog("Rider Registered Successfully", `${data.name} has been registered as a rider`, "success")
+        // Reset form and navigate
+        handleClearForm()
+        navigate(`/login`)
       }
     } catch (error: unknown) {
-      console.error("Error registering rider:", error);
-
-      let errorMessage = "Failed to register rider. Please try again.";
+      console.error("Error registering rider:", error)
+      let errorMessage = "Failed to register rider. Please try again."
       if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = error.message
       }
-
-      toast.error("Registration failed", {
-        description: errorMessage,
-      });
+      showDialog("Registration Failed", errorMessage, "error")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
+
+  // Verify OTP
+  const handleVerifyOtp = async (otpCode: string) => {
+    setVerifyingOtp(true)
+    if (!formDataToSubmit) {
+      showDialog("Error", "Form data missing. Please restart registration.", "error")
+      setVerifyingOtp(false)
+      return
+    }
+    try {
+      const result = await verifyOtpMutation({
+        variables: {
+          input: {
+            number: formDataToSubmit.number, // Use number for verification
+            otp: otpCode,
+            type: "DELIVERY", // Assuming 'DELIVERY' type for verification
+          },
+        },
+      })
+      if (result.data?.verifyOtp?.success && result.data?.verifyOtp?.IsValid) {
+        showDialog("Verification Successful", "Your number has been verified successfully", "success")
+        // Proceed with actual rider registration
+        await submitRiderRegistration(formDataToSubmit)
+      } else {
+        showDialog("Verification Failed", result.data?.verifyOtp?.message || "Invalid verification code", "error")
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Verification failed"
+      showDialog("Error", errorMessage, "error")
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
+  // Cancel OTP verification and go back to form
+  const handleCancelOtp = () => {
+    setShowOtpVerification(false)
+    setFormDataToSubmit(null) // Clear stored data if user cancels
+    setIsLoading(false) // Ensure loading is off
+  }
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (!formDataToSubmit) {
+      showDialog("Error", "Cannot resend OTP. Form data missing.", "error")
+      return
+    }
+    try {
+      const result = await resendOtpMutation({
+        variables: {
+          input: {
+            email: formDataToSubmit.email,
+            name: formDataToSubmit.name,
+            number: formDataToSubmit.number,
+            type: "DELIVERY", // Assuming 'DELIVERY' type for resend
+          },
+        },
+      })
+      if (result.data?.resendOTP?.success) {
+        showDialog("OTP Resent", `New verification code sent to ${formDataToSubmit.number}`, "success")
+      } else {
+        showDialog("Error", result.data?.resendOTP?.message || "Failed to resend verification code", "error")
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to resend verification code"
+      showDialog("Error", errorMessage, "error")
+    }
+  }
+
+  // Main form submission handler - triggers OTP flow
+  const onSubmit = async (data: FormData) => {
+    // Check if password and confirm password match (already handled by react-hook-form validation)
+    if (data.password !== data.confirmPassword) {
+      showDialog("Error", "Passwords do not match", "error")
+      return
+    }
+    // Trigger OTP flow
+    await handleSendOtp(data)
+  }
 
   // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
-      if (previewImage) URL.revokeObjectURL(previewImage);
-      idCardPreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, []);
+      if (previewImage) URL.revokeObjectURL(previewImage)
+      idCardPreviews.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [])
 
   // Show loading state for Google Maps
   if (!isLoaded && !loadError) {
@@ -646,7 +635,36 @@ export default function RiderRegistration(): JSX.Element {
           </div>
         </div>
       </div>
-    );
+    )
+  }
+
+  // Show OTP verification component if needed
+  if (showOtpVerification) {
+    return (
+      <div className="space-y-6">
+        <OtpCard
+          title="Number Verification"
+          email={formDataToSubmit?.number} // Pass the number for OTP
+          onSubmit={handleVerifyOtp}
+          onResend={handleResendOtp}
+          loading={verifyingOtp}
+        />
+        <div className="flex justify-center px-6 pb-6">
+          <Button variant="outline" onClick={handleCancelOtp} disabled={verifyingOtp}>
+            Back to Form
+          </Button>
+        </div>
+        {dialogState && (
+          <NotificationAlertDialog
+            isOpen={dialogState.isOpen}
+            onClose={closeDialog}
+            title={dialogState.title}
+            description={dialogState.description}
+            type={dialogState.type}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
@@ -659,16 +677,8 @@ export default function RiderRegistration(): JSX.Element {
                 <Briefcase className="h-6 w-6 text-primary" />
                 Register as a Rider
               </CardTitle>
-              <CardDescription>
-                Fill out the information below to create your rider profile
-              </CardDescription>
             </CardHeader>
-
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="px-6 pt-6">
                 <TabsList className="grid w-full grid-cols-3 mb-6 h-14">
                   <TabsTrigger
@@ -691,9 +701,7 @@ export default function RiderRegistration(): JSX.Element {
                   <TabsTrigger
                     value="verification"
                     className="flex gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                    disabled={
-                      !isPersonalInfoComplete || !isLocationInfoComplete
-                    }
+                    disabled={!isPersonalInfoComplete || !isLocationInfoComplete}
                   >
                     <CheckCircle className="h-4 w-4" />
                     <span className="hidden sm:inline">Verification</span>
@@ -701,7 +709,6 @@ export default function RiderRegistration(): JSX.Element {
                   </TabsTrigger>
                 </TabsList>
               </div>
-
               <CardContent>
                 <form id="rider-form" onSubmit={handleSubmit(onSubmit)}>
                   {/* Personal Info Tab */}
@@ -710,9 +717,7 @@ export default function RiderRegistration(): JSX.Element {
                       <div className="space-y-2">
                         <Label
                           htmlFor="name"
-                          className={`flex items-center gap-2 ${
-                            errors.name ? "text-destructive" : ""
-                          }`}
+                          className={`flex items-center gap-2 ${errors.name ? "text-destructive" : ""}`}
                         >
                           <User className="h-4 w-4" />
                           Full Name
@@ -729,19 +734,12 @@ export default function RiderRegistration(): JSX.Element {
                           })}
                           className={errors.name ? "border-destructive" : ""}
                         />
-                        {errors.name && (
-                          <p className="text-sm text-destructive">
-                            {errors.name.message}
-                          </p>
-                        )}
+                        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                       </div>
-
                       <div className="space-y-2">
                         <Label
                           htmlFor="email"
-                          className={`flex items-center gap-2 ${
-                            errors.email ? "text-destructive" : ""
-                          }`}
+                          className={`flex items-center gap-2 ${errors.email ? "text-destructive" : ""}`}
                         >
                           <Mail className="h-4 w-4" />
                           Email Address
@@ -759,19 +757,12 @@ export default function RiderRegistration(): JSX.Element {
                           })}
                           className={errors.email ? "border-destructive" : ""}
                         />
-                        {errors.email && (
-                          <p className="text-sm text-destructive">
-                            {errors.email.message}
-                          </p>
-                        )}
+                        {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                       </div>
-
                       <div className="space-y-2">
                         <Label
                           htmlFor="number"
-                          className={`flex items-center gap-2 ${
-                            errors.number ? "text-destructive" : ""
-                          }`}
+                          className={`flex items-center gap-2 ${errors.number ? "text-destructive" : ""}`}
                         >
                           <Phone className="h-4 w-4" />
                           Phone Number
@@ -787,19 +778,13 @@ export default function RiderRegistration(): JSX.Element {
                             },
                             minLength: {
                               value: 10,
-                              message:
-                                "Phone number must be at least 10 digits",
+                              message: "Phone number must be at least 10 digits",
                             },
                           })}
                           className={errors.number ? "border-destructive" : ""}
                         />
-                        {errors.number && (
-                          <p className="text-sm text-destructive">
-                            {errors.number.message}
-                          </p>
-                        )}
+                        {errors.number && <p className="text-sm text-destructive">{errors.number.message}</p>}
                       </div>
-
                       <div className="space-y-2">
                         <Label htmlFor="type">
                           <div className="flex items-center gap-2">
@@ -807,10 +792,7 @@ export default function RiderRegistration(): JSX.Element {
                             Rider Type
                           </div>
                         </Label>
-                        <Select
-                          onValueChange={(value) => setValue("type", value)}
-                          defaultValue="DELIVERY"
-                        >
+                        <Select onValueChange={(value) => setValue("type", value)} defaultValue="DELIVERY">
                           <SelectTrigger>
                             <SelectValue placeholder="Select rider type" />
                           </SelectTrigger>
@@ -823,7 +805,6 @@ export default function RiderRegistration(): JSX.Element {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
                         <Label htmlFor="experience">
                           <div className="flex items-center gap-2">
@@ -831,33 +812,21 @@ export default function RiderRegistration(): JSX.Element {
                             Experience
                           </div>
                         </Label>
-                        <Select
-                          onValueChange={(value) =>
-                            setValue("experience", value)
-                          }
-                          defaultValue="0-1"
-                        >
+                        <Select onValueChange={(value) => setValue("experience", value)} defaultValue="0-1">
                           <SelectTrigger>
                             <SelectValue placeholder="Years of experience" />
                           </SelectTrigger>
                           <SelectContent>
                             {experienceOptions.map((option) => (
-                              <SelectItem
-                                key={option.value}
-                                value={option.value}
-                              >
+                              <SelectItem key={option.value} value={option.value}>
                                 {option.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
-                        <Label
-                          htmlFor="availability"
-                          className="flex justify-between"
-                        >
+                        <Label htmlFor="availability" className="flex justify-between">
                           <div className="flex items-center gap-2">
                             <Star className="h-4 w-4" />
                             Availability
@@ -865,17 +834,12 @@ export default function RiderRegistration(): JSX.Element {
                           <Switch
                             id="availability"
                             defaultChecked={true}
-                            onCheckedChange={(checked) =>
-                              setValue("availability", checked)
-                            }
+                            onCheckedChange={(checked) => setValue("availability", checked)}
                           />
                         </Label>
-                        <p className="text-sm text-gray-500">
-                          Set your initial availability status
-                        </p>
+                        <p className="text-sm text-gray-500">Set your initial availability status</p>
                       </div>
                     </div>
-
                     {isPersonalInfoComplete && (
                       <div className="flex justify-end mt-6">
                         <Button
@@ -902,15 +866,11 @@ export default function RiderRegistration(): JSX.Element {
                       </div>
                     )}
                   </TabsContent>
-
                   {/* Location Tab */}
                   <TabsContent value="location" className="mt-0 space-y-6">
                     <div className="space-y-4">
                       <div>
-                        <Label
-                          htmlFor="location"
-                          className="flex items-center gap-2 mb-2"
-                        >
+                        <Label htmlFor="location" className="flex items-center gap-2 mb-2">
                           <MapPin className="h-4 w-4" />
                           Your Location
                         </Label>
@@ -918,8 +878,7 @@ export default function RiderRegistration(): JSX.Element {
                           <Alert className="mb-4 bg-yellow-50 text-yellow-800 border-yellow-200">
                             <AlertTriangle className="h-4 w-4" />
                             <AlertDescription>
-                              Location search is unavailable. You can type your
-                              address manually.
+                              Location search is unavailable. You can type your address manually.
                             </AlertDescription>
                           </Alert>
                         )}
@@ -936,164 +895,125 @@ export default function RiderRegistration(): JSX.Element {
                               type="button"
                               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                               onClick={() => {
-                                setSearchValue("");
-                                setValue("location", "");
-                                setCoordinates([]);
+                                setSearchValue("")
+                                setValue("location", "")
+                                setCoordinates([])
                               }}
                             >
                               <X size={16} />
                             </button>
                           )}
-
                           {/* Predictions dropdown */}
-                          {showPredictions &&
-                            predictions.length > 0 &&
-                            !loadError && (
-                              <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                                {isSearchLoading ? (
-                                  <div className="p-3 text-center text-sm text-gray-500">
-                                    <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
-                                    Searching...
-                                  </div>
-                                ) : (
-                                  <ul className="py-1">
-                                    {predictions.map((place) => (
-                                      <li
-                                        key={place.place_id}
-                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                        onClick={() =>
-                                          handlePredictionSelect(place)
-                                        }
-                                      >
-                                        <div className="font-medium text-sm">
-                                          {
-                                            place.structured_formatting
-                                              .main_text
-                                          }
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {
-                                            place.structured_formatting
-                                              .secondary_text
-                                          }
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-
-                      {/* Location confirmation */}
-                      {watchedLocation && coordinates.length === 2 && (
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-2">
-                          <div className="flex items-center">
-                            <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />
-                            <h3 className="font-medium">Location Confirmed</h3>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {watchedLocation}
-                          </p>
-                          <div className="text-xs text-gray-500">
-                            Coordinates: {coordinates[1].toFixed(6)},{" "}
-                            {coordinates[0].toFixed(6)}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Manual location entry fallback */}
-                      {watchedLocation && coordinates.length === 0 && (
-                        <div className="p-4 bg-orange-50 rounded-lg border border-orange-100 space-y-2">
-                          <div className="flex items-center">
-                            <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
-                            <h3 className="font-medium">
-                              Manual Location Entry
-                            </h3>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {watchedLocation}
-                          </p>
-                          <div className="text-xs text-gray-500">
-                            Location saved without coordinates. This may affect
-                            location-based features.
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Profile picture upload */}
-                      <div className="space-y-4 mt-6">
-                        <Label className="flex items-center gap-2">
-                          <Camera className="h-4 w-4" />
-                          Profile Picture (Optional)
-                        </Label>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                          <div
-                            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors ${
-                              previewImage
-                                ? "border-primary"
-                                : "border-gray-300"
-                            }`}
-                            onClick={() =>
-                              document
-                                .getElementById("profile-picture")
-                                ?.click()
-                            }
-                          >
-                            <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                            <p className="text-sm font-medium">
-                              {previewImage
-                                ? "Change picture"
-                                : "Upload profile picture"}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Supported formats: JPG, PNG, WebP (Max 5MB)
-                            </p>
-                            <Input
-                              id="profile-picture"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleProfilePicChange}
-                              className="hidden"
-                            />
-                          </div>
-
-                          {previewImage ? (
-                            <div className="flex flex-col items-center space-y-3">
-                              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-primary shadow-md">
-                                <img
-                                  src={previewImage}
-                                  alt="Profile Preview"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={handleRemoveProfilePic}
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Remove
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center">
-                              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                                <User className="h-12 w-12 text-gray-400" />
-                              </div>
-                              <p className="text-xs text-gray-500 mt-3">
-                                No image selected
-                              </p>
+                          {showPredictions && predictions.length > 0 && !loadError && (
+                            <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto">
+                              {isSearchLoading ? (
+                                <div className="p-3 text-center text-sm text-gray-500">
+                                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
+                                  Searching...
+                                </div>
+                              ) : (
+                                <ul className="py-1">
+                                  {predictions.map((place) => (
+                                    <li
+                                      key={place.place_id}
+                                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                      onClick={() => handlePredictionSelect(place)}
+                                    >
+                                      <div className="font-medium text-sm">{place.structured_formatting.main_text}</div>
+                                      <div className="text-xs text-gray-500">
+                                        {place.structured_formatting.secondary_text}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
-
+                    {/* Location confirmation */}
+                    {watchedLocation && coordinates.length === 2 && (
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-2">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />
+                          <h3 className="font-medium">Location Confirmed</h3>
+                        </div>
+                        <p className="text-sm text-gray-600">{watchedLocation}</p>
+                        <div className="text-xs text-gray-500">
+                          Coordinates: {coordinates[1].toFixed(6)}, {coordinates[0].toFixed(6)}
+                        </div>
+                      </div>
+                    )}
+                    {/* Manual location entry fallback */}
+                    {watchedLocation && coordinates.length === 0 && (
+                      <div className="p-4 bg-orange-50 rounded-lg border border-orange-100 space-y-2">
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
+                          <h3 className="font-medium">Manual Location Entry</h3>
+                        </div>
+                        <p className="text-sm text-gray-600">{watchedLocation}</p>
+                        <div className="text-xs text-gray-500">
+                          Location saved without coordinates. This may affect location-based features.
+                        </div>
+                      </div>
+                    )}
+                    {/* Profile picture upload */}
+                    <div className="space-y-4 mt-6">
+                      <Label className="flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Profile Picture (Optional)
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <div
+                          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors ${
+                            previewImage ? "border-primary" : "border-gray-300"
+                          }`}
+                          onClick={() => document.getElementById("profile-picture")?.click()}
+                        >
+                          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm font-medium">
+                            {previewImage ? "Change picture" : "Upload profile picture"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, WebP (Max 5MB)</p>
+                          <Input
+                            id="profile-picture"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProfilePicChange}
+                            className="hidden"
+                          />
+                        </div>
+                        {previewImage ? (
+                          <div className="flex flex-col items-center space-y-3">
+                            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-primary shadow-md">
+                              <img
+                                src={previewImage || "/placeholder.svg"}
+                                alt="Profile Preview"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-xs bg-transparent"
+                              onClick={handleRemoveProfilePic}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
+                              <User className="h-12 w-12 text-gray-400" />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-3">No image selected</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex justify-between mt-6">
                       <Button
                         type="button"
@@ -1141,7 +1061,6 @@ export default function RiderRegistration(): JSX.Element {
                       </Button>
                     </div>
                   </TabsContent>
-
                   {/* Verification Tab */}
                   <TabsContent value="verification" className="mt-0 space-y-6">
                     <Alert className="bg-blue-50 text-blue-800 border-blue-200 mb-6">
@@ -1164,7 +1083,6 @@ export default function RiderRegistration(): JSX.Element {
                         Complete verification to secure your rider account.
                       </AlertDescription>
                     </Alert>
-
                     <div className="space-y-6">
                       {/* ID Card upload */}
                       <div className="space-y-4">
@@ -1173,23 +1091,15 @@ export default function RiderRegistration(): JSX.Element {
                           ID Card Documents (Optional)
                         </Label>
                         <p className="text-sm text-gray-500">
-                          Upload your government-issued ID cards or driver's
-                          license (front and back)
+                          Upload your government-issued ID cards or driver's license (front and back)
                         </p>
-
                         <div
                           className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors border-gray-300"
-                          onClick={() =>
-                            document.getElementById("id-cards")?.click()
-                          }
+                          onClick={() => document.getElementById("id-cards")?.click()}
                         >
                           <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                          <p className="text-sm font-medium">
-                            Upload ID Documents
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Supported formats: JPG, PNG, PDF (Max 5MB each)
-                          </p>
+                          <p className="text-sm font-medium">Upload ID Documents</p>
+                          <p className="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, PDF (Max 5MB each)</p>
                           <Input
                             id="id-cards"
                             type="file"
@@ -1199,21 +1109,15 @@ export default function RiderRegistration(): JSX.Element {
                             className="hidden"
                           />
                         </div>
-
                         {/* ID Card previews */}
                         {(idCardPreviews.length > 0 || idCards.length > 0) && (
                           <div className="space-y-4">
-                            <h4 className="font-medium text-sm">
-                              Uploaded Documents ({idCards.length})
-                            </h4>
+                            <h4 className="font-medium text-sm">Uploaded Documents ({idCards.length})</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                               {idCardPreviews.map((preview, index) => (
-                                <div
-                                  key={index}
-                                  className="relative rounded-lg overflow-hidden border border-gray-200"
-                                >
+                                <div key={index} className="relative rounded-lg overflow-hidden border border-gray-200">
                                   <img
-                                    src={preview}
+                                    src={preview || "/placeholder.svg"}
                                     alt={`ID Card ${index + 1}`}
                                     className="w-full h-32 object-cover"
                                   />
@@ -1224,51 +1128,41 @@ export default function RiderRegistration(): JSX.Element {
                                   >
                                     <X size={16} className="text-red-500" />
                                   </button>
-                                  <div className="bg-gray-100 p-1 text-xs text-center">
-                                    ID Document {index + 1}
-                                  </div>
+                                  <div className="bg-gray-100 p-1 text-xs text-center">ID Document {index + 1}</div>
                                 </div>
                               ))}
                               {/* Show non-image files */}
-                              {idCards
-                                .slice(idCardPreviews.length)
-                                .map((file, index) => (
-                                  <div
-                                    key={`file-${index}`}
-                                    className="relative rounded-lg border border-gray-200 p-4"
-                                  >
-                                    <div className="flex flex-col items-center justify-center h-24">
-                                      <FileText className="h-8 w-8 text-gray-400 mb-2" />
-                                      <p className="text-xs text-center truncate w-full">
-                                        {file.name}
-                                      </p>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeIdCard(
-                                          idCardPreviews.length + index
-                                        )
-                                      }
-                                      className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-red-50"
-                                    >
-                                      <X size={16} className="text-red-500" />
-                                    </button>
+                              {idCards.slice(idCardPreviews.length).map((file, index) => (
+                                <div
+                                  key={`file-${idCardPreviews.length + index}`}
+                                  className="relative rounded-lg border border-gray-200 p-4"
+                                >
+                                  <div className="flex flex-col items-center justify-center h-24">
+                                    <FileText className="h-8 w-8 text-gray-400 mb-2" />
+                                    <p className="text-xs text-center truncate w-full">{file.name}</p>
                                   </div>
-                                ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeIdCard(idCardPreviews.length + index)}
+                                    className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md hover:bg-red-50"
+                                  >
+                                    <X size={16} className="text-red-500" />
+                                  </button>
+                                  <div className="bg-gray-100 p-1 text-xs text-center">
+                                    ID Document {idCardPreviews.length + index + 1}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
                       </div>
-
                       {/* Password setup */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                         <div className="space-y-2 relative">
                           <Label
                             htmlFor="password"
-                            className={`flex items-center gap-2 ${
-                              errors.password ? "text-destructive" : ""
-                            }`}
+                            className={`flex items-center gap-2 ${errors.password ? "text-destructive" : ""}`}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -1295,8 +1189,7 @@ export default function RiderRegistration(): JSX.Element {
                                 required: "Password is required",
                                 minLength: {
                                   value: 8,
-                                  message:
-                                    "Password must be at least 8 characters",
+                                  message: "Password must be at least 8 characters",
                                 },
                                 pattern: {
                                   value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
@@ -1304,35 +1197,22 @@ export default function RiderRegistration(): JSX.Element {
                                     "Password must contain at least one uppercase letter, one lowercase letter, and one number",
                                 },
                               })}
-                              className={
-                                errors.password ? "border-destructive" : ""
-                              }
+                              className={errors.password ? "border-destructive" : ""}
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword((prev) => !prev)}
                               className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
                             >
-                              {showPassword ? (
-                                <EyeOff size={20} />
-                              ) : (
-                                <Eye size={20} />
-                              )}
+                              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
                           </div>
-                          {errors.password && (
-                            <p className="text-sm text-destructive">
-                              {errors.password.message}
-                            </p>
-                          )}
+                          {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
                         </div>
-
                         <div className="space-y-2 relative">
                           <Label
                             htmlFor="confirmPassword"
-                            className={`flex items-center gap-2 ${
-                              errors.confirmPassword ? "text-destructive" : ""
-                            }`}
+                            className={`flex items-center gap-2 ${errors.confirmPassword ? "text-destructive" : ""}`}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -1358,50 +1238,31 @@ export default function RiderRegistration(): JSX.Element {
                               placeholder="Confirm your password"
                               {...register("confirmPassword", {
                                 required: "Please confirm your password",
-                                validate: (value) =>
-                                  value === watchedPassword ||
-                                  "Passwords do not match",
+                                validate: (value) => value === watchedPassword || "Passwords do not match",
                               })}
-                              className={
-                                errors.confirmPassword
-                                  ? "border-destructive"
-                                  : ""
-                              }
+                              className={errors.confirmPassword ? "border-destructive" : ""}
                             />
                             <button
                               type="button"
-                              onClick={() =>
-                                setShowConfirmPassword((prev) => !prev)
-                              }
+                              onClick={() => setShowConfirmPassword((prev) => !prev)}
                               className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
                             >
-                              {showConfirmPassword ? (
-                                <EyeOff size={20} />
-                              ) : (
-                                <Eye size={20} />
-                              )}
+                              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
                           </div>
                           {errors.confirmPassword && (
-                            <p className="text-sm text-destructive">
-                              {errors.confirmPassword.message}
-                            </p>
+                            <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
                           )}
                         </div>
                       </div>
-
                       {/* Password strength indicator */}
                       {watchedPassword && (
                         <div className="mt-4 space-y-2">
-                          <div className="text-sm font-medium">
-                            Password Requirements:
-                          </div>
+                          <div className="text-sm font-medium">Password Requirements:</div>
                           <div className="space-y-1">
                             <div
                               className={`flex items-center space-x-2 text-sm ${
-                                watchedPassword.length >= 8
-                                  ? "text-green-600"
-                                  : "text-gray-500"
+                                watchedPassword.length >= 8 ? "text-green-600" : "text-gray-500"
                               }`}
                             >
                               {watchedPassword.length >= 8 ? (
@@ -1413,9 +1274,7 @@ export default function RiderRegistration(): JSX.Element {
                             </div>
                             <div
                               className={`flex items-center space-x-2 text-sm ${
-                                /[A-Z]/.test(watchedPassword)
-                                  ? "text-green-600"
-                                  : "text-gray-500"
+                                /[A-Z]/.test(watchedPassword) ? "text-green-600" : "text-gray-500"
                               }`}
                             >
                               {/[A-Z]/.test(watchedPassword) ? (
@@ -1427,9 +1286,7 @@ export default function RiderRegistration(): JSX.Element {
                             </div>
                             <div
                               className={`flex items-center space-x-2 text-sm ${
-                                /[a-z]/.test(watchedPassword)
-                                  ? "text-green-600"
-                                  : "text-gray-500"
+                                /[a-z]/.test(watchedPassword) ? "text-green-600" : "text-gray-500"
                               }`}
                             >
                               {/[a-z]/.test(watchedPassword) ? (
@@ -1441,9 +1298,7 @@ export default function RiderRegistration(): JSX.Element {
                             </div>
                             <div
                               className={`flex items-center space-x-2 text-sm ${
-                                /\d/.test(watchedPassword)
-                                  ? "text-green-600"
-                                  : "text-gray-500"
+                                /\d/.test(watchedPassword) ? "text-green-600" : "text-gray-500"
                               }`}
                             >
                               {/\d/.test(watchedPassword) ? (
@@ -1457,7 +1312,6 @@ export default function RiderRegistration(): JSX.Element {
                         </div>
                       )}
                     </div>
-
                     <div className="flex justify-between mt-6">
                       <Button
                         type="button"
@@ -1481,11 +1335,7 @@ export default function RiderRegistration(): JSX.Element {
                         </svg>
                         Back
                       </Button>
-                      <Button
-                        type="submit"
-                        disabled={isLoading || !isPasswordValid}
-                        className="min-w-[140px]"
-                      >
+                      <Button type="submit" disabled={isLoading || !isPasswordValid} className="min-w-[140px]">
                         {isLoading ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1503,22 +1353,13 @@ export default function RiderRegistration(): JSX.Element {
                 </form>
               </CardContent>
             </Tabs>
-
             <CardFooter className="flex justify-between border-t p-6 rounded-b-lg">
-              <Button
-                variant="outline"
-                onClick={handleClearForm}
-                disabled={isLoading}
-              >
+              <Button variant="outline" onClick={handleClearForm} disabled={isLoading}>
                 Cancel
               </Button>
-
               <div className="text-sm text-gray-500">
                 Already have an account?{" "}
-                <a
-                  href="/login"
-                  className="text-primary font-medium hover:underline"
-                >
+                <a href="/login" className="text-primary font-medium hover:underline">
                   Sign in here
                 </a>
               </div>
@@ -1526,6 +1367,24 @@ export default function RiderRegistration(): JSX.Element {
           </Card>
         </div>
       </div>
+      {dialogState && (
+        <NotificationAlertDialog
+          isOpen={dialogState.isOpen}
+          onClose={closeDialog}
+          title={dialogState.title}
+          description={dialogState.description}
+          type={dialogState.type}
+        />
+      )}
     </div>
-  );
+  )
+}
+
+// Default export wrapped with ErrorBoundary
+export default function RiderRegistration() {
+  return (
+    <>
+      <RiderRegistrationContent />
+    </>
+  )
 }

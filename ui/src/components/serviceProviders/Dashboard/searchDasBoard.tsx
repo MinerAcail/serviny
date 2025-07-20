@@ -1,5 +1,3 @@
-
-// SearchDataDasBoard.tsx
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useQuery, gql } from "@apollo/client";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -7,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import {
   Search,
   Phone,
@@ -25,33 +24,31 @@ import {
   Activity,
   FolderOpen,
   RefreshCw,
-  Share2,
+  NotepadText,
+  Globe,
+  AlertCircle,
+  Info,
 } from "lucide-react";
 import { debounce } from "lodash";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
+import AddUserDialog from "@/components/user/PROVIDER/add-user-dialog";
+import { DeliveryServiceSystem } from "../APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
+import { useAuth } from "@/middleware/context/authContext";
 
-// GraphQL Query
+// GraphQL Query - Updated to include searchExternal parameter
 const GET_PROVIDERS_USERS_CONTACT = gql`
-  query GetProvidersUsersContact($search: String, $limit: Int, $offset: Int) {
-    getProvidersUsersContact(search: $search, limit: $limit, offset: $offset) {
+  query GetProvidersUsersContact($search: String, $limit: Int, $offset: Int, $searchExternal: Boolean) {
+    getProvidersUsersContact(search: $search, limit: $limit, offset: $offset, searchExternal: $searchExternal) {
       id
       name
       type
       number
       numberType
+      external
     }
   }
 `;
-
-// Types
-interface Contact {
-  id: string;
-  name: string;
-  type: string;
-  number: string;
-  numberType: string;
-}
 
 interface DashboardData {
   totalUsers: any[];
@@ -77,15 +74,66 @@ export default function SearchDataDasBoard({
   dashboardData,
   refetchDashboard,
 }: SearchDataDasBoardProps) {
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [searchExternal, setSearchExternal] = useState(false);
+  const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const serviceId = user?.id;
+
+  // Initialize state from URL parameters
+  useEffect(() => {
+    const searchQuery = searchParams.get('search') || '';
+    const externalSearch = searchParams.get('external') === 'true';
+    const showOptions = searchParams.get('options') === 'true';
+    
+    setSearchTerm(searchQuery);
+    setDebouncedSearchTerm(searchQuery);
+    setSearchExternal(externalSearch);
+    
+    // Show search options if there's a search term, external search is enabled, or options param is true
+    if (searchQuery.trim() || externalSearch || showOptions) {
+      setShowSearchOptions(true);
+    }
+  }, []);
+
+  // Update URL when search parameters change
+  const updateURL = (search: string, external: boolean, showOptions?: boolean) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    
+    if (search.trim()) {
+      newSearchParams.set('search', search);
+    } else {
+      newSearchParams.delete('search');
+    }
+    
+    if (external) {
+      newSearchParams.set('external', 'true');
+    } else {
+      newSearchParams.delete('external');
+    }
+    
+    if (showOptions !== undefined) {
+      if (showOptions) {
+        newSearchParams.set('options', 'true');
+      } else {
+        newSearchParams.delete('options');
+      }
+    }
+    
+    setSearchParams(newSearchParams, { replace: true });
+  };
 
   // Set up debounced search to avoid too many requests
   useEffect(() => {
     const handler = debounce(() => {
       setDebouncedSearchTerm(searchTerm);
       setIsSearching(false);
+      // Update URL when debounced search term changes
+      updateURL(searchTerm, searchExternal);
     }, 500);
 
     setIsSearching(true);
@@ -94,7 +142,7 @@ export default function SearchDataDasBoard({
     return () => {
       handler.cancel();
     };
-  }, [searchTerm]);
+  }, [searchTerm, searchExternal]);
 
   const { loading, error, data, fetchMore, refetch } = useQuery(
     GET_PROVIDERS_USERS_CONTACT,
@@ -103,6 +151,7 @@ export default function SearchDataDasBoard({
         search: debouncedSearchTerm,
         limit: 20,
         offset: 0,
+        searchExternal: searchExternal,
       },
       fetchPolicy: "cache-and-network",
       notifyOnNetworkStatusChange: true,
@@ -112,6 +161,25 @@ export default function SearchDataDasBoard({
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
+    
+    // Show search options when user starts typing
+    if (value.trim() && !showSearchOptions) {
+      setShowSearchOptions(true);
+      updateURL(value, searchExternal, true);
+    }
+  };
+
+  const handleExternalSearchToggle = (checked: boolean) => {
+    setSearchExternal(checked);
+    // Update URL immediately for external search toggle
+    updateURL(searchTerm, checked, showSearchOptions);
+    // Refetch with new search external setting
+    refetch({
+      search: debouncedSearchTerm,
+      limit: 20,
+      offset: 0,
+      searchExternal: checked,
+    });
   };
 
   const loadMore = () => {
@@ -121,6 +189,7 @@ export default function SearchDataDasBoard({
           offset: contacts.length,
           limit: 20,
           search: debouncedSearchTerm,
+          searchExternal: searchExternal,
         },
         updateQuery: (prev, { fetchMoreResult }) => {
           if (!fetchMoreResult) return prev;
@@ -138,44 +207,26 @@ export default function SearchDataDasBoard({
   // Clear search
   const handleClearSearch = () => {
     setSearchTerm("");
+    setShowSearchOptions(false);
+    setSearchExternal(false);
+    // Clear URL parameters
+    const newSearchParams = new URLSearchParams();
+    setSearchParams(newSearchParams, { replace: true });
+    
     refetch({
       search: "",
       limit: 20,
       offset: 0,
+      searchExternal: false,
     });
-  };
-
-  // Share contact handler
-  const shareContact = async (contact: Contact) => {
-    const baseUrl = window.location.origin;
-    const shareUrl = `${baseUrl}/c/${contact.id}`;
-    const shareData = {
-      title: contact.name,
-      text: `Contact: ${contact.name} (${contact.type})`,
-      url: shareUrl,
-    };
-
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success("Contact link copied to clipboard!");
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          toast.success("Contact link copied to clipboard!");
-        } catch (clipboardErr) {
-          toast.error("Failed to share or copy link");
-        }
-      }
-    }
   };
 
   const contacts = data?.getProvidersUsersContact || [];
   const isLoading = loading || isSearching;
+  
+  // Count external vs internal contacts
+  const externalContacts = contacts.filter(contact => contact.external);
+  const internalContacts = contacts.filter(contact => !contact.external);
 
   // Function to render the appropriate number type icon
   const renderNumberTypeIcon = (numberType: string) => {
@@ -197,7 +248,7 @@ export default function SearchDataDasBoard({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search contacts..."
+                placeholder="Search by name or phone number..."
                 value={searchTerm}
                 onChange={handleSearchChange}
                 className="w-full pl-10 pr-10 py-2 border-slate-200"
@@ -246,8 +297,59 @@ export default function SearchDataDasBoard({
                   <ChevronDown className="h-4 w-4" />
                 )}
               </Button>
+               <AddUserDialog />
             </div>
           </div>
+
+          {/* Search Options Panel */}
+          {showSearchOptions && searchTerm.trim() && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">Search Options</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowSearchOptions(false);
+                    updateURL(searchTerm, searchExternal, false);
+                  }}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-blue-600" />
+                  <div className="flex flex-col">
+                    <span className="text-sm text-blue-900">Search outside your service network</span>
+                    <span className="text-xs text-blue-700">Find contacts not directly connected to your service</span>
+                  </div>
+                </div>
+                <Switch
+                  checked={searchExternal}
+                  onCheckedChange={handleExternalSearchToggle}
+                  className="ml-4"
+                />
+              </div>
+
+              {searchExternal && (
+                <div className="mt-3 p-2 bg-blue-100 rounded border border-blue-300">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-blue-800">
+                      <p className="font-medium">External search enabled</p>
+                      <p>You're now searching across all users, services, and riders in the system, not just your connected contacts.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="p-0">
@@ -374,19 +476,44 @@ export default function SearchDataDasBoard({
             </Collapsible>
           )}
 
+          {/* Search Results Summary */}
+          {searchTerm && !isLoading && contacts.length > 0 && (
+            <div className="px-4 py-3 bg-gray-50 border-b">
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span className="font-medium">Found {contacts.length} contacts</span>
+                {searchExternal && externalContacts.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                    <span>{externalContacts.length} external contacts not in your service network</span>
+                  </div>
+                )}
+                {internalContacts.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>{internalContacts.length} from your service network</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Contact Results */}
           {isLoading ? (
             <div className="flex justify-center py-12">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Loading contacts...</p>
+                <p className="text-sm text-muted-foreground">
+                  {searchExternal ? "Searching all contacts..." : "Loading contacts..."}
+                </p>
               </div>
             </div>
           ) : error ? (
             <div className="text-center py-12 px-4">
               <div className="bg-red-50 text-red-700 p-4 rounded-lg">
-                <p className="font-medium">No contacts found matching your search</p>
-                {/* <p className="text-sm mt-1">{error.message}</p> */}
+                <p className="font-medium">No contacts found matching your search. Create New?</p>
+               <div className="mt-3">
+                 <AddUserDialog />
+               </div>
               </div>
             </div>
           ) : contacts.length === 0 ? (
@@ -399,9 +526,16 @@ export default function SearchDataDasBoard({
                     : "No contacts available"}
                 </p>
                 {searchTerm && (
-                  <Button onClick={handleClearSearch} variant="outline" className="mt-3">
-                    Clear search
-                  </Button>
+                  <div className="mt-3 space-y-2">
+                    {!searchExternal && (
+                      <p className="text-sm text-muted-foreground">
+                        Try enabling "Search outside your service network" to find more contacts
+                      </p>
+                    )}
+                    <Button onClick={handleClearSearch} variant="outline">
+                      Clear search
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -410,7 +544,9 @@ export default function SearchDataDasBoard({
               {contacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className="flex items-center p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                  className={`flex items-center p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${
+                    contact.external ? 'border-l-4 border-l-orange-300 bg-orange-50/30' : ''
+                  }`}
                 >
                   <Link
                     to={`/dbp/c/${contact.id}`}
@@ -432,17 +568,17 @@ export default function SearchDataDasBoard({
 
                     <div className="ml-4 flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base font-semibold truncate">
-                          {contact.name}
-                        </h3>
-                        <Badge
-                          variant={
-                            contact.type === "SERVICE" ? "secondary" : "outline"
-                          }
-                          className="ml-2 hidden sm:inline-flex"
-                        >
-                          {contact.type === "SERVICE" ? "Service" : "User"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold truncate">
+                            {contact.name}
+                          </h3>
+                          {contact.external && (
+                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300">
+                              <Globe className="h-3 w-3 mr-1" />
+                              External
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
                       {contact.number && (
@@ -465,24 +601,31 @@ export default function SearchDataDasBoard({
                           </div>
                         </div>
                       )}
+
+                      {contact.external && (
+                        <div className="mt-1">
+                          <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                            Not connected to your service
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </Link>
 
                   <div className="ml-4 flex items-center gap-2">
-                    <Button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        shareContact(contact);
-                      }}
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      <span className="sr-only">Share contact</span>
-                    </Button>
+                    {contact.id && (
+                      <Button
+                        onClick={() => setDialogOpen(true)}
+                        variant="secondary"
+                        className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
+                        size="sm"
+                      >
+                        <NotepadText className="h-4 w-4" />
+                        Book Me
+                      </Button>
+                    )}
                     
-                    <Link to={`/c/${contact.id}`}>
+                    <Link to={`/dbp/c/${contact.id}`}>
                       <div className="rounded-full p-1 bg-muted">
                         <svg
                           width="16"
@@ -502,6 +645,14 @@ export default function SearchDataDasBoard({
                       </div>
                     </Link>
                   </div>
+                  
+                  <DeliveryServiceSystem
+                    isDialogOpenMain={isDialogOpen}
+                    setDialogOpenMain={setDialogOpen}
+                    serviceId={serviceId}
+                    isService={true}
+                    userDataId={contact?.id}
+                  />
                 </div>
               ))}
 

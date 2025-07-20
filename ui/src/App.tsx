@@ -1,38 +1,65 @@
-import { useEffect } from 'react'
-import { Navigation } from './middleware/navigation'
+import { useEffect } from "react";
+import { Navigation } from "./middleware/navigation";
 
 function App() {
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready
-        .then(registration => {
-          console.log('[Client] ✅ Service worker ready:', registration)
-          console.log('[Client] 🔍 Push manager:', registration.pushManager)
+    if ("serviceWorker" in navigator) {
+      // Register service worker
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          console.log("[Client] ✅ Service worker registered:", registration);
 
-          return registration.pushManager.getSubscription()
+          // Check for updates
+          registration.onupdatefound = () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.onstatechange = () => {
+                if (newWorker.state === "installed") {
+                  if (navigator.serviceWorker.controller) {
+                    // New update found
+                    console.log("[App] 🔄 New version available");
+
+                    // Ask the new SW to skip waiting
+                    newWorker.postMessage({ type: "SKIP_WAITING" });
+                  } else {
+                    console.log("[App] ✔ App is ready for offline use");
+                  }
+                }
+              };
+            }
+          };
+
+          // Push subscription (optional)
+          return registration.pushManager.getSubscription();
         })
-        
-        .then(subscription => {
-          console.log('[Client] 📦 Current subscription:', subscription)
+        .then((subscription) => {
           if (subscription) {
-            console.log('[Client] 🔑 Endpoint:', subscription.endpoint)
-            console.log('[Client] 🔑 Keys:', {
-              p256dh: subscription.getKey('p256dh'),
-              auth: subscription.getKey('auth')
-            })
+            console.log("[Client] 📦 Current subscription:", subscription);
+            console.log("[Client] 🔑 Endpoint:", subscription.endpoint);
+            console.log("[Client] 🔑 Keys:", {
+              p256dh: subscription.getKey("p256dh"),
+              auth: subscription.getKey("auth"),
+            });
           }
         })
-        .catch(err => {
-          console.error('[Client] ❌ Failed to get push subscription:', err)
-        })
+        .catch((err) => {
+          console.error("[Client] ❌ Service worker registration failed:", err);
+        });
+
+      // Reload when new SW takes control
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        console.log("[App] ⚡ Controller changed — reloading...");
+        window.location.reload();
+      });
     }
-  }, [])
+  }, []);
 
   return (
     <div>
       <Navigation />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

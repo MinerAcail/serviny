@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { useLocation, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 
@@ -19,6 +19,7 @@ export interface MultiDeliveryItem {
   deliveryAddress: string;
   dropoffLocation: [number, number]; // [lat, lng] for UI
   notes: string;
+  userId?: string;
   calculated?: {
     distance: number;
     duration: string;
@@ -74,10 +75,15 @@ export default function RiderBookingMultiDeliveryRequest() {
   // 1. ROUTER & ENV SETUP
   // ==========================================
   const { riderId, bookId } = useParams<{ riderId: string; bookId: string }>();
+  const location = useLocation();
+
+  const queryParams = new URLSearchParams(location.search);
+  const isService = queryParams.get("service");
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
   // const [searchParams] = useSearchParams()
   // const isCargo = searchParams.get('cargo') === 'true'
+  console.log("isService", isService);
 
   // ==========================================
   // 2. REFS
@@ -103,6 +109,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   const [dialogHasBeenCompleted, setDialogHasBeenCompleted] = useState(false);
   const [pickupLocation, setPickupLocation] = useState<Location | null>(null);
   const [deliveryItems, setDeliveryItems] = useState<MultiDeliveryItem[]>([]);
+
   const [hasLoadedFromBookings, setHasLoadedFromBookings] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>("locations");
   const [isBooking, setIsBooking] = useState(false);
@@ -130,7 +137,7 @@ export default function RiderBookingMultiDeliveryRequest() {
     bookingsError,
     updateBookingsWithLocations,
     isUpdatingBookings,
-    refetchBookings,
+    // refetchBookings,
   } = useMultiGroupBookingManagement(bookId);
 
   // ==========================================
@@ -244,10 +251,10 @@ export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
   useEffect(() => {
     if (multiGroupBookings.length > 0 && !hasLoadedFromBookings) {
-      console.log(
-        "📦 Loading existing multi-group bookings:",
-        multiGroupBookings
-      );
+      // console.log(
+      //   "📦 Loading existing multi-group bookings:",
+      //   multiGroupBookings
+      // );
 
       // Convert backend bookings to UI format
       const firstBooking = multiGroupBookings[0];
@@ -264,12 +271,12 @@ export default function RiderBookingMultiDeliveryRequest() {
             firstBooking.pickupAddress || "Pickup Location (Zone Center)",
         };
         setPickupLocation(pickup);
-        console.log("🏠 Set pickup location:", pickup);
+        // console.log("🏠 Set pickup location:", pickup);
       }
 
       // Convert all bookings to delivery items
       const items = convertBookingsToDeliveryItems(multiGroupBookings);
-      console.log("📋 Converted delivery items:", items);
+      // console.log("📋 Converted delivery items:", items);
 
       setDeliveryItems(items);
       setHasLoadedFromBookings(true);
@@ -278,10 +285,10 @@ export default function RiderBookingMultiDeliveryRequest() {
       setDialogHasBeenCompleted(false);
       setShowLocationDialog(true); // Ensure dialog opens to show existing data
 
-      toast.success(`Loaded ${items.length} existing deliveries`, {
-        description: "Review locations and make changes or proceed",
-        duration: 5000,
-      });
+      // toast.success(`Loaded ${items.length} existing deliveries`, {
+      //   description: "Review locations and make changes or proceed",
+      //   duration: 5000,
+      // });
     }
   }, [multiGroupBookings, hasLoadedFromBookings]);
   // ==========================================
@@ -290,7 +297,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    console.log("🔧 Initializing Google Places services...");
+    // console.log("🔧 Initializing Google Places services...");
     autocompleteServiceRef.current =
       new google.maps.places.AutocompleteService();
     geocoderRef.current = new google.maps.Geocoder();
@@ -299,7 +306,7 @@ export default function RiderBookingMultiDeliveryRequest() {
     const dummyMap = new google.maps.Map(serviceDiv);
     placesServiceRef.current = new google.maps.places.PlacesService(dummyMap);
 
-    console.log("✅ Google Places services initialized");
+    // console.log("✅ Google Places services initialized");
   }, [isLoaded]);
 
   // ==========================================
@@ -314,11 +321,6 @@ export default function RiderBookingMultiDeliveryRequest() {
     ) {
       return;
     }
-
-    console.log(
-      "🗺️ Pickup location set - initializing multi-delivery map:",
-      pickupLocation.address
-    );
 
     const timer = setTimeout(() => {
       initializeMapWithPickup(mapRef.current!, pickupLocation, maptilerApiKey);
@@ -354,7 +356,7 @@ export default function RiderBookingMultiDeliveryRequest() {
       lastProcessedDataRef.current === currentDataKey ||
       isMapUpdatingRef.current
     ) {
-      console.log("⏭️ Skipping duplicate map update");
+      // console.log("⏭️ Skipping duplicate map update");
       return;
     }
 
@@ -367,12 +369,12 @@ export default function RiderBookingMultiDeliveryRequest() {
     mapUpdateTimeoutRef.current = setTimeout(() => {
       if (!mapLoaded || isTrackingActive) return;
 
-      console.log("📍 Updating multi-delivery map (debounced):", {
-        pickup: pickupLocation.address,
-        deliveryCount: memoizedDeliveryData.count,
-        zonesCount: riderZones.length,
-        showZones,
-      });
+      // console.log("📍 Updating multi-delivery map (debounced):", {
+      //   pickup: pickupLocation.address,
+      //   deliveryCount: memoizedDeliveryData.count,
+      //   zonesCount: riderZones.length,
+      //   showZones,
+      // });
 
       isMapUpdatingRef.current = true;
       lastProcessedDataRef.current = currentDataKey;
@@ -415,8 +417,8 @@ export default function RiderBookingMultiDeliveryRequest() {
             }
           }, 250);
         }
-      } catch (error) {
-        console.error("❌ Error in map update:", error);
+      } catch {
+        // console.error("❌ Error in map update:", error);
       } finally {
         // Reset updating flag after all operations
         setTimeout(() => {
@@ -479,11 +481,11 @@ export default function RiderBookingMultiDeliveryRequest() {
 
     // Debounce calculation
     calculationTimeoutRef.current = setTimeout(() => {
-      console.log(
-        "💰 Auto-calculating multi-delivery pricing for",
-        validItems.length,
-        "items"
-      );
+      // console.log(
+      //   "💰 Auto-calculating multi-delivery pricing for",
+      //   validItems.length,
+      //   "items"
+      // );
       calculateMultiDeliveryPricing(pickupLocation, validItems, riderZones);
     }, 300); // 300ms debounce
 
@@ -516,16 +518,16 @@ export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
 
   const handleCloseRoutePanel = useCallback(() => {
-    console.log("🔴 Closing route panel");
+    // console.log("🔴 Closing route panel");
     setShowRoutePanel(false);
   }, []);
 
   useEffect(() => {
-    console.log("🔍 Route tracking state changed:", {
-      isTrackingActive,
-      hasRouteData: !!routeData,
-      showRoutePanel,
-    });
+    // console.log("🔍 Route tracking state changed:", {
+    //   isTrackingActive,
+    //   hasRouteData: !!routeData,
+    //   showRoutePanel,
+    // });
 
     if (isTrackingActive && routeData) {
       if (!showRoutePanel) {
@@ -533,7 +535,7 @@ export default function RiderBookingMultiDeliveryRequest() {
         setShowRoutePanel(true);
       }
     } else if (!isTrackingActive && showRoutePanel) {
-      console.log("❌ Hiding route panel - tracking stopped");
+      // console.log("❌ Hiding route panel - tracking stopped");
       setShowRoutePanel(false);
     }
   }, [isTrackingActive, routeData, showRoutePanel]);
@@ -543,7 +545,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
   useEffect(() => {
     return () => {
-      console.log("🔧 Component cleanup");
+      // console.log("🔧 Component cleanup");
       if (mapUpdateTimeoutRef.current) {
         clearTimeout(mapUpdateTimeoutRef.current);
       }
@@ -555,47 +557,6 @@ export default function RiderBookingMultiDeliveryRequest() {
       setShowRoutePanel(false);
     };
   }, []);
-
-  // ==========================================
-  // 20. DEBUG EFFECTS (can be removed in production)
-  // ==========================================
-  useEffect(() => {
-    console.log("🔍 Multi-delivery debug:", {
-      mapLoaded,
-      pickupLocation: !!pickupLocation,
-      pickupAddress: pickupLocation?.address,
-      deliveryItemsCount: deliveryItems.length,
-      completedDeliveries: memoizedDeliveryData.count,
-      riderZonesCount: riderZones.length,
-      showZones,
-      dialogCompleted: dialogHasBeenCompleted,
-      isTrackingActive,
-    });
-  }, [
-    mapLoaded,
-    pickupLocation,
-    deliveryItems.length,
-    memoizedDeliveryData.count,
-    riderZones.length,
-    showZones,
-    dialogHasBeenCompleted,
-    isTrackingActive,
-  ]);
-
-  useEffect(() => {
-    console.log("🟢 Rider zones debug:", {
-      zonesLoading,
-      zonesError,
-      riderZonesLength: riderZones.length,
-      riderZones: riderZones.map((zone) => ({
-        id: zone.id,
-        startKm: zone.startKm,
-        endKm: zone.endKm,
-        price: zone.price,
-      })),
-      riderId,
-    });
-  }, [riderZones, zonesLoading, zonesError, riderId]);
 
   // ==========================================
   // 21. EVENT HANDLERS
@@ -656,7 +617,7 @@ export default function RiderBookingMultiDeliveryRequest() {
     setIsBooking(true);
 
     try {
-      console.log("📦 Updating existing multi-delivery bookings...");
+      // console.log("📦 Updating existing multi-delivery bookings...");
 
       // Convert delivery items to update inputs
       const updateInputs = convertDeliveryItemsToUpdateInputs(
@@ -666,12 +627,12 @@ export default function RiderBookingMultiDeliveryRequest() {
         riderZones // Pass riderZones instead of undefined 'zones'
       );
 
-      console.log("📝 Update inputs prepared:", updateInputs);
+      // console.log("📝 Update inputs prepared:", updateInputs);
 
       // Update existing bookings with location data
       const updatedBookings = await updateBookingsWithLocations(updateInputs);
 
-      console.log("✅ Bookings updated successfully:", updatedBookings);
+      // console.log("✅ Bookings updated successfully:", updatedBookings);
 
       setBookingReference(bookId);
       setBookingComplete(true);
@@ -683,13 +644,24 @@ export default function RiderBookingMultiDeliveryRequest() {
         } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
         duration: 5000,
       });
+      const firstBooking = multiGroupBookings[0];
 
       //redirect
-      setTimeout(() => {
-        window.location.href = `/vob`;
-      },5000);
+      if (isService) {
+        const timeout = setTimeout(() => {
+          window.location.href = `/dbp/c/${firstBooking.userId}/?share=${bookId}`;
+        }, 5000);
+
+        return () => clearTimeout(timeout);
+      } else {
+        const timeout = setTimeout(() => {
+          window.location.href = `/vob`;
+        }, 5000);
+
+        return () => clearTimeout(timeout);
+      }
     } catch (error: unknown) {
-      console.error("❌ Multi-delivery booking update failed:", error);
+      // console.error("❌ Multi-delivery booking update failed:", error);
       toast.error(
         "Failed to update multi-delivery bookings. Please try again.",
         {
@@ -707,6 +679,8 @@ export default function RiderBookingMultiDeliveryRequest() {
     bookId,
     riderZones, // Add riderZones to dependency array
     updateBookingsWithLocations,
+    isService,
+    bookId,
   ]);
 
   const resetBooking = useCallback(() => {
@@ -767,7 +741,7 @@ export default function RiderBookingMultiDeliveryRequest() {
     [handleDialogChoice]
   );
   const forceMapUpdate = useCallback(() => {
-    console.log("🔄 forceMapUpdate called");
+    // console.log("🔄 forceMapUpdate called");
 
     // Clear the last processed data to force a map update
     lastProcessedDataRef.current = "";
@@ -781,7 +755,7 @@ export default function RiderBookingMultiDeliveryRequest() {
     // Force immediate update with the current state
     setTimeout(() => {
       if (!pickupLocation) {
-        console.log("❌ No pickup location for force update");
+        // console.log("❌ No pickup location for force update");
         return;
       }
 
@@ -806,11 +780,11 @@ export default function RiderBookingMultiDeliveryRequest() {
         (item) => item.itemDescription
       );
 
-      console.log("🔄 Force updating map with:", {
-        pickup: pickupLocation.address,
-        deliveryCount: currentDeliveryLocations.length,
-        deliveries: currentDeliveryLocations.map((loc) => loc.address),
-      });
+      // console.log("🔄 Force updating map with:", {
+      //   pickup: pickupLocation.address,
+      //   deliveryCount: currentDeliveryLocations.length,
+      //   deliveries: currentDeliveryLocations.map((loc) => loc.address),
+      // });
 
       if (currentDeliveryLocations.length > 0) {
         updateMultiDeliveryMarkers(
@@ -851,17 +825,11 @@ export default function RiderBookingMultiDeliveryRequest() {
   const handlePinDropConfirm = useCallback(() => {
     const result = confirmPinLocation();
     if (!result) {
-      console.log("❌ No pin drop result");
+      // console.log("❌ No pin drop result");
       return;
     }
 
     const { location, mode, deliveryItemId } = result;
-
-    console.log("🎯 Pin drop confirmed:", {
-      location: location.address,
-      mode,
-      deliveryItemId,
-    });
 
     if (mode === "pickup") {
       setPickupLocation(location);
@@ -870,9 +838,9 @@ export default function RiderBookingMultiDeliveryRequest() {
       lastProcessedDataRef.current = "";
       isMapUpdatingRef.current = false;
 
-      toast.success("Pickup location updated!", {
-        description: "Zone center moved to pin location",
-      });
+      // toast.success("Pickup location updated!", {
+      //   description: "Zone center moved to pin location",
+      // });
     } else if (mode === "dropoff" && deliveryItemId) {
       // FIXED: Update specific delivery item
       setDeliveryItems((prev) => {

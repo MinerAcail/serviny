@@ -795,10 +795,11 @@ export function RiderDetails({
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white p-3 rounded-lg">
                             <p className="text-xs text-gray-600 mb-1">
-                              Table Size
+                              Package 
                             </p>
                             <p className="font-medium text-gray-900">
-                              {service.bookingData!.tableSize} people
+                              {service.bookingData!.tableSize}   ${Number(service?.bookingData!.tableSize) === 1 ? 'item' : 'items'}
+
                             </p>
                           </div>
                           <div className="bg-white p-3 rounded-lg">
