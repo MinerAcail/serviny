@@ -17,7 +17,7 @@ import { GET_PROVIDER } from "../serviceProviders/profile";
 import { gql, useQuery } from "@apollo/client";
 import { SpectaclesError, SpectaclesLoading } from "../custom/loading";
 import { LandingAppointmentBookingSystem } from "../serviceProviders/APPOINTMENT/book";
-import { GET_ALL_GALLERY } from "../serviceProviders/updates";
+// import { GET_ALL_GALLERY } from "../serviceProviders/updates";
 import AnimatedFeatureSection from "./price";
 import SocialMediaManager from "../custom/Socials/forms";
 import { Link } from "react-router";
@@ -35,6 +35,7 @@ import { BusinessTypeEnum } from "@/middleware/context/businessType";
 import moment from "moment";
 import { boolean } from "zod";
 import { getImageUrl } from "../global/formatPrice";
+import { GET_ALL_GALLERY } from "../serviceProviders/gallery";
 // import { GET_PRICE_CARDS } from "../serviceProviders/pandp/Price";
 
 // Custom hook for detecting screen size

@@ -1,50 +1,51 @@
-import { useState, useRef } from "react";
-import { ExternalLink, Trash2, Loader2, X, ImagePlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { gql } from "@apollo/client";
-import { useMutation } from "@apollo/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+"use client"
 
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { getImageUrl } from "../global/formatPrice";
+import type React from "react"
+
+import { useState, useRef } from "react"
+import { ExternalLink, Trash2, Loader2, X, ImagePlus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { gql } from "@apollo/client"
+import { useMutation } from "@apollo/client"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { getImageUrl } from "../global/formatPrice"
+import { GET_ALL_GALLERY } from "./gallery"
+// Assuming getImageUrl is defined elsewhere, e.g., in a utils file
+// import { getImageUrl } from "../global/formatPrice"; // This import was in your original code, keeping it for context
+
+// Mock getImageUrl for demonstration if not provided
+// const getImageUrl = (url: string | undefined) => url || "/placeholder.svg?height=100&width=100"
 
 // Types
 export interface Gallery {
-  id: string;
-  title: string;
-  description: string;
-  categories: string[];
-  imageUrls: string[];
-  createdAt: string;
-  updatedAt: string;
+  id: string
+  title: string
+  description: string
+  categories: string[]
+  imageUrls: string[]
+  createdAt: string
+  updatedAt: string
 }
 
 // GraphQL Queries and Mutations
-export const GET_ALL_GALLERY = gql`
-  query GetAllGallery($serviceId: String!) {
-    getAllGallery(ServiceId: $serviceId) {
-      id
-      title
-      description
-      categories
-      imageUrls
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
+// export const GET_ALL_GALLERY = gql`
+//   query GetAllGallery($serviceId: String!) {
+//     getAllGallery(ServiceId: $serviceId) {
+//       id
+//       title
+//       description
+//       categories
+//       imageUrls
+//       createdAt
+//       updatedAt
+//     }
+//   }
+// `
 export const CREATE_POLICY = gql`
   mutation CreatePolicy($input: CreatePolicyInput!) {
     createPolicy(input: $input) {
@@ -53,8 +54,7 @@ export const CREATE_POLICY = gql`
       description
     }
   }
-`;
-
+`
 export const UPDATE_GALLERY = gql`
   mutation UpdateGallery(
     $galleryID: String!
@@ -75,17 +75,16 @@ export const UPDATE_GALLERY = gql`
       imageUrls
     }
   }
-`;
-
+`
 export const DELETE_GALLERY = gql`
   mutation DeleteGallery($id: String!) {
     deleteGallery(id: $id)
   }
-`;
+`
 
 interface GalleryCardProps {
-  gallery?: Gallery;
-  onClick?: (gallery: Gallery) => void;
+  gallery?: Gallery
+  onClick?: (gallery: Gallery) => void
 }
 
 export function UpdateGalleryDialog({
@@ -93,112 +92,104 @@ export function UpdateGalleryDialog({
   onSuccess,
   children,
 }: {
-  gallery?: Gallery | null;
-  onSuccess?: () => void;
-  children: React.ReactNode;
+  gallery?: Gallery | null
+  onSuccess?: () => void
+  children: React.ReactNode
 }) {
   // Form state
-  const [title, setTitle] = useState(gallery?.title || "");
-  const [description, setDescription] = useState(gallery?.description || "");
-  const [newCategory, setNewCategory] = useState("");
-  const [categories, setCategories] = useState<string[]>(
-    gallery?.categories || []
-  );
-  const [isOpen, setIsOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
+  const [title, setTitle] = useState(gallery?.title || "")
+  const [description, setDescription] = useState(gallery?.description || "")
+  const [newCategory, setNewCategory] = useState("")
+  const [categories, setCategories] = useState<string[]>(gallery?.categories || [])
+  const [isOpen, setIsOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   // Track which images to remove
-  const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
-
+  const [imagesToRemove, setImagesToRemove] = useState<string[]>([])
   // File upload
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
   // Mutations
-  const [updateGallery, { loading }] = useMutation(UPDATE_GALLERY);
-  const [deleteGallery, { loading: deleteLoading }] = useMutation(
-    DELETE_GALLERY,
+  const [updateGallery, { loading }] = useMutation(UPDATE_GALLERY,
     {
       refetchQueries: [GET_ALL_GALLERY],
       onError: (error) => {
-        console.error("Error deleting gallery:", error);
-        setIsDeleting(false);
+        console.error("Error updating gallery:", error)
+        setIsDeleting(false)
       },
       onCompleted: () => {
-        setIsOpen(false);
-        setIsDeleting(false);
-        if (onSuccess) onSuccess();
+        setIsOpen(false)
+        if (onSuccess) onSuccess()
       },
     }
-  );
-
+  )
+  const [deleteGallery, { loading: deleteLoading }] = useMutation(DELETE_GALLERY, {
+    refetchQueries: [GET_ALL_GALLERY],
+    onError: (error) => {
+      console.error("Error deleting gallery:", error)
+      setIsDeleting(false)
+    },
+    onCompleted: () => {
+      setIsOpen(false)
+      setIsDeleting(false)
+      if (onSuccess) onSuccess()
+    },
+  })
   // Reset form when gallery changes or dialog opens
   const resetForm = () => {
     if (gallery) {
-      setTitle(gallery.title);
-      setDescription(gallery.description);
-      setCategories(gallery.categories || []);
-      setImagesToRemove([]);
-      setSelectedFiles([]);
-      setPreviewUrls([]);
-      setIsDeleting(false);
+      setTitle(gallery.title)
+      setDescription(gallery.description)
+      setCategories(gallery.categories || [])
+      setImagesToRemove([])
+      setSelectedFiles([])
+      setPreviewUrls([])
+      setIsDeleting(false)
     }
-  };
-
+  }
   const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
+    setIsOpen(open)
     if (open) {
-      resetForm();
+      resetForm()
     }
-  };
-
+  }
   const handleAddCategory = () => {
     if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories([...categories, newCategory.trim()]);
-      setNewCategory("");
+      setCategories([...categories, newCategory.trim()])
+      setNewCategory("")
     }
-  };
-
+  }
   const handleRemoveCategory = (categoryToRemove: string) => {
-    setCategories(
-      categories.filter((category) => category !== categoryToRemove)
-    );
-  };
-
+    setCategories(categories.filter((category) => category !== categoryToRemove))
+  }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+    const files = e.target.files
     if (files) {
-      const newFiles = Array.from(files);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-
+      const newFiles = Array.from(files)
+      setSelectedFiles((prev) => [...prev, ...newFiles])
       // Generate preview URLs
       newFiles.forEach((file) => {
-        const reader = new FileReader();
+        const reader = new FileReader()
         reader.onload = () => {
-          setPreviewUrls((prev) => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
-      });
+          setPreviewUrls((prev) => [...prev, reader.result as string])
+        }
+        reader.readAsDataURL(file)
+      })
     }
-  };
-
+  }
   const handleRemoveFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
+  }
   const toggleImageRemoval = (url: string) => {
     if (imagesToRemove.includes(url)) {
-      setImagesToRemove((prev) => prev.filter((item) => item !== url));
+      setImagesToRemove((prev) => prev.filter((item) => item !== url))
     } else {
-      setImagesToRemove((prev) => [...prev, url]);
+      setImagesToRemove((prev) => [...prev, url])
     }
-  };
-
+  }
   const handleSubmit = async () => {
-    if (!gallery?.id) return;
-
+    if (!gallery?.id) return
     try {
       const result = await updateGallery({
         variables: {
@@ -211,78 +202,57 @@ export function UpdateGalleryDialog({
           },
           removeUrl: imagesToRemove,
         },
-      });
-
+      })
       if (result.data.updateGallery) {
-        setIsOpen(false);
-        if (onSuccess) onSuccess();
+        setIsOpen(false)
+        if (onSuccess) onSuccess()
       }
     } catch (error) {
-      console.error("Error updating gallery:", error);
+      console.error("Error updating gallery:", error)
     }
-  };
-
+  }
   const handleDelete = async () => {
-    if (!gallery?.id) return;
-
+    if (!gallery?.id) return
     // Confirm before deleting
-    if (
-      window.confirm(
-        `Are you sure you want to delete "${gallery.title}"? This action cannot be undone.`
-      )
-    ) {
-      setIsDeleting(true);
-
+    if (window.confirm(`Are you sure you want to delete "${gallery.title}"? This action cannot be undone.`)) {
+      setIsDeleting(true)
       try {
         await deleteGallery({
           variables: { id: gallery.id },
-        });
+        })
       } catch (error) {
-        console.error("Error deleting gallery:", error);
-        setIsDeleting(false);
+        console.error("Error deleting gallery:", error)
+        setIsDeleting(false)
       }
     }
-  };
-
+  }
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md md:max-w-xl">
+      <DialogContent className="sm:max-w-[90vw] md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Update Gallery</DialogTitle>
         </DialogHeader>
-
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Gallery Title"
-            />
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Gallery Title" />
           </div>
-
-          <div className="grid gap-2">
+            <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Gallery Description"
-              rows={3}
+              rows={Math.max(3, Math.min(13, description?.split('\n').length || 3))}
             />
-          </div>
-
+            </div>
           <div className="grid gap-2">
             <Label>Categories</Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {categories.map((category, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="flex items-center gap-1"
-                >
+                <Badge key={index} variant="secondary" className="flex items-center gap-1">
                   {category}
                   <button
                     onClick={() => handleRemoveCategory(category)}
@@ -301,26 +271,21 @@ export function UpdateGalleryDialog({
                 className="flex-1"
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddCategory();
+                    e.preventDefault()
+                    handleAddCategory()
                   }
                 }}
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleAddCategory}
-              >
+              <Button type="button" variant="outline" onClick={handleAddCategory}>
                 Add
               </Button>
             </div>
           </div>
-
           {/* Existing Images */}
           {gallery?.imageUrls && gallery.imageUrls.length > 0 && (
             <div className="grid gap-2">
               <Label>Current Images</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {gallery.imageUrls.map((url, index) => (
                   <div key={index} className="relative group">
                     <img
@@ -332,23 +297,15 @@ export function UpdateGalleryDialog({
                     />
                     <Button
                       size="icon"
-                      variant={
-                        imagesToRemove.includes(url) ? "outline" : "destructive"
-                      }
+                      variant={imagesToRemove.includes(url) ? "outline" : "destructive"}
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => toggleImageRemoval(url)}
                     >
-                      {imagesToRemove.includes(url) ? (
-                        <X className="h-4 w-4" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
+                      {imagesToRemove.includes(url) ? <X className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                     {imagesToRemove.includes(url) && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="font-medium text-destructive">
-                          Will be removed
-                        </span>
+                        <span className="font-medium text-destructive">Will be removed</span>
                       </div>
                     )}
                   </div>
@@ -356,15 +313,14 @@ export function UpdateGalleryDialog({
               </div>
             </div>
           )}
-
           {/* File Upload */}
           <div className="grid gap-2">
             <Label>Upload New Images</Label>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
               {previewUrls.map((url, index) => (
                 <div key={index} className="relative group">
                   <img
-                    src={getImageUrl(url)}
+                    src={getImageUrl(url) || "/placeholder.svg"}
                     alt={`New image ${index + 1}`}
                     className="object-cover aspect-square rounded"
                   />
@@ -380,7 +336,7 @@ export function UpdateGalleryDialog({
               ))}
               <Button
                 variant="outline"
-                className="aspect-square flex flex-col items-center justify-center border-dashed"
+                className="aspect-square flex flex-col items-center justify-center border-dashed bg-transparent"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImagePlus className="h-8 w-8 mb-2 text-muted-foreground" />
@@ -397,14 +353,9 @@ export function UpdateGalleryDialog({
             />
           </div>
         </div>
-
-        <DialogFooter className="flex justify-between sm:justify-between">
+        <DialogFooter className="flex flex-col sm:flex-row justify-between sm:justify-between gap-2">
           <div>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteLoading || loading}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading || loading}>
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -436,27 +387,15 @@ export function UpdateGalleryDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-
-export interface Gallery {
-  id: string;
-  title: string;
-  description: string;
-  categories: string[];
-  imageUrls: string[];
-  createdAt: string;
-  updatedAt: string;
+  )
 }
 
 export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
   const handleCardClick = () => {
     if (onClick) {
-      if (gallery) onClick(gallery);
+      if (gallery) onClick(gallery)
     }
-  };
-
+  }
   return (
     <Card
       key={gallery?.id ?? "default-key"}
@@ -470,7 +409,6 @@ export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
           className="h-48 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
         {/* External link button */}
         {onClick && (
           <Button
@@ -478,15 +416,14 @@ export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
             size="icon"
             className="absolute bottom-4 right-4 z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
             onClick={(e) => {
-              e.stopPropagation();
-              if (gallery) onClick(gallery);
+              e.stopPropagation()
+              if (gallery) onClick(gallery)
             }}
           >
             <ExternalLink className="h-4 w-4" />
           </Button>
         )}
       </div>
-
       <CardContent className="p-5">
         <div className="mb-2 flex flex-wrap gap-1">
           {gallery?.categories && gallery?.categories.length > 0 ? (
@@ -511,12 +448,9 @@ export function GalleryCard({ gallery, onClick }: GalleryCardProps) {
             </span>
           )}
         </div>
-
         <h3 className="text-sm font-semibold">{gallery?.title}</h3>
-        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-          {gallery?.description}
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{gallery?.description}</p>
       </CardContent>
     </Card>
-  );
+  )
 }

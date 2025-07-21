@@ -2470,7 +2470,7 @@ export const locationTrackingStyles = `
     height: 60px;
     pointer-events: auto;
     cursor: pointer;
-    z-index: 1000;
+    z-index: 10;
   }
   
   .location-dot {

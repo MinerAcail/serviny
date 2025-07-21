@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -219,6 +220,25 @@ func DeleteBucketFromMinio(ctx context.Context, client *minio.Client, bucketName
 	}
 
 	return nil
+}
+// DeleteObjectsFromMinio removes a list of objects from a given MinIO bucket.
+func DeleteObjectsFromMinio(ctx context.Context, client *minio.Client, bucket string, urls []string) {
+	for _, url := range urls {
+		object := ExtractObjectNameFromMinioURL(url, bucket)
+		if object == "" {
+			log.Printf("skipping empty object from url: %s", url)
+			continue
+		}
+		if err := client.RemoveObject(ctx, bucket, object, minio.RemoveObjectOptions{}); err != nil {
+			log.Printf("failed to delete object %q: %v", object, err)
+		}
+	}
+}
+
+// ExtractObjectNameFromMinioURL extracts the object name from a MinIO URL.
+func ExtractObjectNameFromMinioURL(url, bucket string) string {
+	prefix := "/minio/" + bucket + "/"
+	return strings.TrimPrefix(url, prefix)
 }
 
 // fileURL := fmt.Sprintf("/minio/%s/%s", bucketName, fileName)

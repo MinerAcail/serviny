@@ -244,6 +244,7 @@ import { Camera } from "lucide-react";
 import { DELETE_GALLERY } from "./view";
 import { Button } from "../ui/button";
 import { GalleryCard, UpdateGalleryDialog } from "./updates";
+//
 export const GET_ALL_GALLERY = gql`
   query GetAllGallery(
     $serviceId: String!

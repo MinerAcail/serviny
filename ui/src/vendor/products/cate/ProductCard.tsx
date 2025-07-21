@@ -30,7 +30,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({ product }) => {
         </div>
         <div>
           <h3 className="font-medium">{product.name}</h3>
-          <p className="text-sm text-muted-foreground">${product.price}</p>
+          <p className="text-sm text-muted-foreground">{formatPrice(product.price)}</p>
         </div>
       </div>
     </Card>
@@ -40,7 +40,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({ product }) => {
 
 
 import { useDroppable } from '@dnd-kit/core';
-import { getImageUrl } from '@/components/global/formatPrice';
+import { formatPrice, getImageUrl } from '@/components/global/formatPrice';
 
 interface ProductsContainerProps {
   children: React.ReactNode;

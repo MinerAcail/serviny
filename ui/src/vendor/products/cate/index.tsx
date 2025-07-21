@@ -54,7 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/middleware/context/authContext";
-import { getImageUrl } from "@/components/global/formatPrice";
+import { formatPrice, getImageUrl } from "@/components/global/formatPrice";
 
 const ADD_PRODUCT_TO_CATEGORY_BOX = gql`
   mutation AddProductToCategoryBox($input: [CategoryBoxInput!]!) {
@@ -152,7 +152,7 @@ const EnhancedProductItem: React.FC<{
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {availableBoxes.length === 0 ? (
+            {(!availableBoxes || availableBoxes.length === 0) ? (
               <div className="px-2 py-1 text-sm text-muted-foreground">
                 No boxes available
               </div>
@@ -161,8 +161,8 @@ const EnhancedProductItem: React.FC<{
                 const boxId = 'categoryBox' in box ? box.categoryBox.id : box.id;
                 const boxName = 'categoryBox' in box ? box.categoryBox.name : box.name;
                 const isAlreadyAdded = 'categoryBox' in box 
-                  ? box.categoryBox.itemsIds.includes(product.id)
-                  : box.items.some(item => item.id === product.id);
+                  ? Array.isArray(box.categoryBox.itemsIds) && box.categoryBox.itemsIds.includes(product.id)
+                  : Array.isArray(box.items) && box.items.some(item => item.id === product.id);
                 
                 return (
                   <DropdownMenuItem
@@ -196,6 +196,9 @@ const ExistingBoxCard: React.FC<{
   const { isOver, setNodeRef } = useDroppable({
     id: boxData.categoryBox.id,
   });
+
+  // Ensure products is always an array
+  const products = Array.isArray(boxData.products) ? boxData.products : [];
 
   return (
     <Card 
@@ -235,14 +238,14 @@ const ExistingBoxCard: React.FC<{
       )}
       
       <div className="space-y-1 max-h-32 overflow-y-auto">
-        {boxData.products.map((product) => (
+        {products.map((product) => (
           <div
             key={product.id}
             className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
           >
             <div className="flex items-center gap-2">
               <img
-                src={getImageUrl(product.imageUrls[0])}
+                src={getImageUrl(product.imageUrls?.[0] || '')}
                 alt={product.name}
                 className="w-6 h-6 object-cover rounded"
               />
@@ -266,7 +269,7 @@ const ExistingBoxCard: React.FC<{
       )}
       
       <div className="mt-2 text-xs text-gray-500">
-        {boxData.products.length} product{boxData.products.length !== 1 ? 's' : ''}
+        {products.length} product{products.length !== 1 ? 's' : ''}
       </div>
     </Card>
   );
@@ -313,7 +316,9 @@ const DragDropBoxes: React.FC = () => {
   const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = useQuery(GET_PRODUCTS, {
     variables: { query: searchTerm, vendorId },
   });
-  const products: Product[] = productsData?.getAllProducts || [];
+  
+  // Ensure products is always an array
+  const products: Product[] = Array.isArray(productsData?.getAllProducts) ? productsData.getAllProducts : [];
 
   // Fetch existing category boxes
   const { data: categoryBoxesData, loading: categoryBoxesLoading, refetch: refetchCategoryBoxes } = useQuery(GET_ALL_CATEGORY_BOXES, {
@@ -322,7 +327,11 @@ const DragDropBoxes: React.FC = () => {
 
   useEffect(() => {
     if (categoryBoxesData?.getAllCategoryBox) {
-      setExistingBoxes(categoryBoxesData.getAllCategoryBox);
+      // Ensure we have an array and each item has the expected structure
+      const boxes = Array.isArray(categoryBoxesData.getAllCategoryBox) 
+        ? categoryBoxesData.getAllCategoryBox.filter(box => box && box.categoryBox)
+        : [];
+      setExistingBoxes(boxes);
     }
   }, [categoryBoxesData]);
 
@@ -336,7 +345,7 @@ const DragDropBoxes: React.FC = () => {
     
     if (existingBox) {
       // Add to existing box via mutation
-      if (!existingBox.categoryBox.itemsIds.includes(productId)) {
+      if (Array.isArray(existingBox.categoryBox.itemsIds) && !existingBox.categoryBox.itemsIds.includes(productId)) {
         addProductToExistingBox(existingBox.categoryBox.id, existingBox.categoryBox.name, [productId]);
       } else {
         toast.info("Product already in box");
@@ -345,13 +354,14 @@ const DragDropBoxes: React.FC = () => {
       // Add to new box locally
       const targetBox = boxes.find((b) => b.id === boxId);
       if (targetBox) {
-        if (!targetBox.items.some((item) => item.id === productId)) {
+        const items = Array.isArray(targetBox.items) ? targetBox.items : [];
+        if (!items.some((item) => item.id === productId)) {
           setBoxes((prevBoxes) =>
             prevBoxes.map((box) => {
               if (box.id === boxId) {
                 return {
                   ...box,
-                  items: [...box.items, product],
+                  items: [...items, product],
                 };
               }
               return box;
@@ -432,9 +442,10 @@ const DragDropBoxes: React.FC = () => {
       // Update existing saved box
       try {
         setIsSubmitting(true);
+        const itemsIds = Array.isArray(editingBox.categoryBox.itemsIds) ? editingBox.categoryBox.itemsIds : [];
         const input = [{
           categoryName: newBoxName.trim(),
-          productId: editingBox.categoryBox.itemsIds,
+          productId: itemsIds,
           ...(boxImage ? { files: boxImage } : {}),
         }];
 
@@ -509,9 +520,10 @@ const DragDropBoxes: React.FC = () => {
     setBoxes((prevBoxes) =>
       prevBoxes.map((box) => {
         if (box.id === boxId) {
+          const items = Array.isArray(box.items) ? box.items : [];
           return {
             ...box,
-            items: box.items.filter((item) => item.id !== productId),
+            items: items.filter((item) => item.id !== productId),
           };
         }
         return box;
@@ -601,7 +613,10 @@ const DragDropBoxes: React.FC = () => {
       return;
     }
 
-    const nonEmptyBoxes = boxes.filter((box) => box.items.length > 0);
+    const nonEmptyBoxes = boxes.filter((box) => {
+      const items = Array.isArray(box.items) ? box.items : [];
+      return items.length > 0;
+    });
 
     if (nonEmptyBoxes.length === 0) {
       toast.warning("Empty boxes", {
@@ -613,11 +628,14 @@ const DragDropBoxes: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const input = nonEmptyBoxes.map((box) => ({
-        categoryName: box.name,
-        productId: box.items.map((item) => item.id),
-        ...(box.imageFile ? { files: box.imageFile } : {}),
-      }));
+      const input = nonEmptyBoxes.map((box) => {
+        const items = Array.isArray(box.items) ? box.items : [];
+        return {
+          categoryName: box.name,
+          productId: items.map((item) => item.id),
+          ...(box.imageFile ? { files: box.imageFile } : {}),
+        };
+      });
 
       await addProductToCategoryBox({
         variables: { input },
@@ -696,7 +714,10 @@ const DragDropBoxes: React.FC = () => {
                   disabled={
                     isSubmitting ||
                     boxes.length === 0 ||
-                    boxes.every((box) => box.items.length === 0)
+                    boxes.every((box) => {
+                      const items = Array.isArray(box.items) ? box.items : [];
+                      return items.length === 0;
+                    })
                   }
                 >
                   <GalleryHorizontal className="h-4 w-4" />
@@ -814,7 +835,7 @@ const DragDropBoxes: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-primary/10 p-[3px] rounded-md">
                   <img
-                    src={getImageUrl(activeProduct.imageUrls[0])}
+                    src={getImageUrl(activeProduct.imageUrls?.[0] || '')}
                     alt={activeProduct.name}
                     className="h-full w-full object-cover"
                   />
@@ -822,7 +843,7 @@ const DragDropBoxes: React.FC = () => {
                 <div>
                   <h3 className="font-medium">{activeProduct.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    ${activeProduct.price}
+                    {formatPrice(activeProduct.price)}
                   </p>
                 </div>
               </div>

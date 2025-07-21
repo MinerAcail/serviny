@@ -803,12 +803,16 @@ func (r *mutationResolver) UpdateGallery(ctx context.Context, galleryID string, 
 	if len(removeURL) > 0 {
 		// Create a map for quick lookup of URLs to remove
 		urlsToRemove := make(map[string]bool)
+		var keysToDelete []string
+
 		for _, url := range removeURL {
 			if url != nil {
 				urlsToRemove[*url] = true
+				keysToDelete = append(keysToDelete, *url)
 			}
 		}
-
+		// Delete from MinIO
+		helper.DeleteObjectsFromMinio(ctx, r.MinIOClient, bucketName, keysToDelete)
 		// Filter out the URLs that need to be removed
 		var filteredURLs pq.StringArray
 		for _, url := range gallery.ImageUrls {
@@ -854,7 +858,13 @@ func (r *mutationResolver) DeleteGallery(ctx context.Context, id string) (*bool,
 		}
 		return nil, fmt.Errorf("failed to fetch gallery: %w", err)
 	}
+	// Delete images from MinIO using the image URLs directly
+	if gallery.ImageUrls != nil && len(gallery.ImageUrls) > 0 {
+		bucketName := fmt.Sprintf("service-%s-bucket", *serviceIDStr)
 
+		helper.DeleteObjectsFromMinio(ctx, r.MinIOClient, bucketName, gallery.ImageUrls)
+
+	}
 	// Delete the gallery from the database
 	if err := r.DB.Delete(&gallery).Error; err != nil {
 		return nil, fmt.Errorf("failed to delete gallery: %w", err)

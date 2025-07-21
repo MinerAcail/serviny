@@ -124,24 +124,23 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 
 // DeleteProduct is the resolver for the deleteProduct field.
 func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (*bool, error) {
-	// Retrieve the service ID from the context
+	// Step 1: Get service ID from context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
 	}
-
-	// Parse UUID from string
 	serviceID, err := uuid.Parse(*serviceIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service ID: %w", err)
 	}
 
+	// Step 2: Parse product ID
 	productID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("invalid product ID: %v", err)
 	}
 
-	// Fetch the product from the database
+	// Step 3: Fetch product from DB
 	var product model.Product
 	if err := r.DB.Where("id = ?", productID).First(&product).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -149,28 +148,21 @@ func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (*bool,
 		}
 		return nil, fmt.Errorf("failed to fetch product: %v", err)
 	}
+
+	// Step 4: Delete image objects (not bucket)
 	if len(product.ImageUrls) > 0 {
-		// Generate the correct bucket name
-		// bucketName := fmt.Sprintf("vendor-%s-bucket", *product.Name)
-		bucketName := fmt.Sprintf("service-%s-bucket", serviceID)
-
-		// if len(bucketName) > 63 {
-		// 	bucketName = bucketName[:63] // Truncate if necessary
-		// }
-
-		// Delete the bucket from MinIO
-		err = helper.DeleteBucketFromMinio(ctx, r.MinIOClient, bucketName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete bucket %s: %v", bucketName, err)
-		}
+		bucketName := fmt.Sprintf("service-%s-bucket", serviceID.String())
+		helper.DeleteObjectsFromMinio(ctx, r.MinIOClient, bucketName, product.ImageUrls)
 	}
-	// Delete product from the database
+
+	// Step 5: Delete product from DB
 	if err := r.DB.Delete(&product).Error; err != nil {
 		return nil, fmt.Errorf("failed to delete product: %v", err)
 	}
 
 	success := true
 	return &success, nil
+
 }
 
 // CreateOrderItems is the resolver for the createOrderItems field.

@@ -74,6 +74,7 @@ export interface RiderServiceData {
     endTime?: string;
     day: string;
     item?: string;
+    notes?: string;
     tableSize: number;
     userType: string;
     isConfirmed: boolean;

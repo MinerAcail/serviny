@@ -37,7 +37,10 @@ import {
   getPaymentStatusColor,
   getPaymentMethodIcon,
 } from "./riderEntityUtils";
-import { StatusManagementDialog } from "./statusManager";
+import {
+  ServiceItemManagementDialog,
+  StatusManagementDialog,
+} from "./statusManager";
 import { PaymentStatusSection } from "../custom/USER_MAP_WORK/PaymentStatusSection";
 
 interface RiderServiceManagementProps {
@@ -380,32 +383,29 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
           </div>
 
           {/* Payment Information Section */}
-          {service.bookingData?.cargoId
-            ?(
-              <PaymentStatusSection
-                            selectedItem={service}
-                            // paymentStatus={paymentStatus}
-                            onPayNow={() => {}}
-                          />
-            ):(
-
-              <div className="bg-gray-50/50 rounded-lg p-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{paymentMethodIcon}</span>
-                    <span className="text-xs font-medium text-gray-700">
-                      {paymentMethod || "Unknown Method"}
-                    </span>
-                  </div>
-                  <div
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${paymentStatusColorClass}`}
-                  >
-                    {paymentStatus || "Unknown"}
-                  </div>
+          {service.bookingData?.cargoId ? (
+            <PaymentStatusSection
+              selectedItem={service}
+              // paymentStatus={paymentStatus}
+              onPayNow={() => {}}
+            />
+          ) : (
+            <div className="bg-gray-50/50 rounded-lg p-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{paymentMethodIcon}</span>
+                  <span className="text-xs font-medium text-gray-700">
+                    {paymentMethod || "Unknown Method"}
+                  </span>
+                </div>
+                <div
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${paymentStatusColorClass}`}
+                >
+                  {paymentStatus || "Unknown"}
                 </div>
               </div>
-            )
-          }
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <div
@@ -501,7 +501,7 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                     {service.bookingData.pickUpAddress}
                   </div>
                 </div>
-                {service.bookingData.pickupLocation && (
+                {/* {service.bookingData.pickupLocation && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -517,7 +517,7 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                   >
                     <Navigation className="h-3 w-3 text-purple-600" />
                   </Button>
-                )}
+                )} */}
               </div>
 
               <div className="flex items-start gap-2">
@@ -528,7 +528,7 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                     {service.bookingData.deliveryAddress}
                   </div>
                 </div>
-                {service.bookingData.dropoffLocation && (
+                {/* {service.bookingData.dropoffLocation && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -544,14 +544,17 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                   >
                     <Navigation className="h-3 w-3 text-indigo-600" />
                   </Button>
-                )}
+                )} */}
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-gray-600"> Item Count: </span>
+                  {/* <span className="text-gray-600"> Item Count: </span> */}
                   <span className="font-medium">
-                    {service.bookingData.tableSize} ${Number(service.bookingData.tableSize) === 1 ? 'item' : 'items'}
+                    {service.bookingData.tableSize}{" "}
+                    {Number(service.bookingData.tableSize) === 1
+                      ? "item"
+                      : "items"}
                   </span>
                 </div>
                 <div>
@@ -559,7 +562,20 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                   <span className="font-medium">{service.bookingData.day}</span>
                 </div>
               </div>
-
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  {/* <span className="text-gray-600"> Item Count: </span> */}
+                  <span className="font-medium">
+                    {service.bookingData.item}
+                  </span>
+                </div>
+                <div>
+                  {/* <span className="text-gray-600"> Item Count: </span> */}
+                  <span className="font-medium">
+                    {/* {service.bookingData.notes}  */}
+                  </span>
+                </div>
+              </div>
               {service.bookingData.startTime && (
                 <div className="text-xs">
                   <span className="text-gray-600">Time: </span>
@@ -582,7 +598,7 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
 
         {/* Action buttons */}
         <div className="flex gap-2">
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => handleItemClick(service)}
@@ -590,7 +606,8 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
           >
             <Eye className="h-3 w-3 mr-1" />
             Details
-          </Button>
+          </Button> */}
+          <ServiceItemManagementDialog service={service} />
           <StatusManagementDialog
             service={service}
             onStatusUpdate={{}}
@@ -776,7 +793,7 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
         </div>
 
         {isExpanded && (
-          <div className="space-y-3 pt-3 border-t border-purple-200">
+          <div className="space-y-6 pt-3 border-t border-purple-200">
             {bookings.map((booking, index) => (
               <ServiceItem
                 key={booking.id}
@@ -785,6 +802,8 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                 groupIndex={index + 1}
               />
             ))}
+            <div className="h-6 bg-red-800" />{" "}
+            {/* Add down space to the last element */}
           </div>
         )}
       </div>
@@ -988,9 +1007,14 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredServices.map((service) => (
-                    <ServiceItem key={service.id} service={service} />
+                <div className="space-y-14">
+                  {filteredServices.map((service, idx) => (
+                    <React.Fragment key={service.id}>
+                      <ServiceItem service={service} />
+                      {idx === filteredServices.length - 1 && (
+                        <div className="h-6 bg-red-800" /> // Add down space to the last element
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               )}
@@ -1007,8 +1031,13 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {orders.map((order) => (
-                    <ServiceItem key={order.id} service={order} />
+                  {orders.map((order, idx) => (
+                    <React.Fragment key={order.id}>
+                      <ServiceItem key={order.id} service={order} />
+                      {idx === orders.length - 1 && (
+                        <div className="h-6 bg-red-800" /> // Add down space to the last element
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               )}
@@ -1025,8 +1054,16 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupedBookings.standalone.map((booking) => (
+                  {/* {groupedBookings.standalone.map((booking) => (
                     <ServiceItem key={booking.id} service={booking} />
+                  ))} */}
+                  {bookings.map((booking, idx) => (
+                    <React.Fragment key={booking.id}>
+                      <ServiceItem key={booking.id} service={booking} />
+                      {idx === bookings.length - 1 && (
+                        <div className="h-6 bg-red-800" /> // Add down space to the last element
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               )}
@@ -1045,13 +1082,28 @@ const RiderServiceManagement: React.FC<RiderServiceManagementProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {Array.from(groupedBookings.groups.entries()).map(
+                  {/* {Array.from(groupedBookings.groups.entries()).map(
                     ([groupId, bookings]) => (
                       <MultiGroupBookings
                         key={groupId}
                         groupId={groupId}
                         bookings={bookings}
                       />
+                    )
+                  )} */}
+                  {/* Add down space to the last element */}
+                  {Array.from(groupedBookings.groups.entries()).map(
+                    ([groupId, bookings]) => (
+                      <React.Fragment key={groupId}>
+                        <MultiGroupBookings
+                          groupId={groupId}
+                          bookings={bookings}
+                        />
+                        {Array.from(groupedBookings.groups.entries()).length ===
+                        1 ? (
+                          <div className="h-6 bg-red-800" />
+                        ) : null}
+                      </React.Fragment>
                     )
                   )}
                 </div>

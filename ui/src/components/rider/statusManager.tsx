@@ -37,9 +37,21 @@ import {
   RotateCcw,
   Loader2,
   RefreshCw,
+  Package2,
+  CalendarDays,
+  ClipboardList,
+  User,
+  Map,
+  ReceiptText,
+  Phone,
+  Building,
+  Eye,
+  LocateFixed,
+  Calendar,
 } from "lucide-react";
 import { RiderServiceData } from "./riderEntityUtils";
 import { gql } from "@apollo/client";
+import { Navigation } from "@/middleware/navigation";
 
 interface StatusManagementDialogProps {
   service: RiderServiceData;
@@ -924,6 +936,249 @@ export function StatusManagementDialog({
               )}
             </Button>
           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+interface ServiceItemManagementDialogProps {
+  service: RiderServiceData;
+  trigger?: React.ReactNode;
+}
+export function ServiceItemManagementDialog({ service, trigger }: ServiceItemManagementDialogProps) {
+  const [open, setOpen] = useState(false);
+  const isOrder = service.type === "ORDER";
+
+  const serviceIdDisplay = isOrder
+    ? service.orderData?.orderId?.slice(-6)
+    : service.bookingData?.bookingId?.slice(-6);
+
+  const serviceStatus = isOrder
+    ? service.orderData?.status
+    : service.bookingData?.status;
+
+  const paymentStatus = isOrder
+    ? service.orderData?.paymentStatus
+    : service.bookingData?.paymentStatus;
+
+  const paymentMethod = isOrder
+    ? service.orderData?.paymentMethod
+    : service.bookingData?.paymentMethod;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs bg-white/10 hover:bg-white/20 border-white/20 rounded-xl"
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Details
+          </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] bg-white/95 backdrop-blur-3xl border border-white/20 rounded-3xl">
+        
+
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <div className="space-y-6 p-1">
+            
+            <div className="bg-white/20 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+              <h4 className="font-semibold text-black mb-3 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Service Overview
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-black/60">Type:</span>
+                  <Badge
+                    variant={isOrder ? "default" : "secondary"}
+                    className="ml-2 text-xs"
+                  >
+                    {isOrder ? "Order" : "Booking"}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="text-black/60">ID:</span>
+                  <span className="ml-2 font-mono text-xs text-black">
+                    {isOrder ? service.orderData?.orderId : service.bookingData?.bookingId}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-black/60">Created:</span>
+                  <span className="ml-2 font-medium text-black">
+                    {new Date(service.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-black/60">Amount:</span>
+                  <span className="ml-2 font-medium text-green-600">
+                    GH₵{" "}
+                    {isOrder
+                      ? service.orderData?.deliveryMetaData?.price || 0
+                      : service.bookingData?.deliveryFee || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            
+           
+
+            
+         
+
+            {/* Location Details */}
+            <div className="bg-white/20 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+              <h4 className="font-semibold text-black mb-3 flex items-center gap-2">
+                <Map className="h-4 w-4" />
+                Location Details
+              </h4>
+              <div className="space-y-3">
+                {isOrder && service.orderData && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-600">Delivery Address:</div>
+                      <div className="text-sm text-black">
+                        {service.orderData.deliveryAddress}
+                      </div>
+                    </div>
+                    
+                  </div>
+                )}
+
+                {!isOrder && service.bookingData && (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-purple-500 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-600">Pickup Address:</div>
+                        <div className="text-sm text-black">
+                          {service.bookingData.pickUpAddress}
+                        </div>
+                      </div>
+                     
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-indigo-500 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-600">Delivery Address:</div>
+                        <div className="text-sm text-black">
+                          {service.bookingData.deliveryAddress}
+                        </div>
+                      </div>
+                      
+                    </div>
+                  </>
+                )}
+                
+              </div>
+            </div>
+
+            {/* Order Specific Details */}
+            {isOrder && service.orderData && (
+              <div className="bg-white/20 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+                <h4 className="font-semibold text-black mb-3 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Order Specifics
+                </h4>
+                <div className="space-y-3">
+                  {service.orderData.deliveryMetaData && (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-600">Distance: </span>
+                        <span className="font-medium">
+                          {service.orderData.deliveryMetaData.distance}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Duration: </span>
+                        <span className="font-medium">
+                          {service.orderData.deliveryMetaData.duration}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                 
+                </div>
+              </div>
+            )}
+
+            {/* Booking Specific Details */}
+            {!isOrder && service.bookingData && (
+              <div className="bg-white/20 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
+                <h4 className="font-semibold text-black mb-3 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Booking Specifics
+                </h4>
+                <div className="space-y-3">
+                  {service.bookingData.multiGroupId && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+                        Multi-Group #{service.bookingData.multiGroupId.slice(-6)}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">
+                        {service.bookingData.tableSize}{" "}
+                        {Number(service.bookingData.tableSize) === 1 ? "item" : "items"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Day: </span>
+                      <span className="font-medium">{service.bookingData.day}</span>
+                    </div>
+                  
+                  </div>
+                    <div>
+                      <span className="text-gray-600">Item: </span>
+                      <span className="font-medium">{service.bookingData.item}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Notes: </span>
+                      <span className="font-medium">{service.bookingData.notes || "N/A"}</span>
+                    </div>
+                  {service.bookingData.startTime && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Time: </span>
+                      <span className="font-medium">
+                        {new Date(service.bookingData.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{" "}
+                        -{" "}
+                        {service.bookingData.endTime
+                          ? new Date(service.bookingData.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : "N/A"}
+                      </span>
+                    </div>
+                  )}
+                  {service.bookingData.cargoId && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                        <Package className="h-3 w-3 mr-1" />
+                        CARGO ID: {service.bookingData.cargoId.slice(-6)}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        <Separator className="bg-white/20" />
+
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="bg-white/10 hover:bg-white/20 border-white/20 rounded-2xl"
+          >
+            Close
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

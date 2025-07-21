@@ -71,6 +71,10 @@ export default function CategoryDetailPage() {
   }
 
   const { categoryBox, products } = data.getProductsByCategory;
+  
+  // Add safety checks and default values if data is null/undefined
+  const safeProducts = products || [];
+  const safeCategoryBox = categoryBox || { name: 'Unknown Category', imageUrl: null };
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -90,32 +94,32 @@ export default function CategoryDetailPage() {
         </Button>
 
         <div className="flex items-center gap-4">
-          {categoryBox.imageUrl && (
+          {safeCategoryBox.imageUrl && (
             <img
-              src={getImageUrl(categoryBox.imageUrl)}
-              alt={categoryBox.name}
+              src={getImageUrl(safeCategoryBox.imageUrl)}
+              alt={safeCategoryBox.name}
               width={60}
               height={60}
               className="object-contain rounded-lg"
             />
           )}
           <div>
-            <h1 className="text-2xl font-bold">{categoryBox.name}</h1>
+            <h1 className="text-2xl font-bold">{safeCategoryBox.name}</h1>
             <p className="text-muted-foreground">
-              {products.length} product{products.length !== 1 ? "s" : ""}
+              {safeProducts.length} product{safeProducts.length !== 1 ? "s" : ""}
             </p>
           </div>
         </div>
       </div>
 
       {/* Products Grid */}
-      {products.length === 0 ? (
+      {safeProducts.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No products found in this category.
         </div>
       ) : (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((product: Product) => (
+          {safeProducts.map((product: Product) => (
             <ProductCard
               key={product.id}
               product={product}

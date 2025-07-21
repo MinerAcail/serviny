@@ -667,6 +667,7 @@ const router = createBrowserRouter([
             element={
               <LoadingWrapper>
                 <RiderZoneSetup />
+                
               </LoadingWrapper>
             }
             expectedBusinessTypes={[

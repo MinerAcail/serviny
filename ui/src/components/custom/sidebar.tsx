@@ -74,7 +74,8 @@ type NavItemProps = {
   };
 };
 export function Sidebar() {
-  const { isAuthenticated, clearCache } = useAuth();
+  const { isAuthenticated, clearCache,user } = useAuth();
+  const name = user?.name || "Winnemart";
 
   const {
     isDeliveryStandardOrEnterprise,
@@ -197,6 +198,9 @@ export function Sidebar() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+   useEffect(() => {
+    document.title = WordTruncateText(name?.toUpperCase(), 10) || "winnemart";
+  }, [name]);
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="">
@@ -235,10 +239,9 @@ export function Sidebar() {
                 // <Link to={"/"} className="flex  items-center">
                 //   <SpectaclesLogo size={"sm"} variant="primary" />
                 // </Link>
-
-                <Link to={"/"} className="flex w-[50%] items-center">
-                  <img src="/winnefull.png" alt="Logo" className="h-4 w-full" />
-                </Link>
+<span className="font-bold text-lg text-primary">
+                  {WordTruncateText(name?.toUpperCase(), 20) || "winnemart"}
+                </span>
               )}
               <Button
                 variant="ghost"
@@ -317,7 +320,7 @@ export function Sidebar() {
 import { gql, useQuery } from "@apollo/client";
 import { ProfileSwitcherContainer } from "../ProfileSwitcher";
 import { useCurrentUserHasAnyBusinessType } from "../GlobalLogic/checkBusinessType";
-import { useGetProvider } from "../global/formatPrice";
+import { useGetProvider, WordTruncateText } from "../global/formatPrice";
 import NotificationDialog from "../global/notification/view-notification-dialog";
 export const CLEAR_CLIENT_CACHE = gql`
   query ClearClientCache {
@@ -488,6 +491,11 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  //chnage th page title with WordTruncateText(name?.toUpperCase(), 20)
+  useEffect(() => {
+    document.title = WordTruncateText(name?.toUpperCase(), 10) || "winnemart";
+  }, [name]);
+
   return (
     <TooltipProvider>
       <div ref={sidebarRef} className="h-screen flex">
@@ -525,7 +533,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             >
               {!isCollapsed && (
                 <span className="font-bold text-lg text-primary">
-                  {name && name.length > 20 ? name.slice(0, 20) + "..." : name}
+                  {WordTruncateText(name?.toUpperCase(), 20) || "winnemart"}
                 </span>
               )}
               <Button

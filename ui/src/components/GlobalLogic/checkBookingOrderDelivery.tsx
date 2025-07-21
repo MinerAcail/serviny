@@ -9,7 +9,7 @@ import { useParams } from "react-router";
 function CheckBookingOrderDelivery() {
   const { user } = useAuth();
   const type = user?.type;
-  console.log("User type in CheckBookingOrderDelivery:", type);
+  // console.log("User type in CheckBookingOrderDelivery:", type);
   // get the entityId from url params
     const { entityId } = useParams<{ entityId: string }>();
   

@@ -63,3 +63,8 @@ export function useGetProvider({ serviceId }: { serviceId: string }) {
     businessType: data?.getProvider?.businessType ?? null
   };
 }
+
+export function WordTruncateText(text: string, maxLength: number): string {
+  if (!text) return "";
+  return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
+}

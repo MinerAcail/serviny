@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getImageUrl } from "@/components/global/formatPrice";
+import { getImageUrl, WordTruncateText } from "@/components/global/formatPrice";
 
 // Types
 interface Rider {
@@ -603,7 +601,7 @@ export default function RiderRequests() {
                 {rider.location && (
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <MapPin className="h-4 w-4" />
-                    <span className="truncate">{rider.location}</span>
+                    <span className="truncate">{WordTruncateText(rider.location,40)}</span>
                   </div>
                 )}
               </div>

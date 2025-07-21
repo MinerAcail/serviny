@@ -172,6 +172,7 @@ export const GET_ALL_RIDERS_BOOKING_AND_ORDERS_ASSIGNED_DATA = gql`
         endTime
         day
         item
+        notes
         tableSize
         userType
         isConfirmed

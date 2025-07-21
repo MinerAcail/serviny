@@ -118,7 +118,7 @@ interface ExperienceOption {
   label: string
 }
 
-const riderTypes: string[] = ["DELIVERY", "COURIER", "TAXI"]
+const riderTypes: string[] = ["DELIVERY", "TAXI"]
 const experienceOptions: ExperienceOption[] = [
   { value: "0-1", label: "0-1 years" },
   { value: "1-2", label: "1-2 years" },
