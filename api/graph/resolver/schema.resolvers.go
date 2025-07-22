@@ -815,8 +815,7 @@ func (r *queryResolver) GetUserInforFromContext(ctx context.Context) (*model.Use
 			Location:    service.Location,
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
-			SubDomain: service.SubDomain,
-
+			SubDomain:   service.SubDomain,
 		}, nil
 	}
 
@@ -946,8 +945,7 @@ func (r *queryResolver) GetUserInforFromContextForBasedType(ctx context.Context)
 			Location:    service.Location,
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
-			SubDomain: service.SubDomain,
-
+			SubDomain:   service.SubDomain,
 		}, nil
 	}
 

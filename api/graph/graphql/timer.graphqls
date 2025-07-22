@@ -55,6 +55,7 @@ extend type Mutation {
   updateMultipleBookingsWithLocation(
     input: addBookCoordinateInput!
   ): AppointmentBooking!
+  deleteBookingsByUserID:[Boolean]
   updateMultiGroupBookingsWithLocationBybookId(
     input: [addBookCoordinateInput]!
   ): [AppointmentBooking]!

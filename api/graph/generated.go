@@ -544,6 +544,7 @@ type ComplexityRoot struct {
 		DeleteAllRequestItems                        func(childComplexity int) int
 		DeleteAllRouteData                           func(childComplexity int) int
 		DeleteBooking                                func(childComplexity int, id string) int
+		DeleteBookingsByUserID                       func(childComplexity int) int
 		DeleteCategory                               func(childComplexity int, id string) int
 		DeleteCategoryBox                            func(childComplexity int, categoryID string) int
 		DeleteEvent                                  func(childComplexity int, id string) int
@@ -1670,6 +1671,7 @@ type MutationResolver interface {
 	CreateMultipleBookings(ctx context.Context, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string, updateTemp *bool) ([]*model.AppointmentBooking, error)
 	UpdateCargoWithRider(ctx context.Context, riderID *string, cargoID *string) (*model.AppointmentBooking, error)
 	UpdateMultipleBookingsWithLocation(ctx context.Context, input model.AddBookCoordinateInput) (*model.AppointmentBooking, error)
+	DeleteBookingsByUserID(ctx context.Context) ([]*bool, error)
 	UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error)
 	ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error)
 	DeleteBooking(ctx context.Context, id string) (*bool, error)
@@ -4594,6 +4596,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteBooking(childComplexity, args["id"].(string)), true
+
+	case "Mutation.deleteBookingsByUserID":
+		if e.complexity.Mutation.DeleteBookingsByUserID == nil {
+			break
+		}
+
+		return e.complexity.Mutation.DeleteBookingsByUserID(childComplexity), true
 
 	case "Mutation.deleteCategory":
 		if e.complexity.Mutation.DeleteCategory == nil {
@@ -42579,6 +42588,47 @@ func (ec *executionContext) fieldContext_Mutation_updateMultipleBookingsWithLoca
 	if fc.Args, err = ec.field_Mutation_updateMultipleBookingsWithLocation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteBookingsByUserID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteBookingsByUserID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteBookingsByUserID(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚕᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteBookingsByUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -84807,6 +84857,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "deleteBookingsByUserID":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteBookingsByUserID(ctx, field)
+			})
 		case "updateMultiGroupBookingsWithLocationBybookId":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateMultiGroupBookingsWithLocationBybookId(ctx, field)
@@ -98993,6 +99047,38 @@ func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v any) (
 func (ec *executionContext) marshalOBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
 	res := graphql.MarshalBoolean(v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOBoolean2ᚕᚖbool(ctx context.Context, v any) ([]*bool, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]*bool, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOBoolean2ᚖbool(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOBoolean2ᚕᚖbool(ctx context.Context, sel ast.SelectionSet, v []*bool) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOBoolean2ᚖbool(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOBoolean2ᚖbool(ctx context.Context, v any) (*bool, error) {

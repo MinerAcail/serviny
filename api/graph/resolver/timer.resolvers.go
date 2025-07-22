@@ -775,6 +775,148 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 	return &booking, nil
 }
 
+// DeleteBookingsByUserID is the resolver for the deleteBookingsByUserID field.
+func (r *mutationResolver) DeleteBookingsByUserID(ctx context.Context) ([]*bool, error) {
+	// Get user ID from context for authorization
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID from context: %w", err)
+	}
+
+	if userIDStr == nil || *userIDStr == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// Validate user ID format
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	log.Printf("Attempting to delete bookings for user: %s", *userIDStr)
+
+	// Begin a transaction to ensure atomicity
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Ensure rollback on panic or error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// First, get all bookings for this user to collect related data
+	var bookings []model.AppointmentBooking
+	if err := tx.Where("user_id = ?", userUUID).Find(&bookings).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to fetch user bookings: %w", err)
+	}
+
+	if len(bookings) == 0 {
+		tx.Rollback()
+		// Return empty slice to indicate no bookings were found/deleted
+		return []*bool{}, nil
+	}
+
+	// Collect booking IDs and cargo IDs for cleanup
+	var bookingIDs []string
+	var cargoIDs []string
+
+	for _, booking := range bookings {
+		bookingIDs = append(bookingIDs, booking.ID.String())
+		if booking.CargoID != nil && *booking.CargoID != "" {
+			cargoIDs = append(cargoIDs, *booking.CargoID)
+		}
+	}
+
+	// Delete related cargo records first (if any)
+	if len(cargoIDs) > 0 {
+		var deletedCargoCount int64
+		if err := tx.Where("id IN ?", cargoIDs).Delete(&model.BookingCargo{}).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to delete related cargo records: %w", err)
+		}
+		tx.Model(&model.BookingCargo{}).Where("id IN ?", cargoIDs).Count(&deletedCargoCount)
+		log.Printf("Deleted %d cargo records", deletedCargoCount)
+	}
+
+	// Delete related route info records (if any)
+	if len(bookingIDs) > 0 {
+		var deletedRouteCount int64
+		if err := tx.Where("order_id IN ?", bookingIDs).Delete(&model.RouteInfo{}).Error; err != nil {
+			// Log warning but don't fail the transaction
+			log.Printf("Warning: failed to delete route info records: %v", err)
+		} else {
+			tx.Model(&model.RouteInfo{}).Where("order_id IN ?", bookingIDs).Count(&deletedRouteCount)
+			log.Printf("Deleted %d route info records", deletedRouteCount)
+		}
+	}
+
+	// Update user manager records to clear entity references (if any)
+	if err := tx.Model(&model.UserManager{}).
+		Where("user_id = ? AND entity_id IN ?", userUUID, bookingIDs).
+		Updates(map[string]interface{}{
+			"entity_id":   nil,
+			"entity_type": nil,
+		}).Error; err != nil {
+		// Log warning but don't fail the transaction
+		log.Printf("Warning: failed to update user manager records: %v", err)
+	}
+
+	// Finally, delete the bookings themselves
+	dbResult := tx.Where("user_id = ?", userUUID).Delete(&model.AppointmentBooking{})
+	if dbResult.Error != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to delete bookings: %w", dbResult.Error)
+	}
+
+	deletedCount := dbResult.RowsAffected
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	log.Printf("Successfully deleted %d bookings for user %s", deletedCount, *userIDStr)
+
+	// Create result slice with one boolean per deleted booking
+	boolResults := make([]*bool, deletedCount)
+	success := true
+	for i := range boolResults {
+		boolResults[i] = &success
+	}
+
+	// Send notification in a goroutine (non-blocking)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in delete notification: %v", r)
+			}
+		}()
+
+		// Optional: Send push notification about bulk deletion
+		payload := helper.NotificationPayload{
+			Title: "Bookings Deleted",
+			Body:  fmt.Sprintf("%d booking(s) have been deleted", deletedCount),
+			Tag:   "bookings-deleted-" + *userIDStr,
+			URL:   "/bookings",
+		}
+
+		err := helper.SendPushNotification(r.DB, *userIDStr, payload)
+		if err != nil {
+			log.Printf("❌ Delete notification failed: %v", err)
+		} else {
+			log.Printf("✅ Delete notification sent to user %s", *userIDStr)
+		}
+	}()
+
+	return boolResults, nil
+}
+
 // UpdateMultiGroupBookingsWithLocationBybookID is the resolver for the updateMultiGroupBookingsWithLocationBybookId field.
 func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error) {
 	if len(input) == 0 {
