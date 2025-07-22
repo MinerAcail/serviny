@@ -74,7 +74,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   const [sortBy, setSortBy] = useState<SortBy>("date");
   const [activeTab, setActiveTab] = useState<ActiveTab>("all");
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(true);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(
     null
   );
@@ -100,7 +100,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   const { loading, error, data, refetch } = useQuery(
     GET_ALL_USER_SERVICE_DATA,
     {
-      variables: { entityId },
+      ...(entityId ? { variables: { entityId } } : {}),
       pollInterval: 60000,
       errorPolicy: "all",
       notifyOnNetworkStatusChange: true,
@@ -505,7 +505,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
 
 
   return (
-    <div className=" z-5">
+    <div className="relative h-screen  z-5">
       {/* Full Screen Map */}
       {error && !data && <ErrorState entityId={entityId} handleRefresh={handleRefresh} />}
 
