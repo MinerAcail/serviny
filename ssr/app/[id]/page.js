@@ -96,7 +96,7 @@ export default async function BookingRedirectPage({ params }) {
           <meta property="og:image" content={imageUrl} />
           <meta property="og:image:width" content="1200" />
           <meta property="og:image:height" content="630" />
-          <meta property="og:url" content={`https://${host}/${params.bookID}`} />
+          <meta property="og:url" content={`https://${host}/${params.id}`} />
           <meta property="og:type" content="profile" />
           <meta property="og:site_name" content="winnemart" />
 
@@ -114,7 +114,7 @@ export default async function BookingRedirectPage({ params }) {
           <meta name="robots" content="index, follow" />
           <link
             rel="canonical"
-            href={`https://${host}/${params.bookID}`}
+            href={`https://${host}/${params.id}`}
           />
         </head>
         <body>
@@ -129,7 +129,7 @@ export default async function BookingRedirectPage({ params }) {
             <p>
               View booking on{" "}
               <a
-                href={`https://${subdomain}.r.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`}
+                href={`https://${subdomain}.r.winnemart.com/vob/${params.id}/?provider=${provider.id}`}
               >
                 winnemart
               </a>
@@ -141,6 +141,6 @@ export default async function BookingRedirectPage({ params }) {
   }
 
   redirect(
-    `https://${subdomain}.r.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`
+    `https://${subdomain}.r.winnemart.com/vob/${params.id}/?provider=${provider.id}`
   );
 }
