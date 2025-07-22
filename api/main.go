@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -82,7 +84,7 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.TimeSlot{},
 
 		&model.BookingOrderPaymentStatus{},
-		
+
 		&model.Profiles{},
 		&model.Invoice{},
 		&model.BusinessType{},
@@ -160,21 +162,22 @@ func main() {
 	// Initialize the GraphQL server
 	router := chi.NewRouter()
 	// Configure CORS
+	// CORS config with dynamic subdomain support
 	corsConfig := cors.New(cors.Options{
-		// { "http://localhost:5173", "http://yourdomain.com", "https://anotherdomain.com"},
-		// AllowedOrigins: []string{"https://serviny.com", "http://ssr.serviny.com", " http://*"},
-		AllowedOrigins: []string{"https://*", "http://*"},
-
-		// AllowedOrigins:   []string{"http://localhost:5173","http://localhost:1420"}, // You can configure specific origins here
-		// AllowedOrigins:   []string{"*"}, // You can configure specific origins here
+		AllowOriginFunc: func(r *http.Request, origin string) bool {
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			host := u.Hostname()
+			return host == "winnemart.com" || strings.HasSuffix(host, ".winnemart.com")
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
-	router.Use(corsConfig.Handler) // Use the cors handler
-	// router.Use(middleware.TrackingMiddleware)
+	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
-	// router.Use(middleware.SessionMiddleware(resolver.DB))
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	// server := handler.NewDefaultServer(Resolvers: resolver)
@@ -192,8 +195,8 @@ func main() {
 	// Paystack webhook route
 	// paystackHandler := Paystack.NewPaystackHandler(db, redisClient)
 	// graphqlEndpoint := fmt.Sprintf("http://localhost:%s", port)
-graphqlEndpoint := fmt.Sprintf("http://localhost:%s/query", port)
-// This creates: http://localhost:4003/query
+	graphqlEndpoint := fmt.Sprintf("http://localhost:%s/query", port)
+	// This creates: http://localhost:4003/query
 	paystackHandler := Paystack.NewPaystackHandler(db, redisClient, graphqlEndpoint)
 
 	router.Post("/paystack/webhook", paystackHandler.HandleWebhook)
