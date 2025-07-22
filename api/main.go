@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
+	// "github.com/99designs/gqlgen/graphql/playground"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
