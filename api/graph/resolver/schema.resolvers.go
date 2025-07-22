@@ -752,6 +752,7 @@ func (r *queryResolver) GetUserInfor(ctx context.Context, userID string) (*model
 			Location:    service.Location, // ensure these fields are nullable in model
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
+			SubDomain:   service.SubDomain,
 		}, nil
 	}
 
@@ -814,6 +815,8 @@ func (r *queryResolver) GetUserInforFromContext(ctx context.Context) (*model.Use
 			Location:    service.Location,
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
+			SubDomain: service.SubDomain,
+
 		}, nil
 	}
 
@@ -878,6 +881,7 @@ func (r *queryResolver) GetUserInforFromContextForAuthClient(ctx context.Context
 			Location:    service.Location,
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
+			SubDomain:   service.SubDomain,
 		}, nil
 	}
 
@@ -942,6 +946,8 @@ func (r *queryResolver) GetUserInforFromContextForBasedType(ctx context.Context)
 			Location:    service.Location,
 			Dpfile:      service.Dpfile,
 			Coordinates: service.Coordinates,
+			SubDomain: service.SubDomain,
+
 		}, nil
 	}
 

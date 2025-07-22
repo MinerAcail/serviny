@@ -250,7 +250,7 @@ func (r *mutationResolver) UpdateProduct(ctx context.Context, productID string, 
 		for _, cat := range product.Categories {
 			existingCats[cat] = true
 		}
-		
+
 		// Add only new categories that don't already exist
 		for _, cat := range input.Categories {
 			if cat != nil && !existingCats[*cat] {
@@ -268,7 +268,7 @@ func (r *mutationResolver) UpdateProduct(ctx context.Context, productID string, 
 		for _, item := range product.ItemsType {
 			existingItems[item] = true
 		}
-		
+
 		// Add only new items that don't already exist
 		for _, it := range input.ItemsType {
 			if it != nil && !existingItems[*it] {
@@ -287,7 +287,6 @@ func (r *mutationResolver) UpdateProduct(ctx context.Context, productID string, 
 	}
 
 	return &product, nil
-
 }
 
 // DeleteProduct is the resolver for the deleteProduct field.

@@ -51,6 +51,8 @@ type UsersInfor struct {
 	Coordinates pq.Float64Array ` gorm:"type:float[]" json:"coordinates"` // [lng, lat]
 
 	Dpfile *string `json:"dpfile,omitempty"`
+	SubDomain *string `json:"subDomain,omitempty"`
+
 }
 
 

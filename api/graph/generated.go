@@ -1386,6 +1386,7 @@ type ComplexityRoot struct {
 		Location    func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Number      func(childComplexity int) int
+		SubDomain   func(childComplexity int) int
 		Type        func(childComplexity int) int
 	}
 
@@ -10414,6 +10415,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.UsersInfor.Number(childComplexity), true
+
+	case "UsersInfor.subDomain":
+		if e.complexity.UsersInfor.SubDomain == nil {
+			break
+		}
+
+		return e.complexity.UsersInfor.SubDomain(childComplexity), true
 
 	case "UsersInfor.type":
 		if e.complexity.UsersInfor.Type == nil {
@@ -24857,6 +24865,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_customer(_ context.Contex
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -24916,6 +24926,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_rider(_ context.Context, 
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -42053,6 +42065,8 @@ func (ec *executionContext) fieldContext_Mutation_reAssignRider(ctx context.Cont
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -58318,6 +58332,8 @@ func (ec *executionContext) fieldContext_Query_getUserInfor(ctx context.Context,
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -58388,6 +58404,8 @@ func (ec *executionContext) fieldContext_Query_getUserInforFromContext(_ context
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -58447,6 +58465,8 @@ func (ec *executionContext) fieldContext_Query_getUserInforFromContextForAuthCli
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -58506,6 +58526,8 @@ func (ec *executionContext) fieldContext_Query_getUserInforFromContextForBasedTy
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -68682,6 +68704,8 @@ func (ec *executionContext) fieldContext_ServiceData_rider(_ context.Context, fi
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -68744,6 +68768,8 @@ func (ec *executionContext) fieldContext_ServiceData_customer(_ context.Context,
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -72894,6 +72920,8 @@ func (ec *executionContext) fieldContext_UserManagerData_user(_ context.Context,
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -73398,6 +73426,47 @@ func (ec *executionContext) fieldContext_UsersInfor_dpfile(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _UsersInfor_subDomain(ctx context.Context, field graphql.CollectedField, obj *model.UsersInfor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UsersInfor_subDomain(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubDomain, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UsersInfor_subDomain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsersInfor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _VendorMapData_riders(ctx context.Context, field graphql.CollectedField, obj *model.VendorMapData) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_VendorMapData_riders(ctx, field)
 	if err != nil {
@@ -73854,6 +73923,8 @@ func (ec *executionContext) fieldContext_ViewInvoice_customer(_ context.Context,
 				return ec.fieldContext_UsersInfor_coordinates(ctx, field)
 			case "dpfile":
 				return ec.fieldContext_UsersInfor_dpfile(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_UsersInfor_subDomain(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsersInfor", field.Name)
 		},
@@ -93280,6 +93351,8 @@ func (ec *executionContext) _UsersInfor(ctx context.Context, sel ast.SelectionSe
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "dpfile":
 			out.Values[i] = ec._UsersInfor_dpfile(ctx, field, obj)
+		case "subDomain":
+			out.Values[i] = ec._UsersInfor_subDomain(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

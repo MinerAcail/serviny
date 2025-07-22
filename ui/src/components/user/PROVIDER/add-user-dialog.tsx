@@ -57,6 +57,7 @@ interface FormErrors {
 export default function AddUserDialog() {
   const { user } = useAuth();
   const serviceId = user?.id;
+  const subDomain = user?.subDomain || "";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -93,7 +94,7 @@ export default function AddUserDialog() {
   // Generate user link using user information
   const generateUserLink = (userId: string, userName: string) => {
     const cleanName = userName.toLowerCase().replace(/\s+/g, "-");
-    return `https://winnemart.com/user/${userId}/${cleanName}`;
+    return `https://${subDomain}.winnemart.com/user/${userId}/${cleanName}`;
   };
   
   // Generate email from name

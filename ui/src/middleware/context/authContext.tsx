@@ -147,6 +147,7 @@ interface UserType {
   email: string;
   type: string;
   number: string;
+  subDomain?: string;
 }
 
 export const GET_USER_INFO_FROM_CONTEXT = gql`
@@ -157,6 +158,7 @@ export const GET_USER_INFO_FROM_CONTEXT = gql`
       name
       email
       type
+      subDomain
     }
   }
 `;

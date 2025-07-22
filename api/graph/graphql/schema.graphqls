@@ -81,8 +81,8 @@ type UsersInfor {
   email: String!
   location: String
   coordinates: [Float]
-
   dpfile: String
+  subDomain:String
 }
 extend type Mutation {
   deleteTable: Boolean!

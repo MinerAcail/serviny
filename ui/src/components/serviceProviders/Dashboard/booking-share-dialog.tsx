@@ -16,6 +16,7 @@ import {
   XCircle,
   CheckCircle,
 } from "lucide-react";
+import { useAuth } from "@/middleware/context/authContext";
 
 const GET_USER_MANAGER = gql`
   query GetUserManager($userID: String!, $entityID: String) {
@@ -68,6 +69,7 @@ interface BookingShareDialogProps {
   onClose?: () => void;
   entityID?: string;
   serviceProvider?: string | null;
+  subDomain?: string;
 }
 
 export default function BookingShareDialog({
@@ -76,19 +78,21 @@ export default function BookingShareDialog({
   entityID,
   onClose,
   serviceProvider,
+  subDomain = "",
 }: BookingShareDialogProps) {
+   
   const [smsStatus, setSmsStatus] = useState<
     "idle" | "sending" | "sent" | "error"
   >("idle");
   const [smsError, setSmsError] = useState<string>("");
-  const [smsId, setSmsId] = useState<string>("");
+ 
 
   const { data, loading, error, refetch } = useQuery(GET_USER_MANAGER, {
     variables: { userID: userId, entityID },
     skip: !userId,
   });
 
-  console.log("userId and entityID:", userId, entityID);
+  // console.log("userId and entityID:", userId, entityID);
 
   const user = data?.getUserManager?.user;
   const tempUser = data?.getUserManager?.tempUser;
@@ -144,7 +148,7 @@ export default function BookingShareDialog({
   const generateMessage = useCallback(() => {
     if (!book || !tempUser) return "";
 
-    const bookingLink = `https://winnemart.com/bookings/${book.id}`;
+    const bookingLink = `https://${subDomain}.winnemart.com/${book.id}`;
     const customerName = user?.name || "Customer";
 
     return `🎉 Booking Confirmation from ${

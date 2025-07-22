@@ -80,7 +80,7 @@ export default function ContactDetailPage() {
   // To get query parameter (?share=...)
   const queryParams = new URLSearchParams(location.search);
   const entityID = queryParams.get("share");
-  console.log("shareBoojk", entityID);
+  // console.log("shareBoojk", entityID);
 
   const { user } = useAuth();
   const [isDialogOpen, setDialogOpen] = useState(false);
@@ -113,6 +113,7 @@ export default function ContactDetailPage() {
 
   const userData = contactData?.customer;
   const serviceData = user?.name;
+  const subDomain = user?.subDomain || "";
 
   // Process the service data for history display with payment information and grouping
   const { historyData, groupedData, standaloneServices } = useMemo(() => {
@@ -255,6 +256,7 @@ export default function ContactDetailPage() {
           open={open}
           onClose={() => onClose(!open)}
           serviceProvider={serviceData}
+          subDomain={subDomain}
         />
       )}
 
@@ -697,6 +699,7 @@ export default function ContactDetailPage() {
             open={!!selectedBookingId}
             onClose={() => setSelectedBookingId(null)}
             serviceProvider={serviceData}
+            subDomain={subDomain}
           />
         )}
       </div>
