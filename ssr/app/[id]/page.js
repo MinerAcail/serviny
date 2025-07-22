@@ -79,19 +79,19 @@ export default async function BookingRedirectPage({ params }) {
         <head>
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>{`from ${provider.name} `}</title>
+          <title>{`Booking details`}</title>
           <meta
             name="description"
-            content={`Booking details from ${provider.name}.`}
+            content={`${provider.name} on winnemart`}
           />
 
           <meta
             property="og:title"
-            content={`Booking • ${provider.name} on winnemart`}
+            content={`Booking details from ${provider.name}`}
           />
           <meta
             property="og:description"
-            content={`Booking details from ${provider.name}.`}
+            content={`${provider.name} on winnemart`}
           />
           <meta property="og:image" content={imageUrl} />
           <meta property="og:image:width" content="1200" />
@@ -103,11 +103,11 @@ export default async function BookingRedirectPage({ params }) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta
             name="twitter:title"
-            content={`Booking • ${provider.name} on winnemart`}
+            content={`Booking details from ${provider.name}`}
           />
           <meta
             name="twitter:description"
-            content={`Booking details from ${provider.name}.`}
+            content={`${provider.name} on winnemart`}
           />
           <meta name="twitter:image" content={imageUrl} />
 
@@ -129,7 +129,7 @@ export default async function BookingRedirectPage({ params }) {
             <p>
               View booking on{" "}
               <a
-                href={`https://${subdomain}.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`}
+                href={`https://${subdomain}.r.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`}
               >
                 winnemart
               </a>
@@ -141,6 +141,6 @@ export default async function BookingRedirectPage({ params }) {
   }
 
   redirect(
-    `https://${subdomain}.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`
+    `https://${subdomain}.r.winnemart.com/vob/${params.bookID}/?provider=${provider.id}`
   );
 }
