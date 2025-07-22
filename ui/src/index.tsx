@@ -10,7 +10,7 @@ const uploadLink = createUploadLink({
   uri: API_URL,
   credentials: "include",
 });
-
+ 
 // Logger link
 const logLink = new ApolloLink((operation, forward) => {
   // console.log("GraphQL Request", operation);

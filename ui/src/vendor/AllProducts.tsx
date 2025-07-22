@@ -311,6 +311,21 @@ const { addItem, getProductCount, isProductInCart, items } = useCart();
                   >
                     Delete
                   </Button>
+                   <UpdateProductDialog
+                                      product={product}
+                                      onSuccess={() => {
+                                        onOpenChange(false);
+                                        refetch();
+                                      }}
+                                    >
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="w-full sm:w-auto"
+                                      >
+                                        Edit 
+                                      </Button>
+                                    </UpdateProductDialog>
                   <Button
                     variant="outline"
                     size="sm"
@@ -648,6 +663,7 @@ import { formatPrice, getImageUrl } from "@/components/global/formatPrice";
 import { toast } from "sonner";
 import { useAuth, useProfileUpdate } from "@/middleware/context/authContext";
 import Login from "@/app/Login";
+import { UpdateProductDialog } from "./updateProductDialog";
 
 // Define the GraphQL query for fetching categories
 const GET_ALL_CATEGORIES = gql`

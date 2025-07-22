@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { gql, useQuery } from "@apollo/client";
-import { useLocation, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import {
   CalendarSync,
   Edit,
@@ -77,7 +77,12 @@ export default function ServiceProviderProfile() {
   const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
   serviceId = firstProfileId ?? serviceId ?? localServiceId ?? "";
   const location = useLocation();
-  const [selectedView, setSelectedView] = useState<string>("category");
+  const navigate = useNavigate();
+  const params = new URLSearchParams(location.search);
+  // Initialize selectedView from URL (default to "category")
+const initialSelectedView = params.get("view") || "category";
+const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
+  // const [selectedView, setSelectedView] = useState<string>("category");
 
   const [dialogState, setDialogState] = useState(() => {
     const savedState = localStorage.getItem("isDialogOpen");
@@ -158,6 +163,12 @@ export default function ServiceProviderProfile() {
       toast.warning("You need to be logged in to save Service profile.");
     }
   }, [isAuthenticated]);
+// Sync view selection to URL when changed
+useEffect(() => {
+  const newParams = new URLSearchParams(location.search);
+  newParams.set("view", selectedView);
+  navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+}, [selectedView]);
 
   if (!isAuthenticated && !localServiceId && dialogState) {
     return <LandingPage onClose={() => setDialogState(false)} />;
@@ -309,13 +320,7 @@ export default function ServiceProviderProfile() {
 
 }
 
-//  {
-//                           data?.getProvider?.businessType ===
-//                             BusinessTypeEnum.PRE_ORDER && (
-//                             <span className="text-xs text-primary-foreground/80">
-//                               Pre-order
-//                             </span>
-//                           )}
+
 type provider = {
   id: string;
   dpfile: string;

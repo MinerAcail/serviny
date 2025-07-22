@@ -122,6 +122,174 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 	return &product, nil
 }
 
+// UpdateProduct is the resolver for the updateProduct field.
+func (r *mutationResolver) UpdateProduct(ctx context.Context, productID string, files []*graphql.Upload, input model.ProductInputUpdate, removeURL []*string, removeCategories []*string, removeItemsType []*string) (*model.Product, error) {
+	// Step 1: Authorization
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	serviceID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Step 2: Product lookup
+	pID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
+
+	var product model.Product
+	if err := r.DB.First(&product, "id = ? AND vendor_id = ?", pID, serviceID.String()).Error; err != nil {
+		return nil, fmt.Errorf("product not found or unauthorized: %w", err)
+	}
+
+	// Step 3: Prepare bucket
+	bucketName := fmt.Sprintf("service-%s-bucket", serviceID)
+	if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+		return nil, fmt.Errorf("failed to ensure bucket: %w", err)
+	}
+
+	var updateNeeded bool
+
+	// Step 4: Remove images from MinIO (removeUrl)
+	if len(removeURL) > 0 {
+		toDelete := make([]string, 0)
+		removeMap := make(map[string]bool)
+		for _, url := range removeURL {
+			if url != nil {
+				removeMap[*url] = true
+				toDelete = append(toDelete, *url)
+			}
+		}
+		if len(toDelete) > 0 {
+			helper.DeleteObjectsFromMinio(ctx, r.MinIOClient, bucketName, toDelete)
+		}
+		var kept []string
+		for _, url := range product.ImageUrls {
+			if !removeMap[url] {
+				kept = append(kept, url)
+			}
+		}
+		product.ImageUrls = kept
+		updateNeeded = true
+	}
+
+	// Step 5: Remove categories (removeCategories)
+	if len(removeCategories) > 0 {
+		removeMap := make(map[string]bool)
+		for _, val := range removeCategories {
+			if val != nil {
+				removeMap[*val] = true
+			}
+		}
+		var kept []string
+		for _, c := range product.Categories {
+			if !removeMap[c] {
+				kept = append(kept, c)
+			}
+		}
+		product.Categories = kept
+		updateNeeded = true
+	}
+
+	// Step 6: Remove itemsType (removeItemsType)
+	if len(removeItemsType) > 0 {
+		removeMap := make(map[string]bool)
+		for _, val := range removeItemsType {
+			if val != nil {
+				removeMap[*val] = true
+			}
+		}
+		var kept []string
+		for _, item := range product.ItemsType {
+			if !removeMap[item] {
+				kept = append(kept, item)
+			}
+		}
+		product.ItemsType = kept
+		updateNeeded = true
+	}
+
+	// Step 7: Upload new files
+	if len(files) > 0 {
+		for _, file := range files {
+			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "product", file)
+			if err != nil {
+				return nil, fmt.Errorf("failed to upload file %s: %v", file.Filename, err)
+			}
+			product.ImageUrls = append(product.ImageUrls, fileURL)
+		}
+		updateNeeded = true
+	}
+
+	// Step 8: Update fields if provided
+	if input.Name != nil {
+		product.Name = input.Name
+		updateNeeded = true
+	}
+	if input.Price != nil {
+		product.Price = input.Price
+		updateNeeded = true
+	}
+	if input.Description != nil {
+		product.Description = input.Description
+		updateNeeded = true
+	}
+	if input.State != nil {
+		product.State = input.State
+		updateNeeded = true
+	}
+
+	// Step 9: Handle categories - Add new ones to existing (after removals)
+	if input.Categories != nil {
+		// Create a map of existing categories for deduplication
+		existingCats := make(map[string]bool)
+		for _, cat := range product.Categories {
+			existingCats[cat] = true
+		}
+		
+		// Add only new categories that don't already exist
+		for _, cat := range input.Categories {
+			if cat != nil && !existingCats[*cat] {
+				product.Categories = append(product.Categories, *cat)
+				existingCats[*cat] = true
+			}
+		}
+		updateNeeded = true
+	}
+
+	// Step 10: Handle itemsType - Add new ones to existing (after removals)
+	if input.ItemsType != nil {
+		// Create a map of existing items for deduplication
+		existingItems := make(map[string]bool)
+		for _, item := range product.ItemsType {
+			existingItems[item] = true
+		}
+		
+		// Add only new items that don't already exist
+		for _, it := range input.ItemsType {
+			if it != nil && !existingItems[*it] {
+				product.ItemsType = append(product.ItemsType, *it)
+				existingItems[*it] = true
+			}
+		}
+		updateNeeded = true
+	}
+
+	// Step 11: Save changes
+	if updateNeeded {
+		if err := r.DB.Save(&product).Error; err != nil {
+			return nil, fmt.Errorf("failed to update product: %w", err)
+		}
+	}
+
+	return &product, nil
+
+}
+
 // DeleteProduct is the resolver for the deleteProduct field.
 func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (*bool, error) {
 	// Step 1: Get service ID from context
@@ -162,7 +330,6 @@ func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (*bool,
 
 	success := true
 	return &success, nil
-
 }
 
 // CreateOrderItems is the resolver for the createOrderItems field.

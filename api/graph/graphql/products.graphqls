@@ -38,7 +38,6 @@ input ProductInputUpdate {
 
   description: String
 
-  # VendorId: String
 }
 enum ProductState {
   ACTIVE
@@ -69,7 +68,7 @@ type CartItemOrder {
   paymentMethod: String
   estimatedDeliveryDate: String!
   deliveryMetaData: ZoneMetaData
-  routeData:RouteInfo
+  routeData: RouteInfo
   serviceFee: String
   createdAt: Time!
 }
@@ -157,8 +156,8 @@ extend type Query {
   getAllProductsByAdmin: [ProductInfor!]!
   getNewAddedProducts: [Product!]!
   getOrder(id: String!): Order!
-  getOrderDetails(orderId:String!): Order
-  
+  getOrderDetails(orderId: String!): Order
+
   getAllOrderS: [Order]
   getAllOrderHistory: [Order]
   getAllOrderItemsByProductId(orderId: String!): CartItemOrder
@@ -188,6 +187,14 @@ input addCoordinateInput {
 extend type Mutation {
   clearCart: Boolean!
   VendorUpload(files: [Upload], input: ProductInput!): Product!
+  updateProduct(
+    productId: String!
+    files: [Upload]
+    input: ProductInputUpdate!
+    removeUrl: [String]
+    removeCategories: [String]
+    removeItemsType: [String]
+  ): Product!
   deleteProduct(id: String!): Boolean
 
   createOrderItems(input: [OrderInput!]!): Order!
@@ -249,7 +256,7 @@ type categoryBox {
   id: String
   name: String
   imageUrl: String
-  vendorId:String
+  vendorId: String
   state: ProductState
   itemsIds: [String]
   createdAt: Time!

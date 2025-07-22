@@ -627,6 +627,7 @@ type ComplexityRoot struct {
 		UpdatePolicy                                 func(childComplexity int, policyID *string, detailID *string, input *model.UpdatePolicyInput) int
 		UpdatePrice                                  func(childComplexity int, cardID string, priceCardID string, input model.PriceInput) int
 		UpdatePriceCard                              func(childComplexity int, input model.UpdatePriceCardInput, priceCardID *string) int
+		UpdateProduct                                func(childComplexity int, productID string, files []*graphql.Upload, input model.ProductInputUpdate, removeURL []*string, removeCategories []*string, removeItemsType []*string) int
 		UpdateProductByAdmin                         func(childComplexity int, productID string, input model.ProductInputUpdate) int
 		UpdateRentalItem                             func(childComplexity int, id string, input model.RentalInput) int
 		UpdateRequestItemStatus                      func(childComplexity int, requestID string, status model.ProductState) int
@@ -1589,6 +1590,7 @@ type MutationResolver interface {
 	SmsMessageBook(ctx context.Context, input model.SmsInput) (*model.SmsRecord, error)
 	ClearCart(ctx context.Context) (bool, error)
 	VendorUpload(ctx context.Context, files []*graphql.Upload, input model.ProductInput) (*model.Product, error)
+	UpdateProduct(ctx context.Context, productID string, files []*graphql.Upload, input model.ProductInputUpdate, removeURL []*string, removeCategories []*string, removeItemsType []*string) (*model.Product, error)
 	DeleteProduct(ctx context.Context, id string) (*bool, error)
 	CreateOrderItems(ctx context.Context, input []*model.OrderInput) (*model.Order, error)
 	DeleteOrderItems(ctx context.Context, orderID string) (*model.Order, error)
@@ -5557,6 +5559,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdatePriceCard(childComplexity, args["input"].(model.UpdatePriceCardInput), args["priceCardId"].(*string)), true
+
+	case "Mutation.updateProduct":
+		if e.complexity.Mutation.UpdateProduct == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateProduct_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateProduct(childComplexity, args["productId"].(string), args["files"].([]*graphql.Upload), args["input"].(model.ProductInputUpdate), args["removeUrl"].([]*string), args["removeCategories"].([]*string), args["removeItemsType"].([]*string)), true
 
 	case "Mutation.updateProductByAdmin":
 		if e.complexity.Mutation.UpdateProductByAdmin == nil {
@@ -14956,6 +14970,119 @@ func (ec *executionContext) field_Mutation_updateProductByAdmin_argsInput(
 	}
 
 	var zeroVal model.ProductInputUpdate
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateProduct_argsProductID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["productId"] = arg0
+	arg1, err := ec.field_Mutation_updateProduct_argsFiles(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["files"] = arg1
+	arg2, err := ec.field_Mutation_updateProduct_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg2
+	arg3, err := ec.field_Mutation_updateProduct_argsRemoveURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["removeUrl"] = arg3
+	arg4, err := ec.field_Mutation_updateProduct_argsRemoveCategories(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["removeCategories"] = arg4
+	arg5, err := ec.field_Mutation_updateProduct_argsRemoveItemsType(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["removeItemsType"] = arg5
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateProduct_argsProductID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("productId"))
+	if tmp, ok := rawArgs["productId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_argsFiles(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("files"))
+	if tmp, ok := rawArgs["files"]; ok {
+		return ec.unmarshalOUpload2ᚕᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal []*graphql.Upload
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.ProductInputUpdate, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNProductInputUpdate2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐProductInputUpdate(ctx, tmp)
+	}
+
+	var zeroVal model.ProductInputUpdate
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_argsRemoveURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("removeUrl"))
+	if tmp, ok := rawArgs["removeUrl"]; ok {
+		return ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+	}
+
+	var zeroVal []*string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_argsRemoveCategories(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("removeCategories"))
+	if tmp, ok := rawArgs["removeCategories"]; ok {
+		return ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+	}
+
+	var zeroVal []*string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProduct_argsRemoveItemsType(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("removeItemsType"))
+	if tmp, ok := rawArgs["removeItemsType"]; ok {
+		return ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+	}
+
+	var zeroVal []*string
 	return zeroVal, nil
 }
 
@@ -36889,6 +37016,85 @@ func (ec *executionContext) fieldContext_Mutation_VendorUpload(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_VendorUpload_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateProduct(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateProduct(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateProduct(rctx, fc.Args["productId"].(string), fc.Args["files"].([]*graphql.Upload), fc.Args["input"].(model.ProductInputUpdate), fc.Args["removeUrl"].([]*string), fc.Args["removeCategories"].([]*string), fc.Args["removeItemsType"].([]*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Product)
+	fc.Result = res
+	return ec.marshalNProduct2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐProduct(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateProduct(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Product_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Product_name(ctx, field)
+			case "price":
+				return ec.fieldContext_Product_price(ctx, field)
+			case "state":
+				return ec.fieldContext_Product_state(ctx, field)
+			case "VendorId":
+				return ec.fieldContext_Product_VendorId(ctx, field)
+			case "categories":
+				return ec.fieldContext_Product_categories(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Product_imageUrls(ctx, field)
+			case "itemsType":
+				return ec.fieldContext_Product_itemsType(ctx, field)
+			case "description":
+				return ec.fieldContext_Product_description(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Product_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Product_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateProduct_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -84129,6 +84335,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "VendorUpload":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_VendorUpload(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateProduct":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateProduct(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
