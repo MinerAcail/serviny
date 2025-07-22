@@ -170,12 +170,20 @@ func main() {
 				return false
 			}
 			host := u.Hostname()
+
+			// Allow all http://* in dev, plus specific production domains
+			if strings.HasPrefix(origin, "http://localhost") {
+				return true
+			}
+
+			// Allow specific HTTPS production domains
 			return host == "winnemart.com" || strings.HasSuffix(host, ".winnemart.com")
 		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
+
 	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
 
