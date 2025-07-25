@@ -87,7 +87,7 @@ type UsersInfor {
 extend type Mutation {
   deleteTable: Boolean!
   serviceLogin(input: LoginInput!,entityId:String): Returns
-  updateNumber(number: String!,password:String): Rider
+  updateNumber(number: String!,password:String): Returns
 
   adminLogin(input: LoginInput!): Admin
   # workersLogin(input: LoginInput!): jobRequest

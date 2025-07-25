@@ -132,6 +132,12 @@ type ConnectedContactIDs {
   serviceIDs: [String!]!
   riderIDs: [String!]!
 }
+input updateServiceByAminInput {
+  name: String
+  number: String
+  password: String
+  businessType: String
+}
 extend type Mutation {
   createService(dpfile: Upload, input: CreateServiceInput!): Service
   updateService(
@@ -140,13 +146,20 @@ extend type Mutation {
     removeProfession: [String]
   ): Service
   updateBusinessType(businessType: String): BusinessType
-  generateSubDomain(serviceId: String!): Service
+  generateSubDomain(serviceId: String!,tryName:String): Service
   useTheme(ServiceId: String!, theme: String): String
-
+updateServiceByAmin(
+    serviceId: String!
+    input: updateServiceByAminInput!
+  ): Service
   deleteService(id: String!): Boolean
 
   updateBookingType(
     type: BookingType! # serviceId: String!
+  ): BookingType
+    updateBookingTypeByAdmin(
+    type: BookingType! # serviceId: String!
+    serviceId: String!
   ): BookingType
   createGallery(
     files: [Upload]

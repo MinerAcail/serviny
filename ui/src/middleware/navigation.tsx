@@ -33,6 +33,10 @@ import CategoryDetailPage from "@/vendor/products/cate/categoryDetail";
 import UpdateRiderProfile from "@/components/rider/updateRiderProfile";
 import CheckUserAndRiderUpdates from "@/components/GlobalLogic/UserAndRiderUpdates";
 import { ErrorBoundary } from "@/components/GlobalLogic/ErrorBoundary";
+import { AdminSidebar } from "@/components/Admin/components/adminSide";
+import ServiceProvidersPage from "@/components/Admin/pages/service";
+import RidersPage from "@/components/Admin/pages/riders";
+import UsersPage from "@/components/Admin/pages/users";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -729,6 +733,34 @@ const router = createBrowserRouter([
       },
     ],
   },
+   {
+    path: "/ddst/",
+    element: (
+      <LoadingWrapper>
+            <SidebarLayoutAdmin />
+          </LoadingWrapper>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+           <ServiceProvidersPage/>
+        ),
+      },
+      {
+        path: "riders",
+        element: (
+           <RidersPage />
+        ),
+      },
+       {
+        path: "users",
+        element: (
+           <UsersPage />
+        ),
+      }
+    ],
+  },
 ]);
 
 export function Navigation() {
@@ -785,7 +817,43 @@ export function SidebarLayoutProvider() {
     </div>
   );
 }
+export function SidebarLayoutAdmin() {
+  const { firstProfileId } = useProfileUpdate(null);
+  const serviceId = firstProfileId;
+  const { showDialog, closeDialog, isSupported } = useNotificationDialog();
+  const { isAuthenticated } = useAuth();
 
+  return (
+    // <div className="flex w-full h-screen overflow-hidden">
+    //   <ProviderContextProvider serviceId={serviceId ?? ""}>
+    //     {/* <ScrollArea className="h-full border-r"> */}
+    //       <Sidebar />
+    //     {/* </ScrollArea> */}
+    //     <ScrollArea className="flex-1 p-1">
+    //       <Outlet />
+    //     </ScrollArea>
+    //   </ProviderContextProvider>
+    // </div>
+    <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
+      <ProviderContextProvider serviceId={serviceId ?? ""}>
+        <>
+          <div>
+            {isAuthenticated && (
+              <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
+            )}
+          </div>
+          {/* <ScrollArea className="h-full border-r"> */}
+          <AdminSidebar />
+          {/* </ScrollArea> */}
+          <ScrollArea className="flex-1">
+            <Outlet />
+          </ScrollArea>
+          {/* </div> */}
+        </>
+      </ProviderContextProvider>
+    </div>
+  );
+}
 export function Layout() {
   const { serviceId: updateServiceId } = useParams<{ serviceId: string }>();
   const { firstProfileId } = useProfileUpdate(null);

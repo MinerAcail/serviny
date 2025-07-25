@@ -1546,6 +1546,44 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 				}
 			}
 		}
+		// Search UserManager users (users created by this service)
+		var userManagers []model.UserManager
+		if err := r.DB.Where("service_id = ?", *serviceIDStr).Find(&userManagers).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch user managers: %w", err)
+		}
+
+		if len(userManagers) > 0 {
+			var userManagerIDs []string
+			for _, um := range userManagers {
+				userManagerIDs = append(userManagerIDs, um.UserID)
+			}
+
+			var managedUsers []model.User
+			if err := r.DB.Where("id IN (?) AND (name ILIKE ? OR number ILIKE ? OR COALESCE(number_type, '') ILIKE ?)",
+				userManagerIDs, searchTerm, searchTerm, searchTerm).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&managedUsers).Error; err != nil {
+				return nil, fmt.Errorf("failed to search managed users: %w", err)
+			}
+
+			for _, user := range managedUsers {
+				userData := &model.UserData{
+					ID:         user.ID.String(),
+					Name:       user.Name,
+					Number:     user.Number,
+					NumberType: helper.GetStringValue(&user.NumberType),
+					Type:       string(model.UserTypeUser),
+					External:   helper.BoolPtr(false), // Internal contact
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
 
 		// Search connected services
 		if len(connectedContactIDs.ServiceIDs) > 0 {
@@ -1623,6 +1661,43 @@ func (r *queryResolver) GetProvidersUsersContact(ctx context.Context, search *st
 			}
 
 			for _, user := range users {
+				userData := &model.UserData{
+					ID:         user.ID.String(),
+					Name:       user.Name,
+					Number:     user.Number,
+					NumberType: helper.GetStringValue(&user.NumberType),
+					Type:       string(model.UserTypeUser),
+					External:   helper.BoolPtr(false), // Internal contact
+				}
+
+				key := userData.Type + ":" + userData.ID
+				if _, exists := uniqueContacts[key]; !exists {
+					uniqueContacts[key] = true
+					result = append(result, userData)
+				}
+			}
+		}
+		// Get UserManager users (users created by this service)
+		var userManagers []model.UserManager
+		if err := r.DB.Where("service_id = ?", *serviceIDStr).Find(&userManagers).Error; err != nil {
+			return nil, fmt.Errorf("failed to fetch user managers: %w", err)
+		}
+
+		if len(userManagers) > 0 {
+			var userManagerIDs []string
+			for _, um := range userManagers {
+				userManagerIDs = append(userManagerIDs, um.UserID)
+			}
+
+			var managedUsers []model.User
+			if err := r.DB.Where("id IN (?)", userManagerIDs).
+				Limit(int(limitValue)).
+				Offset(int(offsetValue)).
+				Find(&managedUsers).Error; err != nil {
+				return nil, fmt.Errorf("failed to fetch managed users: %w", err)
+			}
+
+			for _, user := range managedUsers {
 				userData := &model.UserData{
 					ID:         user.ID.String(),
 					Name:       user.Name,

@@ -34,6 +34,7 @@ const GET_USER_INFOR = gql`
       email
       location
       dpfile
+      subDomain
     }
   }
 `;
@@ -207,7 +208,7 @@ Phone: ${userInfo?.number || "N/A"}
 Email: ${userInfo?.email || "N/A"}
                     `.trim();
 
-                        copyToClipboard(profileInfo, "Profile information");
+                        copyToClipboard(profileInfo, "Profile Link");
                       }}
                     >
                       <Share2 className="h-4 w-4 mr-2" />
@@ -235,7 +236,7 @@ export function ProfileProviderDialog({ userID }: { userID: string }) {
   });
 
   const userInfo = data?.getUserInfor;
-
+const subDomain = userInfo?.subDomain
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
       toast("Copied!", {
@@ -379,29 +380,19 @@ export function ProfileProviderDialog({ userID }: { userID: string }) {
                 <Button
                   className="flex-1"
                   variant={active ? "default" : "outline"}
-                  onClick={() => setActive(!active)}
+                  // onClick={() => setActive(!active)}
                 >
-                  {active ? (
-                    <>
-                      Active <Badge className="ml-2 bg-green-500">Online</Badge>
-                    </>
-                  ) : (
-                    "Set Active"
-                  )}
+                                        Active <Badge className="ml-2 bg-green-500">Online</Badge>
+
                 </Button>
 
                 <Button
                   variant="outline"
                   className="px-3"
                   onClick={() => {
-                    const profileInfo = `
-Name: ${userInfo?.name || "N/A"}
-Location: ${userInfo?.location || "N/A"}
-Phone: ${userInfo?.number || "N/A"}
-Email: ${userInfo?.email || "N/A"}
-                    `.trim();
+                    
 
-                    copyToClipboard(profileInfo, "Profile information");
+                    copyToClipboard(`${subDomain}.winnemart.com`, "Profile Link");
                   }}
                 >
                   <Share2 className="h-4 w-4 mr-2" />
