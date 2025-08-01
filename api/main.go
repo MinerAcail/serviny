@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
-	// "github.com/99designs/gqlgen/graphql/playground"
+	"github.com/99designs/gqlgen/graphql/playground"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
@@ -56,6 +56,8 @@ func PerformMigrations(db *gorm.DB) error {
 
 		&model.RouteInfo{},
 		&model.RiderRange{},
+		&model.IsochroneRiderRangeLink{},
+
 		&model.Form{},
 		&model.FormField{},
 		&model.FormField{},
@@ -186,7 +188,9 @@ func main() {
 
 	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
-
+if port == "4003" {
+	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+}
 	// router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	// server := handler.NewDefaultServer(Resolvers: resolver)
 

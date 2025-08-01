@@ -26,6 +26,11 @@ func (r *bookingOrderPaymentStatusResolver) ID(ctx context.Context, obj *model.B
 	return id, nil
 }
 
+// ID is the resolver for the id field.
+func (r *cancelManagerResolver) ID(ctx context.Context, obj *model.CancelManager) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
 // DeleteTable is the resolver for the deleteTable field.
 func (r *mutationResolver) DeleteTable(ctx context.Context) (bool, error) {
 	// List of tables to drop
@@ -118,7 +123,7 @@ func (r *mutationResolver) ServiceLogin(ctx context.Context, input model.LoginIn
 }
 
 // UpdateNumber is the resolver for the updateNumber field.
-func (r *mutationResolver) UpdateNumber(ctx context.Context, number string, password *string) (*model.Rider, error) {
+func (r *mutationResolver) UpdateNumber(ctx context.Context, number string, password *string) (model.Returns, error) {
 	originalNumber := number
 	cleanedNumber := helper.CleanPhoneNumber(originalNumber)
 
@@ -1152,6 +1157,9 @@ func (r *Resolver) BookingOrderPaymentStatus() graph.BookingOrderPaymentStatusRe
 	return &bookingOrderPaymentStatusResolver{r}
 }
 
+// CancelManager returns graph.CancelManagerResolver implementation.
+func (r *Resolver) CancelManager() graph.CancelManagerResolver { return &cancelManagerResolver{r} }
+
 // Profiles returns graph.ProfilesResolver implementation.
 func (r *Resolver) Profiles() graph.ProfilesResolver { return &profilesResolver{r} }
 
@@ -1175,6 +1183,7 @@ func (r *Resolver) UserManager() graph.UserManagerResolver { return &userManager
 func (r *Resolver) UsersInfor() graph.UsersInforResolver { return &usersInforResolver{r} }
 
 type bookingOrderPaymentStatusResolver struct{ *Resolver }
+type cancelManagerResolver struct{ *Resolver }
 type profilesResolver struct{ *Resolver }
 type purchaseHistoryResolver struct{ *Resolver }
 type purchaseHistoryItemResolver struct{ *Resolver }

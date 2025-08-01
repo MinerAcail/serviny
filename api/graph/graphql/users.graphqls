@@ -43,4 +43,6 @@ extend type Mutation {
   deleteUserById(id: String!): Boolean
   updateUser(input: inputUpdateUser): User!
 
+  removeUserManager(userId: String!): Boolean
+
 }

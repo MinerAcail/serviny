@@ -128,6 +128,11 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *model.InputUpd
 	return &user, nil
 }
 
+// RemoveUserManager is the resolver for the removeUserManager field.
+func (r *mutationResolver) RemoveUserManager(ctx context.Context, userID string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: RemoveUserManager - removeUserManager"))
+}
+
 // GetUserByID is the resolver for the getUserById field.
 func (r *queryResolver) GetUserByID(ctx context.Context, id string) (*model.User, error) {
 	var user model.User

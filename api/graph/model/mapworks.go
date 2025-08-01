@@ -22,8 +22,16 @@ type IsochroneResult struct {
 	VendorID      string          `json:"vendor_id"`
 	Error         string          `json:"error,omitempty"`
 	ErrorCode     string          `json:"errorCode,omitempty"`
+	RiderRangeIDs pq.StringArray `gorm:"type:text[]" json:"riderRangeIds,omitempty"` // List of RiderRange IDs
 }
 
+type IsochroneRiderRangeLink struct {
+	ID          uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	RiderRangeID string    `json:"riderRangeId"` // ID of the RiderRange
+	IsochroneID  string    `json:"isochroneId"`  // ID
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
 type RouteInfo struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	OrderID   string    `json:"orderId"` //its the same as the bookingId

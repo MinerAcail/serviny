@@ -589,12 +589,6 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 		log.Printf("Updated delivery address: %s", *input.DeliveryAddress)
 	}
 
-	// Update isochrone meta ID if provided
-	if input.IsochroneMetaID != nil && *input.IsochroneMetaID != "" {
-		order.IsochroneMetaID = input.IsochroneMetaID
-		log.Printf("Updated isochrone meta ID: %s", *input.IsochroneMetaID)
-	}
-
 	// Update coordinates if provided
 	if input.Coordinates != nil && len(input.Coordinates) >= 2 {
 		lng := *input.Coordinates[0]
@@ -642,7 +636,7 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 
 		if serviceErr == nil {
 			// It's a service - find the best rider for this service
-			validRiderID, err := tracking.ValidateRiderServiceVendorRelationship(tx, *order.VendorID, riderUUID.String(), input.Coordinates)
+			validRiderID, err := tracking.ValidateRiderService(tx, *order.VendorID, input.Coordinates)
 			if err != nil {
 				tx.Rollback()
 				return nil, fmt.Errorf("failed to assign rider from service: %w", err)
@@ -658,7 +652,7 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 
 			if riderErr == nil {
 				// It's a direct rider - validate the relationship
-				validRiderID, err := tracking.ValidateRiderVendorRelationship(tx, *order.VendorID, riderUUID.String(), input.Coordinates)
+				validRiderID, err := tracking.ValidateDirectRider(tx, *order.VendorID, input.Coordinates)
 				if err != nil {
 					tx.Rollback()
 					return nil, fmt.Errorf("failed to assign rider: %w", err)
@@ -683,17 +677,12 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 		lng := *input.Coordinates[0]
 		lat := *input.Coordinates[1]
 
-		// Fetch isochrone result for vendor-rider relationship
-		var result model.IsochroneResult
-		if err := tx.Where("vendor_id = ? AND rider_id = ?", *order.VendorID, *order.RiderID).First(&result).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				log.Printf("Warning: no isochrone relationship found between rider %s and vendor %s", *order.RiderID, *order.VendorID)
-			} else {
-				log.Printf("Warning: failed to check isochrone relationship: %v", err)
-			}
-		} else {
-			// Generate route data only if isochrone relationship exists
-			geoJSONStr, err := directions.GetRouteGeoJSON(lat, lng, result)
+		// Check if DropoffLocation is provided in the input
+		if input.DropoffLocation != nil && len(input.DropoffLocation) >= 2 {
+			dropoffLng := *input.DropoffLocation[0]
+			dropoffLat := *input.DropoffLocation[1]
+			//google uses lng,lat format, but the right format is lat,lng
+			geoJSONStr, err := directions.GetBookRouteGeoJSON(lng, lat, dropoffLng, dropoffLat)
 			if err == nil {
 				routeInfo := &model.RouteInfo{
 					OrderID: orderID.String(),
@@ -708,21 +697,25 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			} else {
 				log.Printf("Warning: failed to generate route GeoJSON: %v", err)
 			}
+		} else {
+			log.Printf("Warning: DropoffLocation not provided, cannot generate route")
 		}
 	}
 
-	// Get zone metadata if isochrone meta ID is provided
-	if input.IsochroneMetaID != nil && *input.IsochroneMetaID != "" {
-		ZoneMetaData, err := r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *input.IsochroneMetaID)
-		if err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to get zone metadata: %w", err)
+	// Get range metadata if provided (alternative pricing method)
+	if input.RangeMetaID != nil && *input.RangeMetaID != "" {
+		var riderRange model.RiderRange
+		if err := tx.Where("id = ?", *input.RangeMetaID).First(&riderRange).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Printf("Warning: range metadata not found for ID: %s", *input.RangeMetaID)
+			} else {
+				log.Printf("Warning: failed to get range metadata: %v", err)
+			}
+		} else {
+			feeStr := fmt.Sprintf("%.2f", riderRange.Price)
+			order.DeliveryFee = &feeStr
+			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
 		}
-
-		DeliveryFee := ZoneMetaData.Price
-		feeStr := fmt.Sprintf("%.2f", DeliveryFee)
-		order.DeliveryFee = &feeStr
-		log.Printf("Updated delivery fee: %s", feeStr)
 	}
 
 	// Save the updated order
@@ -787,6 +780,7 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			}
 		}
 	}(input.OrderID, r)
+
 	// Notify all involved parties except the caller
 	go func(order model.Order, resolver *mutationResolver, ctx context.Context) {
 		defer func() {

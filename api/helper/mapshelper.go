@@ -17,7 +17,7 @@ import (
 
 // Maximum time range for OpenRouteService API in seconds
 const MAX_ORS_TIME_SECONDS = 3600 // 1 hour
-
+//
 // GenerateRegularIsochrone handles isochrone generation within the API's time limits
 func GenerateRegularIsochrone(input model.IsochroneInput) (*model.IsochroneResult, error) {
 	// Prepare request payload
@@ -47,6 +47,7 @@ func GenerateRegularIsochrone(input model.IsochroneInput) (*model.IsochroneResul
 		"attributes":    []string{"total_pop"},
 		"location_type": "start",
 		"area_units":    "km",
+		
 	})
 
 	if err != nil {

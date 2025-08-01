@@ -156,3 +156,14 @@ type BusinessType struct {
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
+
+
+type CancelManager struct {
+	ID              uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	CancelPersonID  string    `json:"cancelPersonId"`
+	CancelPersonType string    `json:"cancelPersonType"` // e.g., "user", "rider", "vendor"
+	EntityID        *string   `json:"entityId,omitempty"`// e.g., "order", "appointment"
+	EntityType      *string   `json:"entityType,omitempty"` // e.g., "order", "appointment""
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}

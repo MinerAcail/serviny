@@ -48,6 +48,7 @@ type ResolverRoot interface {
 	BookingCargo() BookingCargoResolver
 	BookingOrderPaymentStatus() BookingOrderPaymentStatusResolver
 	BusinessType() BusinessTypeResolver
+	CancelManager() CancelManagerResolver
 	CartItem() CartItemResolver
 	Category() CategoryResolver
 	ChatMessage() ChatMessageResolver
@@ -61,6 +62,7 @@ type ResolverRoot interface {
 	InventoryItem() InventoryItemResolver
 	Invoice() InvoiceResolver
 	IsochroneResult() IsochroneResultResolver
+	IsochroneRiderRangeLink() IsochroneRiderRangeLinkResolver
 	Mutation() MutationResolver
 	Order() OrderResolver
 	Payment() PaymentResolver
@@ -238,6 +240,16 @@ type ComplexityRoot struct {
 		TotalEntries func(childComplexity int) int
 	}
 
+	CancelManager struct {
+		CancelPersonID   func(childComplexity int) int
+		CancelPersonType func(childComplexity int) int
+		CreatedAt        func(childComplexity int) int
+		EntityID         func(childComplexity int) int
+		EntityType       func(childComplexity int) int
+		ID               func(childComplexity int) int
+		UpdatedAt        func(childComplexity int) int
+	}
+
 	CartItem struct {
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
@@ -260,6 +272,7 @@ type ComplexityRoot struct {
 		PaymentMethod         func(childComplexity int) int
 		PaymentStatus         func(childComplexity int) int
 		ProductInfor          func(childComplexity int) int
+		RangeMetaData         func(childComplexity int) int
 		Rider                 func(childComplexity int) int
 		RouteData             func(childComplexity int) int
 		ServiceFee            func(childComplexity int) int
@@ -483,18 +496,29 @@ type ComplexityRoot struct {
 		MetaData      func(childComplexity int) int
 		Range         func(childComplexity int) int
 		RiderID       func(childComplexity int) int
+		RiderRangeIds func(childComplexity int) int
+		RiderRanges   func(childComplexity int) int
 		Status        func(childComplexity int) int
 		TransportMode func(childComplexity int) int
 		UpdatedAt     func(childComplexity int) int
 		VendorID      func(childComplexity int) int
 	}
 
+	IsochroneRiderRangeLink struct {
+		CreatedAt    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		IsochroneID  func(childComplexity int) int
+		RiderRangeID func(childComplexity int) int
+		UpdatedAt    func(childComplexity int) int
+	}
+
 	IsochroneZoneMetaData struct {
-		Distance func(childComplexity int) int
-		Duration func(childComplexity int) int
-		ID       func(childComplexity int) int
-		Price    func(childComplexity int) int
-		Zone     func(childComplexity int) int
+		Distance     func(childComplexity int) int
+		Duration     func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Price        func(childComplexity int) int
+		RiderRangeID func(childComplexity int) int
+		Zone         func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -524,6 +548,7 @@ type ComplexityRoot struct {
 		CreateForm                                   func(childComplexity int, input model.CreateFormInput) int
 		CreateGallery                                func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput) int
 		CreateInvoice                                func(childComplexity int, input *model.InvoiceInput) int
+		CreateIsochroneFromInput                     func(childComplexity int, riderID string, input model.NewRiderRangeInput, riderRangeID string) int
 		CreateMultipleBookings                       func(childComplexity int, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string, updateTemp *bool) int
 		CreateNotifications                          func(childComplexity int) int
 		CreateOrderItems                             func(childComplexity int, input []*model.OrderInput) int
@@ -544,6 +569,7 @@ type ComplexityRoot struct {
 		DeleteAllRequestItems                        func(childComplexity int) int
 		DeleteAllRouteData                           func(childComplexity int) int
 		DeleteBooking                                func(childComplexity int, id string) int
+		DeleteBookingOrOrder                         func(childComplexity int, entityID string, entityType string) int
 		DeleteBookingsByUserID                       func(childComplexity int) int
 		DeleteCategory                               func(childComplexity int, id string) int
 		DeleteCategoryBox                            func(childComplexity int, categoryID string) int
@@ -572,8 +598,9 @@ type ComplexityRoot struct {
 		GenerateBookRoute                            func(childComplexity int, input model.GenerateBookRouteInput) int
 		GenerateIsochrone                            func(childComplexity int, input model.IsochroneInput) int
 		GenerateRoute                                func(childComplexity int, input model.GenerateRouteInput) int
-		GenerateSubDomain                            func(childComplexity int, serviceID string) int
+		GenerateSubDomain                            func(childComplexity int, serviceID string, tryName *string) int
 		GetGrowthData                                func(childComplexity int, id string) int
+		InputRangeToGenerateIsochrone                func(childComplexity int, input *model.IsochroneInput) int
 		JobRequest                                   func(childComplexity int, serviceID string, input model.RidersRequestInput) int
 		LogOut                                       func(childComplexity int) int
 		ManageCacheIsochrone                         func(childComplexity int, input model.CacheManagementInput) int
@@ -585,6 +612,7 @@ type ComplexityRoot struct {
 		RemoveAmenity                                func(childComplexity int, priceCardID string, amenityID string) int
 		RemovePrice                                  func(childComplexity int, priceCardID string, id string) int
 		RemoveProductFromCategoryBox                 func(childComplexity int, categoryID string, productID string) int
+		RemoveUserManager                            func(childComplexity int, userID string) int
 		RequestForResetOtp                           func(childComplexity int, input model.ResetPassWordOtpInput) int
 		RequestItem                                  func(childComplexity int, input model.RequestInput) int
 		RequestOtp                                   func(childComplexity int, input model.RequestOtpInput) int
@@ -610,10 +638,12 @@ type ComplexityRoot struct {
 		UpdateBooker                                 func(childComplexity int, id string, input model.BookersInput) int
 		UpdateBookingOrderPaymentStatus              func(childComplexity int, id string, serviceID *string, userID *string, riderID *string, status string, entityID string, entityType string, statusType string) int
 		UpdateBookingType                            func(childComplexity int, typeArg model.BookingType) int
+		UpdateBookingTypeByAdmin                     func(childComplexity int, typeArg model.BookingType, serviceID string) int
 		UpdateBusinessType                           func(childComplexity int, businessType *string) int
 		UpdateCargoWithRider                         func(childComplexity int, riderID *string, cargoID *string) int
 		UpdateCategory                               func(childComplexity int, id string, input model.CategoryInput) int
 		UpdateEvent                                  func(childComplexity int, input model.UpdateEventInput, eventID string) int
+		UpdateExistingIsochroneData                  func(childComplexity int, riderID string, rangeID string) int
 		UpdateForm                                   func(childComplexity int, input model.UpdateFormInput) int
 		UpdateGallery                                func(childComplexity int, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) int
 		UpdateInventoryItem                          func(childComplexity int, id string, input model.InventoryItemInput, file graphql.Upload) int
@@ -640,11 +670,13 @@ type ComplexityRoot struct {
 		UpdateRiderRange                             func(childComplexity int, input model.UpdateRiderRangeInput) int
 		UpdateRiderStatus                            func(childComplexity int, id string, status string) int
 		UpdateService                                func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
+		UpdateServiceByAmin                          func(childComplexity int, serviceID string, input model.UpdateServiceByAminInput) int
 		UpdateStateByServiceProvider                 func(childComplexity int, riderID string, state *string) int
 		UpdateSubmissionStatus                       func(childComplexity int, id string, status model.SubmissionStatus) int
 		UpdateUser                                   func(childComplexity int, input *model.InputUpdateUser) int
 		UpdateWithLocation                           func(childComplexity int, input model.AddCoordinateInput) int
 		UseGetRiderTracking                          func(childComplexity int) int
+		UseRangeToGenerateIsochrone                  func(childComplexity int) int
 		UseTheme                                     func(childComplexity int, serviceID string, theme *string) int
 		UserBookings                                 func(childComplexity int, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) int
 		VendorUpload                                 func(childComplexity int, files []*graphql.Upload, input model.ProductInput) int
@@ -910,6 +942,7 @@ type ComplexityRoot struct {
 		GetAllChatMessageByNumber                     func(childComplexity int, customerNumber string) int
 		GetAllGallery                                 func(childComplexity int, serviceID string, query *string, limit *int32, offset *int32) int
 		GetAllIsochroneResults                        func(childComplexity int) int
+		GetAllIsochroneRiderRangeLinkResults          func(childComplexity int) int
 		GetAllIsochronesByRider                       func(childComplexity int, riderID string) int
 		GetAllIsochronesByService                     func(childComplexity int, serviceID string) int
 		GetAllIsochronesByVendor                      func(childComplexity int, vendorID string) int
@@ -1450,6 +1483,11 @@ type ComplexityRoot struct {
 		Request func(childComplexity int) int
 		Rider   func(childComplexity int) int
 	}
+
+	StateMessage struct {
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
+	}
 }
 
 type AdminResolver interface {
@@ -1475,6 +1513,9 @@ type BookingOrderPaymentStatusResolver interface {
 }
 type BusinessTypeResolver interface {
 	ID(ctx context.Context, obj *model.BusinessType) (string, error)
+}
+type CancelManagerResolver interface {
+	ID(ctx context.Context, obj *model.CancelManager) (string, error)
 }
 type CartItemResolver interface {
 	ID(ctx context.Context, obj *model.CartItem) (string, error)
@@ -1525,6 +1566,12 @@ type IsochroneResultResolver interface {
 	MetaData(ctx context.Context, obj *model.IsochroneResult) ([]*model.IsochroneZoneMetaData, error)
 	Locations(ctx context.Context, obj *model.IsochroneResult) ([][]float64, error)
 	Range(ctx context.Context, obj *model.IsochroneResult) ([]int32, error)
+
+	RiderRangeIds(ctx context.Context, obj *model.IsochroneResult) ([]string, error)
+	RiderRanges(ctx context.Context, obj *model.IsochroneResult) ([]*model.RiderRange, error)
+}
+type IsochroneRiderRangeLinkResolver interface {
+	ID(ctx context.Context, obj *model.IsochroneRiderRangeLink) (string, error)
 }
 type MutationResolver interface {
 	CreatePolicy(ctx context.Context, input model.CreatePolicyInput) (*model.Policy, error)
@@ -1569,6 +1616,10 @@ type MutationResolver interface {
 	BulkDeleteSubmissions(ctx context.Context, ids []string) (int32, error)
 	ExportFormSubmissions(ctx context.Context, formID string, format *string) (string, error)
 	GenerateIsochrone(ctx context.Context, input model.IsochroneInput) (*model.IsochroneResult, error)
+	UseRangeToGenerateIsochrone(ctx context.Context) (*model.IsochroneResult, error)
+	InputRangeToGenerateIsochrone(ctx context.Context, input *model.IsochroneInput) (*model.IsochroneResult, error)
+	CreateIsochroneFromInput(ctx context.Context, riderID string, input model.NewRiderRangeInput, riderRangeID string) (*model.IsochroneResult, error)
+	UpdateExistingIsochroneData(ctx context.Context, riderID string, rangeID string) (*model.RiderRange, error)
 	GenerateRoute(ctx context.Context, input model.GenerateRouteInput) (*model.RouteInfo, error)
 	UpdateOrderRoute(ctx context.Context, orderID string, status string) (bool, error)
 	GenerateBookRoute(ctx context.Context, input model.GenerateBookRouteInput) (*model.RouteInfo, error)
@@ -1642,7 +1693,7 @@ type MutationResolver interface {
 	UpdateStateByServiceProvider(ctx context.Context, riderID string, state *string) (*model.RiderRequestInfor, error)
 	DeleteTable(ctx context.Context) (bool, error)
 	ServiceLogin(ctx context.Context, input model.LoginInput, entityID *string) (model.Returns, error)
-	UpdateNumber(ctx context.Context, number string, password *string) (*model.Rider, error)
+	UpdateNumber(ctx context.Context, number string, password *string) (model.Returns, error)
 	AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error)
 	DeliveryLogin(ctx context.Context, input *model.LoginInput) (model.Returns, error)
 	LogOut(ctx context.Context) (bool, error)
@@ -1655,10 +1706,13 @@ type MutationResolver interface {
 	CreateService(ctx context.Context, dpfile *graphql.Upload, input model.CreateServiceInput) (*model.Service, error)
 	UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error)
 	UpdateBusinessType(ctx context.Context, businessType *string) (*model.BusinessType, error)
-	GenerateSubDomain(ctx context.Context, serviceID string) (*model.Service, error)
+	GenerateSubDomain(ctx context.Context, serviceID string, tryName *string) (*model.Service, error)
 	UseTheme(ctx context.Context, serviceID string, theme *string) (*string, error)
+	UpdateServiceByAmin(ctx context.Context, serviceID string, input model.UpdateServiceByAminInput) (*model.Service, error)
 	DeleteService(ctx context.Context, id string) (*bool, error)
+	DeleteBookingOrOrder(ctx context.Context, entityID string, entityType string) (*model.StateMessage, error)
 	UpdateBookingType(ctx context.Context, typeArg model.BookingType) (*model.BookingType, error)
+	UpdateBookingTypeByAdmin(ctx context.Context, typeArg model.BookingType, serviceID string) (*model.BookingType, error)
 	CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput) (*model.GalleryProfession, error)
 	UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) (*model.GalleryProfession, error)
 	DeleteGallery(ctx context.Context, id string) (*bool, error)
@@ -1678,6 +1732,7 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.InputUser, isService *bool) (*model.User, error)
 	DeleteUserByID(ctx context.Context, id string) (*bool, error)
 	UpdateUser(ctx context.Context, input *model.InputUpdateUser) (*model.User, error)
+	RemoveUserManager(ctx context.Context, userID string) (*bool, error)
 }
 type OrderResolver interface {
 	ID(ctx context.Context, obj *model.Order) (string, error)
@@ -1766,6 +1821,7 @@ type QueryResolver interface {
 	FormAnalytics(ctx context.Context, formID string) (*model.FormAnalytics, error)
 	GetIsochroneResult(ctx context.Context, location []float64, uuid string) (*model.IsochroneResult, error)
 	GetAllIsochroneResults(ctx context.Context) ([]*model.IsochroneResult, error)
+	GetAllIsochroneRiderRangeLinkResults(ctx context.Context) ([]*model.IsochroneRiderRangeLink, error)
 	GetIsochroneByID(ctx context.Context, id string) (*model.IsochroneResult, error)
 	GetRiderProfile(ctx context.Context, riderID string) (*model.RiderProfile, error)
 	GetASingleIsochroneZoneMetaDataByMetaID(ctx context.Context, isochroneMetaID string) (*model.ZoneMetaData, error)
@@ -2740,6 +2796,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.CacheStats.TotalEntries(childComplexity), true
 
+	case "CancelManager.cancelPersonId":
+		if e.complexity.CancelManager.CancelPersonID == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.CancelPersonID(childComplexity), true
+
+	case "CancelManager.cancelPersonType":
+		if e.complexity.CancelManager.CancelPersonType == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.CancelPersonType(childComplexity), true
+
+	case "CancelManager.createdAt":
+		if e.complexity.CancelManager.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.CreatedAt(childComplexity), true
+
+	case "CancelManager.entityId":
+		if e.complexity.CancelManager.EntityID == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.EntityID(childComplexity), true
+
+	case "CancelManager.entityType":
+		if e.complexity.CancelManager.EntityType == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.EntityType(childComplexity), true
+
+	case "CancelManager.id":
+		if e.complexity.CancelManager.ID == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.ID(childComplexity), true
+
+	case "CancelManager.updatedAt":
+		if e.complexity.CancelManager.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.CancelManager.UpdatedAt(childComplexity), true
+
 	case "CartItem.createdAt":
 		if e.complexity.CartItem.CreatedAt == nil {
 			break
@@ -2865,6 +2970,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.CartItemOrder.ProductInfor(childComplexity), true
+
+	case "CartItemOrder.rangeMetaData":
+		if e.complexity.CartItemOrder.RangeMetaData == nil {
+			break
+		}
+
+		return e.complexity.CartItemOrder.RangeMetaData(childComplexity), true
 
 	case "CartItemOrder.rider":
 		if e.complexity.CartItemOrder.Rider == nil {
@@ -4007,6 +4119,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.IsochroneResult.RiderID(childComplexity), true
 
+	case "IsochroneResult.riderRangeIds":
+		if e.complexity.IsochroneResult.RiderRangeIds == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.RiderRangeIds(childComplexity), true
+
+	case "IsochroneResult.riderRanges":
+		if e.complexity.IsochroneResult.RiderRanges == nil {
+			break
+		}
+
+		return e.complexity.IsochroneResult.RiderRanges(childComplexity), true
+
 	case "IsochroneResult.status":
 		if e.complexity.IsochroneResult.Status == nil {
 			break
@@ -4035,6 +4161,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.IsochroneResult.VendorID(childComplexity), true
 
+	case "IsochroneRiderRangeLink.createdAt":
+		if e.complexity.IsochroneRiderRangeLink.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.IsochroneRiderRangeLink.CreatedAt(childComplexity), true
+
+	case "IsochroneRiderRangeLink.id":
+		if e.complexity.IsochroneRiderRangeLink.ID == nil {
+			break
+		}
+
+		return e.complexity.IsochroneRiderRangeLink.ID(childComplexity), true
+
+	case "IsochroneRiderRangeLink.isochroneId":
+		if e.complexity.IsochroneRiderRangeLink.IsochroneID == nil {
+			break
+		}
+
+		return e.complexity.IsochroneRiderRangeLink.IsochroneID(childComplexity), true
+
+	case "IsochroneRiderRangeLink.riderRangeId":
+		if e.complexity.IsochroneRiderRangeLink.RiderRangeID == nil {
+			break
+		}
+
+		return e.complexity.IsochroneRiderRangeLink.RiderRangeID(childComplexity), true
+
+	case "IsochroneRiderRangeLink.updatedAt":
+		if e.complexity.IsochroneRiderRangeLink.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.IsochroneRiderRangeLink.UpdatedAt(childComplexity), true
+
 	case "IsochroneZoneMetaData.distance":
 		if e.complexity.IsochroneZoneMetaData.Distance == nil {
 			break
@@ -4062,6 +4223,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.IsochroneZoneMetaData.Price(childComplexity), true
+
+	case "IsochroneZoneMetaData.riderRangeId":
+		if e.complexity.IsochroneZoneMetaData.RiderRangeID == nil {
+			break
+		}
+
+		return e.complexity.IsochroneZoneMetaData.RiderRangeID(childComplexity), true
 
 	case "IsochroneZoneMetaData.zone":
 		if e.complexity.IsochroneZoneMetaData.Zone == nil {
@@ -4377,6 +4545,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateInvoice(childComplexity, args["input"].(*model.InvoiceInput)), true
 
+	case "Mutation.createIsochroneFromInput":
+		if e.complexity.Mutation.CreateIsochroneFromInput == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createIsochroneFromInput_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateIsochroneFromInput(childComplexity, args["riderId"].(string), args["input"].(model.NewRiderRangeInput), args["riderRangeID"].(string)), true
+
 	case "Mutation.createMultipleBookings":
 		if e.complexity.Mutation.CreateMultipleBookings == nil {
 			break
@@ -4596,6 +4776,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteBooking(childComplexity, args["id"].(string)), true
+
+	case "Mutation.deleteBookingOrOrder":
+		if e.complexity.Mutation.DeleteBookingOrOrder == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteBookingOrOrder_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteBookingOrOrder(childComplexity, args["entityId"].(string), args["entityType"].(string)), true
 
 	case "Mutation.deleteBookingsByUserID":
 		if e.complexity.Mutation.DeleteBookingsByUserID == nil {
@@ -4933,7 +5125,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.GenerateSubDomain(childComplexity, args["serviceId"].(string)), true
+		return e.complexity.Mutation.GenerateSubDomain(childComplexity, args["serviceId"].(string), args["tryName"].(*string)), true
 
 	case "Mutation.getGrowthData":
 		if e.complexity.Mutation.GetGrowthData == nil {
@@ -4946,6 +5138,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.GetGrowthData(childComplexity, args["id"].(string)), true
+
+	case "Mutation.inputRangeToGenerateIsochrone":
+		if e.complexity.Mutation.InputRangeToGenerateIsochrone == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_inputRangeToGenerateIsochrone_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InputRangeToGenerateIsochrone(childComplexity, args["input"].(*model.IsochroneInput)), true
 
 	case "Mutation.jobRequest":
 		if e.complexity.Mutation.JobRequest == nil {
@@ -5073,6 +5277,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.RemoveProductFromCategoryBox(childComplexity, args["categoryId"].(string), args["productId"].(string)), true
+
+	case "Mutation.removeUserManager":
+		if e.complexity.Mutation.RemoveUserManager == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeUserManager_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveUserManager(childComplexity, args["userId"].(string)), true
 
 	case "Mutation.requestForResetOtp":
 		if e.complexity.Mutation.RequestForResetOtp == nil {
@@ -5354,6 +5570,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateBookingType(childComplexity, args["type"].(model.BookingType)), true
 
+	case "Mutation.updateBookingTypeByAdmin":
+		if e.complexity.Mutation.UpdateBookingTypeByAdmin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateBookingTypeByAdmin_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateBookingTypeByAdmin(childComplexity, args["type"].(model.BookingType), args["serviceId"].(string)), true
+
 	case "Mutation.updateBusinessType":
 		if e.complexity.Mutation.UpdateBusinessType == nil {
 			break
@@ -5401,6 +5629,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateEvent(childComplexity, args["input"].(model.UpdateEventInput), args["eventId"].(string)), true
+
+	case "Mutation.updateExistingIsochroneData":
+		if e.complexity.Mutation.UpdateExistingIsochroneData == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateExistingIsochroneData_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateExistingIsochroneData(childComplexity, args["riderId"].(string), args["rangeId"].(string)), true
 
 	case "Mutation.updateForm":
 		if e.complexity.Mutation.UpdateForm == nil {
@@ -5714,6 +5954,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateService(childComplexity, args["dpfile"].(*graphql.Upload), args["input"].(model.UpdateServiceInput), args["removeProfession"].([]*string)), true
 
+	case "Mutation.updateServiceByAmin":
+		if e.complexity.Mutation.UpdateServiceByAmin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateServiceByAmin_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateServiceByAmin(childComplexity, args["serviceId"].(string), args["input"].(model.UpdateServiceByAminInput)), true
+
 	case "Mutation.updateStateByServiceProvider":
 		if e.complexity.Mutation.UpdateStateByServiceProvider == nil {
 			break
@@ -5768,6 +6020,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UseGetRiderTracking(childComplexity), true
+
+	case "Mutation.useRangeToGenerateIsochrone":
+		if e.complexity.Mutation.UseRangeToGenerateIsochrone == nil {
+			break
+		}
+
+		return e.complexity.Mutation.UseRangeToGenerateIsochrone(childComplexity), true
 
 	case "Mutation.useTheme":
 		if e.complexity.Mutation.UseTheme == nil {
@@ -7263,6 +7522,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetAllIsochroneResults(childComplexity), true
+
+	case "Query.getAllIsochroneRiderRangeLinkResults":
+		if e.complexity.Query.GetAllIsochroneRiderRangeLinkResults == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllIsochroneRiderRangeLinkResults(childComplexity), true
 
 	case "Query.getAllIsochronesByRider":
 		if e.complexity.Query.GetAllIsochronesByRider == nil {
@@ -10670,6 +10936,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.RiderRequestInfor.Rider(childComplexity), true
 
+	case "stateMessage.message":
+		if e.complexity.StateMessage.Message == nil {
+			break
+		}
+
+		return e.complexity.StateMessage.Message(childComplexity), true
+
+	case "stateMessage.success":
+		if e.complexity.StateMessage.Success == nil {
+			break
+		}
+
+		return e.complexity.StateMessage.Success(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -10744,6 +11024,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputinputUser,
 		ec.unmarshalInputrentalInput,
 		ec.unmarshalInputsmsInput,
+		ec.unmarshalInputupdateServiceByAminInput,
 		ec.unmarshalInputworksInput,
 	)
 	first := true
@@ -11802,6 +12083,65 @@ func (ec *executionContext) field_Mutation_createInvoice_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_createIsochroneFromInput_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createIsochroneFromInput_argsRiderID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["riderId"] = arg0
+	arg1, err := ec.field_Mutation_createIsochroneFromInput_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	arg2, err := ec.field_Mutation_createIsochroneFromInput_argsRiderRangeID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["riderRangeID"] = arg2
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createIsochroneFromInput_argsRiderID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("riderId"))
+	if tmp, ok := rawArgs["riderId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createIsochroneFromInput_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.NewRiderRangeInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNNewRiderRangeInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐNewRiderRangeInput(ctx, tmp)
+	}
+
+	var zeroVal model.NewRiderRangeInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createIsochroneFromInput_argsRiderRangeID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("riderRangeID"))
+	if tmp, ok := rawArgs["riderRangeID"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_createMultipleBookings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -12270,6 +12610,47 @@ func (ec *executionContext) field_Mutation_deleteAllOrderItems_argsOrderID(
 	}
 
 	var zeroVal []string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteBookingOrOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteBookingOrOrder_argsEntityID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["entityId"] = arg0
+	arg1, err := ec.field_Mutation_deleteBookingOrOrder_argsEntityType(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["entityType"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteBookingOrOrder_argsEntityID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
+	if tmp, ok := rawArgs["entityId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteBookingOrOrder_argsEntityType(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("entityType"))
+	if tmp, ok := rawArgs["entityType"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -12938,6 +13319,11 @@ func (ec *executionContext) field_Mutation_generateSubDomain_args(ctx context.Co
 		return nil, err
 	}
 	args["serviceId"] = arg0
+	arg1, err := ec.field_Mutation_generateSubDomain_argsTryName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["tryName"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_generateSubDomain_argsServiceID(
@@ -12950,6 +13336,19 @@ func (ec *executionContext) field_Mutation_generateSubDomain_argsServiceID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_generateSubDomain_argsTryName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("tryName"))
+	if tmp, ok := rawArgs["tryName"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -12973,6 +13372,29 @@ func (ec *executionContext) field_Mutation_getGrowthData_argsID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_inputRangeToGenerateIsochrone_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_inputRangeToGenerateIsochrone_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_inputRangeToGenerateIsochrone_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.IsochroneInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalOIsochroneInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneInput(ctx, tmp)
+	}
+
+	var zeroVal *model.IsochroneInput
 	return zeroVal, nil
 }
 
@@ -13379,6 +13801,29 @@ func (ec *executionContext) field_Mutation_removeProductFromCategoryBox_argsProd
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("productId"))
 	if tmp, ok := rawArgs["productId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_removeUserManager_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_removeUserManager_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_removeUserManager_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -14170,6 +14615,47 @@ func (ec *executionContext) field_Mutation_updateBookingOrderPaymentStatus_argsS
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_updateBookingTypeByAdmin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateBookingTypeByAdmin_argsType(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg0
+	arg1, err := ec.field_Mutation_updateBookingTypeByAdmin_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateBookingTypeByAdmin_argsType(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.BookingType, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+	if tmp, ok := rawArgs["type"]; ok {
+		return ec.unmarshalNBookingType2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingType(ctx, tmp)
+	}
+
+	var zeroVal model.BookingType
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateBookingTypeByAdmin_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
+	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_updateBookingType_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -14332,6 +14818,47 @@ func (ec *executionContext) field_Mutation_updateEvent_argsEventID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("eventId"))
 	if tmp, ok := rawArgs["eventId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateExistingIsochroneData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateExistingIsochroneData_argsRiderID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["riderId"] = arg0
+	arg1, err := ec.field_Mutation_updateExistingIsochroneData_argsRangeID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["rangeId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateExistingIsochroneData_argsRiderID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("riderId"))
+	if tmp, ok := rawArgs["riderId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateExistingIsochroneData_argsRangeID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("rangeId"))
+	if tmp, ok := rawArgs["rangeId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -15379,6 +15906,47 @@ func (ec *executionContext) field_Mutation_updateRider_argsInput(
 	}
 
 	var zeroVal model.RiderUpateInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateServiceByAmin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateServiceByAmin_argsServiceID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serviceId"] = arg0
+	arg1, err := ec.field_Mutation_updateServiceByAmin_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateServiceByAmin_argsServiceID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
+	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateServiceByAmin_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateServiceByAminInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNupdateServiceByAminInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUpdateServiceByAminInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateServiceByAminInput
 	return zeroVal, nil
 }
 
@@ -24358,6 +24926,308 @@ func (ec *executionContext) fieldContext_CacheStats_entries(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _CancelManager_id(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CancelManager().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_cancelPersonId(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_cancelPersonId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CancelPersonID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_cancelPersonId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_cancelPersonType(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_cancelPersonType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CancelPersonType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_cancelPersonType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_entityId(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_entityId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EntityID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_entityId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_entityType(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_entityType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EntityType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_entityType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CancelManager_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.CancelManager) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CancelManager_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CancelManager_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CancelManager",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CartItem_id(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CartItem_id(ctx, field)
 	if err != nil {
@@ -25374,6 +26244,63 @@ func (ec *executionContext) fieldContext_CartItemOrder_deliveryMetaData(_ contex
 				return ec.fieldContext_ZoneMetaData_isochroneId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ZoneMetaData", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CartItemOrder_rangeMetaData(ctx context.Context, field graphql.CollectedField, obj *model.CartItemOrder) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RangeMetaData, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.RiderRange)
+	fc.Result = res
+	return ec.marshalORiderRange2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRiderRange(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CartItemOrder_rangeMetaData(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CartItemOrder",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RiderRange_id(ctx, field)
+			case "riderId":
+				return ec.fieldContext_RiderRange_riderId(ctx, field)
+			case "startKm":
+				return ec.fieldContext_RiderRange_startKm(ctx, field)
+			case "endKm":
+				return ec.fieldContext_RiderRange_endKm(ctx, field)
+			case "price":
+				return ec.fieldContext_RiderRange_price(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_RiderRange_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_RiderRange_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RiderRange", field.Name)
 		},
 	}
 	return fc, nil
@@ -32088,6 +33015,8 @@ func (ec *executionContext) fieldContext_IsochroneResult_metaData(_ context.Cont
 				return ec.fieldContext_IsochroneZoneMetaData_distance(ctx, field)
 			case "zone":
 				return ec.fieldContext_IsochroneZoneMetaData_zone(ctx, field)
+			case "riderRangeId":
+				return ec.fieldContext_IsochroneZoneMetaData_riderRangeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneZoneMetaData", field.Name)
 		},
@@ -32552,6 +33481,327 @@ func (ec *executionContext) fieldContext_IsochroneResult_errorCode(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _IsochroneResult_riderRangeIds(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.IsochroneResult().RiderRangeIds(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_riderRangeIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneResult_riderRanges(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.IsochroneResult().RiderRanges(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.RiderRange)
+	fc.Result = res
+	return ec.marshalNRiderRange2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRiderRangeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneResult_riderRanges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneResult",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RiderRange_id(ctx, field)
+			case "riderId":
+				return ec.fieldContext_RiderRange_riderId(ctx, field)
+			case "startKm":
+				return ec.fieldContext_RiderRange_startKm(ctx, field)
+			case "endKm":
+				return ec.fieldContext_RiderRange_endKm(ctx, field)
+			case "price":
+				return ec.fieldContext_RiderRange_price(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_RiderRange_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_RiderRange_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RiderRange", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneRiderRangeLink_id(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneRiderRangeLink) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneRiderRangeLink_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.IsochroneRiderRangeLink().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneRiderRangeLink_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneRiderRangeLink",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneRiderRangeLink_isochroneId(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneRiderRangeLink) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneRiderRangeLink_isochroneId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsochroneID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneRiderRangeLink_isochroneId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneRiderRangeLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneRiderRangeLink_riderRangeId(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneRiderRangeLink) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneRiderRangeLink_riderRangeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RiderRangeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneRiderRangeLink_riderRangeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneRiderRangeLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneRiderRangeLink_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneRiderRangeLink) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneRiderRangeLink_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneRiderRangeLink_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneRiderRangeLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneRiderRangeLink_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneRiderRangeLink) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneRiderRangeLink_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneRiderRangeLink_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneRiderRangeLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _IsochroneZoneMetaData_id(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneZoneMetaData) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_IsochroneZoneMetaData_id(ctx, field)
 	if err != nil {
@@ -32767,6 +34017,47 @@ func (ec *executionContext) fieldContext_IsochroneZoneMetaData_zone(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IsochroneZoneMetaData_riderRangeId(ctx context.Context, field graphql.CollectedField, obj *model.IsochroneZoneMetaData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_IsochroneZoneMetaData_riderRangeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RiderRangeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_IsochroneZoneMetaData_riderRangeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IsochroneZoneMetaData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -35572,6 +36863,10 @@ func (ec *executionContext) fieldContext_Mutation_generateIsochrone(ctx context.
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -35584,6 +36879,333 @@ func (ec *executionContext) fieldContext_Mutation_generateIsochrone(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_generateIsochrone_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_useRangeToGenerateIsochrone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_useRangeToGenerateIsochrone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UseRangeToGenerateIsochrone(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_useRangeToGenerateIsochrone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_IsochroneResult_id(ctx, field)
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "metaData":
+				return ec.fieldContext_IsochroneResult_metaData(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_IsochroneResult_vendorId(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_IsochroneResult_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_IsochroneResult_updatedAt(ctx, field)
+			case "status":
+				return ec.fieldContext_IsochroneResult_status(ctx, field)
+			case "riderId":
+				return ec.fieldContext_IsochroneResult_riderId(ctx, field)
+			case "error":
+				return ec.fieldContext_IsochroneResult_error(ctx, field)
+			case "errorCode":
+				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_inputRangeToGenerateIsochrone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_inputRangeToGenerateIsochrone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InputRangeToGenerateIsochrone(rctx, fc.Args["input"].(*model.IsochroneInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_inputRangeToGenerateIsochrone(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_IsochroneResult_id(ctx, field)
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "metaData":
+				return ec.fieldContext_IsochroneResult_metaData(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_IsochroneResult_vendorId(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_IsochroneResult_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_IsochroneResult_updatedAt(ctx, field)
+			case "status":
+				return ec.fieldContext_IsochroneResult_status(ctx, field)
+			case "riderId":
+				return ec.fieldContext_IsochroneResult_riderId(ctx, field)
+			case "error":
+				return ec.fieldContext_IsochroneResult_error(ctx, field)
+			case "errorCode":
+				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_inputRangeToGenerateIsochrone_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createIsochroneFromInput(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createIsochroneFromInput(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateIsochroneFromInput(rctx, fc.Args["riderId"].(string), fc.Args["input"].(model.NewRiderRangeInput), fc.Args["riderRangeID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.IsochroneResult)
+	fc.Result = res
+	return ec.marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createIsochroneFromInput(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_IsochroneResult_id(ctx, field)
+			case "geojson":
+				return ec.fieldContext_IsochroneResult_geojson(ctx, field)
+			case "metaData":
+				return ec.fieldContext_IsochroneResult_metaData(ctx, field)
+			case "locations":
+				return ec.fieldContext_IsochroneResult_locations(ctx, field)
+			case "range":
+				return ec.fieldContext_IsochroneResult_range(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_IsochroneResult_vendorId(ctx, field)
+			case "transportMode":
+				return ec.fieldContext_IsochroneResult_transportMode(ctx, field)
+			case "address":
+				return ec.fieldContext_IsochroneResult_address(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_IsochroneResult_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_IsochroneResult_updatedAt(ctx, field)
+			case "status":
+				return ec.fieldContext_IsochroneResult_status(ctx, field)
+			case "riderId":
+				return ec.fieldContext_IsochroneResult_riderId(ctx, field)
+			case "error":
+				return ec.fieldContext_IsochroneResult_error(ctx, field)
+			case "errorCode":
+				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createIsochroneFromInput_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateExistingIsochroneData(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateExistingIsochroneData(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateExistingIsochroneData(rctx, fc.Args["riderId"].(string), fc.Args["rangeId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.RiderRange)
+	fc.Result = res
+	return ec.marshalNRiderRange2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRiderRange(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateExistingIsochroneData(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RiderRange_id(ctx, field)
+			case "riderId":
+				return ec.fieldContext_RiderRange_riderId(ctx, field)
+			case "startKm":
+				return ec.fieldContext_RiderRange_startKm(ctx, field)
+			case "endKm":
+				return ec.fieldContext_RiderRange_endKm(ctx, field)
+			case "price":
+				return ec.fieldContext_RiderRange_price(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_RiderRange_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_RiderRange_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RiderRange", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateExistingIsochroneData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -40539,9 +42161,9 @@ func (ec *executionContext) _Mutation_updateNumber(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Rider)
+	res := resTmp.(model.Returns)
 	fc.Result = res
-	return ec.marshalORider2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐRider(ctx, field.Selections, res)
+	return ec.marshalOReturns2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐReturns(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateNumber(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -40551,45 +42173,7 @@ func (ec *executionContext) fieldContext_Mutation_updateNumber(ctx context.Conte
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Rider_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Rider_name(ctx, field)
-			case "email":
-				return ec.fieldContext_Rider_email(ctx, field)
-			case "type":
-				return ec.fieldContext_Rider_type(ctx, field)
-			case "number":
-				return ec.fieldContext_Rider_number(ctx, field)
-			case "state":
-				return ec.fieldContext_Rider_state(ctx, field)
-			case "password":
-				return ec.fieldContext_Rider_password(ctx, field)
-			case "availability":
-				return ec.fieldContext_Rider_availability(ctx, field)
-			case "dpfile":
-				return ec.fieldContext_Rider_dpfile(ctx, field)
-			case "idCard":
-				return ec.fieldContext_Rider_idCard(ctx, field)
-			case "location":
-				return ec.fieldContext_Rider_location(ctx, field)
-			case "IsochroneID":
-				return ec.fieldContext_Rider_IsochroneID(ctx, field)
-			case "coordinates":
-				return ec.fieldContext_Rider_coordinates(ctx, field)
-			case "isTracking":
-				return ec.fieldContext_Rider_isTracking(ctx, field)
-			case "h3Indexes":
-				return ec.fieldContext_Rider_h3Indexes(ctx, field)
-			case "experience":
-				return ec.fieldContext_Rider_experience(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Rider_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_Rider_updatedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Rider", field.Name)
+			return nil, errors.New("field of type Returns does not have child fields")
 		},
 	}
 	defer func() {
@@ -41446,7 +43030,7 @@ func (ec *executionContext) _Mutation_generateSubDomain(ctx context.Context, fie
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().GenerateSubDomain(rctx, fc.Args["serviceId"].(string))
+		return ec.resolvers.Mutation().GenerateSubDomain(rctx, fc.Args["serviceId"].(string), fc.Args["tryName"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -41586,6 +43170,108 @@ func (ec *executionContext) fieldContext_Mutation_useTheme(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateServiceByAmin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateServiceByAmin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateServiceByAmin(rctx, fc.Args["serviceId"].(string), fc.Args["input"].(model.UpdateServiceByAminInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalOService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateServiceByAmin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateServiceByAmin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deleteService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_deleteService(ctx, field)
 	if err != nil {
@@ -41638,6 +43324,64 @@ func (ec *executionContext) fieldContext_Mutation_deleteService(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_deleteBookingOrOrder(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteBookingOrOrder(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteBookingOrOrder(rctx, fc.Args["entityId"].(string), fc.Args["entityType"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.StateMessage)
+	fc.Result = res
+	return ec.marshalOstateMessage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐStateMessage(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteBookingOrOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "message":
+				return ec.fieldContext_stateMessage_message(ctx, field)
+			case "success":
+				return ec.fieldContext_stateMessage_success(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type stateMessage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteBookingOrOrder_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateBookingType(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_updateBookingType(ctx, field)
 	if err != nil {
@@ -41684,6 +43428,58 @@ func (ec *executionContext) fieldContext_Mutation_updateBookingType(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateBookingType_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateBookingTypeByAdmin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateBookingTypeByAdmin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateBookingTypeByAdmin(rctx, fc.Args["type"].(model.BookingType), fc.Args["serviceId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.BookingType)
+	fc.Result = res
+	return ec.marshalOBookingType2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐBookingType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateBookingTypeByAdmin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type BookingType does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateBookingTypeByAdmin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -43095,6 +44891,58 @@ func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_removeUserManager(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_removeUserManager(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveUserManager(rctx, fc.Args["userId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_removeUserManager(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_removeUserManager_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -52461,6 +54309,10 @@ func (ec *executionContext) fieldContext_Query_getIsochroneResult(ctx context.Co
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -52543,8 +54395,65 @@ func (ec *executionContext) fieldContext_Query_getAllIsochroneResults(_ context.
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllIsochroneRiderRangeLinkResults(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllIsochroneRiderRangeLinkResults(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllIsochroneRiderRangeLinkResults(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.IsochroneRiderRangeLink)
+	fc.Result = res
+	return ec.marshalOIsochroneRiderRangeLink2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneRiderRangeLinkᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllIsochroneRiderRangeLinkResults(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_IsochroneRiderRangeLink_id(ctx, field)
+			case "isochroneId":
+				return ec.fieldContext_IsochroneRiderRangeLink_isochroneId(ctx, field)
+			case "riderRangeId":
+				return ec.fieldContext_IsochroneRiderRangeLink_riderRangeId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_IsochroneRiderRangeLink_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_IsochroneRiderRangeLink_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IsochroneRiderRangeLink", field.Name)
 		},
 	}
 	return fc, nil
@@ -52614,6 +54523,10 @@ func (ec *executionContext) fieldContext_Query_getIsochroneById(ctx context.Cont
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -52843,6 +54756,10 @@ func (ec *executionContext) fieldContext_Query_getIsochronesByRider(ctx context.
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -52925,6 +54842,10 @@ func (ec *executionContext) fieldContext_Query_getAllIsochronesByRider(ctx conte
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -53066,6 +54987,10 @@ func (ec *executionContext) fieldContext_Query_getAllIsochronesByService(ctx con
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -53596,6 +55521,10 @@ func (ec *executionContext) fieldContext_Query_getIsochronesByService(ctx contex
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -53789,6 +55718,10 @@ func (ec *executionContext) fieldContext_Query_getClosestIsochroneForLocation(ct
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -55701,6 +57634,8 @@ func (ec *executionContext) fieldContext_Query_getAllOrderItemsByProductId(ctx c
 				return ec.fieldContext_CartItemOrder_estimatedDeliveryDate(ctx, field)
 			case "deliveryMetaData":
 				return ec.fieldContext_CartItemOrder_deliveryMetaData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
 			case "routeData":
 				return ec.fieldContext_CartItemOrder_routeData(ctx, field)
 			case "serviceFee":
@@ -55785,6 +57720,8 @@ func (ec *executionContext) fieldContext_Query_getAllOrderItemsByProductIdDelive
 				return ec.fieldContext_CartItemOrder_estimatedDeliveryDate(ctx, field)
 			case "deliveryMetaData":
 				return ec.fieldContext_CartItemOrder_deliveryMetaData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
 			case "routeData":
 				return ec.fieldContext_CartItemOrder_routeData(ctx, field)
 			case "serviceFee":
@@ -55858,6 +57795,8 @@ func (ec *executionContext) fieldContext_Query_getAllRidersOrderItemsByService(_
 				return ec.fieldContext_CartItemOrder_estimatedDeliveryDate(ctx, field)
 			case "deliveryMetaData":
 				return ec.fieldContext_CartItemOrder_deliveryMetaData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
 			case "routeData":
 				return ec.fieldContext_CartItemOrder_routeData(ctx, field)
 			case "serviceFee":
@@ -55931,6 +57870,8 @@ func (ec *executionContext) fieldContext_Query_useGetordertracking(ctx context.C
 				return ec.fieldContext_CartItemOrder_estimatedDeliveryDate(ctx, field)
 			case "deliveryMetaData":
 				return ec.fieldContext_CartItemOrder_deliveryMetaData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
 			case "routeData":
 				return ec.fieldContext_CartItemOrder_routeData(ctx, field)
 			case "serviceFee":
@@ -65864,6 +67805,10 @@ func (ec *executionContext) fieldContext_RiderWithMapData_mapData(_ context.Cont
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -69025,6 +70970,8 @@ func (ec *executionContext) fieldContext_ServiceData_orderData(_ context.Context
 				return ec.fieldContext_CartItemOrder_estimatedDeliveryDate(ctx, field)
 			case "deliveryMetaData":
 				return ec.fieldContext_CartItemOrder_deliveryMetaData(ctx, field)
+			case "rangeMetaData":
+				return ec.fieldContext_CartItemOrder_rangeMetaData(ctx, field)
 			case "routeData":
 				return ec.fieldContext_CartItemOrder_routeData(ctx, field)
 			case "serviceFee":
@@ -73727,6 +75674,10 @@ func (ec *executionContext) fieldContext_VendorsMapData_mapData(_ context.Contex
 				return ec.fieldContext_IsochroneResult_error(ctx, field)
 			case "errorCode":
 				return ec.fieldContext_IsochroneResult_errorCode(ctx, field)
+			case "riderRangeIds":
+				return ec.fieldContext_IsochroneResult_riderRangeIds(ctx, field)
+			case "riderRanges":
+				return ec.fieldContext_IsochroneResult_riderRanges(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type IsochroneResult", field.Name)
 		},
@@ -77276,6 +79227,94 @@ func (ec *executionContext) fieldContext_riderRequestInfor_request(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _stateMessage_message(ctx context.Context, field graphql.CollectedField, obj *model.StateMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_stateMessage_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_stateMessage_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "stateMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _stateMessage_success(ctx context.Context, field graphql.CollectedField, obj *model.StateMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_stateMessage_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_stateMessage_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "stateMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -78591,7 +80630,7 @@ func (ec *executionContext) unmarshalInputIsochroneInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"locations", "range", "transportMode", "vendorId", "address", "metaData"}
+	fieldsInOrder := [...]string{"locations", "range", "transportMode", "vendorId", "address", "metaData", "riderRangeIds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -78640,6 +80679,13 @@ func (ec *executionContext) unmarshalInputIsochroneInput(ctx context.Context, ob
 				return it, err
 			}
 			it.MetaData = data
+		case "riderRangeIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("riderRangeIds"))
+			data, err := ec.unmarshalOString2ᚕᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RiderRangeIds = data
 		}
 	}
 
@@ -80233,7 +82279,7 @@ func (ec *executionContext) unmarshalInputZoneMetaDataInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"price"}
+	fieldsInOrder := [...]string{"price", "distance", "riderRangeId", "zoneNumber"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -80247,6 +82293,27 @@ func (ec *executionContext) unmarshalInputZoneMetaDataInput(ctx context.Context,
 				return it, err
 			}
 			it.Price = data
+		case "distance":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("distance"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Distance = data
+		case "riderRangeId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("riderRangeId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RiderRangeID = data
+		case "zoneNumber":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("zoneNumber"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ZoneNumber = data
 		}
 	}
 
@@ -80329,7 +82396,7 @@ func (ec *executionContext) unmarshalInputaddCoordinateInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"orderId", "deliveryAddress", "coordinates", "isochroneMetaId", "ridersId"}
+	fieldsInOrder := [...]string{"orderId", "deliveryAddress", "coordinates", "dropoffLocation", "rangeMetaId", "isochroneMetaId", "ridersId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -80357,6 +82424,20 @@ func (ec *executionContext) unmarshalInputaddCoordinateInput(ctx context.Context
 				return it, err
 			}
 			it.Coordinates = data
+		case "dropoffLocation":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dropoffLocation"))
+			data, err := ec.unmarshalOFloat2ᚕᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DropoffLocation = data
+		case "rangeMetaId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rangeMetaId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RangeMetaID = data
 		case "isochroneMetaId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isochroneMetaId"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -80638,6 +82719,54 @@ func (ec *executionContext) unmarshalInputsmsInput(ctx context.Context, obj any)
 				return it, err
 			}
 			it.UserID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputupdateServiceByAminInput(ctx context.Context, obj any) (model.UpdateServiceByAminInput, error) {
+	var it model.UpdateServiceByAminInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "number", "password", "businessType"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "number":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("number"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Number = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
+		case "businessType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("businessType"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BusinessType = data
 		}
 	}
 
@@ -81831,6 +83960,100 @@ func (ec *executionContext) _CacheStats(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var cancelManagerImplementors = []string{"CancelManager"}
+
+func (ec *executionContext) _CancelManager(ctx context.Context, sel ast.SelectionSet, obj *model.CancelManager) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cancelManagerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CancelManager")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CancelManager_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "cancelPersonId":
+			out.Values[i] = ec._CancelManager_cancelPersonId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "cancelPersonType":
+			out.Values[i] = ec._CancelManager_cancelPersonType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "entityId":
+			out.Values[i] = ec._CancelManager_entityId(ctx, field, obj)
+		case "entityType":
+			out.Values[i] = ec._CancelManager_entityType(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._CancelManager_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._CancelManager_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var cartItemImplementors = []string{"CartItem"}
 
 func (ec *executionContext) _CartItem(ctx context.Context, sel ast.SelectionSet, obj *model.CartItem) graphql.Marshaler {
@@ -81980,6 +84203,8 @@ func (ec *executionContext) _CartItemOrder(ctx context.Context, sel ast.Selectio
 			}
 		case "deliveryMetaData":
 			out.Values[i] = ec._CartItemOrder_deliveryMetaData(ctx, field, obj)
+		case "rangeMetaData":
+			out.Values[i] = ec._CartItemOrder_rangeMetaData(ctx, field, obj)
 		case "routeData":
 			out.Values[i] = ec._CartItemOrder_routeData(ctx, field, obj)
 		case "serviceFee":
@@ -83934,6 +86159,165 @@ func (ec *executionContext) _IsochroneResult(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._IsochroneResult_error(ctx, field, obj)
 		case "errorCode":
 			out.Values[i] = ec._IsochroneResult_errorCode(ctx, field, obj)
+		case "riderRangeIds":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._IsochroneResult_riderRangeIds(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "riderRanges":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._IsochroneResult_riderRanges(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var isochroneRiderRangeLinkImplementors = []string{"IsochroneRiderRangeLink"}
+
+func (ec *executionContext) _IsochroneRiderRangeLink(ctx context.Context, sel ast.SelectionSet, obj *model.IsochroneRiderRangeLink) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, isochroneRiderRangeLinkImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("IsochroneRiderRangeLink")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._IsochroneRiderRangeLink_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "isochroneId":
+			out.Values[i] = ec._IsochroneRiderRangeLink_isochroneId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "riderRangeId":
+			out.Values[i] = ec._IsochroneRiderRangeLink_riderRangeId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "createdAt":
+			out.Values[i] = ec._IsochroneRiderRangeLink_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._IsochroneRiderRangeLink_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -83993,6 +86377,8 @@ func (ec *executionContext) _IsochroneZoneMetaData(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "riderRangeId":
+			out.Values[i] = ec._IsochroneZoneMetaData_riderRangeId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -84310,6 +86696,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "generateIsochrone":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_generateIsochrone(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "useRangeToGenerateIsochrone":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_useRangeToGenerateIsochrone(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputRangeToGenerateIsochrone":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_inputRangeToGenerateIsochrone(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createIsochroneFromInput":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createIsochroneFromInput(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateExistingIsochroneData":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateExistingIsochroneData(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -84789,13 +87203,25 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_useTheme(ctx, field)
 			})
+		case "updateServiceByAmin":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateServiceByAmin(ctx, field)
+			})
 		case "deleteService":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteService(ctx, field)
 			})
+		case "deleteBookingOrOrder":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteBookingOrOrder(ctx, field)
+			})
 		case "updateBookingType":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateBookingType(ctx, field)
+			})
+		case "updateBookingTypeByAdmin":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateBookingTypeByAdmin(ctx, field)
 			})
 		case "createGallery":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -84897,6 +87323,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "removeUserManager":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeUserManager(ctx, field)
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -87716,6 +90146,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getAllIsochroneResults(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllIsochroneRiderRangeLinkResults":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllIsochroneRiderRangeLinkResults(ctx, field)
 				return res
 			}
 
@@ -94246,6 +96695,50 @@ func (ec *executionContext) _riderRequestInfor(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var stateMessageImplementors = []string{"stateMessage"}
+
+func (ec *executionContext) _stateMessage(ctx context.Context, sel ast.SelectionSet, obj *model.StateMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stateMessageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("stateMessage")
+		case "message":
+			out.Values[i] = ec._stateMessage_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "success":
+			out.Values[i] = ec._stateMessage_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
@@ -95840,6 +98333,16 @@ func (ec *executionContext) marshalNIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋ
 		return graphql.Null
 	}
 	return ec._IsochroneResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNIsochroneRiderRangeLink2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneRiderRangeLink(ctx context.Context, sel ast.SelectionSet, v *model.IsochroneRiderRangeLink) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IsochroneRiderRangeLink(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNIsochroneZoneMetaData2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneZoneMetaDataᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.IsochroneZoneMetaData) graphql.Marshaler {
@@ -98782,6 +101285,11 @@ func (ec *executionContext) unmarshalNsmsInput2githubᚗcomᚋlehxeesᚋserviny�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNupdateServiceByAminInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐUpdateServiceByAminInput(ctx context.Context, v any) (model.UpdateServiceByAminInput, error) {
+	res, err := ec.unmarshalInputupdateServiceByAminInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalOAdmin2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAdmin(ctx context.Context, sel ast.SelectionSet, v *model.Admin) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -99654,6 +102162,14 @@ func (ec *executionContext) unmarshalOInvoiceInput2ᚖgithubᚗcomᚋlehxeesᚋs
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalOIsochroneInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneInput(ctx context.Context, v any) (*model.IsochroneInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputIsochroneInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalOIsochroneResult2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneResult(ctx context.Context, sel ast.SelectionSet, v []*model.IsochroneResult) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -99747,6 +102263,53 @@ func (ec *executionContext) marshalOIsochroneResult2ᚖgithubᚗcomᚋlehxeesᚋ
 		return graphql.Null
 	}
 	return ec._IsochroneResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOIsochroneRiderRangeLink2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneRiderRangeLinkᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.IsochroneRiderRangeLink) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNIsochroneRiderRangeLink2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐIsochroneRiderRangeLink(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOLoginInput2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v any) (*model.LoginInput, error) {
@@ -101068,6 +103631,13 @@ func (ec *executionContext) marshalOriderRequestInfor2ᚖgithubᚗcomᚋlehxees�
 		return graphql.Null
 	}
 	return ec._riderRequestInfor(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOstateMessage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐStateMessage(ctx context.Context, sel ast.SelectionSet, v *model.StateMessage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._stateMessage(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

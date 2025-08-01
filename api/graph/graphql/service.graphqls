@@ -138,6 +138,11 @@ input updateServiceByAminInput {
   password: String
   businessType: String
 }
+type stateMessage {
+  message: String!
+  # status: Boolean!
+  success: Boolean!
+}
 extend type Mutation {
   createService(dpfile: Upload, input: CreateServiceInput!): Service
   updateService(
@@ -153,7 +158,10 @@ updateServiceByAmin(
     input: updateServiceByAminInput!
   ): Service
   deleteService(id: String!): Boolean
-
+deleteBookingOrOrder(
+    entityId: String!
+    entityType: String!
+  ): stateMessage
   updateBookingType(
     type: BookingType! # serviceId: String!
   ): BookingType

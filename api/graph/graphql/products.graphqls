@@ -68,6 +68,8 @@ type CartItemOrder {
   paymentMethod: String
   estimatedDeliveryDate: String!
   deliveryMetaData: ZoneMetaData
+  rangeMetaData: RiderRange # order uses RangeMetaData instead of ZoneMetaData new update
+
   routeData: RouteInfo
   serviceFee: String
   createdAt: Time!
@@ -179,11 +181,13 @@ input addCoordinateInput {
   orderId: String!
   deliveryAddress: String
   coordinates: [Float]
+  dropoffLocation: [Float]
+  rangeMetaId: String
   isochroneMetaId: String
-
   ridersId: String
 }
 
+ 
 extend type Mutation {
   clearCart: Boolean!
   VendorUpload(files: [Upload], input: ProductInput!): Product!

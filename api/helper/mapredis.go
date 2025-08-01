@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/database/redis"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	// "github.com/lehxees/serviny/redis"
@@ -555,7 +556,7 @@ func GetCachedOrGenerateIsochrone(ctx context.Context, input model.IsochroneInpu
 	result.VendorID = input.VendorID
 	result.CreatedAt = time.Now().Format(time.RFC3339)
 	result.UpdatedAt = result.CreatedAt
-	result.UpdatedAt = result.CreatedAt
+	// result.UpdatedAt = result.CreatedAt
 	result.Status = "COMPLETED"
 
 	// Set riderID if provided
@@ -564,6 +565,15 @@ func GetCachedOrGenerateIsochrone(ctx context.Context, input model.IsochroneInpu
 	}
 	result.RiderID = riderIDStr
 
+	if len(input.RiderRangeIds) > 0 {
+		idinputs := make([]string, len(input.RiderRangeIds))
+		for i, id := range input.RiderRangeIds {
+			if id != nil {
+				idinputs[i] = *id
+			}
+		}
+		result.RiderRangeIDs = pq.StringArray(idinputs)
+	}
 	// If db connection available, save to database
 	if cache.db != nil {
 		if err := cache.SaveIsochroneToDB(result); err != nil {
@@ -579,6 +589,35 @@ func GetCachedOrGenerateIsochrone(ctx context.Context, input model.IsochroneInpu
 	}
 
 	return result, nil
+}
+
+// Helper function to convert distance to time (reused from previous implementation)
+func ConvertDistanceToTime(distanceKm float64, transportMode *string) int32 {
+	// Approximate speeds (km/h)
+	var speed float64
+
+	if transportMode != nil {
+		switch *transportMode {
+		case "walking":
+			speed = 5.0
+		case "bike":
+			speed = 15.0
+		case "motorbike":
+			speed = 40.0
+		case "car":
+			speed = 50.0
+		default:
+			speed = 40.0 // Default motorbike speed
+		}
+	} else {
+		speed = 40.0 // Default motorbike speed
+	}
+
+	// Convert to seconds
+	timeHours := distanceKm / speed
+	timeSeconds := timeHours * 3600
+
+	return int32(timeSeconds)
 }
 
 // GetIsochroneResult looks up an isochrone by location and UUID
@@ -838,13 +877,33 @@ func injectMetaDataIntoGeoJSON(geoJSON []byte, metaData []*model.ZoneMetaDataInp
 		// Assign ID as string uuid
 		props["id"] = uuid.New().String()
 
+	// Fix: Properly assign zone number from metadata, with correct fallback
+		if i < len(metaData) && metaData[i] != nil && metaData[i].ZoneNumber != nil {
+			props["zone"] = *metaData[i].ZoneNumber
+		} else {
+			// Fallback should be 0 for first zone, then increment
+			props["zone"] = i
+		}
+
+
 		// Assign price if provided (metaData slice might be shorter or nil)
 		if i < len(metaData) {
 			props["price"] = metaData[i].Price
+			if metaData[i].RiderRangeID != nil {
+				props["rider_range_id"] = *metaData[i].RiderRangeID
+			}
+			if metaData[i].Distance != nil {
+				props["distance"] = *metaData[i].Distance
+			}
 		} else {
 			props["price"] = nil // or 0, or omit if you want
 		}
-
+		// Add group index for multi-range isochrones
+		if groupIndex, exists := props["group_index"]; exists {
+			props["group_index"] = groupIndex
+		} else {
+			props["group_index"] = i
+		}
 		featureMap["properties"] = props
 		features[i] = featureMap
 	}
@@ -852,4 +911,493 @@ func injectMetaDataIntoGeoJSON(geoJSON []byte, metaData []*model.ZoneMetaDataInp
 	data["features"] = features
 
 	return json.Marshal(data)
+}
+
+// updateGeoJSONWithRangeData updates the GeoJSON features with new range data
+func UpdateGeoJSONWithRangeData(geoJSON []byte, rangeID string, updatedRange model.RiderRange) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(geoJSON, &data); err != nil {
+		return nil, err
+	}
+
+	features, ok := data["features"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("GeoJSON missing features array")
+	}
+
+	// Update the feature that corresponds to this range
+	for i, feature := range features {
+		featureMap, ok := feature.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		props, ok := featureMap["properties"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Check if this feature corresponds to our range
+		if riderRangeIDVal, exists := props["rider_range_id"]; exists {
+			if riderRangeID, ok := riderRangeIDVal.(string); ok && riderRangeID == rangeID {
+				// Update the properties with new range data
+				props["price"] = updatedRange.Price
+				props["distance"] = updatedRange.EndKm
+				featureMap["properties"] = props
+				features[i] = featureMap
+				break
+			}
+		}
+	}
+
+	data["features"] = features
+	return json.Marshal(data)
+}
+
+// addRangeToGeoJSON generates new isochrone geometry for the updated range and adds it to GeoJSON
+func (r *IsochroneCache) AddRangeToGeoJSON(geoJSON []byte, rangeID string, metadata *model.ZoneMetaDataInput, updatedRange model.RiderRange) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(geoJSON, &data); err != nil {
+		return nil, err
+	}
+
+	features, ok := data["features"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("GeoJSON missing features array")
+	}
+
+	// Get service coordinates for the range generation
+	var service model.Service
+	if err := r.db.First(&service, "id = ?", updatedRange.RiderID).Error; err != nil {
+		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	// Generate new isochrone geometry for the updated range
+	defaultTransportMode := "driving-car"
+	timeRange := ConvertDistanceToTime(updatedRange.EndKm, &defaultTransportMode)
+
+	// Create input for generating the new isochrone geometry
+	rangeInput := model.IsochroneInput{
+		Locations:     [][]float64{service.Coordinates},
+		Range:         []int32{timeRange},
+		TransportMode: &defaultTransportMode,
+	}
+
+	// Generate the isochrone for this specific range
+	var newFeatureGeometry map[string]interface{}
+
+	// Check if we need regular or extended isochrone
+	if timeRange <= int32(MAX_ORS_TIME_SECONDS) {
+		// Use regular isochrone generation
+		result, err := GenerateRegularIsochrone(rangeInput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate regular isochrone for updated range: %w", err)
+		}
+
+		// Parse the generated GeoJSON to extract the geometry
+		var generatedData map[string]interface{}
+		if err := json.Unmarshal(result.GeoJSON, &generatedData); err != nil {
+			return nil, fmt.Errorf("failed to parse generated GeoJSON: %w", err)
+		}
+
+		generatedFeatures, ok := generatedData["features"].([]interface{})
+		if !ok || len(generatedFeatures) == 0 {
+			return nil, fmt.Errorf("invalid generated GeoJSON format")
+		}
+
+		// Extract the geometry from the first (and only) feature
+		if firstFeature, ok := generatedFeatures[0].(map[string]interface{}); ok {
+			if geometry, ok := firstFeature["geometry"].(map[string]interface{}); ok {
+				newFeatureGeometry = geometry
+			}
+		}
+	} else {
+		// Use extended isochrone generation
+		extendedFeature, err := generateChainedIsochrone(rangeInput.Locations, timeRange, "driving-car")
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate extended isochrone for updated range: %w", err)
+		}
+
+		if geometry, ok := extendedFeature["geometry"].(map[string]interface{}); ok {
+			newFeatureGeometry = geometry
+		}
+	}
+
+	if newFeatureGeometry == nil {
+		return nil, fmt.Errorf("failed to extract geometry from generated isochrone")
+	}
+
+	// Create a new feature with the generated geometry and updated metadata
+	newFeature := map[string]interface{}{
+		"type": "Feature",
+		"properties": map[string]interface{}{
+			"id":             uuid.New().String(),
+			"zone":           len(features), // Will be re-indexed later
+			"group_index":    len(features),
+			"price":          metadata.Price,
+			"rider_range_id": rangeID,
+			"distance":       *metadata.Distance,
+		},
+		"geometry": newFeatureGeometry, // Use the actual generated geometry
+	}
+
+	// Add the new feature and re-index all features
+	features = append(features, newFeature)
+
+	// Re-index all features to maintain proper ordering
+	for i, feature := range features {
+		if featureMap, ok := feature.(map[string]interface{}); ok {
+			if props, ok := featureMap["properties"].(map[string]interface{}); ok {
+				props["zone"] = i
+				props["group_index"] = i
+				featureMap["properties"] = props
+				features[i] = featureMap
+			}
+		}
+	}
+
+	data["features"] = features
+	return json.Marshal(data)
+}
+
+// RemoveRangeFromIsochroneData finds isochrones containing the deleted range and removes that range data
+func (r *IsochroneCache) RemoveRangeFromIsochroneData(ctx context.Context, riderID string, rangeID string) error {
+	// Find existing isochrones for this rider that contain the deleted range
+	var existingIsochrones []model.IsochroneResult
+	query := `
+		SELECT i.* FROM isochrone_results i 
+		INNER JOIN isochrone_rider_range_links l ON i.id = l.isochrone_id::uuid 
+		WHERE i.rider_id = ? AND l.rider_range_id = ?
+	`
+
+	if err := r.db.Raw(query, riderID, rangeID).Scan(&existingIsochrones).Error; err != nil {
+		return fmt.Errorf("failed to find isochrones containing range %s: %w", rangeID, err)
+	}
+
+	for _, isochrone := range existingIsochrones {
+		// Remove the range data from the isochrone's GeoJSON
+		updatedGeoJSON, err := r.RemoveRangeFromGeoJSON(isochrone.GeoJSON, rangeID)
+		if err != nil {
+			fmt.Printf("Error removing range from GeoJSON for isochrone %s: %v\n", isochrone.ID.String(), err)
+			continue
+		}
+
+		// Update the isochrone in the database
+		isochrone.GeoJSON = updatedGeoJSON
+		isochrone.UpdatedAt = time.Now().Format(time.RFC3339)
+
+		// Update the RiderRangeIDs array to remove the deleted range
+		updatedRangeIDs := make([]string, 0)
+		for _, existingRangeID := range isochrone.RiderRangeIDs {
+			if existingRangeID != rangeID {
+				updatedRangeIDs = append(updatedRangeIDs, existingRangeID)
+			}
+		}
+		isochrone.RiderRangeIDs = pq.StringArray(updatedRangeIDs)
+
+		if err := r.db.Save(&isochrone).Error; err != nil {
+			fmt.Printf("Error saving updated isochrone %s after range removal: %v\n", isochrone.ID.String(), err)
+			continue
+		}
+
+		// Remove the junction table link
+		if err := r.db.Delete(&model.IsochroneRiderRangeLink{}, "isochrone_id = ? AND rider_range_id = ?", isochrone.ID.String(), rangeID).Error; err != nil {
+			fmt.Printf("Error removing junction table link for isochrone %s and range %s: %v\n", isochrone.ID.String(), rangeID, err)
+		}
+
+		// Invalidate cache for this specific isochrone
+		cache := NewIsochroneCache()
+		cache.SetDB(r.db)
+		if err := r.InvalidateIsochroneByID(isochrone.ID.String()); err != nil {
+			fmt.Printf("Error invalidating cache for isochrone %s: %v\n", isochrone.ID.String(), err)
+		}
+
+		fmt.Printf("Removed range %s data from isochrone %s\n", rangeID, isochrone.ID.String())
+	}
+
+	return nil
+}
+
+// removeRangeFromGeoJSON removes the feature corresponding to the deleted range from GeoJSON
+func (r *IsochroneCache) RemoveRangeFromGeoJSON(geoJSON []byte, rangeID string) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(geoJSON, &data); err != nil {
+		return nil, err
+	}
+
+	features, ok := data["features"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("GeoJSON missing features array")
+	}
+
+	// Filter out the feature that corresponds to the deleted range
+	updatedFeatures := make([]interface{}, 0)
+	for _, feature := range features {
+		featureMap, ok := feature.(map[string]interface{})
+		if !ok {
+			updatedFeatures = append(updatedFeatures, feature)
+			continue
+		}
+
+		props, ok := featureMap["properties"].(map[string]interface{})
+		if !ok {
+			updatedFeatures = append(updatedFeatures, feature)
+			continue
+		}
+
+		// Check if this feature corresponds to our deleted range
+		if riderRangeIDVal, exists := props["rider_range_id"]; exists {
+			if riderRangeID, ok := riderRangeIDVal.(string); ok && riderRangeID == rangeID {
+				// Skip this feature (don't add it to updatedFeatures)
+				fmt.Printf("Removing feature for range %s from GeoJSON\n", rangeID)
+				continue
+			}
+		}
+
+		// Keep this feature
+		updatedFeatures = append(updatedFeatures, feature)
+	}
+
+	// Update zone indices to maintain proper ordering
+	for i, feature := range updatedFeatures {
+		if featureMap, ok := feature.(map[string]interface{}); ok {
+			if props, ok := featureMap["properties"].(map[string]interface{}); ok {
+				props["zone"] = i
+				props["group_index"] = i
+				featureMap["properties"] = props
+				updatedFeatures[i] = featureMap
+			}
+		}
+	}
+
+	data["features"] = updatedFeatures
+	return json.Marshal(data)
+}
+
+// Helper function to inject rider range metadata into GeoJSON
+func InjectRiderRangeMetadata(result *model.IsochroneResult, ranges []*model.RiderRange) error {
+	// Parse the existing GeoJSON
+	var geoData map[string]interface{}
+	if err := json.Unmarshal(result.GeoJSON, &geoData); err != nil {
+		return fmt.Errorf("failed to unmarshal GeoJSON: %w", err)
+	}
+
+	features, ok := geoData["features"].([]interface{})
+	if !ok {
+		return fmt.Errorf("invalid GeoJSON format: no features array")
+	}
+
+	// Inject rider range information into each feature
+	for i, feature := range features {
+		if i >= len(ranges) {
+			break // Safety check
+		}
+
+		featureMap, ok := feature.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		properties, ok := featureMap["properties"].(map[string]interface{})
+		if !ok {
+			properties = make(map[string]interface{})
+			featureMap["properties"] = properties
+		}
+
+		// Add rider range information
+		riderRange := ranges[i]
+		properties["rider_range_id"] = riderRange.ID.String()
+		properties["price"] = riderRange.Price
+		properties["start_km"] = riderRange.StartKm
+		properties["end_km"] = riderRange.EndKm
+		properties["distance"] = riderRange.EndKm // Use end_km as the distance for this zone
+		properties["zone_index"] = i
+	}
+
+	// Marshal back to JSON
+	updatedGeoJSON, err := json.Marshal(geoData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated GeoJSON: %w", err)
+	}
+
+	result.GeoJSON = updatedGeoJSON
+	return nil
+}
+func (c *IsochroneCache) GetNextZoneNumberForRider(riderID string) (int32, error) {
+	// Check if DB connection is available
+	if c.db == nil {
+		return 0, fmt.Errorf("database connection not available")
+	}
+
+	var count int64
+	if err := c.db.Model(&model.IsochroneResult{}).Where("vendor_id = ?", riderID).Count(&count); err != nil {
+		return 0, fmt.Errorf("failed to count existing isochrones: %w", err)
+	}
+
+	return int32(count), nil
+}
+// invalidateRiderIsochrones removes all isochrones and their cache entries for a specific rider
+func (r *IsochroneCache) InvalidateRiderIsochrones(riderID string) error {
+	// Get all isochrones for this rider
+	var isochrones []model.IsochroneResult
+	if err := r.db.Find(&isochrones, "rider_id = ?", riderID).Error; err != nil {
+		return fmt.Errorf("failed to find isochrones for rider: %w", err)
+	}
+
+	// Initialize cache for invalidation
+	cache := NewIsochroneCache()
+	cache.SetDB(r.db)
+
+	// Delete each isochrone and its cache
+	for _, isochrone := range isochrones {
+		// Delete junction table entries
+		if err := r.db.Delete(&model.IsochroneRiderRangeLink{}, "isochrone_id = ?", isochrone.ID.String()).Error; err != nil {
+			fmt.Printf("Error deleting junction table entries for isochrone %s: %v\n", isochrone.ID.String(), err)
+		}
+
+		// Delete from cache if possible
+		if err := cache.InvalidateIsochrone(context.Background(), isochrone.ID.String()); err != nil {
+			fmt.Printf("Error invalidating cache for isochrone %s: %v\n", isochrone.ID.String(), err)
+		}
+
+		// Delete from database
+		if err := r.db.Delete(&isochrone).Error; err != nil {
+			fmt.Printf("Error deleting isochrone %s from database: %v\n", isochrone.ID.String(), err)
+		}
+	}
+
+	fmt.Printf("Invalidated %d isochrones for rider %s\n", len(isochrones), riderID)
+	return nil
+}
+
+// Helper method to invalidate specific isochrone by ID (if needed elsewhere)
+func (r *IsochroneCache) InvalidateIsochroneByID(isochroneID string) error {
+	// Delete junction table entries
+	if err := r.db.Delete(&model.IsochroneRiderRangeLink{}, "isochrone_id = ?", isochroneID).Error; err != nil {
+		fmt.Printf("Error deleting junction table entries for isochrone %s: %v\n", isochroneID, err)
+	}
+
+	// Delete from cache
+	cache := NewIsochroneCache()
+	cache.SetDB(r.db)
+	if err := cache.InvalidateIsochrone(context.Background(), isochroneID); err != nil {
+		fmt.Printf("Error invalidating cache for isochrone %s: %v\n", isochroneID, err)
+	}
+
+	// Delete from database
+	if err := r.db.Delete(&model.IsochroneResult{}, "id = ?", isochroneID).Error; err != nil {
+		return fmt.Errorf("failed to delete isochrone: %w", err)
+	}
+
+	return nil
+}
+
+// InvalidateIsochrone removes an isochrone from cache by its ID
+func (c *IsochroneCache) InvalidateIsochrone(ctx context.Context, isochroneID string) error {
+	// If no Redis connection, skip cache invalidation
+	if c.client == nil {
+		return nil
+	}
+
+	// We need to find all possible cache keys for this isochrone
+	// Since we don't store reverse mapping, we'll use a pattern to find related keys
+	pattern := "isochrone:*"
+
+	// Get all cache keys matching the pattern
+	keys, err := c.client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get cache keys: %w", err)
+	}
+
+	// Check each key to see if it belongs to this isochrone
+	var keysToDelete []string
+	for _, key := range keys {
+		// Get the cached result
+		cachedData, err := c.client.Get(ctx, key).Result()
+		if err != nil {
+			continue // Skip if we can't read it
+		}
+
+		// Try to unmarshal to check the ID
+		var result model.IsochroneResult
+		if err := json.Unmarshal([]byte(cachedData), &result); err != nil {
+			continue // Skip if we can't unmarshal
+		}
+
+		// If this cached result matches our isochrone ID, mark for deletion
+		if result.ID.String() == isochroneID {
+			keysToDelete = append(keysToDelete, key)
+		}
+	}
+
+	// Delete the matching keys
+	if len(keysToDelete) > 0 {
+		if err := c.client.Del(ctx, keysToDelete...).Err(); err != nil {
+			return fmt.Errorf("failed to delete cache keys: %w", err)
+		}
+		fmt.Printf("Deleted %d cache entries for isochrone %s\n", len(keysToDelete), isochroneID)
+	}
+
+	return nil
+}
+
+// InvalidateRiderCache removes all cached isochrones for a specific rider
+func (c *IsochroneCache) InvalidateRiderCache(ctx context.Context, riderID string) error {
+	// If no Redis connection, skip cache invalidation
+	if c.client == nil {
+		return nil
+	}
+
+	// Get all cache keys
+	pattern := "isochrone:*"
+	keys, err := c.client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get cache keys: %w", err)
+	}
+
+	// Check each key to see if it belongs to this rider
+	var keysToDelete []string
+	for _, key := range keys {
+		// Get the cached result
+		cachedData, err := c.client.Get(ctx, key).Result()
+		if err != nil {
+			continue // Skip if we can't read it
+		}
+
+		// Try to unmarshal to check the rider ID
+		var result model.IsochroneResult
+		if err := json.Unmarshal([]byte(cachedData), &result); err != nil {
+			continue // Skip if we can't unmarshal
+		}
+
+		// If this cached result matches our rider ID, mark for deletion
+		if result.RiderID == riderID {
+			keysToDelete = append(keysToDelete, key)
+		}
+	}
+
+	// Delete the matching keys
+	if len(keysToDelete) > 0 {
+		if err := c.client.Del(ctx, keysToDelete...).Err(); err != nil {
+			return fmt.Errorf("failed to delete cache keys: %w", err)
+		}
+		fmt.Printf("Deleted %d cache entries for rider %s\n", len(keysToDelete), riderID)
+	}
+
+	return nil
+}
+
+// More efficient alternative: InvalidateRiderCacheByPattern
+// This method assumes you can modify your cache key structure to include rider ID
+func (c *IsochroneCache) InvalidateRiderCacheByPattern(ctx context.Context, riderID string) error {
+	// If no client connection, skip cache invalidation
+	if c.client == nil {
+		return nil
+	}
+
+	// If you modify your cache key to include rider ID, you can use:
+	// pattern := fmt.Sprintf("isochrone:rider:%s:*", riderID)
+
+	// For now, using the general approach since your current key doesn't include rider ID
+	return c.InvalidateRiderCache(ctx, riderID)
 }

@@ -878,16 +878,24 @@ func (r *queryResolver) GetRiderAssignedOrders(ctx context.Context, riderID stri
 			continue
 		}
 
-		// Get zone metadata (isochrone data)
-		var zoneMetaData *model.ZoneMetaData
-		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
-			zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
-			if err != nil {
-				log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
-					order.ID, *order.IsochroneMetaID, err)
+		// // Get zone metadata (isochrone data)
+		// var zoneMetaData *model.ZoneMetaData
+		// if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+		// 	zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+		// 	if err != nil {
+		// 		log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
+		// 			order.ID, *order.IsochroneMetaID, err)
+		// 	}
+		// }
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if order.RiderID != nil {
+		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 			}
 		}
-
+	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -978,7 +986,8 @@ func (r *queryResolver) GetRiderAssignedOrders(ctx context.Context, riderID stri
 				DeliveryAddress:       order.DeliveryAddress,
 				Status:                order.Status,
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-				DeliveryMetaData:      zoneMetaData,
+				// DeliveryMetaData:      zoneMetaData,
+				RangeMetaData: rangeMetaData,
 				RouteData:             routeData,
 				ServiceFee:            order.DeliveryFee,
 				CreatedAt:             order.CreatedAt,

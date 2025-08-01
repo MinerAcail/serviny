@@ -191,3 +191,13 @@ type UserManager {
   createdAt: Time!
   updatedAt: Time!
 }
+type CancelManager {
+  id: String!
+  cancelPersonId: String!
+  cancelPersonType: String!
+  entityId: String
+  entityType: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+

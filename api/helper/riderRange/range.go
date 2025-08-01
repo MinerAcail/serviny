@@ -61,6 +61,7 @@ func NewRangeValidator(db *gorm.DB) *RangeValidator {
 // - Allows intentional gaps
 // - Ensures end > start
 // - Provides detailed feedback on adjustments
+
 func (rv *RangeValidator) ValidateAndSanitizeRange(riderID string, input RangeInput, excludeRangeID *string) (*RangeValidationResult, error) {
 	result := &RangeValidationResult{
 		IsValid:          true,

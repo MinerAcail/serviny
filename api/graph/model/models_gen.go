@@ -116,6 +116,7 @@ type CartItemOrder struct {
 	PaymentMethod         *string              `json:"paymentMethod,omitempty"`
 	EstimatedDeliveryDate string               `json:"estimatedDeliveryDate"`
 	DeliveryMetaData      *ZoneMetaData        `json:"deliveryMetaData,omitempty"`
+	RangeMetaData         *RiderRange          `json:"rangeMetaData,omitempty"`
 	RouteData             *RouteInfo           `json:"routeData,omitempty"`
 	ServiceFee            *string              `json:"serviceFee,omitempty"`
 	CreatedAt             time.Time            `json:"createdAt"`
@@ -351,14 +352,16 @@ type IsochroneInput struct {
 	VendorID      string               `json:"vendorId"`
 	Address       *string              `json:"address,omitempty"`
 	MetaData      []*ZoneMetaDataInput `json:"metaData"`
+	RiderRangeIds []*string            `json:"riderRangeIds,omitempty"`
 }
 
 type IsochroneZoneMetaData struct {
-	ID       string  `json:"id"`
-	Price    float64 `json:"price"`
-	Duration int32   `json:"duration"`
-	Distance float64 `json:"distance"`
-	Zone     int32   `json:"zone"`
+	ID           string  `json:"id"`
+	Price        float64 `json:"price"`
+	Duration     int32   `json:"duration"`
+	Distance     float64 `json:"distance"`
+	Zone         int32   `json:"zone"`
+	RiderRangeID *string `json:"riderRangeId,omitempty"`
 }
 
 type LoginInput struct {
@@ -849,7 +852,10 @@ type ZoneMetaData struct {
 }
 
 type ZoneMetaDataInput struct {
-	Price float64 `json:"price"`
+	Price        float64  `json:"price"`
+	Distance     *float64 `json:"distance,omitempty"`
+	RiderRangeID *string  `json:"riderRangeId,omitempty"`
+	ZoneNumber   *int32   `json:"zoneNumber,omitempty"`
 }
 
 type AddBookCoordinateInput struct {
@@ -866,6 +872,8 @@ type AddCoordinateInput struct {
 	OrderID         string     `json:"orderId"`
 	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
 	Coordinates     []*float64 `json:"coordinates,omitempty"`
+	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
+	RangeMetaID     *string    `json:"rangeMetaId,omitempty"`
 	IsochroneMetaID *string    `json:"isochroneMetaId,omitempty"`
 	RidersID        *string    `json:"ridersId,omitempty"`
 }
@@ -923,6 +931,18 @@ type SmsInput struct {
 	EntityID   *string `json:"entityId,omitempty"`
 	EntityType string  `json:"entityType"`
 	UserID     *string `json:"userId,omitempty"`
+}
+
+type StateMessage struct {
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+}
+
+type UpdateServiceByAminInput struct {
+	Name         *string `json:"name,omitempty"`
+	Number       *string `json:"number,omitempty"`
+	Password     *string `json:"password,omitempty"`
+	BusinessType *string `json:"businessType,omitempty"`
 }
 
 type WorksInput struct {

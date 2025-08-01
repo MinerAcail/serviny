@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lehxees/serviny/graph"
@@ -64,7 +66,18 @@ func (r *isochroneResultResolver) MetaData(ctx context.Context, obj *model.Isoch
 	}
 
 	var metaDataList []*model.IsochroneZoneMetaData
-
+	// Get linked rider ranges for additional metadata
+	var linkedRanges []model.RiderRange
+	if obj.ID != uuid.Nil {
+		if err := r.DB.Table("rider_ranges").
+			Joins("JOIN isochrone_rider_range_links ON rider_ranges.id = isochrone_rider_range_links.rider_range_id").
+			Where("isochrone_rider_range_links.isochrone_id = ?", obj.ID).
+			Order("rider_ranges.end_km ASC").
+			Find(&linkedRanges).Error; err != nil {
+			// Log error but continue with basic metadata
+			fmt.Printf("Error fetching linked rider ranges: %v\n", err)
+		}
+	}
 	for i, feature := range features {
 		featureMap, ok := feature.(map[string]interface{})
 		if !ok {
@@ -77,8 +90,15 @@ func (r *isochroneResultResolver) MetaData(ctx context.Context, obj *model.Isoch
 		}
 
 		// Extract metadata from properties
-		metaData := &model.IsochroneZoneMetaData{
-			Zone: int32(i), // Use feature index as zone number
+		// metaData := &model.IsochroneZoneMetaData{
+		// 	Zone: int32(i), // Use feature index as zone number
+		// }
+
+		metaData := &model.IsochroneZoneMetaData{}
+		if zoneNumber, ok := properties["zone"].(float64); ok {
+			metaData.Zone = int32(zoneNumber)
+		} else {
+			metaData.Zone = int32(i) // fallback if missing
 		}
 
 		// Extract ID
@@ -98,11 +118,17 @@ func (r *isochroneResultResolver) MetaData(ctx context.Context, obj *model.Isoch
 			metaData.Duration = obj.Range[i]
 		}
 
-		// Extract distance if available in properties
+		// Extract distance - first try from properties, then from linked ranges
 		if distance, ok := properties["distance"].(float64); ok {
 			metaData.Distance = distance
+		} else if i < len(linkedRanges) {
+			metaData.Distance = linkedRanges[i].EndKm
 		}
 
+		// Add rider range ID if available
+		if riderRangeID, ok := properties["rider_range_id"].(string); ok {
+			metaData.RiderRangeID = &riderRangeID
+		}
 		metaDataList = append(metaDataList, metaData)
 	}
 
@@ -126,6 +152,42 @@ func (r *isochroneResultResolver) Locations(ctx context.Context, obj *model.Isoc
 // Range is the resolver for the range field.
 func (r *isochroneResultResolver) Range(ctx context.Context, obj *model.IsochroneResult) ([]int32, error) {
 	return obj.Range, nil
+}
+
+// RiderRangeIds is the resolver for the riderRangeIds field.
+func (r *isochroneResultResolver) RiderRangeIds(ctx context.Context, obj *model.IsochroneResult) ([]string, error) {
+	var eachArray []string
+	for _, catptr := range obj.RiderRangeIDs {
+		cate := catptr
+		eachArray = append(eachArray, cate)
+	}
+	return eachArray, nil
+}
+
+// RiderRanges is the resolver for the riderRanges field.
+func (r *isochroneResultResolver) RiderRanges(ctx context.Context, obj *model.IsochroneResult) ([]*model.RiderRange, error) {
+	var ranges []*model.RiderRange
+
+	// Manual query using the junction table
+	err := r.DB.Raw(`
+		SELECT r.* 
+		FROM rider_ranges r
+		INNER JOIN isochrone_rider_range_links l ON r.id = l.rider_range_id
+		WHERE l.isochrone_id = ?
+		ORDER BY r.end_km ASC
+	`, obj.ID).Scan(&ranges).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ranges for isochrone: %w", err)
+	}
+
+	return ranges, nil
+}
+
+// ID is the resolver for the id field.
+func (r *isochroneRiderRangeLinkResolver) ID(ctx context.Context, obj *model.IsochroneRiderRangeLink) (string, error) {
+	id := obj.ID.String()
+	return id, nil
 }
 
 // GenerateIsochrone is the resolver for the generateIsochrone field.
@@ -155,6 +217,282 @@ func (r *mutationResolver) GenerateIsochrone(ctx context.Context, input model.Is
 	}
 
 	return result, nil
+}
+
+// useRangeToGenerateIsochrone
+func (r *mutationResolver) UseRangeToGenerateIsochrone(ctx context.Context) (*model.IsochroneResult, error) {
+	// Retrieve the serviceID from the context
+	serviceID, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Get all ranges for this rider
+	ranges, err := r.Query().GetRiderRanges(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rider ranges: %w", err)
+	}
+
+	// Verify that the serviceID exists as a service
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", serviceID).Error; err != nil {
+		return nil, fmt.Errorf("service not found with ID %s: %w", *serviceID, err)
+	}
+
+	// If no ranges found, return an error
+	if len(ranges) == 0 {
+		return nil, errors.New("no ranges found for rider")
+	}
+
+	// Convert rider ranges to isochrone parameters
+	var timeRanges []int32
+	var metaData []*model.ZoneMetaDataInput
+	var riderRangeIDs []*string // Changed from []*string to []string for consistency
+
+	defaultTransportMode := "driving-car"
+
+	// Sort ranges by endKm to ensure proper ordering
+	sort.Slice(ranges, func(i, j int) bool {
+		return ranges[i].EndKm < ranges[j].EndKm
+	})
+
+	for _, riderRange := range ranges {
+		// Convert distance to time using the range's end distance
+		timeRange := helper.ConvertDistanceToTime(riderRange.EndKm, &defaultTransportMode)
+		timeRanges = append(timeRanges, timeRange)
+
+		riderRangeID := riderRange.ID.String()
+
+		// Create metadata with pricing and range information
+		metaData = append(metaData, &model.ZoneMetaDataInput{
+			Price:        riderRange.Price,
+			RiderRangeID: &riderRangeID,
+			Distance:     &riderRange.EndKm,
+		})
+
+		// Track the range IDs for linking
+		riderRangeIDs = append(riderRangeIDs, &riderRangeID)
+	}
+
+	// Create the enhanced isochrone input
+	enhancedInput := model.IsochroneInput{
+		Locations:     [][]float64{service.Coordinates},
+		Range:         timeRanges,
+		TransportMode: &defaultTransportMode,
+		VendorID:      service.ID.String(),
+		Address:       service.Location,
+		MetaData:      metaData,
+		RiderRangeIds: riderRangeIDs, // Pass as []string
+	}
+
+	// Set DB connection in cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB)
+
+	// Use the helper function that handles caching and generation
+	result, err := helper.GetCachedOrGenerateIsochrone(ctx, enhancedInput, *serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate isochrone: %w", err)
+	}
+
+	// Set the RiderRangeIDs array on the result for quick access
+	// result.RiderRangeIDs = pq.StringArray(riderRangeIDs)
+
+	// Create junction table records for relational queries
+	for _, rangeID := range riderRangeIDs {
+		link := model.IsochroneRiderRangeLink{
+			IsochroneID:  result.ID.String(), // Convert UUID to string
+			RiderRangeID: *rangeID,
+		}
+
+		if err := r.DB.Create(&link).Error; err != nil {
+			// Log error but don't fail - we have the array as backup
+			fmt.Printf("Error creating isochrone-rider range link: %v\n", err)
+		}
+	}
+
+	// Save to database if connection is available
+	if r.DB != nil {
+		if err := cache.SaveIsochroneToDB(result); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Error saving isochrone to database: %v\n", err)
+		}
+	}
+
+	return result, nil
+}
+
+// InputRangeToGenerateIsochrone is the resolver for the inputRangeToGenerateIsochrone field.
+func (r *mutationResolver) InputRangeToGenerateIsochrone(ctx context.Context, input *model.IsochroneInput) (*model.IsochroneResult, error) {
+	// Validate input
+	if len(input.Locations) == 0 || len(input.Locations[0]) != 2 {
+		return nil, fmt.Errorf("invalid locations: must provide [lng, lat]")
+	}
+	if len(input.Range) == 0 {
+		return nil, fmt.Errorf("invalid range: must provide at least one time range")
+	}
+
+	// Set DB connection in cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB)
+
+	// Use the helper function that handles caching and generation
+	result, err := helper.GetCachedOrGenerateIsochrone(ctx, *input, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate isochrone: %w", err)
+	}
+
+	// Save to database if connection is available
+	if r.DB != nil {
+		if err := cache.SaveIsochroneToDB(result); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Error saving isochrone to database: %v\n", err)
+		}
+	}
+
+	return result, nil
+}
+
+// CreateIsochroneFromInput creates a new isochrone using the provided input data
+func (r *mutationResolver) CreateIsochroneFromInput(ctx context.Context, riderID string, input model.NewRiderRangeInput, riderRangeID string) (*model.IsochroneResult, error) {
+	// Get service coordinates for the location
+	var service model.Service
+	if err := r.DB.First(&service, "id = ?", riderID).Error; err != nil {
+		return nil, fmt.Errorf("service not found with ID %s: %w", riderID, err)
+	}
+	// riderRangeID := newRange.ID.String()
+	defaultTransportMode := "driving-car"
+	// zoneNumber := int32(0) // Explicitly set to 0 for the first zone
+	// Get the next zone number for this rider (globally incrementing)
+	nextZoneNumber, err := helper.NewIsochroneCache().GetNextZoneNumberForRider(riderID)
+	if err != nil {
+		// Fall back to 0 if we can't determine the next zone
+		nextZoneNumber = 0
+		fmt.Printf("Warning: Could not determine next zone number for rider %s, using 0: %v\n", riderID, err)
+	}
+	// Auto-generate new isochrone using the input data
+	isochroneInput := model.IsochroneInput{
+		Locations:     [][]float64{service.Coordinates}, // Will be replaced with service coordinates
+		Range:         []int32{helper.ConvertDistanceToTime(input.EndKm, &defaultTransportMode)},
+		TransportMode: &defaultTransportMode,
+		MetaData: []*model.ZoneMetaDataInput{{
+			Price:        input.Price,
+			RiderRangeID: &riderRangeID,
+			Distance:     &input.EndKm,
+			ZoneNumber:   &nextZoneNumber, // starts from 0
+		}},
+		Address:  service.Location,
+		VendorID: service.ID.String(),
+
+		RiderRangeIds: []*string{&riderRangeID},
+	}
+
+	// Set DB connection in cache
+	cache := helper.NewIsochroneCache()
+	cache.SetDB(r.DB)
+
+	// Generate new isochrone
+	result, err := helper.GetCachedOrGenerateIsochrone(ctx, isochroneInput, riderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate isochrone: %w", err)
+	}
+
+	// Create junction table records
+	for _, rangeID := range isochroneInput.RiderRangeIds {
+
+		link := model.IsochroneRiderRangeLink{
+			IsochroneID:  result.ID.String(),
+			RiderRangeID: *rangeID,
+		}
+
+		if err := r.DB.Create(&link).Error; err != nil {
+			fmt.Printf("Error creating isochrone-rider range link: %v\n", err)
+		}
+	}
+	// Optional: Save to DB explicitly (in case caching logic doesn’t)
+	if err := cache.SaveIsochroneToDB(result); err != nil {
+		fmt.Printf("Error saving isochrone to DB: %v\n", err)
+	}
+	return result, nil
+}
+
+// UpdateExistingIsochroneData finds existing isochrone and updates it with new range data
+func (r *mutationResolver) UpdateExistingIsochroneData(ctx context.Context, riderID string, rangeID string) (*model.RiderRange, error) {
+	// Find existing isochrones for this rider
+	// Find existing isochrones for this rider that contain the updated range
+	var existingIsochrones []model.IsochroneResult
+	query := `
+		SELECT i.* FROM isochrone_results i 
+		INNER JOIN isochrone_rider_range_links l ON i.id = l.isochrone_id::uuid 
+		WHERE i.rider_id = ? AND l.rider_range_id = ?
+	`
+
+	if err := r.DB.Raw(query, riderID, rangeID).Scan(&existingIsochrones).Error; err != nil {
+		return nil, fmt.Errorf("failed to find isochrones containing range %s: %w", rangeID, err)
+	}
+	var updatedRange model.RiderRange
+	// Retrieve the updated range data
+	if err := r.DB.First(&updatedRange, "id = ?", rangeID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find updated range with ID %s: %w", rangeID, err)
+	}
+	for _, isochrone := range existingIsochrones {
+		// Step 1: Remove the old range data from GeoJSON
+		geoJSONWithoutOldRange, err := helper.NewIsochroneCache().RemoveRangeFromGeoJSON(isochrone.GeoJSON, rangeID)
+		if err != nil {
+			fmt.Printf("Error removing old range data from GeoJSON for isochrone %s: %v\n", isochrone.ID.String(), err)
+			continue
+		}
+
+		// Step 2: Add the new range data to GeoJSON
+		newRangeMetadata := &model.ZoneMetaDataInput{
+			Price:        updatedRange.Price,
+			RiderRangeID: &rangeID,
+			Distance:     &updatedRange.EndKm,
+		}
+
+		updatedGeoJSON, err := helper.NewIsochroneCache().AddRangeToGeoJSON(geoJSONWithoutOldRange, rangeID, newRangeMetadata, updatedRange)
+		if err != nil {
+			fmt.Printf("Error adding new range data to GeoJSON for isochrone %s: %v\n", isochrone.ID.String(), err)
+			continue
+		}
+
+		// Step 3: Update the isochrone in the database
+		isochrone.GeoJSON = updatedGeoJSON
+		isochrone.UpdatedAt = time.Now().Format(time.RFC3339)
+
+		// Update the Range array if the distance changed
+		updatedRanges := make([]int32, 0)
+		for i, existingRange := range isochrone.Range {
+			// Find if this range corresponds to our updated range by checking metadata or position
+			if i < len(isochrone.RiderRangeIDs) && isochrone.RiderRangeIDs[i] == rangeID {
+				// Replace with new time range calculated from updated distance
+				defaultTransportMode := "driving-car"
+				newTimeRange := helper.ConvertDistanceToTime(updatedRange.EndKm, &defaultTransportMode)
+				updatedRanges = append(updatedRanges, newTimeRange)
+			} else {
+				updatedRanges = append(updatedRanges, existingRange)
+			}
+		}
+		isochrone.Range = updatedRanges
+
+		if err := r.DB.Save(&isochrone).Error; err != nil {
+			fmt.Printf("Error saving updated isochrone %s: %v\n", isochrone.ID.String(), err)
+			continue
+		}
+
+		// Invalidate cache for this isochrone
+		cache := helper.NewIsochroneCache()
+		cache.SetDB(r.DB)
+
+		isochroneID := isochrone.ID.String()
+		if err := cache.InvalidateIsochroneByID(isochroneID); err != nil {
+			fmt.Printf("Error invalidating cache for isochrone %s: %v\n", isochrone.ID.String(), err)
+		}
+
+		fmt.Printf("Replaced range %s data in isochrone %s with updated values\n", rangeID, isochrone.ID.String())
+	}
+
+	return &updatedRange, nil
 }
 
 // GenerateRoute is the resolver for the generateRoute field.
@@ -270,7 +608,15 @@ func (r *mutationResolver) CreateRiderRange(ctx context.Context, input model.New
 	if err := r.DB.Create(newRange).Error; err != nil {
 		return nil, fmt.Errorf("failed to create rider range: %w", err)
 	}
+	riderRangeID := newRange.ID.String()
 
+	_, err = r.CreateIsochroneFromInput(ctx, *riderIDStr, input, riderRangeID)
+	if err != nil {
+		// Log error but don't fail the range creation
+		fmt.Printf("Error auto-generating isochrone after range creation for rider %s: %v\n", *riderIDStr, err)
+	} else {
+		fmt.Printf("Successfully auto-generated isochrone after creating range for rider %s\n", *riderIDStr)
+	}
 	// Log the validation result for debugging/auditing
 	if validationResult.WasStartAdjusted {
 		fmt.Printf("Range adjusted for rider %s: %s\n", *riderIDStr, validationResult.Message)
@@ -294,7 +640,10 @@ func (r *mutationResolver) UpdateRiderRange(ctx context.Context, input model.Upd
 	if err := r.DB.First(&riderRange, "id = ? AND rider_id = ?", input.ID, *riderIDStr).Error; err != nil {
 		return nil, fmt.Errorf("rider range not found: %w", err)
 	}
-
+	// Store original values to check if meaningful changes occurred
+	originalStartKm := riderRange.StartKm
+	originalEndKm := riderRange.EndKm
+	originalPrice := riderRange.Price
 	// Prepare the updated values
 	updatedStartKm := riderRange.StartKm
 	updatedEndKm := riderRange.EndKm
@@ -336,7 +685,32 @@ func (r *mutationResolver) UpdateRiderRange(ctx context.Context, input model.Upd
 	if err := r.DB.Save(&riderRange).Error; err != nil {
 		return nil, fmt.Errorf("failed to update rider range: %w", err)
 	}
+	// Check if any meaningful changes occurred that would affect isochrones
+	rangeChanged := originalStartKm != riderRange.StartKm || originalEndKm != riderRange.EndKm
+	priceChanged := originalPrice != riderRange.Price
+	// InputRangeToGenerateIsochrone()
 
+	if rangeChanged || priceChanged {
+		// If range boundaries changed, invalidate all isochrones for this rider
+		// If only price changed, we could be more selective, but for simplicity, invalidate all
+		if err := helper.NewIsochroneCache().InvalidateRiderIsochrones(*riderIDStr); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Error invalidating isochrones for rider %s: %v\n", *riderIDStr, err)
+		}
+		riderRangeID := riderRange.ID.String()
+		// Find and update existing isochrone data
+		_, err := r.UpdateExistingIsochroneData(ctx, *riderIDStr, riderRangeID)
+		if err != nil {
+			// Log error but don't fail the range update
+			fmt.Printf("Error updating existing isochrone data after range update for rider %s: %v\n", *riderIDStr, err)
+		} else {
+			if rangeChanged {
+				fmt.Printf("Successfully updated isochrone data after range boundary change for rider %s\n", *riderIDStr)
+			} else {
+				fmt.Printf("Successfully updated isochrone data after price change for rider %s\n", *riderIDStr)
+			}
+		}
+	}
 	// Log the validation result for debugging/auditing
 	if validationResult.WasStartAdjusted {
 		fmt.Printf("Range update adjusted for rider %s: %s\n", *riderIDStr, validationResult.Message)
@@ -347,23 +721,59 @@ func (r *mutationResolver) UpdateRiderRange(ctx context.Context, input model.Upd
 
 // DeleteRiderRange is the resolver for the deleteRiderRange field.
 func (r *mutationResolver) DeleteRiderRange(ctx context.Context, id string) (bool, error) {
+	// Get the rider range first to know which rider it belongs to
+	var riderRange model.RiderRange
+	if err := r.DB.First(&riderRange, "id = ?", id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, fmt.Errorf("rider range not found")
+		}
+		return false, fmt.Errorf("failed to find rider range: %w", err)
+	}
+
+	// Delete the rider range
 	if err := r.DB.Delete(&model.RiderRange{}, "id = ?", id).Error; err != nil {
 		return false, fmt.Errorf("failed to delete rider range: %w", err)
+	}
+	// Clean up any junction table entries for this rider range
+	if err := r.DB.Delete(&model.IsochroneRiderRangeLink{}, "rider_range_id = ?", id).Error; err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Error cleaning up isochrone-rider range links for range %s: %v\n", id, err)
+	}
+	// Remove this range data from existing isochrones
+	if err := helper.NewIsochroneCache().RemoveRangeFromIsochroneData(ctx, riderRange.RiderID, id); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Error removing range data from isochrones for rider %s: %v\n", riderRange.RiderID, err)
+	}
+	// Invalidate all isochrones for this rider since the ranges have changed
+	if err := helper.NewIsochroneCache().InvalidateRiderIsochrones(riderRange.RiderID); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Error invalidating isochrones for rider %s: %v\n", riderRange.RiderID, err)
 	}
 	return true, nil
 }
 
 // DeleteAllRouteData is the resolver for the deleteAllRouteData field.
 func (r *mutationResolver) DeleteAllRouteData(ctx context.Context) (*bool, error) {
-	// Delete all route data from the database
-	result := r.DB.Where("1 = 1").Delete(&model.RouteInfo{})
-	if result.Error != nil {
-		success := false
-		return &success, fmt.Errorf("failed to delete all route data: %w", result.Error)
+	// ADD IsochroneResult
+	tables := []string{
+		"isochrone_rider_range_links",
+		"rider_ranges",
+		"route_infos",
+		"isochrone_results",
 	}
 
-	// Log the number of deleted records
-	log.Printf("Successfully deleted %d route records", result.RowsAffected)
+	tx := r.DB.Begin()
+	for _, table := range tables {
+		if err := tx.Exec(fmt.Sprintf("DELETE FROM %s", table)).Error; err != nil {
+			tx.Rollback()
+			success := false
+			return &success, fmt.Errorf("failed to delete from %s: %w", table, err)
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		success := false
+		return &success, fmt.Errorf("transaction commit failed: %w", err)
+	}
 
 	success := true
 	return &success, nil
@@ -391,6 +801,11 @@ func (r *queryResolver) GetAllIsochroneResults(ctx context.Context) ([]*model.Is
 		return nil, fmt.Errorf("failed to get all isochrone results: %w", err)
 	}
 	return results, nil
+}
+
+// GetAllIsochroneRiderRangeLinkResults is the resolver for the getAllIsochroneRiderRangeLinkResults field.
+func (r *queryResolver) GetAllIsochroneRiderRangeLinkResults(ctx context.Context) ([]*model.IsochroneRiderRangeLink, error) {
+	panic(fmt.Errorf("not implemented: GetAllIsochroneRiderRangeLinkResults - getAllIsochroneRiderRangeLinkResults"))
 }
 
 // GetIsochroneByID is the resolver for the getIsochroneById field.
@@ -816,6 +1231,11 @@ func (r *Resolver) IsochroneResult() graph.IsochroneResultResolver {
 	return &isochroneResultResolver{r}
 }
 
+// IsochroneRiderRangeLink returns graph.IsochroneRiderRangeLinkResolver implementation.
+func (r *Resolver) IsochroneRiderRangeLink() graph.IsochroneRiderRangeLinkResolver {
+	return &isochroneRiderRangeLinkResolver{r}
+}
+
 // RiderRange returns graph.RiderRangeResolver implementation.
 func (r *Resolver) RiderRange() graph.RiderRangeResolver { return &riderRangeResolver{r} }
 
@@ -823,5 +1243,6 @@ func (r *Resolver) RiderRange() graph.RiderRangeResolver { return &riderRangeRes
 func (r *Resolver) RouteInfo() graph.RouteInfoResolver { return &routeInfoResolver{r} }
 
 type isochroneResultResolver struct{ *Resolver }
+type isochroneRiderRangeLinkResolver struct{ *Resolver }
 type riderRangeResolver struct{ *Resolver }
 type routeInfoResolver struct{ *Resolver }

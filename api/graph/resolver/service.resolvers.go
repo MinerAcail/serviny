@@ -427,7 +427,7 @@ func (r *mutationResolver) UpdateBusinessType(ctx context.Context, businessType 
 }
 
 // GenerateSubDomain is the resolver for the generateSubDomain field.
-func (r *mutationResolver) GenerateSubDomain(ctx context.Context, serviceID string) (*model.Service, error) {
+func (r *mutationResolver) GenerateSubDomain(ctx context.Context, serviceID string, tryName *string) (*model.Service, error) {
 	// Generate a subdomain for the service
 	uuid, err := uuid.Parse(serviceID)
 	if err != nil {
@@ -513,9 +513,152 @@ func (r *mutationResolver) UseTheme(ctx context.Context, serviceID string, theme
 	return service.UseTheme, nil
 }
 
+// UpdateServiceByAmin is the resolver for the updateServiceByAmin field.
+func (r *mutationResolver) UpdateServiceByAmin(ctx context.Context, serviceID string, input model.UpdateServiceByAminInput) (*model.Service, error) {
+	panic(fmt.Errorf("not implemented: UpdateServiceByAmin - updateServiceByAmin"))
+}
+
 // DeleteService is the resolver for the deleteService field.
 func (r *mutationResolver) DeleteService(ctx context.Context, id string) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteService - deleteService"))
+}
+
+// DeleteBookingOrOrder is the resolver for the deleteBookingOrOrder field.
+func (r *mutationResolver) DeleteBookingOrOrder(ctx context.Context, entityID string, entityType string) (*model.StateMessage, error) {
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return &model.StateMessage{
+			Message: "Failed to get service ID",
+			Success: false,
+		}, fmt.Errorf("failed to get service ID: %v", err)
+	}
+
+	// Validate entityType
+	entityType = strings.ToLower(strings.TrimSpace(entityType))
+	if entityType != "booking" && entityType != "order" {
+		return &model.StateMessage{
+			Message: "Invalid entity type. Must be 'booking' or 'order'",
+			Success: false,
+		}, fmt.Errorf("invalid entity type: %s", entityType)
+	}
+
+	// Validate entityID
+	if strings.TrimSpace(entityID) == "" {
+		return &model.StateMessage{
+			Message: "Entity ID cannot be empty",
+			Success: false,
+		}, fmt.Errorf("entityID cannot be empty")
+	}
+
+	// Start a database transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return &model.StateMessage{
+			Message: "Failed to start database transaction",
+			Success: false,
+		}, fmt.Errorf("failed to start transaction: %v", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if entityType == "booking" {
+		// Handle booking deletion
+		var booking model.AppointmentBooking
+
+		// First, verify the booking exists and belongs to this service
+		if err := tx.Where("id = ? AND service_id = ?", entityID, *serviceIDStr).First(&booking).Error; err != nil {
+			tx.Rollback()
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &model.StateMessage{
+					Message: "Booking not found or does not belong to this service",
+					Success: false,
+				}, fmt.Errorf("booking not found: %s", entityID)
+			}
+			return &model.StateMessage{
+				Message: "Failed to fetch booking",
+				Success: false,
+			}, fmt.Errorf("failed to fetch booking: %v", err)
+		}
+
+		// Delete related cargo data if exists
+		if booking.CargoID != nil && *booking.CargoID != "" {
+			if err := tx.Where("booking_id = ?", entityID).Delete(&model.BookingCargo{}).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				tx.Rollback()
+				return &model.StateMessage{
+					Message: "Failed to delete booking cargo data",
+					Success: false,
+				}, fmt.Errorf("failed to delete cargo data for booking %s: %v", entityID, err)
+			}
+		}
+
+		// Delete the booking itself
+		if err := tx.Delete(&booking).Error; err != nil {
+			tx.Rollback()
+			return &model.StateMessage{
+				Message: "Failed to delete booking",
+				Success: false,
+			}, fmt.Errorf("failed to delete booking %s: %v", entityID, err)
+		}
+
+		// Commit transaction
+		if err := tx.Commit().Error; err != nil {
+			return &model.StateMessage{
+				Message: "Failed to commit booking deletion",
+				Success: false,
+			}, fmt.Errorf("failed to commit booking deletion: %v", err)
+		}
+
+		log.Printf("Successfully deleted booking %s from service %s", entityID, *serviceIDStr)
+		return &model.StateMessage{
+			Message: fmt.Sprintf("Booking %s deleted successfully", entityID),
+			Success: true,
+		}, nil
+
+	} else if entityType == "order" {
+		// Handle order deletion
+		var order model.Order
+
+		// Delete related order items first (due to foreign key constraints)
+		if err := tx.Where("order_id = ?", entityID).Delete(&model.CartItem{}).Error; err != nil {
+			tx.Rollback()
+			return &model.StateMessage{
+				Message: "Failed to delete order items",
+				Success: false,
+			}, fmt.Errorf("failed to delete order items for order %s: %v", entityID, err)
+		}
+
+		// Delete the order itself
+		if err := tx.Delete(&order).Error; err != nil {
+			tx.Rollback()
+			return &model.StateMessage{
+				Message: "Failed to delete order",
+				Success: false,
+			}, fmt.Errorf("failed to delete order %s: %v", entityID, err)
+		}
+
+		// Commit transaction
+		if err := tx.Commit().Error; err != nil {
+			return &model.StateMessage{
+				Message: "Failed to commit order deletion",
+				Success: false,
+			}, fmt.Errorf("failed to commit order deletion: %v", err)
+		}
+
+		log.Printf("Successfully deleted order %s from service %s", entityID, *serviceIDStr)
+		return &model.StateMessage{
+			Message: fmt.Sprintf("Order %s deleted successfully", entityID),
+			Success: true,
+		}, nil
+	}
+
+	// This should never be reached due to validation above
+	return &model.StateMessage{
+		Message: "Unknown error occurred",
+		Success: false,
+	}, fmt.Errorf("unexpected error in DeleteBookingOrOrder")
 }
 
 // UpdateBookingType is the resolver for the updateBookingType field.
@@ -570,6 +713,11 @@ func (r *mutationResolver) UpdateBookingType(ctx context.Context, typeArg model.
 
 	// Return response with updated booking types
 	return &typeArg, nil
+}
+
+// UpdateBookingTypeByAdmin is the resolver for the updateBookingTypeByAdmin field.
+func (r *mutationResolver) UpdateBookingTypeByAdmin(ctx context.Context, typeArg model.BookingType, serviceID string) (*model.BookingType, error) {
+	panic(fmt.Errorf("not implemented: UpdateBookingTypeByAdmin - updateBookingTypeByAdmin"))
 }
 
 // CreateGallery is the resolver for the createGallery field.
@@ -2065,9 +2213,10 @@ func (r *queryResolver) GetBookingServiceData(ctx context.Context) ([]*model.Ser
 
 	// Fetch all bookings for this service directly by service_id
 	var bookings []model.AppointmentBooking
-	if err := r.DB.Where("service_id = ?", *serviceIDStr).
-		Order("created_at DESC").
-		Find(&bookings).Error; err != nil {
+	query := r.DB.Where("service_id = ?", *serviceIDStr)
+	// Only include status filter if not "removed"
+	query = query.Where("status != ?", "removed")
+	if err := query.Order("created_at DESC").Find(&bookings).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
 	}
 
@@ -2319,16 +2468,24 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 			}
 		}
 
-		// Get zone metadata (isochrone data)
-		var zoneMetaData *model.ZoneMetaData
-		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
-			zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
-			if err != nil {
-				log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
-					order.ID, *order.IsochroneMetaID, err)
+		// // Get zone metadata (isochrone data)
+		// var zoneMetaData *model.ZoneMetaData
+		// if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+		// 	zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+		// 	if err != nil {
+		// 		log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
+		// 			order.ID, *order.IsochroneMetaID, err)
+		// 	}
+		// }
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if order.RiderID != nil {
+		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 			}
 		}
-
+	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -2396,7 +2553,8 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 				DeliveryAddress:       order.DeliveryAddress,
 				Status:                order.Status,
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-				DeliveryMetaData:      zoneMetaData,
+				// DeliveryMetaData:      zoneMetaData,
+				RangeMetaData: rangeMetaData,
 				RouteData:             routeData,
 				ServiceFee:            order.DeliveryFee,
 				CreatedAt:             order.CreatedAt,
@@ -2617,8 +2775,9 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 
 	// Fetch all orders where rider_id is in riderIDs
 	var orders []model.Order
+	// Fetch orders where either rider_id or vendor_id is in riderIDs, and status is not "removed"
 	if err := r.DB.Preload("Items").
-		Where("rider_id IN ?", riderIDs).
+		Where("(rider_id IN (?) OR vendor_id = ?) AND status != ?", riderIDs, serviceIDStr, "removed").
 		Order("created_at DESC").
 		Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch orders: %w", err)
@@ -2683,16 +2842,24 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 			}
 		}
 
-		// Get zone metadata (isochrone data)
-		var zoneMetaData *model.ZoneMetaData
-		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
-			zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
-			if err != nil {
-				log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
-					order.ID, *order.IsochroneMetaID, err)
+		// // Get zone metadata (isochrone data)
+		// var zoneMetaData *model.ZoneMetaData
+		// if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+		// 	zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+		// 	if err != nil {
+		// 		log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
+		// 			order.ID, *order.IsochroneMetaID, err)
+		// 	}
+		// }
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if order.RiderID != nil {
+		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 			}
 		}
-
+	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -2788,7 +2955,8 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 
 				Status:                order.Status,
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-				DeliveryMetaData:      zoneMetaData,
+				// DeliveryMetaData:      zoneMetaData,
+				RangeMetaData: rangeMetaData,
 				RouteData:             routeData,
 				ServiceFee:            order.DeliveryFee,
 				PaymentStatus:         &paymentStatusValue,
@@ -2985,14 +3153,22 @@ func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID 
 	}
 
 	// Get zone metadata
-	var zoneMetaData *model.ZoneMetaData
-	if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
-		zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
-		if err != nil {
-			log.Printf("Warning: failed to get delivery metadata for order %s: %v", order.ID, err)
+	// var zoneMetaData *model.ZoneMetaData
+	// if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+	// 	zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+	// 	if err != nil {
+	// 		log.Printf("Warning: failed to get delivery metadata for order %s: %v", order.ID, err)
+	// 	}
+	// }
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if order.RiderID != nil {
+		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+			}
 		}
 	}
-
 	// Get route data
 	var routeData *model.RouteInfo
 	if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -3040,10 +3216,11 @@ func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID 
 			DeliveryAddress:       order.DeliveryAddress,
 			Status:                order.Status,
 			EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-			DeliveryMetaData:      zoneMetaData,
+			// DeliveryMetaData:      zoneMetaData,
 			RouteData:             routeData,
 			ServiceFee:            order.DeliveryFee,
 			CreatedAt:             order.CreatedAt,
+			RangeMetaData: rangeMetaData,
 		},
 		BookingData: nil,
 	}
@@ -3411,15 +3588,23 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 		}
 
 		// Get zone metadata (isochrone data)
-		var zoneMetaData *model.ZoneMetaData
-		if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
-			zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
-			if err != nil {
-				log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
-					order.ID, *order.IsochroneMetaID, err)
+		// var zoneMetaData *model.ZoneMetaData
+		// if order.IsochroneMetaID != nil && *order.IsochroneMetaID != "" {
+		// 	zoneMetaData, err = r.Query().GetASingleIsochroneZoneMetaDataByMetaID(ctx, *order.IsochroneMetaID)
+		// 	if err != nil {
+		// 		log.Printf("Warning: failed to get delivery metadata for order %s (metaID: %s): %v",
+		// 			order.ID, *order.IsochroneMetaID, err)
+		// 	}
+		// }
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if order.RiderID != nil {
+		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 			}
 		}
-
+	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -3487,7 +3672,8 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 				DeliveryAddress:       order.DeliveryAddress,
 				Status:                order.Status,
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
-				DeliveryMetaData:      zoneMetaData,
+				// DeliveryMetaData:      zoneMetaData,
+				RangeMetaData: rangeMetaData,
 				RouteData:             routeData,
 				ServiceFee:            order.DeliveryFee,
 				CreatedAt:             order.CreatedAt,

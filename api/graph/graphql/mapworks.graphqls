@@ -5,10 +5,14 @@ input IsochroneInput {
   vendorId: String!
   address: String
   metaData: [ZoneMetaDataInput]!
+  riderRangeIds: [String]
+
 }
 input ZoneMetaDataInput {
-  price: Float!
-  # distance: Float!
+   price: Float!
+  distance: Float
+  riderRangeId: String
+  zoneNumber: Int
 }
 type IsochroneResult {
   id: String!
@@ -25,13 +29,25 @@ type IsochroneResult {
   riderId: String
   error: String
   errorCode: String
+  riderRangeIds: [String!]
+  riderRanges: [RiderRange!]!
 }
+
+type IsochroneRiderRangeLink {
+  id: String!
+  isochroneId: String!
+  riderRangeId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
 type IsochroneZoneMetaData {
   id: String!
   price: Float!
   duration: Int!
   distance: Float!
   zone: Int!
+  riderRangeId: String
 }
 type ZoneMetaData {
   id: String!
@@ -65,6 +81,7 @@ extend type Query {
   # Get isochrone result by UUID and location
   getIsochroneResult(location: [Float!]!, uuid: String!): IsochroneResult
   getAllIsochroneResults: [IsochroneResult!]
+  getAllIsochroneRiderRangeLinkResults: [IsochroneRiderRangeLink!]
   # Get isochrone result by ID
   getIsochroneById(id: String!): IsochroneResult
 
@@ -84,7 +101,6 @@ extend type Query {
   getOrderWithRoute(orderId: String!): OrderWithRoute
   getRouteData(routeId: String!): RouteData!
   getAllRouteData: [RouteInfo!]!
-
 
   getRiderRanges: [RiderRange!]!
   getARiderRanges(routeId: String!): [RiderRange!]!
@@ -117,11 +133,22 @@ type VendorMapData {
 
 extend type Mutation {
   generateIsochrone(input: IsochroneInput!): IsochroneResult!
+  useRangeToGenerateIsochrone: IsochroneResult!
+  inputRangeToGenerateIsochrone(input:IsochroneInput): IsochroneResult!
+  createIsochroneFromInput(
+    riderId: String!
+    # input: IsochroneInput!
+    input: NewRiderRangeInput!
+    riderRangeID: String!
+  ): IsochroneResult!
+  updateExistingIsochroneData(
+    riderId: String!
+    rangeId: String!
+  ): RiderRange!
   # call Direction from google api
 
   generateRoute(input: generateRouteInput!): RouteInfo!
   updateOrderRoute(orderId: String!, status: String!): Boolean!
-
 
   generateBookRoute(input: generateBookRouteInput!): RouteInfo!
   updateBookRoute(orderId: String!, status: String!): Boolean!
@@ -183,7 +210,6 @@ type RiderProfile {
   vehicleType: String
   rating: Float
   isOnline: Boolean!
- 
 }
 
 # type DeliveryLocation {
