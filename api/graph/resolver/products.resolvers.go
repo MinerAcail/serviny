@@ -713,7 +713,9 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			}
 		} else {
 			feeStr := fmt.Sprintf("%.2f", riderRange.Price)
+			rangeId := riderRange.ID.String()
 			order.DeliveryFee = &feeStr
+			order.RangeMetaID = &rangeId
 			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
 		}
 	}
@@ -1923,6 +1925,7 @@ func (r *queryResolver) GetAllOrderItemsByProductID(ctx context.Context, orderID
 		productInfo := &model.OrderproductInfor{
 			Product:  []*model.Product{&product},
 			Quantity: int32(item.Quantity),
+			ItemType: item.ItemType,
 		}
 
 		productInfos = append(productInfos, productInfo)
@@ -2019,6 +2022,7 @@ func (r *queryResolver) GetAllOrderItemsByProductIDDelivery(ctx context.Context)
 				productInfos = append(productInfos, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
+					ItemType: item.ItemType,
 				})
 			}
 		}
@@ -2145,6 +2149,7 @@ func (r *queryResolver) GetAllRidersOrderItemsByService(ctx context.Context) ([]
 				productInfos = append(productInfos, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
+					ItemType: item.ItemType,
 				})
 			}
 		}

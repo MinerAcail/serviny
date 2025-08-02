@@ -1,4 +1,3 @@
-"use client";
 
 import type React from "react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -52,7 +51,7 @@ import {
   Info,
   BarChart3,
 } from "lucide-react";
-import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
+import { useJsApiLoader } from "@react-google-maps/api";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
@@ -242,6 +241,7 @@ const LiveMap: React.FC = () => {
     () => data?.getAllRidersServiceData || [],
     [data]
   );
+// console.log("PaPAserviceData",serviceData[27]?.orderData?.productInfor);
 
   const riders = useMemo(() => processRiders(serviceData), [serviceData]);
 
@@ -254,7 +254,7 @@ const LiveMap: React.FC = () => {
     }
 
     const query = searchQuery.toLowerCase();
-    const suggestions = [];
+    // const suggestions = [];
 
     // Get unique customer names
     const customers = [...new Set(serviceData.map((s) => s.customer.name))]
@@ -690,8 +690,8 @@ const riderNames = uniqueRiderNames
     entityId: string,
     entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
   ) => {
-    console.log("Entity ID:", entityId);
-    console.log("Entity Type:", entityType);
+    // console.log("Entity ID:", entityId);
+    // console.log("Entity Type:", entityType);
 
     // Set the search query to the entity ID
     setSearchQuery(entityId);
@@ -702,27 +702,27 @@ const riderNames = uniqueRiderNames
     // You can also handle different entity types differently:
     switch (entityType) {
       case "order":
-        console.log("Opening live map for order:", entityId);
+        // console.log("Opening live map for order:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "booking":
-        console.log("Opening live map for booking:", entityId);
+        // console.log("Opening live map for booking:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "multigroup":
-        console.log("Opening live map for multi-group:", entityId);
+        // console.log("Opening live map for multi-group:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "customer":
-        console.log("Opening live map for customer:", entityId);
+        // console.log("Opening live map for customer:", entityId);
         setSearchQuery(entityId);
         break;
       case "vendor":
-        console.log("Opening live map for vendor:", entityId);
+        // console.log("Opening live map for vendor:", entityId);
         setSearchQuery(entityId);
         break;
       default:
-        console.log("Unknown entity type:", entityType);
+        // console.log("Unknown entity type:", entityType);
     }
   };
 
@@ -734,17 +734,13 @@ const riderNames = uniqueRiderNames
       }
 
       try {
-        console.log(`Fetching route for service item: ${serviceId}`);
+        // console.log(`Fetching route for service item: ${serviceId}`);
         const { data } = await getOrderRoute({
           variables: { orderId: serviceId },
         });
 
         if (data?.getOrderRoute) {
-          // console.log(`Successfully fetched route for service ${serviceId}:`, {
-          //   id: data.getOrderRoute.id,
-          //   hasGeojson: !!data.getOrderRoute.geojson,
-          //   geojsonLength: data.getOrderRoute.geojson?.length || 0,
-          // });
+        
 
           setOrderRouteCache((prev) =>
             new Map(prev).set(serviceId, data.getOrderRoute)
@@ -1038,7 +1034,7 @@ const riderNames = uniqueRiderNames
       map.on("load", () => {
         setMapLoaded(true);
         setMapInitialized(true);
-        console.log("Map loaded successfully");
+        // console.log("Map loaded successfully");
       });
 
       map.on("error", (e) => {
@@ -2018,7 +2014,7 @@ const riderNames = uniqueRiderNames
                 className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-white/10 hover:bg-white/20 border-white/20 rounded-full"
               >
                 <XCircle className="h-3 w-3 mr-1" />
-                {isMobile ? "" : "Clodse"}
+                {isMobile ? "" : "Close"}
               </Button>
             </div>
           </div>
@@ -2277,7 +2273,7 @@ const riderNames = uniqueRiderNames
                             {location.venue && (
                               <div className="p-3 bg-green-50/50 rounded-xl border-l-4 border-green-400">
                                 <div className="text-xs font-semibold text-green-700 mb-1">
-                                  🏪 Venue
+                                  🏪 Provider
                                 </div>
                                 <div className="text-sm text-black break-words">
                                   {location.venue}
@@ -2965,7 +2961,7 @@ useEffect(() => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Google Maps calculated routes</p>
+                    <p> Maps calculated routes</p>
                   </TooltipContent>
                 </Tooltip>
 

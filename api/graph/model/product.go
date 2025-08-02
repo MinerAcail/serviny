@@ -68,6 +68,8 @@ type Order struct {
 
 	Status                string      `json:"status"`
 	Items                 []*CartItem `json:"items"`
+	RangeMetaID               *string         `json:"rangeMetaId,omitempty"`
+
 	EstimatedDeliveryDate string      `json:"estimatedDeliveryDate"`
 	CreatedAt             time.Time   `json:"createdAt"`
 	UpdatedAt             time.Time   `json:"updatedAt"`

@@ -109,7 +109,7 @@ export function DeliveryZoneVisualizerMenu({
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [isOpen, setIsOpen])
-console.log('DeliveryZoneVisualizerMenu - vendorMapData:', vendorMapData);	
+// console.log('DeliveryZoneVisualizerMenu - vendorMapData:', vendorMapData);	
 
   return (
     <div className="relative w-full h-full">
@@ -281,8 +281,8 @@ function RidersList({
   onSelectComplete: () => void
 }) {
   // Debug logging
-  console.log('RidersList - vendorMapData:', vendorMapData);
-  console.log('RidersList - allRiders:', allRiders);
+  // console.log('RidersList - vendorMapData:', vendorMapData);
+  // console.log('RidersList - allRiders:', allRiders);
 
   // Use allRiders if available, otherwise extract from vendorMapData
   const ridersToShow = allRiders && allRiders.length > 0 

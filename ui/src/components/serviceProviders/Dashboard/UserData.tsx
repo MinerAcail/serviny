@@ -396,7 +396,7 @@ export default function ContactDetailPage() {
                               <div className="flex items-center gap-1 mb-1">
                                 <Building className="h-3 w-3 text-gray-400" />
                                 <span className="font-medium text-gray-700">
-                                  {order.type === "ORDER" ? "Vendor" : "Venue"}
+                                  {order.type === "ORDER" ? "Vendor" : "Provider"}
                                 </span>
                               </div>
                               <p className="text-gray-900 truncate">
@@ -559,7 +559,7 @@ export default function ContactDetailPage() {
                                   <p className="font-medium text-gray-900 mb-2">
                                     {order.type === "ORDER"
                                       ? "Vendor"
-                                      : "Venue"}{" "}
+                                      : "Provider"}{" "}
                                     Information
                                   </p>
                                   <p className="text-sm text-gray-900">

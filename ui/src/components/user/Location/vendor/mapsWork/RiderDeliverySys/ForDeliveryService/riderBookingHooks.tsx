@@ -95,6 +95,9 @@ export interface DeliveryCalculation {
 // 1. useRiderZones Hook
 // ==========================================
 //done
+export interface zonesData{
+  getARiderRanges: PricingZone[];
+}
 export function useRiderZones(riderId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
 
@@ -103,7 +106,7 @@ export function useRiderZones(riderId: string | undefined) {
     loading: isLoadingZones,
     error: zonesError,
     refetch: refetchZones,
-  } = useQuery(GET_RIDER_RANGES, {
+  } = useQuery<zonesData>(GET_RIDER_RANGES, {
     variables: { riderId: riderId || "" },
     skip: !riderId,
     onError: (error) => {
@@ -353,7 +356,7 @@ export function useLocationAutocomplete(
           {
             input: query,
             types: ["establishment", "geocode"],
-            componentRestrictions: { country: "gh" }, // Restrict to Ghana
+            componentRestrictions: { country: "gh" }, // Restrict to Ghana CHECK HERE
           },
           (results, status) => {
             setIsSearching(false);
@@ -805,8 +808,10 @@ export function useSimpleMapManagerWithCenteredPinDrop() {
               units: "kilometers",
               steps: 64,
             });
-  // Start with the outer circle as the base polygon
-            let zonePolygon: import("geojson").Feature<import("geojson").Polygon | import("geojson").MultiPolygon> = outerCircle;
+            // Start with the outer circle as the base polygon
+            let zonePolygon: import("geojson").Feature<
+              import("geojson").Polygon | import("geojson").MultiPolygon
+            > = outerCircle;
 
             // let zonePolygon = outerCircle;
 
@@ -817,18 +822,15 @@ export function useSimpleMapManagerWithCenteredPinDrop() {
               });
 
               try {
-                
-                  // Use the difference function correctly - it only takes one argument (a FeatureCollection)
+                // Use the difference function correctly - it only takes one argument (a FeatureCollection)
                 const difference_ = difference({
                   type: "FeatureCollection",
-                  features: [outerCircle, innerCircle]
+                  features: [outerCircle, innerCircle],
                 });
-                
+
                 if (difference_) {
                   zonePolygon = difference_;
                 }
-                
-              
               } catch {
                 // Use full circle if difference fails
               }
@@ -2565,6 +2567,7 @@ export function CompleteStepWithTracking({
 // import { useCallback } from "react";
 // import { toast } from "sonner";
 import { MultiDeliveryItem } from "./multiBookingLocationsetting/riderBookingMultiDeliveryRequest";
+import { calculatePickupToDeliveryDistance } from "@/components/GlobalLogic/distanceUtils";
 
 // ==========================================
 // GraphQL Queries and Mutations
@@ -2579,7 +2582,9 @@ export const GET_MULTI_GROUPED_BOOKINGS = gql`
       endTime
       dropoffLocation
       pickupLocation
+      pickUpAddress
       deliveryAddress
+
       item
       notes
       tableSize
@@ -2589,6 +2594,36 @@ export const GET_MULTI_GROUPED_BOOKINGS = gql`
       isConfirmed
       updatedAt
       userId
+    }
+  }
+`;
+const GET_ORDER_DETAILS = gql`
+  query GetOrderDetails($orderId: String!) {
+    getOrderDetails(orderId: $orderId) {
+      id
+      userId
+      status
+      estimatedDeliveryDate
+      deliveryAddress
+      coordinates
+      createdAt
+      deliveryFee
+      duration
+      distance
+      isochroneMetaId
+      items {
+        id
+        productId
+        quantity
+        itemType
+        product {
+          id
+          name
+          price
+          imageUrls
+          description
+        }
+      }
     }
   }
 `;
@@ -2615,11 +2650,40 @@ export const UPDATE_MULTI_GROUP_BOOKINGS_WITH_LOCATION = gql`
       riderId
       serviceId
       updatedAt
-      userId                
+      userId
     }
   }
 `;
 
+const UPDATE_WITH_LOCATION = gql`
+  mutation updateWithLocation($input: addCoordinateInput!) {
+    updateWithLocation(input: $input) {
+      id
+      userId
+      status
+      estimatedDeliveryDate
+      deliveryAddress
+      coordinates
+      createdAt
+      deliveryFee
+      duration
+      distance
+      isochroneMetaId
+      items {
+        id
+        productId
+        quantity
+        itemType
+        product {
+          id
+          name
+          price
+          imageUrls
+        }
+      }
+    }
+  }
+`;
 // ==========================================
 // Types for Multi-Group Booking Updates
 // ==========================================
@@ -2630,6 +2694,7 @@ export interface MultiGroupBooking {
   endTime: string;
   dropoffLocation?: number[];
   pickupLocation?: number[];
+  pickUpAddress?: string;
   deliveryAddress?: string;
   item?: string;
   notes?: string;
@@ -2643,6 +2708,42 @@ export interface MultiGroupBooking {
   deliveryFee?: string;
   updatedAt: string;
 }
+// getOrderDetails type
+export interface OrderDetails {
+  id: string;
+  userId: string;
+  status: string;
+  estimatedDeliveryDate: string;
+  deliveryAddress: string;
+  coordinates: number[];
+  createdAt: string;
+  deliveryFee: string;
+  duration: string;
+  distance: string;
+  isochroneMetaId?: string;
+  items: {
+    id: string;
+    productId: string;
+    quantity: number;
+    itemType: string;
+    product: {
+      id: string;
+      name: string;
+      price: number;
+      imageUrls?: string[];
+      description?: string;
+    };
+  }[];
+}
+interface GetOrderDetailsData {
+  getOrderDetails: OrderDetails;
+}
+export interface MultiGroupBookingData {
+  getMultiGroupedAppointmentBookingBybookId: MultiGroupBooking[];
+}
+interface GetOrderDetailsVars {
+  orderId: string;
+}
 
 export interface UpdateBookingLocationInput {
   bookId: string;
@@ -2652,27 +2753,64 @@ export interface UpdateBookingLocationInput {
   rangeMetaId?: string;
   ridersId?: string;
   userId?: string;
-  
+}
+export interface UpdateOrderWithLocationInput {
+  orderId: string;
+  deliveryAddress: string;
+  coordinates: number[];
+  dropoffLocation: number[]; // [lng, lat]
+  rangeMetaId: string | undefined;
+  ridersId: string | undefined;
+
+  isochroneMetaId?: string | undefined;
 }
 
 // ==========================================
 // UPDATED: useMultiGroupBookingManagement Hook
 // ==========================================
-export function useMultiGroupBookingManagement(bookId?: string) {
-  // Query to get existing multi-group bookings
+export function useMultiGroupBookingManagement(
+  entityId?: string,
+  entityType?: string
+) {
+  // Conditionally skip based on entityType
+  const isBooking = entityType === "BOOKING";
+  const isOrder = entityType === "ORDER";
+  // Query to get multi-group bookings if type is BOOKING
   const {
     data: multiGroupData,
     loading: isLoadingBookings,
     error: bookingsError,
     refetch: refetchBookings,
-  } = useQuery(GET_MULTI_GROUPED_BOOKINGS, {
-    variables: { bookId: bookId || "" },
-    skip: !bookId,
+  } = useQuery<MultiGroupBookingData>(GET_MULTI_GROUPED_BOOKINGS, {
+    variables: { bookId: entityId || "" },
+    skip: !entityId || !isBooking,
     onError: (error) => {
       console.error("Error loading multi-group bookings:", error);
       toast.error("Failed to load existing bookings");
     },
   });
+
+  const {
+    data: orderData,
+    loading: orderLoading,
+    error: orderError,
+    refetch: refetchOrder,
+  } = useQuery<GetOrderDetailsData, GetOrderDetailsVars>(GET_ORDER_DETAILS, {
+    variables: { orderId: entityId || "" },
+    fetchPolicy: "cache-and-network",
+    skip: !entityId || !isOrder,
+  });
+
+  // Mutation for orders (ORDER only)
+  const [updateWithLocation, { loading: isUpdatingOrder }] = useMutation(
+    UPDATE_WITH_LOCATION,
+    {
+      onError: (error) => {
+        console.error("Error updating order location:", error);
+        toast.error("Failed to update order location");
+      },
+    }
+  );
 
   // Mutation to update bookings with locations
   const [updateMultiGroupBookings, { loading: isUpdatingBookings }] =
@@ -2724,7 +2862,27 @@ export function useMultiGroupBookingManagement(bookId?: string) {
     },
     [updateMultiGroupBookings, refetchBookings]
   );
+  // Method: update order
+  const updateOrderWithLocation = useCallback(
+    async (input: UpdateOrderWithLocationInput) => {
+      if (!isOrder) throw new Error("Invalid usage for non-ORDER entity");
 
+      const result = await updateWithLocation({
+        variables: { input },
+      });
+
+      const updated = result?.data?.updateWithLocation;
+      if (!updated) throw new Error("No data returned from order update");
+
+      toast.success("Order location updated", {
+        duration: 4000,
+      });
+
+      await refetchOrder();
+      return updated;
+    },
+    [isOrder, updateWithLocation, refetchOrder]
+  );
   return {
     // Existing bookings data
     multiGroupBookings:
@@ -2738,6 +2896,14 @@ export function useMultiGroupBookingManagement(bookId?: string) {
 
     // Refetch function
     refetchBookings,
+
+    // Order-related
+    orderData,
+    orderLoading,
+    isUpdatingOrder,
+    orderError: orderError?.message,
+    updateOrderWithLocation,
+    refetchOrder,
   };
 }
 
@@ -2753,52 +2919,24 @@ export function convertBookingsToDeliveryItems(
   });
 
   return bookings.map((booking, index) => {
-    // Debug each booking conversion
-    console.log(`📦 Converting booking ${index}:`, {
-      id: booking.id,
-      item: booking.item,
-      deliveryAddress: booking.deliveryAddress,
-      dropoffLocation: booking.dropoffLocation,
-      notes: booking.notes,
-      distance: booking.distance,
-      deliveryFee: booking.deliveryFee,
-      duration: booking.duration,
-    });
-
     // Validate dropoffLocation
     let dropoffLocation: [number, number] = [0, 0];
     if (booking.dropoffLocation && Array.isArray(booking.dropoffLocation)) {
       if (booking.dropoffLocation.length >= 2) {
         const [lng, lat] = booking.dropoffLocation;
         dropoffLocation = [lat, lng]; // Convert lng,lat to lat,lng
-        console.log(`📍 Converted coordinates for booking ${index}:`, {
-          original: booking.dropoffLocation,
-          converted: dropoffLocation,
-        });
       } else {
-        console.warn(
-          `⚠️ Invalid dropoffLocation for booking ${index}:`,
-          booking.dropoffLocation
-        );
+        //
       }
     } else {
-      console.warn(`⚠️ No dropoffLocation for booking ${index}`);
-    }
-
-    // Validate deliveryAddress
-    if (!booking.deliveryAddress || booking.deliveryAddress.trim() === "") {
-      console.warn(`⚠️ Empty deliveryAddress for booking ${index}`);
-    }
-
-    // Validate item description
-    if (!booking.item || booking.item.trim() === "") {
-      console.warn(`⚠️ Empty item description for booking ${index}`);
+      //
     }
 
     const convertedItem: MultiDeliveryItem = {
       id: booking.id,
       itemDescription: booking.item || `Item ${index + 1}`,
       deliveryAddress: booking.deliveryAddress || "",
+      pickUpAddress: booking.pickUpAddress || "",
       dropoffLocation,
       notes: booking.notes || "",
       // Add calculated data if available
@@ -2812,7 +2950,7 @@ export function convertBookingsToDeliveryItems(
           : undefined,
     };
 
-    console.log(`✅ Converted booking ${index} result:`, convertedItem);
+    // console.log(`✅ Converted booking ${index} result:`, convertedItem);
     return convertedItem;
   });
 }
@@ -2933,16 +3071,21 @@ export function useMultiDeliveryCalculation() {
             durations.push(item.calculated.duration);
           } else {
             // Calculate new pricing using existing delivery calculation
-            const dropoffLocation: Location = {
-              lat: item.dropoffLocation[0],
-              lng: item.dropoffLocation[1],
-              address: item.deliveryAddress,
-            };
-
+            // const dropoffLocation: Location = {
+            //   lat: item.dropoffLocation[0],
+            //   lng: item.dropoffLocation[1],
+            //   address: item.deliveryAddress,
+            // };
+  // Calculate distance using utility function
+            const distance_ = calculatePickupToDeliveryDistance(
+              pickup,
+              item.dropoffLocation,
+              'kilometers'
+            );
             // Use turf for distance calculation
-            const from = point([pickup.lng, pickup.lat]);
-            const to = point([dropoffLocation.lng, dropoffLocation.lat]);
-            const distance_ = distance(from, to, { units: "kilometers" });
+            // const from = point([pickup.lng, pickup.lat]);
+            // const to = point([dropoffLocation.lng, dropoffLocation.lat]);
+            // const distance_ = distance(from, to, { units: "kilometers" });
 
             // Find matching pricing zone
             const matchedZone =
@@ -2972,6 +3115,7 @@ export function useMultiDeliveryCalculation() {
               itemCalculations.push(itemCalc);
               totalDistance += itemCalc.distance;
               totalPrice += itemCalc.price;
+              
               durations.push(duration);
             }
           }
@@ -2985,6 +3129,7 @@ export function useMultiDeliveryCalculation() {
             totalPrice,
             averageDuration,
             itemCalculations,
+
           };
 
           setTotalCalculations(result);
@@ -3644,7 +3789,9 @@ export function useMultiDeliveryMapManager() {
             });
 
             // let zonePolygon = outerCircle;
-            let zonePolygon: import("geojson").Feature<import("geojson").Polygon | import("geojson").MultiPolygon> = outerCircle;
+            let zonePolygon: import("geojson").Feature<
+              import("geojson").Polygon | import("geojson").MultiPolygon
+            > = outerCircle;
 
             if (zone.startKm > 0) {
               const innerCircle = circle(centerPoint, zone.startKm, {
@@ -3653,13 +3800,12 @@ export function useMultiDeliveryMapManager() {
               });
 
               try {
-
-                  // Use the difference function correctly - it only takes one argument (a FeatureCollection)
+                // Use the difference function correctly - it only takes one argument (a FeatureCollection)
                 const difference_ = difference({
                   type: "FeatureCollection",
-                  features: [outerCircle, innerCircle]
+                  features: [outerCircle, innerCircle],
                 });
-                
+
                 if (difference_) {
                   zonePolygon = difference_;
                 }

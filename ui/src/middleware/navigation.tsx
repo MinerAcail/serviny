@@ -512,7 +512,7 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-            expectedTypes={[BusinessTypeEnum.DELIVERY_STANDARD]}
+            expectedTypes={[BusinessTypeEnum.DELIVERY_STANDARD,BusinessTypeEnum.ECOMMERCE_STANDARD]}
             element={
               <LoadingWrapper>
                 <ProfileService />
@@ -531,6 +531,8 @@ const router = createBrowserRouter([
         expectedTypes={[
           BusinessTypeEnum.DELIVERY_ENTERPRISE,
           BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+          BusinessTypeEnum.ECOMMERCE_STANDARD,
+          BusinessTypeEnum.DROP_SHIPPING,
         ]}
         element={
           <LoadingWrapper>
@@ -603,6 +605,10 @@ const router = createBrowserRouter([
             expectedTypes={[
               BusinessTypeEnum.DELIVERY_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum.ECOMMERCE_STANDARD,
+              BusinessTypeEnum.DROP_SHIPPING,
+
+
             ]}
             element={
               <LoadingWrapper>

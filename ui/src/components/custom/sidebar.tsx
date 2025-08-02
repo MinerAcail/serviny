@@ -80,6 +80,7 @@ export function Sidebar() {
   const {
     isDeliveryStandardOrEnterprise,
     isEcommerceStandard,
+    isPreOrderOrDropShipping,
     isEcommerceEnterprise,
   } = useProvider();
 
@@ -100,7 +101,7 @@ export function Sidebar() {
   const navigation = [
     { name: "Home", to: `/`, icon: Home }, // stays on /dbp/:serviceId
     { name: "Dashboard", to: ".", icon: LayoutDashboard }, // stays on /dbp/:serviceId
-    ...(isEcommerceStandard
+    ...(isEcommerceStandard 
       ? [
           { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
           // { name: "Products Categr", to: "products", icon: ShoppingCart }, // stays on /dbp/:serviceId
@@ -140,6 +141,26 @@ export function Sidebar() {
           { name: "Vendors", to: `vendors`, icon: Building2 },
           { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
           { name: "Schedule", to: `time`, icon: CalendarSync },
+          { name: "Upload", to: "upload", icon: HardDriveUpload },
+          { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
+          { name: "Products Categroy", to: "cate", icon: BaggageClaim }, // stays on /dbp/:serviceId
+
+          { name: "Contacts", to: `contacts`, icon: BookUser },
+          { name: "Orders", to: `orders`, icon: LayoutList },
+        ]
+      : []),
+         ...(isPreOrderOrDropShipping
+      ? [
+          {
+            name: "Live Map",
+            to: `livemap`,
+            icon: Map,
+          },
+          { name: "History", to: `history`, icon: History },
+          { name: "Forms", to: "builder", icon: BookCopy },
+
+          { name: "Delivery Zone And Pricing", to: "zone", icon: MapPlus }, // stays on /dbp/:serviceId
+          // { name: "Schedule", to: `time`, icon: CalendarSync },
           { name: "Upload", to: "upload", icon: HardDriveUpload },
           { name: "Add Products", to: "new", icon: ShoppingCart }, // stays on /dbp/:serviceId
           { name: "Products Categroy", to: "cate", icon: BaggageClaim }, // stays on /dbp/:serviceId
@@ -349,6 +370,7 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
   const hasEntEcommerceAccess = useCurrentUserHasAnyBusinessType([
     BusinessTypeEnum.DELIVERY_STANDARD,
     BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+    BusinessTypeEnum.DROP_SHIPPING,
   ]);
   const location = useLocation();
   const install = location.pathname === "/install";
@@ -396,7 +418,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
       : [{ name: "Delivery", to: `/vob`, icon: PackageCheck }]),
     { name: "History", to: `history`, icon: History },
     ...(user?.type === BusinessTypeEnum.DELIVERY_ENTERPRISE ||
-    user?.type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE
+    user?.type === BusinessTypeEnum.ECOMMERCE_ENTERPRISE ||  user?.type === BusinessTypeEnum.ECOMMERCE_STANDARD || BusinessTypeEnum.DROP_SHIPPING
+    
       ? [
           {
             name: "Dashboard",

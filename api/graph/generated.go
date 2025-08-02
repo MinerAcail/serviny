@@ -139,6 +139,7 @@ type ComplexityRoot struct {
 		Notes                 func(childComplexity int) int
 		PickUpAddress         func(childComplexity int) int
 		PickupLocation        func(childComplexity int) int
+		RangeMetaID           func(childComplexity int) int
 		RiderID               func(childComplexity int) int
 		ServiceID             func(childComplexity int) int
 		StartTime             func(childComplexity int) int
@@ -707,6 +708,7 @@ type ComplexityRoot struct {
 		ID                    func(childComplexity int) int
 		IsochroneMetaID       func(childComplexity int) int
 		Items                 func(childComplexity int) int
+		RangeMetaID           func(childComplexity int) int
 		RiderID               func(childComplexity int) int
 		Status                func(childComplexity int) int
 		UpdatedAt             func(childComplexity int) int
@@ -1475,6 +1477,7 @@ type ComplexityRoot struct {
 	}
 
 	OrderproductInfor struct {
+		ItemType func(childComplexity int) int
 		Product  func(childComplexity int) int
 		Quantity func(childComplexity int) int
 	}
@@ -2270,6 +2273,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.AppointmentBooking.PickupLocation(childComplexity), true
+
+	case "AppointmentBooking.rangeMetaId":
+		if e.complexity.AppointmentBooking.RangeMetaID == nil {
+			break
+		}
+
+		return e.complexity.AppointmentBooking.RangeMetaID(childComplexity), true
 
 	case "AppointmentBooking.riderId":
 		if e.complexity.AppointmentBooking.RiderID == nil {
@@ -6194,6 +6204,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Order.Items(childComplexity), true
+
+	case "Order.rangeMetaId":
+		if e.complexity.Order.RangeMetaID == nil {
+			break
+		}
+
+		return e.complexity.Order.RangeMetaID(childComplexity), true
 
 	case "Order.riderId":
 		if e.complexity.Order.RiderID == nil {
@@ -10907,6 +10924,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.FullCard.Prices(childComplexity), true
+
+	case "orderproductInfor.itemType":
+		if e.complexity.OrderproductInfor.ItemType == nil {
+			break
+		}
+
+		return e.complexity.OrderproductInfor.ItemType(childComplexity), true
 
 	case "orderproductInfor.product":
 		if e.complexity.OrderproductInfor.Product == nil {
@@ -20863,6 +20887,8 @@ func (ec *executionContext) fieldContext_AppointmentBookedData_book(_ context.Co
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -21812,6 +21838,47 @@ func (ec *executionContext) _AppointmentBooking_multiGroupId(ctx context.Context
 }
 
 func (ec *executionContext) fieldContext_AppointmentBooking_multiGroupId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AppointmentBooking",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AppointmentBooking_rangeMetaId(ctx context.Context, field graphql.CollectedField, obj *model.AppointmentBooking) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RangeMetaID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AppointmentBooking_rangeMetaId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AppointmentBooking",
 		Field:      field,
@@ -25682,6 +25749,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_productInfor(_ context.Co
 				return ec.fieldContext_orderproductInfor_product(ctx, field)
 			case "quantity":
 				return ec.fieldContext_orderproductInfor_quantity(ctx, field)
+			case "itemType":
+				return ec.fieldContext_orderproductInfor_itemType(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type orderproductInfor", field.Name)
 		},
@@ -25876,6 +25945,8 @@ func (ec *executionContext) fieldContext_CartItemOrder_order(_ context.Context, 
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -38861,6 +38932,8 @@ func (ec *executionContext) fieldContext_Mutation_createOrderItems(ctx context.C
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -38948,6 +39021,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteOrderItems(ctx context.C
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -39035,6 +39110,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteAllOrderItems(ctx contex
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -39119,6 +39196,8 @@ func (ec *executionContext) fieldContext_Mutation_updateWithLocation(ctx context
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -44151,6 +44230,8 @@ func (ec *executionContext) fieldContext_Mutation_createMultipleBookings(ctx con
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -44255,6 +44336,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCargoWithRider(ctx conte
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -44362,6 +44445,8 @@ func (ec *executionContext) fieldContext_Mutation_updateMultipleBookingsWithLoca
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -44510,6 +44595,8 @@ func (ec *executionContext) fieldContext_Mutation_updateMultiGroupBookingsWithLo
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -44617,6 +44704,8 @@ func (ec *executionContext) fieldContext_Mutation_confirmBooking(ctx context.Con
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -45881,6 +45970,47 @@ func (ec *executionContext) fieldContext_Order_deliveryFee(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Order_rangeMetaId(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Order_rangeMetaId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RangeMetaID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Order_rangeMetaId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Order_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_createdAt(ctx, field)
 	if err != nil {
@@ -46138,6 +46268,8 @@ func (ec *executionContext) fieldContext_OrderWithRoute_order(_ context.Context,
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -57322,6 +57454,8 @@ func (ec *executionContext) fieldContext_Query_getOrder(ctx context.Context, fie
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -57406,6 +57540,8 @@ func (ec *executionContext) fieldContext_Query_getOrderDetails(ctx context.Conte
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -57490,6 +57626,8 @@ func (ec *executionContext) fieldContext_Query_getAllOrderS(_ context.Context, f
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -57563,6 +57701,8 @@ func (ec *executionContext) fieldContext_Query_getAllOrderHistory(_ context.Cont
 				return ec.fieldContext_Order_estimatedDeliveryDate(ctx, field)
 			case "deliveryFee":
 				return ec.fieldContext_Order_deliveryFee(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_Order_rangeMetaId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Order_createdAt(ctx, field)
 			case "updatedAt":
@@ -63362,6 +63502,8 @@ func (ec *executionContext) fieldContext_Query_getConfirmedBookingsAsUnavailable
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -63629,6 +63771,8 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBookingsByUserId(ct
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -63736,6 +63880,8 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBookingsByServiceId
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -63843,6 +63989,8 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBookingsByDate(ctx 
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -64005,6 +64153,8 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBooking(ctx context
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -64112,6 +64262,8 @@ func (ec *executionContext) fieldContext_Query_getAppointmentBookingByMultiGroup
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -64219,6 +64371,8 @@ func (ec *executionContext) fieldContext_Query_getMultiGroupedAppointmentBooking
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -73493,6 +73647,8 @@ func (ec *executionContext) fieldContext_UserAppointmentBookedData_book(_ contex
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -75065,6 +75221,8 @@ func (ec *executionContext) fieldContext_UserManagerData_book(_ context.Context,
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -76072,6 +76230,8 @@ func (ec *executionContext) fieldContext_ViewInvoice_booking(_ context.Context, 
 				return ec.fieldContext_AppointmentBooking_userType(ctx, field)
 			case "multiGroupId":
 				return ec.fieldContext_AppointmentBooking_multiGroupId(ctx, field)
+			case "rangeMetaId":
+				return ec.fieldContext_AppointmentBooking_rangeMetaId(ctx, field)
 			case "cargoId":
 				return ec.fieldContext_AppointmentBooking_cargoId(ctx, field)
 			case "status":
@@ -79078,6 +79238,50 @@ func (ec *executionContext) fieldContext_orderproductInfor_quantity(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _orderproductInfor_itemType(ctx context.Context, field graphql.CollectedField, obj *model.OrderproductInfor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_orderproductInfor_itemType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_orderproductInfor_itemType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "orderproductInfor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -83288,6 +83492,8 @@ func (ec *executionContext) _AppointmentBooking(ctx context.Context, sel ast.Sel
 			}
 		case "multiGroupId":
 			out.Values[i] = ec._AppointmentBooking_multiGroupId(ctx, field, obj)
+		case "rangeMetaId":
+			out.Values[i] = ec._AppointmentBooking_rangeMetaId(ctx, field, obj)
 		case "cargoId":
 			out.Values[i] = ec._AppointmentBooking_cargoId(ctx, field, obj)
 		case "status":
@@ -87561,6 +87767,8 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "deliveryFee":
 			out.Values[i] = ec._Order_deliveryFee(ctx, field, obj)
+		case "rangeMetaId":
+			out.Values[i] = ec._Order_rangeMetaId(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Order_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -96625,6 +96833,11 @@ func (ec *executionContext) _orderproductInfor(ctx context.Context, sel ast.Sele
 			}
 		case "quantity":
 			out.Values[i] = ec._orderproductInfor_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "itemType":
+			out.Values[i] = ec._orderproductInfor_itemType(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

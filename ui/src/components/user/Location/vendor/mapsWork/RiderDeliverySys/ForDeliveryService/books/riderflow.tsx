@@ -611,7 +611,9 @@ export default function RiderZoneSetup() {
       const map = new maplibregl.Map({
         container: mapRef.current,
         style: mapStyleUrl,
-        center: [-74.006, 40.7128], // NYC default
+        // center: [-74.006, 40.7128], // NYC default
+        //ACCRA
+        center: [-0.205, 5.6037], // Accra, Ghana
         zoom: 11,
         attributionControl: false,
       });

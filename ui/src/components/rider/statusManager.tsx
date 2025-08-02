@@ -225,24 +225,7 @@ const BOOKING_STATUSES = {
         color: "bg-blue-100 text-blue-800",
         icon: <CheckCircle className="h-3 w-3" />,
       },
-      {
-        value: "PREPARING",
-        label: "Preparing",
-        color: "bg-orange-100 text-orange-800",
-        icon: <Package className="h-3 w-3" />,
-      },
-      {
-        value: "READY",
-        label: "Ready",
-        color: "bg-purple-100 text-purple-800",
-        icon: <MapPin className="h-3 w-3" />,
-      },
-      {
-        value: "PICKED_UP",
-        label: "Picked Up",
-        color: "bg-indigo-100 text-indigo-800",
-        icon: <Truck className="h-3 w-3" />,
-      },
+    
       {
         value: "ON_DELIVERY",
         label: "On Delivery",
@@ -267,12 +250,7 @@ const BOOKING_STATUSES = {
         color: "bg-red-100 text-red-800",
         icon: <XCircle className="h-3 w-3" />,
       },
-      {
-        value: "NO_SHOW",
-        label: "No Show",
-        color: "bg-red-100 text-red-800",
-        icon: <AlertCircle className="h-3 w-3" />,
-      },
+    
     ],
   },
   PAYMENT: {
@@ -398,7 +376,7 @@ export function StatusManagementDialog({
     UPDATE_BOOKING_ORDER_PAYMENT_STATUS,
     {
       onCompleted: (data) => {
-        console.log("✅ Status update completed:", data);
+        // console.log("✅ Status update completed:", data);
         // Refetch the latest statuses after update
         refetchOrderStatus();
         refetchPaymentStatus();
@@ -451,7 +429,7 @@ export function StatusManagementDialog({
   const isLoading = orderStatusLoading || paymentStatusLoading;
 
   const handleStatusChange = (statusType: string, newStatus: string) => {
-    console.log(`📝 Status change queued: ${statusType} -> ${newStatus}`);
+    // console.log(`📝 Status change queued: ${statusType} -> ${newStatus}`);
     setPendingChanges((prev) => ({
       ...prev,
       [statusType]: newStatus,
@@ -464,15 +442,15 @@ export function StatusManagementDialog({
     }
 
     setIsUpdating(true);
-    console.log("💾 Saving status changes:", pendingChanges);
+    // console.log("💾 Saving status changes:", pendingChanges);
 
     try {
       // Process each status change
       const updatePromises = Object.entries(pendingChanges).map(
         async ([statusType, newStatus]) => {
-          console.log(
-            `🔄 Updating ${statusType} to ${newStatus} for ${entityType} ${entityId}`
-          );
+          // console.log(
+          //   `🔄 Updating ${statusType} to ${newStatus} for ${entityType} ${entityId}`
+          // );
 
           const result = await updateBookingOrderPaymentStatus({
             variables: {
@@ -498,7 +476,7 @@ export function StatusManagementDialog({
 
       // Wait for all updates to complete
       const results = await Promise.all(updatePromises);
-      console.log("✅ All status updates completed:", results);
+      // console.log("✅ All status updates completed:", results);
 
       // Clear pending changes and close dialog
       setPendingChanges({});
@@ -524,12 +502,12 @@ export function StatusManagementDialog({
   };
 
   const handleReset = () => {
-    console.log("🔄 Resetting pending changes");
+    // console.log("🔄 Resetting pending changes");
     setPendingChanges({});
   };
 
   const handleRefreshStatus = () => {
-    console.log("🔄 Refreshing status data from backend");
+    // console.log("🔄 Refreshing status data from backend");
     refetchOrderStatus();
     refetchPaymentStatus();
     setPendingChanges({}); // Clear any pending changes
@@ -634,7 +612,7 @@ export function StatusManagementDialog({
                         {orderStatusError && (
                           <AlertCircle
                             className="h-3 w-3 text-red-500"
-                            title="Failed to load status"
+                            // title="Failed to load status"
                           />
                         )}
                       </>
@@ -660,7 +638,7 @@ export function StatusManagementDialog({
                         {paymentStatusError && (
                           <AlertCircle
                             className="h-3 w-3 text-red-500"
-                            title="Failed to load payment status"
+                            // title="Failed to load payment status"
                           />
                         )}
                       </>
@@ -951,21 +929,7 @@ export function ServiceItemManagementDialog({ service, trigger }: ServiceItemMan
   const [open, setOpen] = useState(false);
   const isOrder = service.type === "ORDER";
 
-  const serviceIdDisplay = isOrder
-    ? service.orderData?.orderId?.slice(-6)
-    : service.bookingData?.bookingId?.slice(-6);
-
-  const serviceStatus = isOrder
-    ? service.orderData?.status
-    : service.bookingData?.status;
-
-  const paymentStatus = isOrder
-    ? service.orderData?.paymentStatus
-    : service.bookingData?.paymentStatus;
-
-  const paymentMethod = isOrder
-    ? service.orderData?.paymentMethod
-    : service.bookingData?.paymentMethod;
+ 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

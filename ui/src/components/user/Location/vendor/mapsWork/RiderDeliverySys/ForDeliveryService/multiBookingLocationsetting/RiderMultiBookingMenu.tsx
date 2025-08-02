@@ -50,11 +50,13 @@ import {
 } from "./RiderMultiBookingMenuComponents";
 
 // REUSE: Import existing types
-import type { RiderProfile, PricingZone } from "../riderBookingHooks";
+import type { RiderProfile, PricingZone, OrderDetails } from "../riderBookingHooks";
 
 // Import multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
+import { default as OrderPaymentModal } from "../../../payment-modal";
 import PaymentModal from "../payment-modal";
+import { vendorData } from "./MultiLocationInputDialog";
 
 interface RiderMultiBookingMenuProps {
   // Rider data
@@ -81,6 +83,8 @@ interface RiderMultiBookingMenuProps {
 
   // Handlers
   onBooking: () => void;
+  onOrder: () => void;
+
   onReset: () => void;
   setCurrentStep: (step: "locations" | "review" | "complete") => void;
 
@@ -96,6 +100,10 @@ interface RiderMultiBookingMenuProps {
   onStopTracking?: () => void;
   isLoadingRoute?: boolean;
   bookId?: string;
+    orderData?: OrderDetails | null; // NEW: Order data for orders
+    isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
+    vendorData?:vendorData
+
 }
 
 export function RiderMultiBookingMenu({
@@ -108,6 +116,7 @@ export function RiderMultiBookingMenu({
   bookingComplete,
   bookingReference,
   onBooking,
+  onOrder,
   onReset,
   setCurrentStep,
   isOpen,
@@ -119,6 +128,9 @@ export function RiderMultiBookingMenu({
   onStopTracking,
   isLoadingRoute = false,
   bookId,
+  orderData = null,
+  isOrder = false, // NEW: Optional prop to indicate if this is an order
+  vendorData, // NEW: Vendor data for orders
 }: RiderMultiBookingMenuProps) {
   const { user } = useAuth();
 
@@ -143,6 +155,7 @@ export function RiderMultiBookingMenu({
   // Payment modal state - but don't show for cargo
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [paymentOrderDetails, setPaymentOrderDetails] = useState<any>(null);
 
   // Reset payment state when step changes
   useEffect(() => {
@@ -205,7 +218,14 @@ export function RiderMultiBookingMenu({
 
     // Proceed with booking after payment
     setTimeout(() => {
+      if (isOrder) {
+        // For orders, just confirm the booking
+        onOrder();
+      } else {
+        // For regular deliveries, confirm the booking  
       onBooking();
+      }
+      // onOrder();
     }, 500);
   };
 
@@ -239,7 +259,45 @@ export function RiderMultiBookingMenu({
       vendor: riderProfile.name || "Multi-Delivery Service",
     };
   };
+    const calculateOrderDataTotalPrice = () => {
+    if (!orderData || !orderData.items) return 0;
+    return orderData.items.reduce((total, item) => {
+      return total + (item.product?.price || 0) * item.quantity;
+    }, 0);
+  };
+  // calculateOrderDataItemsCount
+  const calculateOrderDataItemsCount = () => {
+    if (!orderData || !orderData.items) return 0;
+    return orderData.items.reduce((count, item) => {
+      return count + item.quantity;
+    }, 0);
+  };
+ // FIXED: Payment and confirm handler based on working version
+  const handlePaymentAndConfirm = () => {
+    
 
+    
+
+   
+
+    // Calculate totals
+    // const { zonePriceCalculated } = getDeliveryZonePriceAndOrderDetails();
+    // const itemsTotal = calculateItemsTotal();
+    // const totalAmount = itemsTotal + zonePriceCalculated;
+
+    // Create payment order details
+    const paymentDetails = {
+      id: orderData?.id,
+      amount: calculateOrderDataTotalPrice() + totalCalculations?.totalPrice || 0,
+      description: `Order delivery from ${vendorData?.location.split(',')[0] || 'Store'} to ${deliveryItems[0].deliveryAddress.split(',')[0] || 'Your location'}`,
+      vendor: "WinneMart",
+      itemsTotal: calculateOrderDataTotalPrice(),
+      deliveryFee: totalCalculations?.totalPrice || 0,
+    };
+
+    setPaymentOrderDetails(paymentDetails);
+    setShowPaymentModal(true);
+  };
   return (
     <div className="w-full h-full">
       {/* Dialog */}
@@ -360,7 +418,7 @@ export function RiderMultiBookingMenu({
                       totalCalculations={totalCalculations}
                       deliveryItems={deliveryItems}
                       isBooking={isBooking}
-                      onBooking={handleConfirmBooking}
+                      onBooking={handlePaymentAndConfirm}
                       onBack={() => setCurrentStep("locations")}
                       paymentCompleted={paymentCompleted}
                       isCargo={isCargo}
@@ -370,6 +428,8 @@ export function RiderMultiBookingMenu({
                       cargoLoading={cargoLoading}
                       hasMultipleVehicleTypes={hasMultipleVehicleTypes}
                       allTransportTypes={allTransportTypes}
+                      orderData={orderData}
+                      isOrder={isOrder}
                     />
                   </motion.div>
                 )}
@@ -437,7 +497,7 @@ export function RiderMultiBookingMenu({
       </Dialog>
 
       {/* Payment Modal for non-cargo deliveries only */}
-      { createOrderDetails() && (
+      {!isOrder && createOrderDetails() && (
         <PaymentModal
           open={showPaymentModal}
           onOpenChange={setShowPaymentModal}
@@ -445,6 +505,15 @@ export function RiderMultiBookingMenu({
           onPaymentComplete={handlePaymentComplete}
         />
       )}
+       {isOrder && (
+              <OrderPaymentModal
+                open={showPaymentModal}
+                onOpenChange={setShowPaymentModal}
+                orderDetails={paymentOrderDetails}
+                onPaymentComplete={handlePaymentComplete}
+                vendorData={vendorData}
+              />
+            )}
     </div>
   );
 }

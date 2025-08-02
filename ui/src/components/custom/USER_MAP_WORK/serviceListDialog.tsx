@@ -24,6 +24,7 @@ import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import moment from "moment";
 import { ServiceData } from "./types";
 import { PaymentStatusSection } from "./PaymentStatusSection";
+import { formatPrice } from "@/components/global/formatPrice";
 // import { PaymentStatusSection } from "./viewService"
 interface ServiceStats {
   totalOrders: number;
@@ -75,6 +76,7 @@ function ServiceCard({
   paymentStatus,
   paymentLoading,
   handleJustPaymentItemClick,
+  selectedItem
 }: {
   item: ServiceData;
   onClick: () => void;
@@ -85,6 +87,7 @@ function ServiceCard({
   paymentStatus?: any;
   paymentLoading?: boolean;
   handleJustPaymentItemClick?: (item: ServiceData) => void;
+  selectedItem:ServiceData | null
 }) {
   const [IsExpandable, setIsExpandable] = useState(isSelected);
 
@@ -141,7 +144,52 @@ function ServiceCard({
       };
     }
   };
+// Calculates the total price of all products in the order
+const calculateSelectedItemTotalPrice = () => {
+  if (!item || item.type !== "ORDER" || !item.orderData) return 0;
 
+  const orderData = item.orderData;
+  if (!orderData.productInfor) return 0;
+
+  return orderData.productInfor.reduce((total, item) => {
+    const productTotal = item.product.reduce((sum, product) => {
+      const price = typeof product.price === "string"
+        ? parseFloat(product.price)
+        : product.price ?? 0;
+
+      return sum + price;
+    }, 0);
+
+    return total + productTotal * item.quantity;
+  }, 0);
+};
+const calculateSelectedItemsWithdeliveryPrice = () => {
+  if (!item || item.type !== "ORDER" || !item.orderData) return 0;
+
+  const orderData = item.orderData;
+  if (!orderData.productInfor) return 0;
+
+return parseFloat(
+  (
+    Number(calculateSelectedItemTotalPrice()) +
+    Number(orderData.serviceFee || 0)
+  ).toFixed(2)
+);
+
+
+};
+
+// Calculates total quantity of items in the order
+const calculateSelectedItemItemsCount = () => {
+  if (!item || item.type !== "ORDER" || !item.orderData) return 0;
+
+  const orderData = item.orderData;
+  if (!orderData.productInfor) return 0;
+
+  return orderData.productInfor.reduce((count, item) => {
+    return count + item.quantity;
+  }, 0);
+};
   return (
     <div
       className={`backdrop-blur-xl bg-white/60 rounded-2xl border cursor-pointer transition-all duration-300 hover:shadow-xl hover:bg-white/70 hover:scale-[1.02] ${
@@ -205,7 +253,13 @@ function ServiceCard({
           <div className="flex items-center gap-2">
             <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
             <span className="text-xs sm:text-sm text-gray-600 truncate">
-              {item.bookingData?.deliveryAddress}
+                 {item.type === "ORDER" ? (
+                                <>{item.vendor.location}</>
+
+              ) : (
+                <>{item.bookingData?.deliveryAddress}</>
+                )}
+              
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -253,15 +307,33 @@ function ServiceCard({
                     </div>
                   </div>
                   <p>
+                    <span className="text-gray-500">From:</span>{" "}
+                    <span className="font-medium">
+                      {item.vendor.location || "N/A"}
+                    </span>
+                  </p>
+                   <p>
                     <span className="text-gray-500">To:</span>{" "}
                     <span className="font-medium">
                       {item.orderData.deliveryAddress || "N/A"}
                     </span>
                   </p>
                   <p>
-                    <span className="text-gray-500">Fee:</span>{" "}
+                    <span className="text-gray-500"> total fee:</span>{" "}
                     <span className="font-medium text-green-600">
-                      GH₵{item.orderData.serviceFee || "0"}
+                      {formatPrice(calculateSelectedItemsWithdeliveryPrice()) || "0"}
+                    </span>
+                  </p>
+                    <p>
+                    <span className="text-gray-500">Product Fee:</span>{" "}
+                    <span className="font-light text-green-500">
+                      {formatPrice(calculateSelectedItemTotalPrice()) || "0"}
+                    </span>
+                  </p>
+                    <p>
+                    <span className="text-gray-500">Delivery Fee:</span>{" "}
+                    <span className="font-light text-green-500">
+                      {formatPrice(item.orderData.serviceFee) || "0"}
                     </span>
                   </p>
                   {item.orderData.order?.distance && (
@@ -534,6 +606,7 @@ export default function ServiceListDialog({
     }
   }, [showFilters]);
 
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="backdrop-blur-xl bg-white/95 border border-white/30 rounded-2xl p-0 w-[95vw] max-w-6xl h-[90vh] max-h-[800px] flex flex-col overflow-hidden">
@@ -785,6 +858,7 @@ export default function ServiceListDialog({
                         paymentLoading={
                           selectedItem?.id === item.id ? paymentLoading : false
                         }
+                        selectedItem={selectedItem}
                       />
                     ))}
 

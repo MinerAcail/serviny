@@ -1,16 +1,14 @@
-"use client";
-
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// import { Input } from "@/components/ui/input";
+// import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
+  // DropdownMenuSeparator,
+  // DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Package,
@@ -32,6 +30,7 @@ import {
   MapIcon as LiveMap,
   X,
   RecycleIcon,
+  Trash2,
 } from "lucide-react";
 
 // Type definitions (keeping all the original interfaces)
@@ -104,15 +103,50 @@ interface Order {
 }
 
 interface OrderData {
-  orderId: string;
-  status: string;
-  deliveryAddress: string;
-  estimatedDeliveryDate?: string;
-  serviceFee?: number;
-  productInfor: ProductInfo[];
-  deliveryMetaData: DeliveryMetaData;
-  routeData?: RouteData;
-  order: Order;
+  orderData?: {
+    orderId?: string;
+    status?: string; // Using status field for orders
+    deliveryAddress?: string;
+    estimatedDeliveryDate?: string;
+    serviceFee?: number;
+    productInfor?: Array<{
+      product: Product[];
+      quantity: number;
+    }>;
+    deliveryMetaData?: {
+      id: string;
+      price: number;
+      duration: string;
+      distance: string;
+      zone: string;
+      geojson: any;
+      isochroneId: string;
+    };
+    routeData?: {
+      id: string;
+      orderId: string;
+      geojson: any;
+      userId: string;
+      createdAt: string;
+    };
+    order?: {
+      id: string;
+      coordinates: [number, number];
+      deliveryAddress: string;
+      distance: string;
+      duration: string;
+      items: Array<{
+        id: string;
+        orderId: string;
+        quantity: number;
+        itemType: string;
+        product: {
+          id: string;
+          name: string;
+        };
+      }>;
+    };
+  };
 }
 
 interface RangeMetaData {
@@ -198,7 +232,7 @@ interface MultiGroup {
 }
 
 interface ServiceManagementProps {
-  serviceData: ServiceItem[];
+  serviceData: ServiceData[];
   riders: Rider[];
   stats: any;
   onRiderClick: (rider: Rider) => void;
@@ -349,6 +383,24 @@ import cargo from "../../../../assets/cargo.png";
 import { PaymentStatusSectionAssigned } from "./invoice/indesx";
 import ReAssignRiderDialog from "./reAssign";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { gql, useMutation } from "@apollo/client";
+import { NotificationAlertDialog } from "@/components/GlobalLogic/ErrorBoundary";
+import {
+  CartItemOrder,
+  productInfor,
+  ServiceData,
+} from "./serviceDataAndTypes";
+import { formatPrice } from "@/components/global/formatPrice";
+// DELETE_BOOKING_MUTATION
+const DELETE_BOOKING_MUTATION = gql`
+  mutation DeleteBookingOrOrder($entityId: String!, $entityType: String!) {
+    deleteBookingOrOrder(entityId: $entityId, entityType: $entityType) {
+      success
+      message
+    }
+  }
+`;
 export const ServiceManagement: React.FC<ServiceManagementProps> = ({
   serviceData,
   riders,
@@ -359,13 +411,103 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("analytics");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  // const [statusFilter, setStatusFilter] = useState("all");
+  // const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedItem, setSelectedItem] = useState<ServiceData>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedMultiGroup, setSelectedMultiGroup] =
     useState<MultiGroup | null>(null);
   const [showMultiGroupBookings, setShowMultiGroupBookings] = useState(false);
+  // deleteBookingOrOrder mutation
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    type: "success" | "error" | "warning" | "info";
+    onConfirm?: () => void;
+  } | null>(null);
+
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const [deleteBookingOrOrder] = useMutation(DELETE_BOOKING_MUTATION, {
+    onCompleted: (data) => {
+      setIsDeleting(null);
+      if (data?.deleteBookingOrOrder?.success) {
+        setDialogState({
+          isOpen: true,
+          title: "Success",
+          description:
+            data.deleteBookingOrOrder.message || "Item deleted successfully",
+          type: "success",
+        });
+      } else {
+        setDialogState({
+          isOpen: true,
+          title: "Error",
+          description:
+            data?.deleteBookingOrOrder?.message || "Failed to delete item",
+          type: "error",
+        });
+      }
+    },
+    onError: (error) => {
+      setIsDeleting(null);
+      let errorMessage = "An unexpected error occurred";
+      if (error.graphQLErrors?.length > 0) {
+        errorMessage = error.graphQLErrors[0].message;
+      } else if (error.networkError) {
+        errorMessage = "Network error. Please check your connection.";
+      }
+
+      setDialogState({
+        isOpen: true,
+        title: "Delete Failed",
+        description: errorMessage,
+        type: "error",
+      });
+    },
+  });
+
+  const handleDeleteBooking = async (entityId: string, entityType: string) => {
+    if (!entityId) {
+      setDialogState({
+        isOpen: true,
+        title: "Error",
+        description: "Invalid item ID",
+        type: "error",
+      });
+      return;
+    }
+
+    setDialogState({
+      isOpen: true,
+      title: "Are you sure?",
+      description: "This action cannot be undone.",
+      type: "warning",
+      onConfirm: () => handleConfirmedDelete(entityId, entityType),
+    });
+  };
+
+  const handleConfirmedDelete = async (
+    entityId: string,
+    entityType: string
+  ) => {
+    setIsDeleting(entityId);
+    try {
+      await deleteBookingOrOrder({
+        variables: {
+          entityId,
+          entityType: entityType.toUpperCase(),
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting item:", error);
+    }
+  };
+
+  const closeDialog = () => {
+    setDialogState(null);
+  };
 
   // Enhanced data processing with MultiGroup support (keeping original logic)
   const processedData = useMemo(() => {
@@ -516,6 +658,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
       },
     };
   }, [serviceData]);
+ 
 
   // Filter function
   const filterData = (data: any[], searchTerm: string) => {
@@ -683,7 +826,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                 <p className="text-xl sm:text-2xl font-bold text-purple-600">
                   {selectedMultiGroup.uniqueVendors.length}
                 </p>
-                <p className="text-xs text-black/60">Venues</p>
+                <p className="text-xs text-black/60">Provider</p>
               </div>
             </div>
 
@@ -734,7 +877,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                               {booking.customer.number}
                             </p>
                             <p className="text-sm text-black/60 truncate">
-                              Venue: {booking.vendor.name} • Location:{" "}
+                              Provider: {booking.vendor.name} • Location:{" "}
                               {booking.vendor.location}
                             </p>
                             <div className="flex flex-wrap items-center gap-4 mt-1">
@@ -753,8 +896,10 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                                   : "N/A"}
                               </p>
                               <p className="text-xs text-black/50">
-                               {booking.bookingData?.tableSize}   ${Number(booking.bookingData?.tableSize) === 1 ? 'item' : 'items'}
-
+                                {booking.bookingData?.tableSize} $
+                                {Number(booking.bookingData?.tableSize) === 1
+                                  ? "item"
+                                  : "items"}
                               </p>
                             </div>
                           </div>
@@ -912,12 +1057,13 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
     const { itemType } = selectedItem;
 
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white/95 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          <div className="p-4 sm:p-6">
+     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white/95 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        
+       <>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-black">
+           <div className="p-4 sm:p-6 flex items-center justify-between">
+          <h3 className="text-lg font-semibold flex items-center gap-2 text-black">
                 {itemType === "order" && (
                   <Package className="h-5 w-5 text-orange-500" />
                 )}
@@ -954,8 +1100,9 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
             </div>
 
             {/* Scrollable Content */}
-            <ScrollArea className="max-h-[70vh]">
-              <div className="space-y-4 pr-4">
+           <ScrollArea className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-4">
+              
+              <>
                 {/* Content based on item type - keeping original logic but making responsive */}
                 {itemType === "order" && (
                   <div className="space-y-4">
@@ -998,11 +1145,40 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                       </div>
                       <div>
                         <p className="text-sm font-medium text-black/60">
-                          Delivery Fee
+                          Total Fee
+                        </p>
+                        <p className="text-sm font-bold text-green-600">
+                          {/* {selectedItem.orderData?.deliveryMetaData?.price || 0} */}
+                          {formatPrice(
+                            calculateSelectedItemsWithdeliveryPrice({
+                              productInfor:
+                                selectedItem?.orderData?.productInfor ?? [],
+                              serviceFee: selectedItem?.orderData?.serviceFee,
+                            })
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-black/60">
+                          Products
+                        </p>
+                        <p className="text-sm font-bold text-green-600">
+                          {/* {selectedItem.orderData?.deliveryMetaData?.price || 0} */}
+                          {formatPrice(
+                            calculateSelectedItemTotalPrice({
+                              productInfor:
+                                selectedItem?.orderData?.productInfor ?? [],
+                            })
+                          )}
+                        </p>
+                      </div>{" "}
+                      <div>
+                        <p className="text-sm font-medium text-black/60">
+                          Delivery
                         </p>
                         <p className="text-sm font-bold text-green-600">
                           GH₵
-                          {selectedItem.orderData?.deliveryMetaData?.price || 0}
+                          {selectedItem.orderData?.serviceFee || 0}
                         </p>
                       </div>
                       <div>
@@ -1010,7 +1186,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                           Distance
                         </p>
                         <p className="text-sm text-black">
-                          {selectedItem.orderData?.deliveryMetaData?.distance ||
+                          {selectedItem.orderData?.order.distance ||
                             0}
                           km
                         </p>
@@ -1066,6 +1242,34 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                         )}
                       </div>
                     )}
+                      {selectedItem?.orderData?.productInfor.map((item, index) => (
+        <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Quantity</span>
+            <span className="text-sm text-black">{item.quantity}</span>
+          </div>
+  <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Item Type</span>
+            <span className="text-sm text-black">{item.itemType}</span>
+          </div>
+          {item.product.map((prod) => (
+            <div key={prod.id} className="flex items-center gap-4 mt-2">
+              <img
+                src={prod.imageUrls?.[0] ?? "/fallback.jpg"}
+                alt={prod.name}
+                className="w-12 h-12 rounded-md object-cover border"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-black">{prod.name}</p>
+                {/* <p className="text-xs text-gray-500">State: {prod.state}</p> */}
+                <p className="text-sm text-green-600 font-medium">
+                  {formatPrice(prod.price)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
 
                     {selectedItem.rider && (
                       <div>
@@ -1138,7 +1342,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                       </div>
                       <div>
                         <p className="text-sm font-medium text-black/60">
-                          Venue
+                          Provider
                         </p>
                         <p className="text-sm text-black">
                           {selectedItem.vendor.name}
@@ -1147,15 +1351,24 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                           {selectedItem.vendor.location}
                         </p>
                       </div>
-                      <div>
+                      <div className="gap-2 ">
                         <p className="text-sm font-medium text-black/60">
-                          Table Size
+                          items details
                         </p>
                         <p className="text-sm text-black">
-                          {selectedItem.bookingData?.tableSize}   ${selectedItem.bookingData?.tableSize === 1 ? 'item' : 'items'}
-
+                          {selectedItem.bookingData?.tableSize}{" "}
+                          {Number(selectedItem.bookingData.tableSize) === 1
+                            ? "item"
+                            : "items"}
+                        </p>
+                        <p className="text-sm text-black">
+                          {selectedItem.bookingData.item}
+                        </p>
+                        <p className="text-sm text-black">
+                          {selectedItem.bookingData.notes || "N/A"}
                         </p>
                       </div>
+
                       <div>
                         <p className="text-sm font-medium text-black/60">Day</p>
                         <p className="text-sm text-black">
@@ -1261,7 +1474,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                 )}
 
                 {/* Continue with other item types... */}
-              </div>
+              </>
             </ScrollArea>
 
             {/* Actions */}
@@ -1274,16 +1487,71 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                 Close
               </Button>
             </div>
-          </div>
+          </>
         </div>
       </div>
     );
+  };
+  
+  // Calculates the total price of all products in the order
+  // Calculates the total price of all products in the order
+  // Calculates the total price of all products in the order
+  const calculateSelectedItemTotalPrice = ({
+    productInfor,
+  }: {
+    productInfor: productInfor[];
+  }): number => {
+    if (!productInfor) return 0;
+
+    return productInfor.reduce((total, item) => {
+      const productTotal = item.product.reduce((sum, product) => {
+        const price =
+          typeof product.price === "string"
+            ? parseFloat(product.price)
+            : product.price ?? 0;
+        return sum + price;
+      }, 0);
+
+      return total + productTotal * item.quantity;
+    }, 0);
+  };
+
+  // Calculates total price with delivery fee included
+  const calculateSelectedItemsWithdeliveryPrice = ({
+    productInfor,
+    serviceFee,
+  }: {
+    productInfor: productInfor[];
+    serviceFee?: string;
+  }): number => {
+    const productTotal = calculateSelectedItemTotalPrice({ productInfor });
+    const deliveryFee =
+      typeof serviceFee === "string" ? parseFloat(serviceFee) : serviceFee ?? 0;
+
+    return parseFloat((productTotal + deliveryFee).toFixed(2));
+  };
+
+  // Calculates total quantity of items in the order
+  const calculateSelectedItemItemsCount = ({
+    productInfor,
+  }: {
+    productInfor: productInfor[];
+  }): number => {
+    if (!productInfor) return 0;
+
+    return productInfor.reduce((count, item) => count + item.quantity, 0);
   };
 
   return (
     <div className="h-full px-1 flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
       {/* Details Panel */}
       <DetailsPanel />
+     {selectedItem?.orderData?.productInfor && (
+  <DetailsPanelProductInfor
+    productInfor={selectedItem.orderData.productInfor}
+  />
+)}
+
 
       {/* Multi-Group Bookings Dialog */}
       <MultiGroupBookingsDialog />
@@ -1593,117 +1861,154 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
           <TabsContent value="orders">
             <ScrollArea className="h-full p-4 sm:p-6">
               <div className="space-y-3">
-                {filterData(processedData.orders, searchQuery).map((order) => (
-                  <Card
-                    key={order.id}
-                    className="p-3 sm:p-4 bg-white/10 backdrop-blur-xl border border-white/20"
-                  >
-                    <div className="flex flex-col gap-3">
-                      {/* Top row - Icon, Title, Status */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <Package className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-black text-sm sm:text-base">
-                              Order #{order.orderData?.orderId?.slice(-6)}
-                            </p>
-                          </div>
-                        </div>
-                        <StatusBadge status={order.orderData?.status || ""} />
-                      </div>
-
-                      {/* Middle row - Customer and Vendor info */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                        <div className="min-w-0">
-                          <p className="text-black/60 truncate">
-                            👤 {order.customer.name}
-                          </p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-black/50 truncate">
-                            🏪 {order.vendor.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Bottom row - Price, Date, Actions */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="font-bold text-green-600 text-sm sm:text-base">
-                              GH₵{order.orderData?.deliveryMetaData?.price || 0}
-                            </p>
-                            <p className="text-xs text-black/50">
-                              {new Date(order.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-full p-2"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem
-                              onClick={() => handleViewDetails(order, "order")}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleViewOnLiveMap(
-                                  order.orderData?.orderId || order.id,
-                                  "order"
-                                )
-                              }
-                            >
-                              <LiveMap className="h-4 w-4 mr-2" />
-                              View on Live Map
-                            </DropdownMenuItem>
-                            <div
-                              className={cn(
-                                "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0"
-                              )}
-                            >
-                              <ReAssignRiderDialog
-                                entityId={order.orderData?.orderId || order.id}
-                                entityType="order"
-                                currentRiderId={order.rider?.id || null}
-                                currentRiderName={order.rider?.name || null}
-                              />
+                {filterData(processedData.orders, searchQuery).map(
+                  (order: ServiceData) => (
+                    <Card
+                      key={order.id}
+                      className="p-3 sm:p-4 bg-white/10 backdrop-blur-xl border border-white/20"
+                    >
+                      <div className="flex flex-col gap-3">
+                        {/* Top row - Icon, Title, Status */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Package className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-black text-sm sm:text-base">
+                                Order #{order.orderData?.orderId?.slice(-6)}
+                              </p>
                             </div>
-                            {order.rider && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const rider = riders.find(
-                                    (r) => r.id === order.rider!.id
-                                  );
-                                  if (rider) onRiderClick(rider);
-                                }}
+                          </div>
+                          <StatusBadge status={order.orderData?.status || ""} />
+                        </div>
+
+                        {/* Middle row - Customer and Vendor info */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="text-black/60 truncate">
+                              👤 {order.customer.name}
+                            </p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-black/50 truncate">
+                              🏪 {order.vendor.name}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom row - Price, Date, Actions */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="font-bold text-green-600 text-sm sm:text-base">
+                                {formatPrice(
+                                  calculateSelectedItemsWithdeliveryPrice({
+                                    productInfor:
+                                      order?.orderData?.productInfor ?? [],
+                                    serviceFee: order?.orderData?.serviceFee,
+                                  })
+                                )}
+                              </p>
+                              <p>
+                                <span className="font-mono text-gray-500">
+                                  Product :
+                                </span>{" "}
+                                <span className="font-thin text-green-500">
+                                  {formatPrice(
+                                    calculateSelectedItemTotalPrice({
+                                      productInfor:
+                                        order?.orderData?.productInfor ?? [],
+                                    })
+                                  )}
+                                </span>
+                              </p>
+                              
+                              <p>
+                                <span className="font-mono text-gray-500">
+                                  Delivery :
+                                </span>{" "}
+                                <span className="font-thin text-green-500">
+                                  {formatPrice(
+                                    order?.orderData?.serviceFee
+                                  ) || "0"}
+                                </span>
+                              </p>
+                              <p className="text-xs text-black/50">
+                                {new Date(order.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-full p-2"
                               >
-                                <Navigation className="h-4 w-4 mr-2" />
-                                Track Rider
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleViewDetails(order, "order")
+                                }
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
                               </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleViewOnLiveMap(
+                                    order.orderData?.orderId || order.id,
+                                    "order"
+                                  )
+                                }
+                              >
+                                <LiveMap className="h-4 w-4 mr-2" />
+                                View on Live Map
+                              </DropdownMenuItem>
+                              <div
+                                className={cn(
+                                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0"
+                                )}
+                              >
+                                <ReAssignRiderDialog
+                                  entityId={
+                                    order.orderData?.orderId || order.id
+                                  }
+                                  entityType="order"
+                                  currentRiderId={order.rider?.id || null}
+                                  currentRiderName={order.rider?.name || null}
+                                />
+                              </div>
+                              {order.rider && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const rider = riders.find(
+                                      (r) => r.id === order.rider!.id
+                                    );
+                                    if (rider) onRiderClick(rider);
+                                  }}
+                                >
+                                  <Navigation className="h-4 w-4 mr-2" />
+                                  Track Rider
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
 
           {/* Bookings Tab */}
           <TabsContent value="bookings">
+            {/* work here about the delete state */}
             <ScrollArea className="h-full p-4 sm:p-6">
               <div className="space-y-3">
                 {filterData(processedData.bookings, searchQuery).map(
@@ -1809,24 +2114,39 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                               <div
-                              className={cn(
-                                "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0"
-                              )}
-                            >
-                                  <ReAssignRiderDialog
-                                    entityId={
-                                      booking.bookingData?.bookingId ||
-                                      booking.id
-                                    }
-                                    entityType="booking"
-                                    currentRiderId={booking.rider?.id || null}
-                                    currentRiderName={
-                                      booking.rider?.name || null
-                                    }
-                                  />
-                                </div>
-                              
+                              <DropdownMenuItem
+                                disabled={isDeleting === booking.id}
+                                onClick={() =>
+                                  // handleViewDetails(booking, "booking")
+
+                                  handleDeleteBooking(
+                                    booking.bookingData?.bookingId,
+                                    "BOOKING"
+                                  )
+                                }
+                              >
+                                {/* <Eye className="h-4 w-4 mr-2" /> */}
+                                <Trash2 className="h-4 w-4 mr-2" />
+
+                                {isDeleting === booking.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </DropdownMenuItem>
+                              <div
+                                className={cn(
+                                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0"
+                                )}
+                              >
+                                <ReAssignRiderDialog
+                                  entityId={
+                                    booking.bookingData?.bookingId || booking.id
+                                  }
+                                  entityType="booking"
+                                  currentRiderId={booking.rider?.id || null}
+                                  currentRiderName={booking.rider?.name || null}
+                                />
+                              </div>
+
                               <DropdownMenuItem
                                 onClick={() =>
                                   handleViewOnLiveMap(
@@ -2223,6 +2543,63 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
           </TabsContent>
         </Tabs>
       </div>
+      {dialogState && (
+        <NotificationAlertDialog
+          isOpen={dialogState.isOpen}
+          onClose={closeDialog}
+          title={dialogState.title}
+          description={dialogState.description}
+          type={dialogState.type}
+          onConfirm={dialogState.onConfirm}
+          isLoading={isDeleting !== null}
+          confirmText="Delete"
+        />
+      )}
+    </div>
+  );
+};
+import { Image } from "lucide-react";
+// import { formatPrice } from "@/lib/utils";
+
+interface DetailsPanelProductInforProps {
+  productInfor: productInfor[];
+}
+
+export const DetailsPanelProductInfor = ({ productInfor }: DetailsPanelProductInforProps) => {
+  if (!productInfor || productInfor.length === 0) {
+    return (
+      <p className="text-sm text-gray-500 italic">No products in this order.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-medium text-black/60">Product Details</h4>
+      {productInfor.map((item, index) => (
+        <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Quantity</span>
+            <span className="text-sm text-black">{item.quantity}</span>
+          </div>
+
+          {item.product.map((prod) => (
+            <div key={prod.id} className="flex items-center gap-4 mt-2">
+              <img
+                src={prod.imageUrls?.[0] ?? "/fallback.jpg"}
+                alt={prod.name}
+                className="w-12 h-12 rounded-md object-cover border"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-black">{prod.name}</p>
+                <p className="text-xs text-gray-500">State: {prod.state}</p>
+                <p className="text-sm text-green-600 font-medium">
+                  {formatPrice(prod.price)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 };

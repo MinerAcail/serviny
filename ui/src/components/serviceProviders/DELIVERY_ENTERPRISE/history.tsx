@@ -491,7 +491,7 @@ export default function History() {
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <MapPin className="h-3 w-3 text-gray-400" />
-                      <span className="font-medium text-gray-700">{order.type === "ORDER" ? "Vendor" : "Venue"}</span>
+                      <span className="font-medium text-gray-700">{order.type === "ORDER" ? "Vendor" : "Provider"}</span>
                     </div>
                     <p className="text-gray-900 truncate">{order.vendor}</p>
                   </div>
@@ -560,7 +560,7 @@ export default function History() {
                       {/* Vendor/Venue Info */}
                       <div className="bg-green-50 rounded-lg p-3">
                         <p className="font-medium text-gray-900 mb-2">
-                          {order.type === "ORDER" ? "Vendor" : "Venue"} Information
+                          {order.type === "ORDER" ? "Vendor" : "Provider"} Information
                         </p>
                         <p className="text-sm text-gray-900">{order.vendor}</p>
                         <p className="text-xs text-gray-600 mt-1">{order.vendorLocation}</p>

@@ -12,6 +12,7 @@ import { CreditCard, Smartphone, Copy, Check, Clock, Shield, AlertCircle, Bankno
 import { toast } from "sonner"
 import { useNavigate } from "react-router"
 import { gql, useMutation } from "@apollo/client"
+import { vendorData } from "./RiderDeliverySys/ForDeliveryService/multiBookingLocationsetting/MultiLocationInputDialog"
 
 interface PaymentModalProps {
   open: boolean
@@ -25,6 +26,8 @@ interface PaymentModalProps {
     deliveryFee?: number
   }
   onPaymentComplete: (paymentData: PaymentResult) => void
+      vendorData?:vendorData
+  
 }
 
 // GraphQL Mutation for Orders
@@ -63,7 +66,7 @@ interface PaymentMutationResult {
 
 type PaymentMethod = "cash" | "momo" | null
 
-export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete }: PaymentModalProps) {
+export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete,vendorData }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const [referenceCode, setReferenceCode] = useState("")
@@ -71,6 +74,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
   const [paymentStep, setPaymentStep] = useState<"select" | "details" | "processing" | "success" | "error">("select")
   const [copied, setCopied] = useState(false)
   const [paymentError, setPaymentError] = useState<string>("")
+console.log("orderData",orderDetails);
   
   const navigate = useNavigate()
 
@@ -134,7 +138,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
     try {
       // Prepare mutation variables with correct method values
       const mutationVariables = {
-        entityId: orderDetails.id,
+        entityId: orderDetails?.id,
         entityType: "ORDER", // Always ORDER for this component
         method: selectedMethod!, // Pass "cash" or "momo" directly
         reference: referenceCode
@@ -159,8 +163,8 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
       method: selectedMethod!,
       referenceCode: referenceCode,
       phoneNumber: selectedMethod === "momo" ? phoneNumber : undefined,
-      amount: orderDetails.amount,
-      orderId: orderDetails.id,
+      amount: orderDetails?.amount,
+      orderId: orderDetails?.id,
       timestamp: new Date().toISOString(),
       paymentId: paymentData.id,
       status: paymentData.status
@@ -244,36 +248,36 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Order ID:</span>
-                  <span className="font-medium text-gray-900">#{orderDetails.id.slice(-6)}</span>
+                  <span className="font-medium text-gray-900">#{orderDetails?.id.slice(-6)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Vendor:</span>
-                  <span className="font-medium text-gray-900">{orderDetails.vendor}</span>
+                  <span className="font-medium text-gray-900">{orderDetails?.vendor}</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <span className="text-gray-600">Delivery:</span>
                   <span className="font-medium text-gray-900 text-right max-w-[60%] text-xs leading-relaxed">
-                    {orderDetails.description}
+                    {orderDetails?.description}
                   </span>
                 </div>
                 
                 <Separator className="bg-gray-300/50 my-2" />
                 
                 {/* Detailed breakdown */}
-                {orderDetails.itemsTotal !== undefined && (
+                {orderDetails?.itemsTotal !== undefined && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Items Total:</span>
-                    <span className="font-medium text-gray-900">{formatAmount(orderDetails.itemsTotal)}</span>
+                    <span className="font-medium text-gray-900">{formatAmount(orderDetails?.itemsTotal)}</span>
                   </div>
                 )}
                 
-                {orderDetails.deliveryFee !== undefined && (
+                {orderDetails?.deliveryFee !== undefined && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       Delivery Fee:
                     </span>
-                    <span className="font-medium text-blue-600">{formatAmount(orderDetails.deliveryFee)}</span>
+                    <span className="font-medium text-blue-600">{formatAmount(orderDetails?.deliveryFee)}</span>
                   </div>
                 )}
                 
@@ -281,7 +285,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                 
                 <div className="flex justify-between items-center font-bold">
                   <span className="text-gray-900">Total Amount:</span>
-                  <span className="text-green-600">{formatAmount(orderDetails.amount)}</span>
+                  <span className="text-green-600">{formatAmount(orderDetails?.amount)}</span>
                 </div>
               </div>
             </div>
@@ -388,7 +392,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                     <div>
                       <h4 className="font-medium text-green-800 mb-2">Payment Instructions</h4>
                       <ul className="text-xs text-green-700 space-y-1.5 leading-relaxed">
-                        <li>• Have exact change ready: {formatAmount(orderDetails.amount)}</li>
+                        <li>• Have exact change ready: {formatAmount(orderDetails?.amount)}</li>
                         <li>• Payment will be collected upon delivery</li>
                         <li>• Ensure someone is available to receive the order</li>
                         <li>• You'll receive a receipt after payment</li>
@@ -478,7 +482,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                         <li>1. Dial your mobile money code (*170# for MTN)</li>
                         <li>2. Select "Send Money" or "Transfer"</li>
                         <li>3. Enter reference: <strong className="text-yellow-800">{referenceCode}</strong></li>
-                        <li>4. Enter amount: <strong className="text-yellow-800">{formatAmount(orderDetails.amount)}</strong></li>
+                        <li>4. Enter amount: <strong className="text-yellow-800">{formatAmount(orderDetails?.amount)}</strong></li>
                         <li>5. Confirm the transaction</li>
                       </ol>
                     </div>
@@ -578,7 +582,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
                   </div>
                 )}
                 <Badge className="bg-green-100/80 text-green-700 border-green-300/50 backdrop-blur-xl px-3 py-1 mb-4">
-                  Order #{orderDetails.id.slice(-6)} Confirmed
+                  Order #{orderDetails?.id.slice(-6)} Confirmed
                 </Badge>
                 <p className="text-xs text-gray-500">
                   Processing your order for delivery...

@@ -35,6 +35,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PaymentStatusSection } from "./PaymentStatusSection";
+import { ErrorState, ItemNotFound } from "../loading";
 
 // Import our modular files
 import {
@@ -46,7 +48,8 @@ import {
   type ViewMode,
   type ActiveTab,
   type SortBy,
-  type PaymentStatus,
+  PaymentStatus,
+  // type PaymentStatus,
 } from "./types";
 
 // Import functional map manager
@@ -59,8 +62,11 @@ import {
   type MapState,
 } from "./mapManager";
 import ServiceListDialog from "./serviceListDialog";
+import { formatPrice } from "@/components/global/formatPrice";
 
 const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+// Default center coordinates (Accra, Ghana - customer location)
+// const DEFAULT_CENTER: [number, number] = [-0.187, 5.6037];
 
 export default function UserServiceViewer({entityId = ""}: { entityId?: string }) {
   // State management
@@ -95,6 +101,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       setMapContainer(null);
     }
   }, []);
+  
 
   // GraphQL query
   const { loading, error, data, refetch } = useQuery(
@@ -154,23 +161,16 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
 
     // Check if container has dimensions
     const containerRect = mapContainer.getBoundingClientRect();
-    console.log("📐 Container dimensions:", {
-      width: containerRect.width,
-      height: containerRect.height,
-      top: containerRect.top,
-      left: containerRect.left,
-    });
+  
 
     if (containerRect.width === 0 || containerRect.height === 0) {
-      console.warn("⚠️ Container has no dimensions, waiting...");
+      // console.warn("⚠️ Container has no dimensions, waiting...");
 
       // Try again after a short delay
       const retryTimeout = setTimeout(() => {
         const newRect = mapContainer.getBoundingClientRect();
         if (newRect.width > 0 && newRect.height > 0) {
-          console.log(
-            "✅ Container now has dimensions, retrying initialization"
-          );
+          
           // Trigger re-render to retry
           setMapContainer(mapContainer);
         }
@@ -179,8 +179,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       return () => clearTimeout(retryTimeout);
     }
 
-    console.log("🗺️ Initializing map with functional approach...");
-
+  
     try {
       // Create map state
       mapStateRef.current = createMapState();
@@ -190,6 +189,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
         mapStateRef.current,
         mapContainer,
         maptilerApiKey || "",
+        
         () => {
           console.log("✅ Map loaded successfully - setting mapLoaded to true");
           setMapLoaded(true);
@@ -221,7 +221,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   useEffect(() => {
     return () => {
       if (mapStateRef.current) {
-        console.log("🧹 Cleaning up map...");
+        // console.log("🧹 Cleaning up map...");
         destroyMap(mapStateRef.current);
         mapStateRef.current = null;
       }
@@ -234,7 +234,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
     if (mapStateRef.current) {
       const interval = setInterval(() => {
         if (!mapLoaded && mapStateRef.current) {
-          console.log("🔍 Periodic map state check...");
+          // console.log("🔍 Periodic map state check...");
           debugMapState(mapStateRef.current);
         }
       }, 2000);
@@ -503,11 +503,65 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   }
 
 
+// Calculates the total price of all products in the order
+const calculateSelectedItemTotalPrice = () => {
+  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+
+  const orderData = selectedItem.orderData;
+  if (!orderData.productInfor) return 0;
+
+  return orderData.productInfor.reduce((total, item) => {
+    const productTotal = item.product.reduce((sum, product) => {
+      const price = typeof product.price === "string"
+        ? parseFloat(product.price)
+        : product.price ?? 0;
+
+      return sum + price;
+    }, 0);
+
+    return total + productTotal * item.quantity;
+  }, 0);
+};
+const calculateSelectedItemsWithdeliveryPrice = () => {
+  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+
+  const orderData = selectedItem.orderData;
+  if (!orderData.productInfor) return 0;
+
+return parseFloat(
+  (
+    Number(calculateSelectedItemTotalPrice()) +
+    Number(orderData.serviceFee || 0)
+  ).toFixed(2)
+);
+
+
+};
+
+// Calculates total quantity of items in the order
+const calculateSelectedItemItemsCount = () => {
+  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+
+  const orderData = selectedItem.orderData;
+  if (!orderData.productInfor) return 0;
+
+  return orderData.productInfor.reduce((count, item) => {
+    return count + item.quantity;
+  }, 0);
+};
+
 
   return (
     <div className="relative h-screen  z-5">
       {/* Full Screen Map */}
-      {error && !data && <ErrorState entityId={entityId} handleRefresh={handleRefresh} />}
+    {/* Error state first */}
+{error && (
+  <ErrorState entityId={entityId} handleRefresh={handleRefresh} />
+)}
+
+{/* No data found */}
+{!error && data?.length === 0 && <ItemNotFound />}
+
 
       <div className="absolute inset-0">
         <div ref={mapRefCallback} className="w-full h-full " />
@@ -527,16 +581,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
                 Connecting to map services...
               </p>
 
-              {/* Debug info in development */}
-              {/* {process.env.NODE_ENV === "development" && (
-                <div className="text-xs text-gray-400 space-y-1">
-                  <p>
-                    API Key: {maptilerApiKey ? "✅ Provided" : "❌ Using Demo"}
-                  </p>
-                  <p>Container: {mapContainer ? "✅ Ready" : "❌ Not Ready"}</p>
-                  <p>State: {mapStateRef.current ? "✅ Created" : "❌ Null"}</p>
-                </div>
-              )} */}
+             
 
               {/* Force show button after 10 seconds */}
               <Button
@@ -556,7 +601,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       </div>
 
       {/* Mobile Controls Bar */}
-      <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-10">
+      <div className="absolute bottom-10 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-10">
         <div className="backdrop-blur-xl bg-white/20 rounded-2xl border border-white/30 shadow-2xl p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Search */}
@@ -598,7 +643,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
 
       {/* Selected Item Info Card - Modified with toggle */}
       {selectedItem && (
-        <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-auto sm:max-w-md z-10">
+        <div className="absolute top-14 left-4 right-4 sm:top-6 sm:left-6 sm:right-auto sm:max-w-md z-10">
           <div className="backdrop-blur-xl bg-white/20 rounded-2xl border border-white/30 shadow-2xl">
             {/* Card Header - Always visible */}
             <div
@@ -630,6 +675,25 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
                     <p className="text-sm text-gray-600">
                       {selectedItem.vendor.name}
                     </p>
+                      <p>
+                        
+                    <span className="text-gray-500"> Total Fee:</span>{" "}
+                    <span className="font-medium text-green-600">
+                      {formatPrice(calculateSelectedItemsWithdeliveryPrice()) || "0"}
+                    </span>
+                  </p>
+                    <p>
+                    <span className="text-gray-500">Product :</span>{" "}
+                    <span className="font-light text-green-500">
+                      {formatPrice(calculateSelectedItemTotalPrice()) || "0"}
+                    </span>
+                  </p>
+                    <p>
+                    <span className="text-gray-500">Delivery :</span>{" "}
+                    <span className="font-light text-green-500">
+                      {formatPrice(selectedItem?.orderData?.serviceFee) || "0"}
+                    </span>
+                  </p>
                   </div>
                 </div>
                 <Button
@@ -1051,165 +1115,8 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   );
 }
 
-import { AlertCircle, CreditCard, CheckCircle, XCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { PaymentStatusSection } from "./PaymentStatusSection";
-import Login from "@/app/Login";
-import { ErrorState } from "../loading";
 
-interface PaymentStatus {
-  method: string;
-  status: "COMPLETED" | "FAILED" | "PROCESSING" | "PENDING";
-  reference: string;
-  amount?: number;
-  currency?: string;
-}
 
-interface PaymentStatusProps {
-  paymentStatus: PaymentStatus | null;
-  onPayNow?: () => void;
-}
 
-export function PaymentStatusSection1({
-  paymentStatus,
-  onPayNow,
-}: PaymentStatusProps) {
-  if (!paymentStatus) return null;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "COMPLETED":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "FAILED":
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case "PROCESSING":
-        return <Clock className="h-4 w-4 text-yellow-600 animate-bounce" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
-    }
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "COMPLETED":
-        return "text-green-600";
-      case "FAILED":
-        return "text-red-600";
-      case "PROCESSING":
-        return "text-yellow-600";
-      default:
-        return "text-gray-600";
-    }
-  };
-
-  return (
-    <div className="mt-4 pt-4 border-t border-white/20">
-      <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-        <CreditCard className="h-4 w-4" />
-        Payment Status
-      </h4>
-
-      {/* Processing Alert */}
-    
-
-      {/* Failed Payment Alert */}
-      {paymentStatus.status === "FAILED" && (
-        <Alert className="mb-4 border-red-200 bg-red-50">
-          <XCircle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
-            <div className="font-medium mb-1">Payment Failed</div>
-            <div className="text-sm">
-              There was an issue processing your payment. Please try again or
-              contact support.
-            </div>
-          </AlertDescription>
-          {onPayNow && (
-            <Button
-              size="sm"
-              variant="destructive"
-              className="mt-3"
-              onClick={onPayNow}
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Retry Payment
-            </Button>
-          )}
-        </Alert>
-      )}
-
-      {/* Completed Payment Success */}
-      {paymentStatus.status === "COMPLETED" && (
-        <Alert className="mb-4 border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            <div className="font-medium">Payment Successful</div>
-            <div className="text-sm">
-              Your payment has been processed and the vendor can now fulfill
-              your order.
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Payment Details */}
-      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Payment Method:</span>
-          <span className="font-medium text-gray-900">
-            {paymentStatus.method}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Status:</span>
-          <div className="flex items-center gap-1">
-            {getStatusIcon(paymentStatus.status)}
-            <span
-              className={`font-medium ${getStatusColor(paymentStatus.status)}`}
-            >
-              {paymentStatus.status}
-            </span>
-          </div>
-        </div>
-
-        {paymentStatus.amount && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Amount:</span>
-            <span className="font-medium text-gray-900">
-              {paymentStatus.currency || "$"}
-              {paymentStatus.amount.toFixed(2)}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Reference:</span>
-            <span
-            className="font-mono flex flex-row gap-4 text-gray-900 text-sm cursor-pointer hover:underline"
-            title="Click to copy"
-            onClick={() => {
-              if (navigator?.clipboard) {
-              navigator.clipboard.writeText(paymentStatus.reference);
-              toast.success("Reference copied to clipboard!");
-              }
-            }}
-            >
-
-            <Clipboard className="h-4 w-4"/> {paymentStatus.reference}
-            </span>
-        </div>
-      </div>
-
-      {/* Processing Status Additional Info */}
-      {paymentStatus.status === "PROCESSING" && (
-        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
-            <span>Waiting for payment confirmation...</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

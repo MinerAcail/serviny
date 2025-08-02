@@ -51,9 +51,12 @@ export function CartDrawer() {
   const { firstProfileId } = useProfileUpdate(null);
 
   vendorId = firstProfileId ?? vendorId;
+    const localServiceId = localStorage.getItem("serviceId");
+  vendorId = vendorId ?? localServiceId ?? "";
+
   console.log("Vendor ID in CartDrawer:", vendorId);
   
-  const navigate = useNavigate();
+
   const {
     items,
     removeItem,
@@ -113,12 +116,9 @@ export function CartDrawer() {
       setIsProcessing(false);
       setIsOpen(false);
 
-      // add this order=${result?.data?.createOrderItems.id} to the URL
 
-      navigate(`/zonex/${vendorId}/${result?.data?.createOrderItems.id}`, {
-        // state: { order: result?.data?.createOrderItems },
-        replace: true,
-      });
+      window.location.href = `/dd/${vendorId}/${result?.data?.createOrderItems.id}?order=true`;
+
     } catch (err) {
       console.error("Error creating order:", err);
       toast.error("Failed to create order. Please try again.");

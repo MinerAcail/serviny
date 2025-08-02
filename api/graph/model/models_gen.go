@@ -913,6 +913,7 @@ type InputUser struct {
 type OrderproductInfor struct {
 	Product  []*Product `json:"product"`
 	Quantity int32      `json:"quantity"`
+	ItemType string     `json:"itemType"`
 }
 
 type RentalInput struct {

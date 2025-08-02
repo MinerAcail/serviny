@@ -45,8 +45,10 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
             name
             price
             state
+            imageUrls
           }
           quantity
+          itemType
         }
         deliveryMetaData {
           id
@@ -90,6 +92,8 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
         endTime
         day
         item
+        notes
+        
         tableSize
         userType
         isConfirmed
@@ -177,11 +181,14 @@ export interface Product {
   name: string;
   price: string;
   state: string;
+  imageUrls:string[];
 }
 
-export interface OrderProductInfor {
+export interface productInfor {
   product: Product[];
   quantity: number;
+  itemType: string;
+  
 }
 
 export interface ZoneMetaData {
@@ -220,7 +227,7 @@ export interface CartItemOrder {
   deliveryAddress: string;
   estimatedDeliveryDate?: string;
   serviceFee?: string;
-  productInfor: OrderProductInfor[];
+  productInfor: productInfor[];
   deliveryMetaData?: ZoneMetaData;
   routeData?: RouteInfo;
   order: Order;
@@ -272,7 +279,117 @@ export interface ServiceData {
   orderData?: CartItemOrder;
   bookingData?: AppointmentBookingData;
 }
+export interface RidersServiceData {
+  getAllRidersServiceData:ServiceData
+}
 
+export interface getAllRidersServiceData {
+ 
+  id: string
+  serviceId: string
+  type: "ORDER" | "BOOKING"
+  rider?: {
+    id: string
+    name: string
+    number: string
+    location?: string
+    coordinates?: [number, number]
+  }
+  customer: {
+    name: string
+    dpfile?: string
+    number: string
+  }
+  vendor: {
+    id: string
+    name: string
+    location: string
+    coordinates: [number, number]
+  }
+  createdAt: string
+  orderData?: {
+    orderId?: string
+    status?: string // Using status field for orders
+    deliveryAddress?: string
+    estimatedDeliveryDate?: string
+    serviceFee?: number
+    productInfor?: Array<{
+      product: Product[]
+      quantity: number
+  itemType: string;
+
+    }>
+    deliveryMetaData?: {
+      id: string
+      price: number
+      duration: string
+      distance: string
+      zone: string
+      geojson: any
+      isochroneId: string
+    }
+    routeData?: {
+      id: string
+      orderId: string
+      geojson: any
+      userId: string
+      createdAt: string
+    }
+    order?: {
+      id: string
+      coordinates: [number, number]
+      deliveryAddress: string
+      distance: string
+      duration: string
+      items: Array<{
+        id: string
+        orderId: string
+        quantity: number
+  itemType: string;
+
+        itemType: string
+        product: {
+          id: string
+          name: string
+        }
+      }>
+    }
+  }
+  bookingData?: {
+    bookingId?: string
+    startTime?: string
+    endTime?: string
+    day?: string
+    item?: string
+    tableSize?: number
+    userType?: string
+    status?: string // Using status field for bookings instead of isConfirmed
+    pickupLocation?: string
+    dropoffLocation?: string
+    deliveryAddress?: string
+    pickUpAddress?: string
+    cargoId?:string
+    deliveryFee?: number
+    distance?: string
+    duration?: string
+    estimatedDeliveryDate?: string
+    notes?: string
+    rangeMetaData?: {
+      id: string
+      riderId: string
+      startKm: number
+      endKm: number
+      price: number
+    }
+    routeData?: {
+      id: string
+      orderId: string
+      geojson: any
+      userId: string
+      createdAt: string
+    }
+  }
+}
 // Processed rider type for the map
 export interface ProcessedRider {
   id: string;

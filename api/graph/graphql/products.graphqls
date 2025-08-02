@@ -8,7 +8,6 @@ type Product {
   imageUrls: [String]
   itemsType: [String]
   description: String
-
   createdAt: Time
   updatedAt: Time
   # commission: Float!
@@ -77,6 +76,7 @@ type CartItemOrder {
 type orderproductInfor {
   product: [Product]!
   quantity: Int!
+  itemType: String!
 }
 type Order {
   id: String!
@@ -92,6 +92,7 @@ type Order {
   items: [CartItem!]!
   estimatedDeliveryDate: String!
   deliveryFee: String
+  rangeMetaId: String
 
   createdAt: Time!
   updatedAt: Time!

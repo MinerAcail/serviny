@@ -40,6 +40,7 @@ type AppointmentBooking struct {
 	UserType              UserType        `json:"userType"`
 	MultiGroupID          *string         `json:"multiGroupId,omitempty"`
 	CargoID               *string         `json:"cargoId,omitempty"`
+	RangeMetaID               *string         `json:"rangeMetaId,omitempty"`
 
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`

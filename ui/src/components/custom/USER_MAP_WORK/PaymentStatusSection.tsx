@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { GET_BOOKING_ORDER_PAYMENT_STATUS } from "./types";
 import { useNavigate } from "react-router";
+import { formatPrice } from "@/components/global/formatPrice";
 
 interface PaymentStatus {
   id: string;
@@ -118,13 +119,46 @@ export function PaymentStatusSection({
   };
 
   const isCargoBooking = selectedItem.type === "BOOKING" && selectedItem.bookingData?.cargoId;
+// Calculates the total price of all products in the order
+const calculateSelectedItemTotalPrice = () => {
+  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
 
+  const orderData = selectedItem.orderData;
+  if (!orderData.productInfor) return 0;
+
+  return orderData.productInfor.reduce((total, item) => {
+    const productTotal = item.product.reduce((sum, product) => {
+      const price = typeof product.price === "string"
+        ? parseFloat(product.price)
+        : product.price ?? 0;
+
+      return sum + price;
+    }, 0);
+
+    return total + productTotal * item.quantity;
+  }, 0);
+};
+const calculateSelectedItemsWithdeliveryPrice = () => {
+  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+
+  const orderData = selectedItem.orderData;
+  if (!orderData.productInfor) return 0;
+
+return parseFloat(
+  (
+    Number(calculateSelectedItemTotalPrice()) +
+    Number(orderData.serviceFee || 0)
+  ).toFixed(2)
+);
+
+
+};
   return (
     <div className="mt-4 pt-4 border-t border-white/20">
-      <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+      {/* <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
         <CreditCard className="h-4 w-4" />
         Payment Status
-      </h4>
+      </h4> */}
 
       {/* Loading State */}
       {paymentLoading && (
@@ -138,7 +172,7 @@ export function PaymentStatusSection({
       {paymentStatus && (
         <div className="mb-4">
           {/* Status Overview */}
-          <div className="flex items-center justify-between p-3 bg-gray-50/80 backdrop-blur-xl rounded-lg">
+          {/* <div className="flex items-center justify-between p-3 bg-gray-50/80 backdrop-blur-xl rounded-lg">
             <div className="flex items-center gap-2">
               {getStatusIcon(paymentStatus.status)}
               <span className={`font-medium ${getStatusColor(paymentStatus.status)}`}>
@@ -151,7 +185,7 @@ export function PaymentStatusSection({
                 {paymentStatus.currency || "$"}{paymentStatus.amount.toFixed(2)}
               </span>
             )}
-          </div>
+          </div> */}
 
           {/* Critical Alerts - Always Visible */}
           {paymentStatus.status === "FAILED" && (
@@ -289,15 +323,23 @@ export function PaymentStatusSection({
                   </div>
                 </div>
 
-                {paymentStatus.amount && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Amount:</span>
                     <span className="font-medium text-gray-900">
-                      {paymentStatus.currency || "$"}
-                      {paymentStatus.amount.toFixed(2)}
+                         {selectedItem.type === "ORDER" ? (
+                                                           <>
+                                                            {formatPrice(calculateSelectedItemsWithdeliveryPrice()) || "0"}
+                                                           </>
+
+              ) : (
+                <>  
+                {formatPrice(paymentStatus.amount.toFixed(2))}
+                  </>)}
+                      
+                      {/* {paymentStatus.currency || "$"} */}
+                      
                     </span>
                   </div>
-                )}
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Reference:</span>

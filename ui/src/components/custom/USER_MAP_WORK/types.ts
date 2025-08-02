@@ -54,6 +54,13 @@ export const GET_ALL_USER_SERVICE_DATA = gql`
           geojson
           isochroneId
         }
+          rangeMetaData {
+          id
+          riderId
+          startKm
+          endKm
+          price
+        }
         routeData {
           id
           orderId
@@ -170,12 +177,7 @@ export interface ServiceData {
     estimatedDeliveryDate?: string
     serviceFee?: number
     productInfor?: Array<{
-      product: {
-        id: string
-        name: string
-        price: number
-        state: string
-      }
+      product: Product[]
       quantity: number
     }>
     deliveryMetaData?: {
@@ -246,6 +248,12 @@ export interface ServiceData {
       createdAt: string
     }
   }
+}
+export interface Product {
+   id: string
+        name: string
+        price: number
+        state: string
 }
 
 export interface PaymentStatus {

@@ -281,12 +281,7 @@ export function useVendorIsochrones(vendorId: string | undefined, selectedRiderI
   })[] = vendorMapData.map((data) => {
     const combinedRider = combineRiderData(data.riders.rider, data.riders.riderService);
     const mapData = data.riders.mapData;
-    
-    console.log('Processing combined rider:', combinedRider.name, 'with mapData:', mapData);
-    console.log('Rider data source:', { 
-      hasRiderData: combinedRider.hasRiderData, 
-      hasServiceData: combinedRider.hasServiceData 
-    });
+  
     
     // Extract pricing and distance info from isochrone metadata
     let minPrice = Infinity;

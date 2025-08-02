@@ -27,7 +27,7 @@ import type maplibregl from "maplibre-gl";
 // import { toast } from "sonner";
 // 
 // REUSE: Import existing types and hooks
-import type { Location, PricingZone } from "../riderBookingHooks";
+import type { Location, OrderDetails, PricingZone } from "../riderBookingHooks";
 
 // Import the multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
@@ -79,6 +79,9 @@ interface MapAndMultiBookingProps {
   showRouteDialog: boolean;
   setShowRouteDialog: (show: boolean) => void;
     setIsOpen: (isOpen: boolean) => void;
+  // isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
+  orderData?: OrderDetails | null; // NEW: Order data for orders
+  isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
 
 }
 
@@ -88,19 +91,32 @@ function MultiDeliverySummaryCard({
   deliveryItems,
   totalCalculations,
   isCalculating,
-  setIsOpen
+  setIsOpen,
+  orderData,
+  isOrder = false, // NEW: Optional prop to indicate if this is an order
 }: {
   pickupLocation: Location | null;
   deliveryItems: MultiDeliveryItem[];
   totalCalculations: any;
   isCalculating: boolean;
     setIsOpen: (isOpen: boolean) => void;
+    orderData?: OrderDetails | null; // NEW: Optional order data prop
+    isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [searchParams] = useSearchParams()
   const isCargo = searchParams.get('cargo') === 'true'
+// calculateOrderDataTotalPrice of orderData items
 
+  const calculateOrderDataTotalPrice = () => {
+    if (!orderData || !orderData?.items) return 0;
+    return orderData?.items.reduce((total, item) => {
+      return total + (item.product?.price || 0) * item.quantity;
+    }, 0);
+    
+  };
+  
   const completedItems = deliveryItems.filter(item => 
     item.deliveryAddress && item.itemDescription &&
     item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
@@ -114,9 +130,9 @@ function MultiDeliverySummaryCard({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+          {/* <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
             <Package className="h-4 w-4 text-blue-600" />
-          </div>
+          </div> */}
           {isExpanded &&(
 
           <div>
@@ -128,12 +144,27 @@ function MultiDeliverySummaryCard({
           )}
         </div>
         <div className="flex items-center space-x-2">
-          {!isCargo && totalCalculations && (
+          {!isCargo && totalCalculations && !isOrder && (
             <div className="text-right">
               <div className="text-lg font-bold text-green-600">
                 GH₵{totalCalculations.totalPrice.toFixed(2)}
               </div>
               
+            </div>
+          )}
+          {isOrder && (
+            <div className="text-right">
+               <div className="text-lg font-bold text-green-600">
+                Total: GH₵{(totalCalculations?.totalPrice + calculateOrderDataTotalPrice()).toFixed(2)}
+              </div>
+              {/* small div for total products price */}
+              <div className="text-xs text-gray-500">
+              Delivery  GH₵{totalCalculations?.totalPrice.toFixed(2)}
+               </div> 
+              <div className="text-xs text-gray-500">
+                {calculateOrderDataTotalPrice() > 0 ? `Products: GH₵${calculateOrderDataTotalPrice().toFixed(2)}` : "No products"}
+               </div> 
+             
             </div>
           )}
           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -374,7 +405,9 @@ export function MapAndMultiBooking({
   onStartPinDrop,
   showRouteDialog,
   setShowRouteDialog,
-  setIsOpen
+  setIsOpen,
+  orderData,
+  isOrder = false, // NEW: Optional prop to indicate if this is an order
 }: MapAndMultiBookingProps) {
     const [searchParams] = useSearchParams()
   const isCargo = searchParams.get('cargo') === 'true'
@@ -434,13 +467,14 @@ export function MapAndMultiBooking({
       )}
 
       {/* Map Container */}
-      <div
-        className={` inset-0 z-0 rounded-none overflow-hidden border-none shadow-none bg-wte relative ${
-          isOpenBookingMenu ? "pointer-events-none blur-sm" : ""
-        } ${isPinDropActive ? "ring-2 ring-blue-300 ring-opacity-50" : ""}`}
-        style={{ height: "100vh", width: "100vw" }}
-      >
-        <div ref={mapRef} className="w-full h-full" />
+   <div
+  className={`inset-0 z-0 rounded-none overflow-hidden border-none shadow-none bg-wte relative ${
+    isOpenBookingMenu ? "pointer-events-none blur-sm" : ""
+  } ${isPinDropActive ? "ring-2 ring-blue-300 ring-opacity-50" : ""}`}
+  style={{ height: "100vh", width: "100vw", minHeight: "100vh" }} // Ensure it fills the viewport
+>
+  <div ref={mapRef} className="w-full h-full" />
+
 
         {/* Loading overlay */}
         {loading && (
@@ -454,20 +488,7 @@ export function MapAndMultiBooking({
 
         {/* iOS-style Map Controls */}
         <div className="absolute bottom-10 right-4 z-10 flex flex-col gap-2">
-          {/* Zone Toggle Button */}
-          {/* {showRouteDialog && (
-            <button
-              onClick={() => setShowRouteDialog(!showRouteDialog)}
-              className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-colors"
-              title={showRouteDialog ? "Hide zones" : "Show zones"}
-            >
-              {showRouteDialog ? (
-                <EyeOff className="h-5 w-5 text-gray-700" />
-              ) : (
-                <Eye className="h-5 w-5 text-gray-700" />
-              )}
-            </button>
-          )} */}
+    
 
           {/* Pin Drop Button */}
           {onStartPinDrop && (
@@ -518,6 +539,8 @@ export function MapAndMultiBooking({
               totalCalculations={totalCalculations}
               isCalculating={isCalculating}
               setIsOpen={setIsOpen}
+              orderData={orderData}
+              isOrder={isOrder} // Pass isOrder based on orderData presence
             />
           </div>
         )}

@@ -129,7 +129,7 @@ const ReAssignRiderDialog: React.FC<ReAssignRiderDialogProps> = ({
     // Removed the skip option and uncommented the query
   );
   
-  console.log("ridersData", ridersData);
+  // console.log("ridersData", ridersData);
   
   const [reassignRider, { loading: mutationLoading, error: mutationError, data: mutationData }] = useMutation<ReAssignRiderResponse>(
     REASSIGN_RIDER_MUTATION,

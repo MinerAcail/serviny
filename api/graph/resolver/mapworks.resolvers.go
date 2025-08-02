@@ -1124,7 +1124,11 @@ func (r *queryResolver) GetARiderRanges(ctx context.Context, routeID string) ([]
 
 // GetARiderRange is the resolver for the getARiderRange field.
 func (r *queryResolver) GetARiderRange(ctx context.Context, rangeID string) (*model.RiderRange, error) {
-	panic(fmt.Errorf("not implemented: GetARiderRange - getARiderRange"))
+	var Range *model.RiderRange
+	if err := r.DB.Where("id = ?", rangeID).First(&Range).Error; err != nil {
+		return nil, fmt.Errorf("failed to get rider Range  %s: %w", rangeID, err)
+	}
+	return Range, nil
 }
 
 // GetIsochronesByService is the resolver for the getIsochronesByService field.

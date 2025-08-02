@@ -2477,15 +2477,15 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 		// 			order.ID, *order.IsochroneMetaID, err)
 		// 	}
 		// }
-	// Get range metadata
-	var rangeMetaData *model.RiderRange
-	if order.RiderID != nil {
-		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+		// Get range metadata
+		var rangeMetaData *model.RiderRange
+		if order.RiderID != nil {
+			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+				}
 			}
 		}
-	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -2514,6 +2514,7 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 				productInfor = append(productInfor, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
+					ItemType: item.ItemType,
 				})
 
 				// Get vendor from the first product (assuming all products in an order are from the same vendor)
@@ -2555,9 +2556,9 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
 				// DeliveryMetaData:      zoneMetaData,
 				RangeMetaData: rangeMetaData,
-				RouteData:             routeData,
-				ServiceFee:            order.DeliveryFee,
-				CreatedAt:             order.CreatedAt,
+				RouteData:     routeData,
+				ServiceFee:    order.DeliveryFee,
+				CreatedAt:     order.CreatedAt,
 			},
 			BookingData: nil, // Not populated for orders
 		}
@@ -2851,15 +2852,15 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 		// 			order.ID, *order.IsochroneMetaID, err)
 		// 	}
 		// }
-	// Get range metadata
-	var rangeMetaData *model.RiderRange
-	if order.RiderID != nil {
-		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+		// Get range metadata
+		var rangeMetaData *model.RiderRange
+		if order.RiderID != nil {
+			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+				}
 			}
 		}
-	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -2888,6 +2889,7 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 				productInfor = append(productInfor, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
+					ItemType: item.ItemType,
 				})
 
 				// Get vendor from the first product (assuming all products in an order are from the same vendor)
@@ -2957,11 +2959,11 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
 				// DeliveryMetaData:      zoneMetaData,
 				RangeMetaData: rangeMetaData,
-				RouteData:             routeData,
-				ServiceFee:            order.DeliveryFee,
-				PaymentStatus:         &paymentStatusValue,
-				PaymentMethod:         &paymentMethodValue,
-				CreatedAt:             order.CreatedAt,
+				RouteData:     routeData,
+				ServiceFee:    order.DeliveryFee,
+				PaymentStatus: &paymentStatusValue,
+				PaymentMethod: &paymentMethodValue,
+				CreatedAt:     order.CreatedAt,
 			},
 			BookingData: nil, // Not populated for orders
 		}
@@ -3192,6 +3194,7 @@ func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID 
 			productInfor = append(productInfor, &model.OrderproductInfor{
 				Product:  []*model.Product{product},
 				Quantity: item.Quantity,
+				ItemType: item.ItemType,
 			})
 		}
 	}
@@ -3217,9 +3220,9 @@ func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID 
 			Status:                order.Status,
 			EstimatedDeliveryDate: order.EstimatedDeliveryDate,
 			// DeliveryMetaData:      zoneMetaData,
-			RouteData:             routeData,
-			ServiceFee:            order.DeliveryFee,
-			CreatedAt:             order.CreatedAt,
+			RouteData:     routeData,
+			ServiceFee:    order.DeliveryFee,
+			CreatedAt:     order.CreatedAt,
 			RangeMetaData: rangeMetaData,
 		},
 		BookingData: nil,
@@ -3596,15 +3599,15 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 		// 			order.ID, *order.IsochroneMetaID, err)
 		// 	}
 		// }
-	// Get range metadata
-	var rangeMetaData *model.RiderRange
-	if order.RiderID != nil {
-		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+		// Get range metadata
+		var rangeMetaData *model.RiderRange
+		if order.RiderID != nil {
+			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
+				}
 			}
 		}
-	}
 		// Get route data
 		var routeData *model.RouteInfo
 		if err := r.DB.Where("order_id = ?", order.ID.String()).First(&routeData).Error; err != nil {
@@ -3633,6 +3636,7 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 				productInfor = append(productInfor, &model.OrderproductInfor{
 					Product:  []*model.Product{product},
 					Quantity: item.Quantity,
+					ItemType: item.ItemType,
 				})
 
 				// Get vendor from the first product (assuming all products in an order are from the same vendor)
@@ -3674,9 +3678,9 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 				EstimatedDeliveryDate: order.EstimatedDeliveryDate,
 				// DeliveryMetaData:      zoneMetaData,
 				RangeMetaData: rangeMetaData,
-				RouteData:             routeData,
-				ServiceFee:            order.DeliveryFee,
-				CreatedAt:             order.CreatedAt,
+				RouteData:     routeData,
+				ServiceFee:    order.DeliveryFee,
+				CreatedAt:     order.CreatedAt,
 			},
 			BookingData: nil, // Not populated for orders
 		}

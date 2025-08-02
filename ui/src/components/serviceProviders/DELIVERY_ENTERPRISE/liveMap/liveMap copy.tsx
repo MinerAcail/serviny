@@ -1866,10 +1866,10 @@ const LiveMap: React.FC = () => {
                   uniqueCustomers.length === 1
                     ? "Single customer group"
                     : `Multi-customer group (${uniqueCustomers.join(", ")})`,
-                "Venue Distribution":
+                "Provider Distribution":
                   uniqueVendors.length === 1
-                    ? `Single venue: ${uniqueVendors[0]}`
-                    : `Multiple venues: ${uniqueVendors.join(", ")}`,
+                    ? `Single Provider: ${uniqueVendors[0]}`
+                    : `Multiple Providers: ${uniqueVendors.join(", ")}`,
                 "Rider Assignment":
                   uniqueRiders.length === 0
                     ? "No riders assigned"
@@ -2220,7 +2220,7 @@ const LiveMap: React.FC = () => {
                               {location.venue && (
                                 <div className="p-3 bg-green-50/50 rounded-xl border-l-4 border-green-400">
                                   <div className="text-xs font-semibold text-green-700 mb-1">
-                                    🏪 Venue
+                                    🏪 Provider
                                   </div>
                                   <div className="text-sm text-black break-words">
                                     {location.venue}

@@ -108,6 +108,7 @@ type AppointmentBooking {
   isConfirmed: Boolean
   userType: UserType!
   multiGroupId: String
+  rangeMetaId: String
   cargoId: String
   status: String!
   createdAt: Time!

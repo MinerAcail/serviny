@@ -35,7 +35,7 @@ const libraries: Libraries = ["places"];
 export default function DeliveryZoneVisualizerVendor() {
   const { vendorId } = useParams<{ vendorId: string }>(); // Changed from riderId to vendorId
   const { orderId } = useParams<{ orderId: string }>(); // Changed from riderId to vendorId
-  console.log("Order from location state:", orderId);
+  // console.log("Order from location state:", orderId);
 
   // ==========================================
   // Environment and API Keys

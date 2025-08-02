@@ -78,8 +78,9 @@ export interface ViewCategoryBox {
 }
 
 export default function ProductCategories() {
-  const { serviceId } = useParams<{ serviceId: string }>();
-  
+  let { serviceId } = useParams<{ serviceId: string }>();
+    const localServiceId = localStorage.getItem("serviceId");
+  serviceId = serviceId ?? localServiceId ?? "";
   // Fetch category boxes from GraphQL API
   const { loading, error, data } = useQuery(GET_ALL_CATEGORY_BOX, {
     variables: {

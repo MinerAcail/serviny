@@ -36,6 +36,7 @@ import { getCargoTypeLabel } from "../cargoDataQuery";
 import type {
   RiderProfile,
   PricingZone,
+  OrderDetails,
 } from "../riderBookingHooks";
 import { ZONE_COLORS } from "@/components/config/map";
 
@@ -46,19 +47,21 @@ import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
 // RIDER PROFILE CARD
 // ==========================================
 
-export function RiderProfileCard({ 
-  riderProfile, 
-  isCargo 
-}: { 
-  riderProfile: RiderProfile; 
-  isCargo: boolean 
+export function RiderProfileCard({
+  riderProfile,
+  isCargo,
+}: {
+  riderProfile: RiderProfile;
+  isCargo: boolean;
 }) {
   return (
-    <Card className={`border-0 ${
-      isCargo 
-        ? "bg-gradient-to-r from-orange-50 to-amber-50" 
-        : "bg-gradient-to-r from-blue-50 to-indigo-50"
-    }`}>
+    <Card
+      className={`border-0 ${
+        isCargo
+          ? "bg-gradient-to-r from-orange-50 to-amber-50"
+          : "bg-gradient-to-r from-blue-50 to-indigo-50"
+      }`}
+    >
       <CardContent className="p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
@@ -66,9 +69,11 @@ export function RiderProfileCard({
               src={riderProfile.dpfile || "/placeholder.svg"}
               alt={riderProfile.name}
             />
-            <AvatarFallback className={`text-white text-sm font-medium ${
-              isCargo ? "bg-orange-600" : "bg-blue-600"
-            }`}>
+            <AvatarFallback
+              className={`text-white text-sm font-medium ${
+                isCargo ? "bg-orange-600" : "bg-blue-600"
+              }`}
+            >
               {riderProfile.name
                 ?.split(" ")
                 .map((n) => n[0])
@@ -96,16 +101,19 @@ export function RiderProfileCard({
                 <span>4.8</span>
               </div>
               <span>{isCargo ? "Cargo Vehicle" : "Motorcycle"}</span>
-              <span className={`font-medium ${isCargo ? "text-orange-600" : "text-blue-600"}`}>
+              <span
+                className={`font-medium ${
+                  isCargo ? "text-orange-600" : "text-blue-600"
+                }`}
+              >
                 {isCargo ? "Cargo Service" : "Multi-Delivery"}
               </span>
             </div>
 
             <p className="text-xs text-gray-500 mt-1">
-              {isCargo 
-                ? "Specializes in cargo and heavy item deliveries" 
-                : "Specializes in multi-point deliveries"
-              }
+              {isCargo
+                ? "Specializes in cargo and heavy item deliveries"
+                : "Specializes in multi-point deliveries"}
             </p>
           </div>
         </div>
@@ -153,7 +161,8 @@ export function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
         </div>
         <div className="mt-3 p-2 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-700">
-            Each delivery destination is priced separately based on distance from pickup center.
+            Each delivery destination is priced separately based on distance
+            from pickup center.
           </p>
         </div>
       </CardContent>
@@ -165,16 +174,16 @@ export function PricingZonesCard({ zones }: { zones: PricingZone[] }) {
 // CARGO INFORMATION CARD
 // ==========================================
 
-export function CargoInformationCard({ 
-  cargoType, 
-  splitCargo, 
-  cargoLoading, 
-  hasMultipleVehicleTypes, 
-  allTransportTypes, 
-  cargoError 
-}: { 
-  cargoType: string; 
-  splitCargo: boolean; 
+export function CargoInformationCard({
+  cargoType,
+  splitCargo,
+  cargoLoading,
+  hasMultipleVehicleTypes,
+  allTransportTypes,
+  cargoError,
+}: {
+  cargoType: string;
+  splitCargo: boolean;
   cargoLoading: boolean;
   hasMultipleVehicleTypes: boolean;
   allTransportTypes: string[];
@@ -192,7 +201,9 @@ export function CargoInformationCard({
         <CardContent className="pt-0">
           <div className="flex items-center justify-center p-6">
             <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-            <span className="ml-2 text-sm text-gray-600">Fetching cargo information...</span>
+            <span className="ml-2 text-sm text-gray-600">
+              Fetching cargo information...
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -209,13 +220,16 @@ export function CargoInformationCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-         <div className="p-3 bg-blue-50 rounded-lg">
+          <div className="p-3 bg-blue-50 rounded-lg">
             <div className="flex items-start gap-2">
               <FileText className="h-4 w-4 text-blue-600 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-blue-800 mb-1">Invoice-Based Pricing</p>
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Invoice-Based Pricing
+                </p>
                 <p className="text-xs text-blue-700">
-                  Pricing will be calculated based on actual cargo requirements and sent via invoice.
+                  Pricing will be calculated based on actual cargo requirements
+                  and sent via invoice.
                 </p>
               </div>
             </div>
@@ -243,10 +257,16 @@ export function CargoInformationCard({
           {/* Vehicle Type(s) */}
           {hasMultipleVehicleTypes ? (
             <div className="p-3 bg-orange-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 block mb-2">Vehicle Types:</span>
+              <span className="text-sm font-medium text-gray-700 block mb-2">
+                Vehicle Types:
+              </span>
               <div className="flex flex-wrap gap-2">
                 {allTransportTypes.map((type, index) => (
-                  <Badge key={index} variant="outline" className="text-orange-800 border-orange-300">
+                  <Badge
+                    key={index}
+                    variant="outline"
+                    className="text-orange-800 border-orange-300"
+                  >
                     {getCargoTypeLabel(type)}
                   </Badge>
                 ))}
@@ -255,26 +275,33 @@ export function CargoInformationCard({
           ) : cargoType ? (
             <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
               <span className="text-sm text-gray-700">Vehicle Type:</span>
-              <span className="font-medium text-orange-800">{getCargoTypeLabel(cargoType)}</span>
+              <span className="font-medium text-orange-800">
+                {getCargoTypeLabel(cargoType)}
+              </span>
             </div>
           ) : null}
-          
+
           {/* Split Cargo Strategy */}
           {splitCargo && (
             <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
               <span className="text-sm text-gray-700">Strategy:</span>
-              <span className="font-medium text-yellow-800">Separate Vehicles</span>
+              <span className="font-medium text-yellow-800">
+                Separate Vehicles
+              </span>
             </div>
           )}
-          
+
           {/* Invoice Information */}
           <div className="p-3 bg-blue-50 rounded-lg">
             <div className="flex items-start gap-2">
               <FileText className="h-4 w-4 text-blue-600 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-blue-800 mb-1">Invoice-Based Pricing</p>
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Invoice-Based Pricing
+                </p>
                 <p className="text-xs text-blue-700">
-                  Pricing will be calculated based on actual cargo requirements and sent via invoice.
+                  Pricing will be calculated based on actual cargo requirements
+                  and sent via invoice.
                 </p>
               </div>
             </div>
@@ -289,20 +316,22 @@ export function CargoInformationCard({
 // MULTI-LOCATION SETUP STEP
 // ==========================================
 
-export function MultiLocationStep({ 
-  isCargo, 
-  cargoType 
-}: { 
-  isCargo: boolean; 
-  cargoType: string 
+export function MultiLocationStep({
+  isCargo,
+  cargoType,
+}: {
+  isCargo: boolean;
+  cargoType: string;
 }) {
   return (
     <Card className="border-0">
       <CardContent className="p-4">
         <div className="text-center space-y-4">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-            isCargo ? "bg-orange-100" : "bg-blue-100"
-          }`}>
+          <div
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              isCargo ? "bg-orange-100" : "bg-blue-100"
+            }`}
+          >
             {isCargo ? (
               <Truck className="h-6 w-6 text-orange-600" />
             ) : (
@@ -314,12 +343,11 @@ export function MultiLocationStep({
               {isCargo ? "Setup Cargo Delivery" : "Setup Multi-Delivery"}
             </h3>
             <p className="text-sm text-gray-600 mb-3">
-              {isCargo 
+              {isCargo
                 ? "Configure pickup and delivery locations for your cargo transportation needs."
-                : "Configure one pickup location and multiple delivery destinations for efficient multi-point delivery."
-              }
+                : "Configure one pickup location and multiple delivery destinations for efficient multi-point delivery."}
             </p>
-            
+
             {isCargo && cargoType && (
               <div className="bg-orange-50 rounded-lg p-3 mb-3">
                 <div className="flex items-center justify-center gap-2 mb-2">
@@ -330,18 +358,24 @@ export function MultiLocationStep({
                 </div>
               </div>
             )}
-            
-            <div className={`rounded-lg p-3 text-left ${
-              isCargo ? "bg-orange-50" : "bg-blue-50"
-            }`}>
-              <h4 className={`text-sm font-medium mb-2 ${
-                isCargo ? "text-orange-900" : "text-blue-900"
-              }`}>
+
+            <div
+              className={`rounded-lg p-3 text-left ${
+                isCargo ? "bg-orange-50" : "bg-blue-50"
+              }`}
+            >
+              <h4
+                className={`text-sm font-medium mb-2 ${
+                  isCargo ? "text-orange-900" : "text-blue-900"
+                }`}
+              >
                 Perfect for:
               </h4>
-              <ul className={`text-xs space-y-1 ${
-                isCargo ? "text-orange-700" : "text-blue-700"
-              }`}>
+              <ul
+                className={`text-xs space-y-1 ${
+                  isCargo ? "text-orange-700" : "text-blue-700"
+                }`}
+              >
                 {isCargo ? (
                   <>
                     <li>• Heavy items and furniture moving</li>
@@ -378,13 +412,15 @@ export function MultiReviewStep({
   onBack,
   paymentCompleted = false,
   isCargo = false,
-  cargoType = '',
+  cargoType = "",
   splitCargo = false,
-  userPhone = '',
+  userPhone = "",
   cargoLoading = false,
   hasMultipleVehicleTypes = false,
   allTransportTypes = [],
   cargoError = null,
+  isOrder = false, // NEW: Optional prop to indicate if this is an order
+  orderData , // NEW: Order data for orders
 }: {
   totalCalculations: any;
   deliveryItems: MultiDeliveryItem[];
@@ -400,14 +436,32 @@ export function MultiReviewStep({
   hasMultipleVehicleTypes?: boolean;
   allTransportTypes?: string[];
   cargoError?: string | null;
+  isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
+  orderData?: OrderDetails; // NEW: Order data for orders
 }) {
   const [showItemDetails, setShowItemDetails] = useState(false);
 
-  const completedItems = deliveryItems.filter(item => 
-    item.deliveryAddress && item.itemDescription &&
-    item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
+  const completedItems = deliveryItems.filter(
+    (item) =>
+      item.deliveryAddress &&
+      item.itemDescription &&
+      item.dropoffLocation[0] !== 0 &&
+      item.dropoffLocation[1] !== 0
   );
 
+  const calculateOrderDataTotalPrice = () => {
+    if (!orderData || !orderData.items) return 0;
+    return orderData.items.reduce((total, item) => {
+      return total + (item.product?.price || 0) * item.quantity;
+    }, 0);
+  };
+  // calculateOrderDataItemsCount
+  const calculateOrderDataItemsCount = () => {
+    if (!orderData || !orderData.items) return 0;
+    return orderData.items.reduce((count, item) => {
+      return count + item.quantity;
+    }, 0);
+  };
   return (
     <div className="space-y-4">
       {/* Delivery Summary */}
@@ -419,7 +473,7 @@ export function MultiReviewStep({
             ) : (
               <Package className="h-4 w-4 mr-2 text-blue-600" />
             )}
-            {isCargo ? "Cargo Delivery Summary" : "Multi-Delivery Summary"}
+            {isCargo ? "Cargo Delivery Summary" : "Delivery Summary"}
             {cargoLoading && (
               <Loader2 className="h-4 w-4 ml-2 animate-spin text-orange-600" />
             )}
@@ -438,7 +492,11 @@ export function MultiReviewStep({
               </div>
               <div>
                 <div className="text-lg font-semibold text-orange-900">
-                  {cargoLoading ? "..." : hasMultipleVehicleTypes ? `${allTransportTypes.length} Types` : getCargoTypeLabel(cargoType)}
+                  {cargoLoading
+                    ? "..."
+                    : hasMultipleVehicleTypes
+                    ? `${allTransportTypes.length} Types`
+                    : getCargoTypeLabel(cargoType)}
                 </div>
                 <div className="text-xs text-orange-700">
                   {hasMultipleVehicleTypes ? "Vehicle Types" : "Vehicle Type"}
@@ -449,10 +507,22 @@ export function MultiReviewStep({
             // Regular delivery metrics - with pricing
             <div className="grid grid-cols-3 gap-3 text-center bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3">
               <div>
-                <div className="text-lg font-semibold text-blue-900">
-                  {completedItems.length}
-                </div>
-                <div className="text-xs text-blue-700">Deliveries</div>
+                {isOrder ? (
+                  <div className="text-lg font-semibold text-blue-900">
+                    {calculateOrderDataItemsCount() > 1
+                      ? `${calculateOrderDataItemsCount()} Products`
+                      : calculateOrderDataItemsCount() === 1
+                      ? "1 Product"
+                      : "No Products"}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-lg font-semibold text-blue-900">
+                      {completedItems.length}
+                    </div>
+                    <div className="text-xs text-blue-700">Deliveries</div>
+                  </>
+                )}
               </div>
               <div>
                 <div className="text-lg font-semibold text-blue-900">
@@ -460,56 +530,89 @@ export function MultiReviewStep({
                 </div>
                 <div className="text-xs text-blue-700">Total Distance</div>
               </div>
-              <div>
-                <div className="text-lg font-semibold text-green-600">
-                  GH₵{totalCalculations?.totalPrice?.toFixed(2) || '0.00'}
+              {isOrder && (
+                <div>
+                  <div className="text-lg font-bold text-green-600">
+                    Total: GH₵
+                    {(
+                      totalCalculations.totalPrice +
+                      calculateOrderDataTotalPrice()
+                    ).toFixed(2)}
+                  </div>
+                  {/* small div for total products price */}
+                  <div className="text-xs text-gray-500">
+                    Delivery GH₵{totalCalculations.totalPrice.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {calculateOrderDataTotalPrice() > 0
+                      ? `Products: GH₵${calculateOrderDataTotalPrice().toFixed(
+                          2
+                        )}`
+                      : "No products"}
+                  </div>
                 </div>
-                <div className="text-xs text-blue-700">Total Price</div>
-              </div>
+              )}
+              {!isOrder && (
+                <div>
+                  <div className="text-lg font-semibold text-green-600">
+                    GH₵{totalCalculations?.totalPrice?.toFixed(2) || "0.00"}
+                  </div>
+                  <div className="text-xs text-blue-700">Total Price</div>
+                </div>
+              )}
             </div>
           )}
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="flex-1"
-          disabled={isBooking}
-        >
-          Back
-        </Button>
-        <Button 
-          onClick={onBooking} 
-          disabled={isBooking || completedItems.length === 0 || (isCargo && cargoLoading)} 
-          className={`flex-1 ${
-            isCargo 
-              ? "bg-orange-500 hover:bg-orange-600" 
-              : "bg-blue-500 hover:bg-blue-600"
-          }`}
-        >
-          {isBooking ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {isCargo ? "Submitting..." : paymentCompleted ? "Confirming..." : "Processing..."}
-            </>
-          ) : (
-            <>
-              {isCargo ? (
-                <FileText className="w-4 h-4 mr-2" />
-              ) : (
-                <Truck className="w-4 h-4 mr-2" />
-              )}
-              {isCargo 
-                ? cargoLoading ? "Loading..." : "Confirm Booking" 
-                : paymentCompleted 
-                ? "Confirm Delivery" 
-                : "Choose Payment Method"
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              className="flex-1"
+              disabled={isBooking}
+            >
+              Back
+            </Button>
+            <Button
+              onClick={onBooking}
+              disabled={
+                isBooking ||
+                completedItems.length === 0 ||
+                (isCargo && cargoLoading)
               }
-            </>
-          )}
-        </Button>
-      </div>
+              className={`flex-1 ${
+                isCargo
+                  ? "bg-orange-500 hover:bg-orange-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              }`}
+            >
+              {isBooking ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isCargo
+                    ? "Submitting..."
+                    : paymentCompleted
+                    ? "Confirming..."
+                    : "Processing..."}
+                </>
+              ) : (
+                <>
+                  {isCargo ? (
+                    <FileText className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Truck className="w-4 h-4 mr-2" />
+                  )}
+                  {isCargo
+                    ? cargoLoading
+                      ? "Loading..."
+                      : "Confirm Booking"
+                    : paymentCompleted
+                    ? "Confirm Delivery"
+                    : "Choose Payment Method"}
+                </>
+              )}
+            </Button>
+          </div>
           {/* Duration estimate - for both cargo and regular */}
           {totalCalculations?.averageDuration && (
             <div className="flex items-center justify-center space-x-2 p-3 bg-gray-50 rounded-lg">
@@ -526,30 +629,40 @@ export function MultiReviewStep({
               <div className="flex items-start gap-3">
                 <FileText className="h-5 w-5 text-orange-600 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-orange-800 mb-2">Invoice Process</h4>
+                  <h4 className="font-medium text-orange-800 mb-2">
+                    Invoice Process
+                  </h4>
                   <p className="text-sm text-orange-700 mb-2">
-                    This is a cargo delivery. An invoice will be sent to you shortly.
+                    This is a cargo delivery. An invoice will be sent to you
+                    shortly.
                   </p>
-                  
+
                   {/* Show actual vehicle types from database */}
                   {!cargoLoading && hasMultipleVehicleTypes && (
                     <div className="mb-2">
-                      <p className="text-sm font-medium text-orange-800 mb-1">Vehicle Types:</p>
+                      <p className="text-sm font-medium text-orange-800 mb-1">
+                        Vehicle Types:
+                      </p>
                       <div className="flex flex-wrap gap-1">
                         {allTransportTypes.map((type, index) => (
-                          <Badge key={index} variant="outline" className="text-xs text-orange-700 border-orange-300">
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="text-xs text-orange-700 border-orange-300"
+                          >
                             {getCargoTypeLabel(type)}
                           </Badge>
                         ))}
                       </div>
                     </div>
                   )}
-                  
+
                   {userPhone && (
                     <div className="flex items-center gap-2 text-sm">
                       <MessageSquare className="h-4 w-4 text-orange-600" />
                       <span className="text-orange-800">
-                        Your invoice will be sent to this number via WhatsApp or SMS:
+                        Your invoice will be sent to this number via WhatsApp or
+                        SMS:
                       </span>
                     </div>
                   )}
@@ -563,23 +676,35 @@ export function MultiReviewStep({
             </div>
           )}
 
-  
           {/* Delivery Items Toggle */}
           <button
             onClick={() => setShowItemDetails(!showItemDetails)}
             className="w-full flex items-center justify-between p-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
           >
             <span className="font-medium">
-              View {isCargo ? "Cargo" : "Delivery"} Details ({completedItems.length})
+              View {isCargo ? "Cargo" : "Delivery"} Details (
+              {completedItems.length})
             </span>
             <div className="flex items-center space-x-2">
-              {!isCargo && totalCalculations && (
+              {!isCargo && totalCalculations && !isOrder && (
                 <Badge variant="secondary" className="text-xs">
                   GH₵{totalCalculations.totalPrice.toFixed(2)}
                 </Badge>
               )}
+              {isOrder && totalCalculations && (
+                <Badge variant="secondary" className="text-xs">
+                  GH₵
+                  {(
+                    totalCalculations.totalPrice +
+                    calculateOrderDataTotalPrice()
+                  ).toFixed(2)}
+                </Badge>
+              )}
               {isCargo && (
-                <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-orange-100 text-orange-700"
+                >
                   Invoice Pending
                 </Badge>
               )}
@@ -607,16 +732,23 @@ export function MultiReviewStep({
                 className="space-y-3 overflow-hidden"
               >
                 {completedItems.map((item, index) => {
-                  const calculation = totalCalculations?.itemCalculations?.find((calc: any) => calc.id === item.id);
-                  
+                  const calculation = totalCalculations?.itemCalculations?.find(
+                    (calc: any) => calc.id === item.id
+                  );
+
                   return (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                    <div
+                      key={item.id}
+                      className="border border-gray-200 rounded-lg p-3 bg-white"
+                    >
                       <div className="flex items-start space-x-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-1 ${
-                          isCargo 
-                            ? "bg-orange-100 text-orange-600" 
-                            : "bg-red-100 text-red-600"
-                        }`}>
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-1 ${
+                            isCargo
+                              ? "bg-orange-100 text-orange-600"
+                              : "bg-red-100 text-red-600"
+                          }`}
+                        >
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -632,9 +764,18 @@ export function MultiReviewStep({
                                 <span>{calculation.distance}km</span>
                                 <span>{calculation.duration}</span>
                               </div>
-                              <span className="font-medium text-green-600">
-                                GH₵{calculation.price.toFixed(2)}
-                              </span>
+                             <span className="font-medium text-green-600">
+                                  GH₵{calculation.price.toFixed(2)}
+                                </span>
+                              {/* {isOrder && (
+                                <span className="font-medium text-green-600">
+                                  GH₵
+                                  {(
+                                    totalCalculations.totalPrice +
+                                    calculateOrderDataTotalPrice()
+                                  ).toFixed(2)}
+                                </span>
+                              )} */}
                             </div>
                           )}
                           {isCargo && (
@@ -672,8 +813,6 @@ export function MultiReviewStep({
           )}
         </CardContent>
       </Card>
-
-     
     </div>
   );
 }
@@ -694,7 +833,7 @@ export function MultiCompleteStep({
   onStopTracking,
   isLoadingRoute,
   isCargo = false,
-  cargoType = '',
+  cargoType = "",
 }: {
   bookingReference: string | null;
   totalCalculations: any;
@@ -709,41 +848,51 @@ export function MultiCompleteStep({
   isCargo?: boolean;
   cargoType?: string;
 }) {
-  const completedItems = deliveryItems.filter(item => 
-    item.deliveryAddress && item.itemDescription &&
-    item.dropoffLocation[0] !== 0 && item.dropoffLocation[1] !== 0
+  const completedItems = deliveryItems.filter(
+    (item) =>
+      item.deliveryAddress &&
+      item.itemDescription &&
+      item.dropoffLocation[0] !== 0 &&
+      item.dropoffLocation[1] !== 0
   );
 
   return (
     <div className="space-y-4">
       {/* Success Message */}
-      <Card className={`border-0 ${
-        isCargo 
-          ? "bg-gradient-to-r from-orange-50 to-amber-50" 
-          : "bg-gradient-to-r from-green-50 to-emerald-50"
-      }`}>
+      <Card
+        className={`border-0 ${
+          isCargo
+            ? "bg-gradient-to-r from-orange-50 to-amber-50"
+            : "bg-gradient-to-r from-green-50 to-emerald-50"
+        }`}
+      >
         <CardContent className="p-4 text-center">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
-            isCargo ? "bg-orange-100" : "bg-green-100"
-          }`}>
+          <div
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
+              isCargo ? "bg-orange-100" : "bg-green-100"
+            }`}
+          >
             {isCargo ? (
               <FileText className="h-6 w-6 text-orange-600" />
             ) : (
               <CheckCircle className="h-6 w-6 text-green-600" />
             )}
           </div>
-          <h3 className={`font-semibold mb-1 ${
-            isCargo ? "text-orange-900" : "text-green-900"
-          }`}>
+          <h3
+            className={`font-semibold mb-1 ${
+              isCargo ? "text-orange-900" : "text-green-900"
+            }`}
+          >
             {isCargo ? "Cargo Booking Confirmed!" : "Multi-Delivery Confirmed!"}
           </h3>
-          <p className={`text-sm ${
-            isCargo ? "text-orange-700" : "text-green-700"
-          }`}>
-            {isCargo 
+          <p
+            className={`text-sm ${
+              isCargo ? "text-orange-700" : "text-green-700"
+            }`}
+          >
+            {isCargo
               ? `Your ${completedItems.length} cargo delivery request has been submitted to ${riderProfile?.name}. Invoice will be sent shortly.`
-              : `Your ${completedItems.length} delivery requests have been sent to ${riderProfile?.name}.`
-            }
+              : `Your ${completedItems.length} delivery requests have been sent to ${riderProfile?.name}.`}
           </p>
         </CardContent>
       </Card>
@@ -774,10 +923,9 @@ export function MultiCompleteStep({
                 {isCargo ? "Cargo Route Active" : "Multi-Route Active"}
               </h4>
               <p className="text-sm text-blue-700">
-                {isCargo 
+                {isCargo
                   ? "All cargo delivery routes are being tracked on the map."
-                  : "All delivery routes are being tracked on the map."
-                }
+                  : "All delivery routes are being tracked on the map."}
               </p>
             </div>
           </CardContent>
@@ -793,64 +941,78 @@ export function MultiCompleteStep({
             ) : (
               <Package className="h-4 w-4 mr-2 text-blue-600" />
             )}
-            {isCargo ? "Cargo Delivery Summary" : "Multi-Delivery Summary"}
+            {isCargo ? "Cargo Delivery Summary" : "Delivery Summary"}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className={`text-center p-3 rounded-lg ${
-              isCargo ? "bg-orange-50" : "bg-blue-50"
-            }`}>
-              <div className={`text-lg font-bold ${
-                isCargo ? "text-orange-900" : "text-blue-900"
-              }`}>
+            <div
+              className={`text-center p-3 rounded-lg ${
+                isCargo ? "bg-orange-50" : "bg-blue-50"
+              }`}
+            >
+              <div
+                className={`text-lg font-bold ${
+                  isCargo ? "text-orange-900" : "text-blue-900"
+                }`}
+              >
                 {completedItems.length}
               </div>
-              <div className={`text-xs ${
-                isCargo ? "text-orange-700" : "text-blue-700"
-              }`}>
+              <div
+                className={`text-xs ${
+                  isCargo ? "text-orange-700" : "text-blue-700"
+                }`}
+              >
                 {isCargo ? "Cargo Stops" : "Deliveries"}
               </div>
             </div>
-            <div className={`text-center p-3 rounded-lg ${
-              isCargo ? "bg-yellow-50" : "bg-green-50"
-            }`}>
-              <div className={`text-lg font-bold ${
-                isCargo ? "text-yellow-900" : "text-green-900"
-              }`}>
-                {isCargo 
+            <div
+              className={`text-center p-3 rounded-lg ${
+                isCargo ? "bg-yellow-50" : "bg-green-50"
+              }`}
+            >
+              <div
+                className={`text-lg font-bold ${
+                  isCargo ? "text-yellow-900" : "text-green-900"
+                }`}
+              >
+                {isCargo
                   ? getCargoTypeLabel(cargoType)
-                  : `${totalCalculations?.totalDistance || 0}km`
-                }
+                  : `${totalCalculations?.totalDistance || 0}km`}
               </div>
-              <div className={`text-xs ${
-                isCargo ? "text-yellow-700" : "text-green-700"
-              }`}>
+              <div
+                className={`text-xs ${
+                  isCargo ? "text-yellow-700" : "text-green-700"
+                }`}
+              >
                 {isCargo ? "Vehicle Type" : "Total Distance"}
               </div>
             </div>
           </div>
-          
+
           {totalCalculations?.averageDuration && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Estimated Time</span>
-              <span className="font-medium">{totalCalculations.averageDuration}</span>
+              <span className="font-medium">
+                {totalCalculations.averageDuration}
+              </span>
             </div>
           )}
-          
+
           <Separator />
-          
+
           <div className="flex justify-between">
             <span className="font-medium text-gray-900">
               {isCargo ? "Invoice Amount" : "Total Price"}
             </span>
-            <span className={`font-semibold text-lg ${
-              isCargo ? "text-orange-600" : "text-green-600"
-            }`}>
-              {isCargo 
-                ? "Pending Invoice" 
-                : `GH₵${totalCalculations?.totalPrice?.toFixed(2) || '0.00'}`
-              }
+            <span
+              className={`font-semibold text-lg ${
+                isCargo ? "text-orange-600" : "text-green-600"
+              }`}
+            >
+              {isCargo
+                ? "Pending Invoice"
+                : `GH₵${totalCalculations?.totalPrice?.toFixed(2) || "0.00"}`}
             </span>
           </div>
         </CardContent>
@@ -865,21 +1027,29 @@ export function MultiCompleteStep({
             ) : (
               <Package className="h-4 w-4 mr-2 text-blue-600" />
             )}
-            {isCargo ? "Cargo" : "Delivery"} Destinations ({completedItems.length})
+            {isCargo ? "Cargo" : "Delivery"} Destinations (
+            {completedItems.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {completedItems.map((item, index) => {
-              const calculation = totalCalculations?.itemCalculations?.find((calc: any) => calc.id === item.id);
-              
+              const calculation = totalCalculations?.itemCalculations?.find(
+                (calc: any) => calc.id === item.id
+              );
+
               return (
-                <div key={item.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
-                    isCargo 
-                      ? "bg-orange-100 text-orange-600" 
-                      : "bg-red-100 text-red-600"
-                  }`}>
+                <div
+                  key={item.id}
+                  className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg"
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
+                      isCargo
+                        ? "bg-orange-100 text-orange-600"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -887,7 +1057,7 @@ export function MultiCompleteStep({
                       {item.itemDescription}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {item.deliveryAddress.split(',')[0]}
+                      {item.deliveryAddress.split(",")[0]}
                     </p>
                   </div>
                   {!isCargo && calculation ? (
@@ -904,9 +1074,7 @@ export function MultiCompleteStep({
                       <p className="text-xs font-medium text-orange-600">
                         Invoice
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Pending
-                      </p>
+                      <p className="text-xs text-gray-500">Pending</p>
                     </div>
                   ) : null}
                 </div>
@@ -927,9 +1095,11 @@ export function MultiCompleteStep({
                     src={riderProfile.dpfile || "/placeholder.svg"}
                     alt={riderProfile.name}
                   />
-                  <AvatarFallback className={`text-white text-xs ${
-                    isCargo ? "bg-orange-600" : "bg-blue-600"
-                  }`}>
+                  <AvatarFallback
+                    className={`text-white text-xs ${
+                      isCargo ? "bg-orange-600" : "bg-blue-600"
+                    }`}
+                  >
                     {riderProfile.name
                       ?.split(" ")
                       .map((n) => n[0])
@@ -942,7 +1112,9 @@ export function MultiCompleteStep({
                     {riderProfile.name}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {isCargo ? "Cargo delivery specialist" : "Multi-delivery specialist"}
+                    {isCargo
+                      ? "Cargo delivery specialist"
+                      : "Multi-delivery specialist"}
                   </p>
                 </div>
               </div>
@@ -967,11 +1139,11 @@ export function MultiCompleteStep({
           <Plus className="w-4 h-4 mr-2" />
           {isCargo ? "Book Another Cargo Delivery" : "Book Another Multi-Delivery"}
         </Button> */}
-        
+
         {/* Tracking Button */}
         {bookId && onStartTracking && onStopTracking && (
-          <Button 
-            variant={isTrackingActive ? "destructive" : "outline"} 
+          <Button
+            variant={isTrackingActive ? "destructive" : "outline"}
             className="w-full"
             onClick={isTrackingActive ? onStopTracking : onStartTracking}
             disabled={isLoadingRoute}
@@ -1024,50 +1196,50 @@ export function MultiStepNavigation({
 
   return (
     <div className="flex items-center justify-center rounded-md space-x-2">
-        {steps.map((step, index) => {
-          const isActive = currentStep === step.id;
-          const isCompleted =
-            (step.id === "locations" && hasCalculations) ||
-            (step.id === "review" && isBookingComplete) ||
-            (step.id === "complete" && isBookingComplete);
-          const isAccessible =
-            step.id === "locations" ||
-            (step.id === "review" && hasCalculations) ||
-            (step.id === "complete" && isBookingComplete);
+      {steps.map((step, index) => {
+        const isActive = currentStep === step.id;
+        const isCompleted =
+          (step.id === "locations" && hasCalculations) ||
+          (step.id === "review" && isBookingComplete) ||
+          (step.id === "complete" && isBookingComplete);
+        const isAccessible =
+          step.id === "locations" ||
+          (step.id === "review" && hasCalculations) ||
+          (step.id === "complete" && isBookingComplete);
 
-          return (
-            <div key={step.id} className="flex items-center">
-              <button
-                onClick={() =>  setCurrentStep(step.id)}
-                disabled={!isAccessible}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-                  isActive
-                    ? isCargo 
-                      ? "bg-orange-600 text-white" 
-                      : "bg-blue-600 text-white"
-                    : isCompleted
-                    ? "bg-green-500 text-white"
-                    : isAccessible
-                    ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                {isCompleted ? (
-                  <CheckCircle className="h-4 w-4" />
-                ) : (
-                  <span>{index + 1}</span>
-                )}
-              </button>
-              {index < steps.length - 1 && (
-                <div
-                  className={`w-8 h-0.5 mx-1 ${
-                    isCompleted ? "bg-green-500" : "bg-gray-200"
-                  }`}
-                />
+        return (
+          <div key={step.id} className="flex items-center">
+            <button
+              onClick={() => setCurrentStep(step.id)}
+              disabled={!isAccessible}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
+                isActive
+                  ? isCargo
+                    ? "bg-orange-600 text-white"
+                    : "bg-blue-600 text-white"
+                  : isCompleted
+                  ? "bg-green-500 text-white"
+                  : isAccessible
+                  ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {isCompleted ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <span>{index + 1}</span>
               )}
-            </div>
-          );
-        })}
-      </div>
+            </button>
+            {index < steps.length - 1 && (
+              <div
+                className={`w-8 h-0.5 mx-1 ${
+                  isCompleted ? "bg-green-500" : "bg-gray-200"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

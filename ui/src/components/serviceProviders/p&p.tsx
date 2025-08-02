@@ -148,12 +148,12 @@ export default  function ServiceProviderPandP() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
   // Show the toast only once per session
-  useEffect(() => {
-    if (!isAuthenticated ) {
-      toast.warning("You need to be logged in to save Service profile.");
+  // useEffect(() => {
+  //   if (!isAuthenticated ) {
+  //     toast.warning("You need to be logged in to save Service profile.");
      
-    }
-  }, [isAuthenticated]);
+  //   }
+  // }, [isAuthenticated]);
   // Show landing page only if user is not authenticated AND no localServiceId is set AND dialog state is true
   if (!isAuthenticated && !localServiceId && dialogState) {
     return <LandingPage onClose={() => setDialogState(false)} />;

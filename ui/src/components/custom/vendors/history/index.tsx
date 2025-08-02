@@ -277,7 +277,7 @@ export default function ServiceHistory(): React.ReactElement {
                 <div className="flex items-center gap-2">
                   <Building className="h-3 w-3 flex-shrink-0" />
                   <span className="truncate">
-                    {uniqueVendors.length === 1 ? uniqueVendors[0] : `${uniqueVendors.length} venues`}
+                    {uniqueVendors.length === 1 ? uniqueVendors[0] : `${uniqueVendors.length} Providers`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -380,7 +380,7 @@ export default function ServiceHistory(): React.ReactElement {
                         <span className="ml-2 font-medium">{uniqueCustomers.join(", ")}</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Venues:</span>
+                        <span className="text-gray-600">Providers:</span>
                         <span className="ml-2 font-medium">{uniqueVendors.join(", ")}</span>
                       </div>
                     </div>
@@ -425,7 +425,7 @@ export default function ServiceHistory(): React.ReactElement {
                             {/* Booking Details */}
                             <div className="grid grid-cols-2 gap-3 text-xs mb-3">
                               <div>
-                                <span className="text-gray-600">Venue:</span>
+                                <span className="text-gray-600">Provider:</span>
                                 <span className="ml-1 font-medium">{service.vendor}</span>
                               </div>
                               <div>
@@ -959,7 +959,7 @@ export default function ServiceHistory(): React.ReactElement {
                         <div className="flex items-center gap-1 mb-1">
                           <Building className="h-3 w-3 text-gray-400" />
                           <span className="font-medium text-gray-700">
-                            {order.type === "ORDER" ? "Vendor" : "Venue"}
+                            {order.type === "ORDER" ? "Vendor" : "Provider"}
                           </span>
                         </div>
                         <p className="text-gray-900 truncate">{order.vendor}</p>
@@ -1065,7 +1065,7 @@ export default function ServiceHistory(): React.ReactElement {
                           {/* Vendor/Venue Info */}
                           <div className="bg-green-50 rounded-lg p-3">
                             <p className="font-medium text-gray-900 mb-2">
-                              {order.type === "ORDER" ? "Vendor" : "Venue"} Information
+                              {order.type === "ORDER" ? "Vendor" : "Provider"} Information
                             </p>
                             <p className="text-sm text-gray-900">{order.vendor}</p>
                             <p className="text-xs text-gray-600 mt-1">{order.vendorLocation}</p>

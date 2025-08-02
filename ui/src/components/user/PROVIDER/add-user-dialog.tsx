@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Copy, User, Sparkles, NotepadText } from "lucide-react";
+import { Copy, User, Sparkles, NotepadText, Contact } from "lucide-react";
 import { toast } from "sonner";
 import { DeliveryServiceSystem } from "@/components/serviceProviders/APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
 import { useAuth } from "@/middleware/context/authContext";
@@ -77,6 +77,12 @@ export default function AddUserDialog() {
   });
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isContactPickerAvailable, setIsContactPickerAvailable] = useState(false);
+
+  // Check if Contact Picker API is available
+  useEffect(() => {
+    setIsContactPickerAvailable('contacts' in navigator && 'ContactsManager' in window);
+  }, []);
 
   // Generate a random 6-character ID
   const generateId = () => {
@@ -105,6 +111,62 @@ export default function AddUserDialog() {
       .replace(/[^a-z0-9]/g, "");
     const randomSuffix = Math.floor(Math.random() * 1000);
     return `${cleanName}${randomSuffix}@winnemart.com`;
+  };
+
+  // Contact Picker function
+  const pickContact = async () => {
+    try {
+      // Check if the Contact Picker API is supported
+      if (!('contacts' in navigator) || !('select' in navigator.contacts)) {
+        toast.error("Contact picker not supported", {
+          description: "Your browser or device doesn't support contact picking.",
+        });
+        return;
+      }
+
+      const props = ['name', 'tel'];
+      const opts = { multiple: false };
+
+      const contacts = await (navigator.contacts.select as (props: string[], opts: { multiple: boolean }) => Promise<any[]>)(props, opts);
+      
+      if (contacts && contacts.length > 0) {
+        const contact = contacts[0];
+        
+        // Set name
+        if (contact.name && contact.name.length > 0) {
+          const fullName = contact.name.join(' ').trim();
+          setName(fullName);
+          
+          // Auto-generate email if enabled
+          if (autoGenerateEmail) {
+            setEmail(generateEmailFromName(fullName));
+          }
+        }
+        
+        // Set phone number
+        if (contact.tel && contact.tel.length > 0) {
+          // Clean the phone number (remove spaces, dashes, parentheses)
+          const cleanPhone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
+          setPhone(cleanPhone);
+        }
+        
+        toast.success("Contact imported successfully!", {
+          description: "Name and phone number have been filled in.",
+        });
+      }
+    } catch (error) {
+      console.error('Contact picker error:', error);
+      
+      if (error.name === 'InvalidStateError') {
+        toast.error("Contact picker unavailable", {
+          description: "Contact picker can only be used with user interaction.",
+        });
+      } else {
+        toast.error("Failed to pick contact", {
+          description: "There was an error accessing your contacts.",
+        });
+      }
+    }
   };
 
   // Handle auto-generate email checkbox
@@ -309,6 +371,20 @@ export default function AddUserDialog() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-4">
+                    {/* Contact Picker Button */}
+                    {isContactPickerAvailable && (
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={pickContact}
+                          variant="outline"
+                          className="gap-2 border-dashed"
+                        >
+                          <Contact className="h-4 w-4" />
+                          Pick Contacts
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="name">User's Name</Label>
                       <Input

@@ -158,11 +158,11 @@ const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      toast.warning("You need to be logged in to save Service profile.");
-    }
-  }, [isAuthenticated]);
+  // useEffect(() => {
+  //   if (!isAuthenticated) {
+  //     toast.warning("You need to be logged in to save Service profile.");
+  //   }
+  // }, [isAuthenticated]);
 // Sync view selection to URL when changed
 useEffect(() => {
   const newParams = new URLSearchParams(location.search);

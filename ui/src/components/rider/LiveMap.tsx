@@ -534,7 +534,7 @@ useEffect(() => {
               .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
                 <div class="p-3">
                   <h3 class="font-bold">${service.vendor.name}</h3>
-                  <p class="text-sm">Venue</p>
+                  <p class="text-sm">Provider</p>
                   <p class="text-xs text-gray-600">${service.vendor.location}</p>
                   <p class="text-xs font-medium mt-1">Booking #${service.bookingData.bookingId.slice(-6)}</p>
                 </div>
@@ -752,8 +752,8 @@ useEffect(() => {
     entityId: string,
     entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
   ) => {
-    console.log("Entity ID:", entityId);
-    console.log("Entity Type:", entityType);
+    // console.log("Entity ID:", entityId);
+    // console.log("Entity Type:", entityType);
 
     // Set the search query to the entity ID
     setSearchQuery(entityId);
@@ -764,27 +764,27 @@ useEffect(() => {
     // You can also handle different entity types differently:
     switch (entityType) {
       case "order":
-        console.log("Opening live map for order:", entityId);
+        // console.log("Opening live map for order:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "booking":
-        console.log("Opening live map for booking:", entityId);
+        // console.log("Opening live map for booking:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "multigroup":
-        console.log("Opening live map for multi-group:", entityId);
+        // console.log("Opening live map for multi-group:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
       case "customer":
-        console.log("Opening live map for customer:", entityId);
+        // console.log("Opening live map for customer:", entityId);
         setSearchQuery(entityId);
         break;
       case "vendor":
-        console.log("Opening live map for vendor:", entityId);
+        // console.log("Opening live map for vendor:", entityId);
         setSearchQuery(entityId);
         break;
       default:
-        console.log("Unknown entity type:", entityType);
+        // console.log("Unknown entity type:", entityType);
     }
   };
 
@@ -976,7 +976,7 @@ useEffect(() => {
                     {stats.totalBookings} Bookings
                   </span>
                   <span className="flex items-center gap-1 text-sm text-green-600 font-semibold">
-                    <DollarSign className="w-3 h-3" />
+                    {/* <DollarSign className="w-3 h-3" /> */}
                     GH₵{stats.totalEarnings.toFixed(2)}
                   </span>
                   <span className="text-sm text-black/50">

@@ -6,6 +6,70 @@ REMOTE_BASE="/home/ubuntu/works/winneui"
 LIVE_DIR="$REMOTE_BASE/dist"
 TEMP_DIR="$REMOTE_BASE/dist_temp"
 BACKUP_DIR="$REMOTE_BASE/dist_backup"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROD_FILE="$SCRIPT_DIR/src/index.tsx"
+
+
+# Step 1: Check and optionally enable Production mode
+echo "🔍 Checking current Production flag in $PROD_FILE..."
+
+# Look for the active (uncommented) Production line
+ACTIVE_LINE=$(grep -E '^\s*export const Production = (true|false);' "$PROD_FILE")
+CURRENT_PROD=$(echo "$ACTIVE_LINE" | grep -oE '(true|false)')
+
+if [ -z "$CURRENT_PROD" ]; then
+  echo "❌ Couldn't detect active 'export const Production = true|false' in $PROD_FILE."
+  echo "🛑 Aborting deployment."
+  exit 1
+fi
+
+echo "📋 Current active line: $ACTIVE_LINE"
+echo "🔍 Current Production value: $CURRENT_PROD"
+
+if [ "$CURRENT_PROD" = "true" ]; then
+  echo "✅ Production mode is already ENABLED."
+else
+  echo "⚠️  Production mode is currently DISABLED."
+  read -p "🔄 Do you want to enable Production = true before deploying? (y/n): " toggle_choice
+  if [[ "$toggle_choice" == [yY] ]]; then
+    echo "📝 Updating Production flag in $PROD_FILE..."
+    
+    # Create backup
+    cp "$PROD_FILE" "$PROD_FILE.bak"
+    
+    # Method 1: Comment out the false line and uncomment the true line
+    sed -i -E 's|^(\s*)(export const Production = false;)|\1//\2|' "$PROD_FILE"
+    sed -i -E 's|^(\s*)//(\s*export const Production = true;)|\1\2|' "$PROD_FILE"
+    
+    # Verify the change worked
+    NEW_ACTIVE_LINE=$(grep -E '^\s*export const Production = (true|false);' "$PROD_FILE")
+    NEW_PROD=$(echo "$NEW_ACTIVE_LINE" | grep -oE '(true|false)')
+    
+    if [ "$NEW_PROD" = "true" ]; then
+      echo "✅ Production flag successfully set to true."
+      echo "📋 New active line: $NEW_ACTIVE_LINE"
+    else
+      echo "❌ Failed to toggle Production flag. Restoring backup."
+      mv "$PROD_FILE.bak" "$PROD_FILE"
+      exit 1
+    fi
+  else
+    echo "🛑 Deployment cancelled."
+    exit 1
+  fi
+fi
+
+# Final defensive check
+FINAL_ACTIVE_LINE=$(grep -E '^\s*export const Production = (true|false);' "$PROD_FILE")
+FINAL_PROD=$(echo "$FINAL_ACTIVE_LINE" | grep -oE '(true|false)')
+
+if [ "$FINAL_PROD" != "true" ]; then
+  echo "❌ Production flag is still not true. Deployment stopped."
+  echo "📋 Final active line: $FINAL_ACTIVE_LINE"
+  exit 1
+fi
+
+echo "✅ Production mode confirmed. Proceeding with deployment..."
 
 read -p "🛠️  Do you want to build the project locally first? (y/n): " build_choice
 if [[ "$build_choice" == [yY] ]]; then

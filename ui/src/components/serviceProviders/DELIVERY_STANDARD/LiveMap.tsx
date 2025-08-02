@@ -534,7 +534,7 @@ useEffect(() => {
               .setPopup(new maplibregl.Popup({ className: "enhanced-popup" }).setHTML(`
                 <div class="p-3">
                   <h3 class="font-bold">${service.vendor.name}</h3>
-                  <p class="text-sm">Venue</p>
+                  <p class="text-sm">Provider</p>
                   <p class="text-xs text-gray-600">${service.vendor.location}</p>
                   <p class="text-xs font-medium mt-1">Booking #${service.bookingData.bookingId.slice(-6)}</p>
                 </div>

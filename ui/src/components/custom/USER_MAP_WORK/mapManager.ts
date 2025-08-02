@@ -38,6 +38,7 @@ export function initializeMap(
   state: MapState,
   container: HTMLDivElement, 
   maptilerApiKey: string, 
+  // DEFAULT_CENTER:[number,number],
   onLoad: () => void
 ): void {
   if (state.isInitialized) {
@@ -92,7 +93,7 @@ export function initializeMap(
 
     // Add navigation control
     // state.map.addControl(new maplibregl.NavigationControl(), "top-right")
-    console.log("🧭 Navigation control added")
+    // console.log("🧭 Navigation control added")
 
     // Force a resize after a short delay to ensure proper rendering
     setTimeout(() => {
@@ -563,7 +564,7 @@ function createVendorMarker(state: MapState, item: ServiceData, isSelected: bool
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
               item.type === "ORDER" ? "bg-green-100 text-green-800" : "bg-purple-100 text-purple-800"
             }">
-              ${item.type === "ORDER" ? "PickUp" : "Venue"}
+              ${item.type === "ORDER" ? "PickUp" : "Provider"}
             </span>
           </div>
         </div>

@@ -3,12 +3,17 @@ import { gql, useQuery } from "@apollo/client";
 import { type Libraries } from "@react-google-maps/api";
 import { useEffect } from "react";
 
-export const formatPrice = (price: number) => {
+export const formatPrice = (price: number | string) => {
+  const numericPrice = Number(price);
+  if (isNaN(numericPrice)) return "₵0.00";
+
   return new Intl.NumberFormat("en-GH", {
     style: "currency",
     currency: "GHS",
-  }).format(price);
-}
+  }).format(numericPrice);
+};
+
+
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const libraries: Libraries = ["places"];
 

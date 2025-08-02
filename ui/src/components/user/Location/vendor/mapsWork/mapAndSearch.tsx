@@ -231,6 +231,7 @@ export function MapAndSearch({
     fetchPolicy: 'cache-and-network',
   });
 
+  
   // Calculate items total from order data
   const calculateItemsTotal = () => {
     if (!orderData?.getOrderDetails?.items) return 0;
