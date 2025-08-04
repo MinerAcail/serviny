@@ -103,6 +103,7 @@ extend type Query {
   getAllRouteData: [RouteInfo!]!
 
   getRiderRanges: [RiderRange!]!
+  getAllRanges: [RiderRange!]!
   getARiderRanges(routeId: String!): [RiderRange!]!
   getARiderRange(rangeId: String!): RiderRange!
 

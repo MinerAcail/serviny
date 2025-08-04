@@ -721,7 +721,7 @@ func (r *mutationResolver) UpdateBookingTypeByAdmin(ctx context.Context, typeArg
 }
 
 // CreateGallery is the resolver for the createGallery field.
-func (r *mutationResolver) CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput) (*model.GalleryProfession, error) {
+func (r *mutationResolver) CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput, webLink *string) (*model.GalleryProfession, error) {
 	// Retrieve the service ID from the context
 	serviceIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
@@ -789,7 +789,10 @@ func (r *mutationResolver) CreateGallery(ctx context.Context, files []*graphql.U
 	if input.Description != nil {
 		gallery.Description = input.Description
 	}
-
+	// Add weblink if provided
+	if webLink != nil {
+		gallery.WebLink = webLink
+	}
 	// Save to database
 	if err := r.DB.Create(&gallery).Error; err != nil {
 		return nil, fmt.Errorf("failed to save gallery: %w", err)
@@ -799,7 +802,7 @@ func (r *mutationResolver) CreateGallery(ctx context.Context, files []*graphql.U
 }
 
 // UpdateGallery is the resolver for the updateGallery field.
-func (r *mutationResolver) UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) (*model.GalleryProfession, error) {
+func (r *mutationResolver) UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string, removeWebLink *bool, webLink *string) (*model.GalleryProfession, error) {
 	// Check if gallery ID is provided
 	if galleryID == "" {
 		return nil, fmt.Errorf("gallery ID is required for update")
@@ -859,7 +862,18 @@ func (r *mutationResolver) UpdateGallery(ctx context.Context, galleryID string, 
 		gallery.Description = input.Description
 		updateNeeded = true
 	}
-
+	// Handle weblink updates
+	if removeWebLink != nil && *removeWebLink {
+		// Remove the weblink
+		gallery.WebLink = nil
+		updateNeeded = true
+	} else if webLink != nil {
+		// Update weblink if provided and different from current
+		if gallery.WebLink == nil || *gallery.WebLink != *webLink {
+			gallery.WebLink = webLink
+			updateNeeded = true
+		}
+	}
 	// Update categories if provided
 	if input.Categories != nil {
 		// Convert input categories to a slice of strings for comparison
@@ -2268,7 +2282,7 @@ func (r *queryResolver) GetBookingServiceData(ctx context.Context) ([]*model.Ser
 		// Get range metadata (booking-specific pricing)
 		var rangeMetaData *model.RiderRange
 		if booking.RiderID != "" {
-			if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
 				}
@@ -2480,7 +2494,7 @@ func (r *queryResolver) GetOrderServiceDataByUserIDFromServiceID(ctx context.Con
 		// Get range metadata
 		var rangeMetaData *model.RiderRange
 		if order.RiderID != nil {
-			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", order.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 				}
@@ -2634,7 +2648,7 @@ func (r *queryResolver) GetBookingServiceDataByUserIDFromServiceID(ctx context.C
 		// Get range metadata (booking-specific pricing)
 		var rangeMetaData *model.RiderRange
 		if booking.RiderID != "" {
-			if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
 				}
@@ -2855,7 +2869,7 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 		// Get range metadata
 		var rangeMetaData *model.RiderRange
 		if order.RiderID != nil {
-			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", order.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 				}
@@ -3165,7 +3179,7 @@ func (r *queryResolver) GetSpecificOrderServiceData(ctx context.Context, userID 
 	// Get range metadata
 	var rangeMetaData *model.RiderRange
 	if order.RiderID != nil {
-		if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+		if err := r.DB.Where("id = ?", order.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 			if err != gorm.ErrRecordNotFound {
 				log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 			}
@@ -3297,7 +3311,7 @@ func (r *queryResolver) GetSpecificBookingServiceData(ctx context.Context, userI
 	// Get range metadata
 	var rangeMetaData *model.RiderRange
 	if booking.RiderID != "" {
-		if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+		if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 			if err != gorm.ErrRecordNotFound {
 				log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
 			}
@@ -3435,7 +3449,7 @@ func (r *queryResolver) GetBookingServiceDataByUserID(ctx context.Context, userI
 		// Get range metadata (booking-specific pricing)
 		var rangeMetaData *model.RiderRange
 		if booking.RiderID != "" {
-			if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
 				}
@@ -3602,7 +3616,7 @@ func (r *queryResolver) GetOrderServiceDataByUserID(ctx context.Context, userID 
 		// Get range metadata
 		var rangeMetaData *model.RiderRange
 		if order.RiderID != nil {
-			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", order.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 				}
@@ -3747,7 +3761,7 @@ func (r *queryResolver) GetBookingServiceDataByBookingID(ctx context.Context, bo
 	// Get range metadata (booking-specific pricing)
 	var rangeMetaData *model.RiderRange
 	if booking.RiderID != "" {
-		if err := r.DB.Where("rider_id = ?", booking.RiderID).First(&rangeMetaData).Error; err != nil {
+		if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 			if err != gorm.ErrRecordNotFound {
 				log.Printf("Warning: failed to get range metadata for booking %s: %v", bookingID, err)
 			}

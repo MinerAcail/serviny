@@ -534,9 +534,8 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
             <Menu className="h-6 w-6" />
           </button>
           <ProfileProviderDialog userID={serviceId ?? ""} />
-          {hasEntEcommerceAccess && (
-            <SearchDropdown serviceId={serviceId ?? ""} />
-          )}
+                      <SearchDropdown serviceId={serviceId ?? ""} />
+
         </div>
         <div
           className={cn(

@@ -74,6 +74,7 @@ export const GET_ALL_USER_SERVICE_DATA = gql`
           deliveryAddress
           distance
           duration
+          deliveryFee
           items {
             id
             orderId

@@ -1,8 +1,8 @@
 import { ApolloClient, InMemoryCache, ApolloLink } from "@apollo/client";
 import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 
-    export const Production = true; 
-//export const Production = false;
+    //  export const Production = true; 
+export const Production = false;
 const API_URL = Production ? "https://api.winnemart.com/query" : "http://localhost:4003/query";
 
 // Upload link

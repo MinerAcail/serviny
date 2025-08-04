@@ -80,8 +80,8 @@ export default function ServiceProviderProfile() {
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   // Initialize selectedView from URL (default to "category")
-const initialSelectedView = params.get("view") || "category";
-const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
+  const initialSelectedView = params.get("view") || "category";
+  const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
   // const [selectedView, setSelectedView] = useState<string>("category");
 
   const [dialogState, setDialogState] = useState(() => {
@@ -107,6 +107,8 @@ const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
     setActiveTab(newTab);
     localStorage.setItem(`activeTab_${serviceId}`, newTab);
   };
+
+  const businessType = data?.getProvider?.businessType;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -139,7 +141,11 @@ const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
     ) {
       setActiveTab("delivery");
     } else {
-      setActiveTab("portfolio");
+      if (businessType === BusinessTypeEnum.DROP_SHIPPING) {
+        setActiveTab("store");
+      } else {
+        setActiveTab("portfolio");
+      }
     }
 
     // Always store current serviceId for future reference
@@ -163,12 +169,12 @@ const [selectedView, setSelectedView] = useState<string>(initialSelectedView);
   //     toast.warning("You need to be logged in to save Service profile.");
   //   }
   // }, [isAuthenticated]);
-// Sync view selection to URL when changed
-useEffect(() => {
-  const newParams = new URLSearchParams(location.search);
-  newParams.set("view", selectedView);
-  navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
-}, [selectedView]);
+  // Sync view selection to URL when changed
+  useEffect(() => {
+    const newParams = new URLSearchParams(location.search);
+    newParams.set("view", selectedView);
+    navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+  }, [selectedView]);
 
   if (!isAuthenticated && !localServiceId && dialogState) {
     return <LandingPage onClose={() => setDialogState(false)} />;
@@ -194,132 +200,156 @@ useEffect(() => {
     );
   }
 
-  const businessType = data?.getProvider?.businessType;
+  return (
+    <div className="px-4 lg:flex gap-4 py-12 mx-auto">
+      {loading && !data?.getProvider ? (
+        <SpectaclesLoading />
+      ) : error ? (
+        <SpectaclesError />
+      ) : (
+        <div className="flex-col pt-12 justify-center items-center w-full">
+          {![
+            // BusinessTypeEnum.PRE_ORDER,
+            // BusinessTypeEnum.DROP_SHIPPING,
+          ].includes(businessType) && (
+            <div className="col-span-8 w-full">
+              <div ref={tabsPlaceholderRef}></div>
 
- return (
-  <div className="px-4 lg:flex gap-4 py-12 mx-auto">
-    {loading && !data?.getProvider ? (
-      <SpectaclesLoading />
-    ) : error ? (
-      <SpectaclesError />
-    ) : (
-      <div className="flex-col pt-14 justify-center items-center w-full">
-        <div className="col-span-8 w-full">
-          <div ref={tabsPlaceholderRef}></div>
-
-          <div
-            className={`w-full ${
-              isTabsFixed
-                ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
-                : ""
-            }`}
-          >
-            <div className="w-full px-4">
-              <Tabs
-                value={activeTab}
-                onValueChange={handleTabChange}
-                className="w-full"
-                ref={tabsRef}
+              <div
+                className={`w-full ${
+                  isTabsFixed
+                    ? "fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm shadow-md z-50 py-2"
+                    : ""
+                }`}
               >
-                {businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE && (
-                  <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
-                    <TabsTrigger value="delivery" className="rounded-full">
-                      Delivery
-                    </TabsTrigger>
-                    <TabsTrigger value="product" className="rounded-full">
-                      Product
-                    </TabsTrigger>
-                  </TabsList>
-                )}
-
-                {![
-                  BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
-                  BusinessTypeEnum.ECOMMERCE_STANDARD,
-                  BusinessTypeEnum.PRE_ORDER,
-                  BusinessTypeEnum.DROP_SHIPPING,
-                ].includes(businessType) && (
-                  <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
-                    <TabsTrigger value="portfolio" className="rounded-full">
-                      Portfolio
-                    </TabsTrigger>
-                    <TabsTrigger value="policies" className="rounded-full">
-                      Policies
-                    </TabsTrigger>
-                    <TabsTrigger value="price" className="rounded-full">
-                      Price
-                    </TabsTrigger>
-                  </TabsList>
-                )}
-              </Tabs>
-            </div>
-          </div>
-
-          <div
-            ref={contentRef}
-            className={`w-full ${isTabsFixed ? "mt-16" : "mt-6"}`}
-          >
-            <Tabs
-              value={activeTab}
-              onValueChange={handleTabChange}
-              className="w-full"
-            >
-              <TabsContent value="portfolio">
-                {[
-                  BusinessTypeEnum.PRE_ORDER,
-                  BusinessTypeEnum.DROP_SHIPPING,
-                  BusinessTypeEnum.ECOMMERCE_STANDARD,
-                  BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
-                ].includes(businessType) ? (
-                  <AllProducts />
-                ) : (
-                  <WorkGallery provider={data?.getProvider} />
-                )}
-              </TabsContent>
-
-              <TabsContent value="price">
-                <Price />
-              </TabsContent>
-
-              <TabsContent value="policies">
-                <Policies />
-              </TabsContent>
-
-              <TabsContent value="delivery">
-                <WorkGallery provider={data?.getProvider} />
-              </TabsContent>
-
-              <TabsContent value="product">
-                <div>
-                  <Select
-                    value={selectedView}
-                    onValueChange={(value) => setSelectedView(value)}
-                    disabled={loading}
+                <div className="w-full px-4">
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={handleTabChange}
+                    className="w-full"
+                    ref={tabsRef}
                   >
-                    <SelectTrigger className="w-[140px] rounded-full">
-                      <SelectValue placeholder="View all or by category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="category">By Category</SelectItem>
-                      <SelectItem value="all">All Products</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {businessType === BusinessTypeEnum.ECOMMERCE_ENTERPRISE && (
+                      <TabsList className="grid w-full grid-cols-2 rounded-full bg-primary/20 p-1">
+                        <TabsTrigger value="delivery" className="rounded-full">
+                          Delivery
+                        </TabsTrigger>
+                        <TabsTrigger value="product" className="rounded-full">
+                          Product
+                        </TabsTrigger>
+                      </TabsList>
+                    )}
 
-                  <div className="mt-4">
-                    {selectedView === "category" && <ProductCategories />}
-                    {selectedView === "all" && <AllProducts />}
-                  </div>
+                    {![
+                      BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+                      BusinessTypeEnum.ECOMMERCE_STANDARD,
+                      BusinessTypeEnum.PRE_ORDER,
+                      BusinessTypeEnum.DROP_SHIPPING,
+                    ].includes(businessType) && (
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                        <TabsTrigger value="portfolio" className="rounded-full">
+                          Portfolio
+                        </TabsTrigger>
+                        <TabsTrigger value="policies" className="rounded-full">
+                          Policies
+                        </TabsTrigger>
+                        <TabsTrigger value="price" className="rounded-full">
+                          Price
+                        </TabsTrigger>
+                      </TabsList>
+                    )}
+
+                    {[
+                      BusinessTypeEnum.PRE_ORDER,
+                      BusinessTypeEnum.DROP_SHIPPING,
+                    ].includes(businessType) && (
+                      <TabsList className="grid w-full grid-cols-3 rounded-full bg-primary/20 p-1">
+                        <TabsTrigger value="store" className="rounded-full">
+                          Store
+                        </TabsTrigger>
+                        <TabsTrigger value="policies" className="rounded-full">
+                          Policies
+                        </TabsTrigger>
+                        <TabsTrigger value="price" className="rounded-full">
+                          Price
+                        </TabsTrigger>
+                      </TabsList>
+                    )}
+                  </Tabs>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+              </div>
+
+              <div
+                ref={contentRef}
+                className={`w-full ${isTabsFixed ? "mt-16" : "mt-6"}`}
+              >
+                <Tabs
+                  value={activeTab}
+                  onValueChange={handleTabChange}
+                  className="w-full"
+                >
+                  <TabsContent value="portfolio">
+                    {[
+                      BusinessTypeEnum.ECOMMERCE_STANDARD,
+                      BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+                    ].includes(businessType) ? (
+                      <AllProducts />
+                    ) : ![
+                        BusinessTypeEnum.PRE_ORDER,
+                        BusinessTypeEnum.DROP_SHIPPING,
+                      ].includes(businessType) ? (
+                      <WorkGallery provider={data?.getProvider} />
+                    ) : null}
+                  </TabsContent>
+                  <TabsContent value="store">
+                    <DropShippingPage
+                      provider={data?.getProvider}
+                      serviceId={serviceId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="price">
+                    <Price />
+                  </TabsContent>
+
+                  <TabsContent value="policies">
+                    <Policies />
+                  </TabsContent>
+
+                  <TabsContent value="delivery">
+                    <WorkGallery provider={data?.getProvider} />
+                  </TabsContent>
+
+                  <TabsContent value="product">
+                    <div>
+                      <Select
+                        value={selectedView}
+                        onValueChange={(value) => setSelectedView(value)}
+                        disabled={loading}
+                      >
+                        <SelectTrigger className="w-[140px] rounded-full">
+                          <SelectValue placeholder="View all or by category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="category">By Category</SelectItem>
+                          <SelectItem value="all">All Products</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="mt-4">
+                        {selectedView === "category" && <ProductCategories />}
+                        {selectedView === "all" && <AllProducts />}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    )}
-  </div>
-);
-
+      )}
+    </div>
+  );
 }
-
 
 type provider = {
   id: string;
@@ -610,6 +640,8 @@ import LandingPage from "./page";
 import { toast } from "sonner";
 import { getImageUrl } from "../global/formatPrice";
 import ProductCategories from "@/vendor/products/cate/product-categories";
+import { DropShippingPage } from "./DELIVERY_ENTERPRISE/DROP_SHIPPING/dropShippingPage";
+// import {DropShippingPage} from "./DELIVERY_ENTERPRISE/DROP_SHIPPING/dropShippingPage";
 interface ContactInfoProps {
   provider?: {
     number?: string;

@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, X, Upload, CheckCircle } from "lucide-react";
+import { Loader2, X, Upload, CheckCircle, Link } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,13 +29,14 @@ import { GET_ALL_GALLERY } from "../data/typesAndGql";
 
 // GraphQL Mutations
 const CREATE_GALLERY = gql`
-  mutation CreateGallery($files: [Upload!]!, $input: GalleryProfessionInput!) {
-    createGallery(files: $files, input: $input) {
+  mutation CreateGallery($files: [Upload!]!, $input: GalleryProfessionInput!, $webLink: String) {
+    createGallery(files: $files, input: $input, webLink: $webLink) {
       id
       title
       description
       categories
       imageUrls
+      webLink
       createdAt
     }
   }
@@ -60,6 +61,12 @@ interface Image {
   isNew?: boolean;
 }
 
+interface FormData {
+  title: string;
+  description: string;
+  webLink?: string;
+}
+
 // Available categories for selection
 const availableCategories: Category[] = [
   { value: "residential", label: "Residential" },
@@ -73,7 +80,7 @@ const availableCategories: Category[] = [
 /**
  * Create Gallery Component with shadcn/ui components
  */
- const CreateGalleryForm: React.FC = () => {
+const CreateGalleryForm: React.FC = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -85,18 +92,17 @@ const availableCategories: Category[] = [
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({
+  } = useForm<FormData>({
     defaultValues: {
       title: "",
       description: "",
+      webLink: "",
     },
   });
 
-  const [createGallery] = useMutation(CREATE_GALLERY,
-    {
-      refetchQueries: [GET_ALL_GALLERY],
-    }
-  );
+  const [createGallery] = useMutation(CREATE_GALLERY, {
+    refetchQueries: [GET_ALL_GALLERY],
+  });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -146,7 +152,17 @@ const availableCategories: Category[] = [
     setSelectedCategories(selectedCategories.filter((c) => c !== category));
   };
 
-  const onSubmit = async (data: { title: string; description: string }) => {
+  // URL validation function
+  const isValidUrl = (string: string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
     setIsLoading(true);
 
     try {
@@ -155,12 +171,15 @@ const availableCategories: Category[] = [
         description: data.description,
         categories: selectedCategories,
       };
-      // console.log("input", input);
+
+      // Prepare webLink variable - only include if it's provided and valid
+      const webLink = data.webLink?.trim() ? data.webLink.trim() : undefined;
 
       await createGallery({
         variables: {
           files,
           input,
+          webLink,
         },
       });
 
@@ -185,12 +204,10 @@ const availableCategories: Category[] = [
 
   return (
     <div className=" py-14 w-full">
- 
-
-    {/* <div className=" px-4 py-8 mx-auto "> */}
+      {/* <div className=" px-4 py-8 mx-auto "> */}
       <Card className="w-full max-w-3xl mx-auto">
-            <BackButton/>
-        
+        <BackButton />
+
         <CardHeader>
           <CardTitle className="text-2xl">Create New Gallery</CardTitle>
         </CardHeader>
@@ -224,6 +241,38 @@ const availableCategories: Category[] = [
 
               <div className="space-y-2">
                 <Label
+                  htmlFor="webLink"
+                  className={errors.webLink ? "text-destructive" : ""}
+                >
+                  <div className="flex items-center gap-2">
+                    <Link className="h-4 w-4" />
+                    Web Link (Optional)
+                  </div>
+                </Label>
+                <Input
+                  id="webLink"
+                  type="url"
+                  placeholder="https://example.com"
+                  {...register("webLink", {
+                    validate: (value) => {
+                      if (!value || value.trim() === "") return true; // Optional field
+                      return isValidUrl(value) || "Please enter a valid URL";
+                    },
+                  })}
+                  className={errors.webLink ? "border-destructive" : ""}
+                />
+                {errors.webLink && (
+                  <p className="text-sm text-destructive">
+                    {errors.webLink.message}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Add a link to showcase this project online (e.g., project website, portfolio)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label
                   htmlFor="description"
                   className={errors.description ? "text-destructive" : ""}
                 >
@@ -244,6 +293,7 @@ const availableCategories: Category[] = [
                   </p>
                 )}
               </div>
+              
               <div className="space-y-2">
                 <Label>Categories</Label>
 
@@ -385,7 +435,7 @@ const availableCategories: Category[] = [
               setSelectedCategories([]);
               setFiles([]);
               setPreviewImages([]);
-              window.history.back()
+              window.history.back();
             }}
             disabled={isLoading}
           >
@@ -415,4 +465,4 @@ const availableCategories: Category[] = [
   );
 };
 
-export default CreateGalleryForm
+export default CreateGalleryForm;

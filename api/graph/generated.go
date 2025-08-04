@@ -76,7 +76,6 @@ type ResolverRoot interface {
 	PurchaseHistoryItem() PurchaseHistoryItemResolver
 	PushSubscription() PushSubscriptionResolver
 	Query() QueryResolver
-	RequestItem() RequestItemResolver
 	Rider() RiderResolver
 	RiderRange() RiderRangeResolver
 	RidersRequest() RidersRequestResolver
@@ -451,6 +450,7 @@ type ComplexityRoot struct {
 		ServiceID   func(childComplexity int) int
 		Title       func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
+		WebLink     func(childComplexity int) int
 	}
 
 	GrowthData struct {
@@ -547,7 +547,7 @@ type ComplexityRoot struct {
 		CreateEvent                                  func(childComplexity int, input model.EventInput) int
 		CreateFavorite                               func(childComplexity int, input *model.CreateFavoriteInput) int
 		CreateForm                                   func(childComplexity int, input model.CreateFormInput) int
-		CreateGallery                                func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput) int
+		CreateGallery                                func(childComplexity int, files []*graphql.Upload, input model.GalleryProfessionInput, webLink *string) int
 		CreateInvoice                                func(childComplexity int, input *model.InvoiceInput) int
 		CreateIsochroneFromInput                     func(childComplexity int, riderID string, input model.NewRiderRangeInput, riderRangeID string) int
 		CreateMultipleBookings                       func(childComplexity int, input []*model.BookerInput, isMulti *bool, isCargo *bool, serviceID string, updateTemp *bool) int
@@ -646,7 +646,7 @@ type ComplexityRoot struct {
 		UpdateEvent                                  func(childComplexity int, input model.UpdateEventInput, eventID string) int
 		UpdateExistingIsochroneData                  func(childComplexity int, riderID string, rangeID string) int
 		UpdateForm                                   func(childComplexity int, input model.UpdateFormInput) int
-		UpdateGallery                                func(childComplexity int, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) int
+		UpdateGallery                                func(childComplexity int, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string, removeWebLink *bool, webLink *string) int
 		UpdateInventoryItem                          func(childComplexity int, id string, input model.InventoryItemInput, file graphql.Upload) int
 		UpdateMultiGroupBookingsWithLocationBybookID func(childComplexity int, input []*model.AddBookCoordinateInput) int
 		UpdateMultipleBookingsWithLocation           func(childComplexity int, input model.AddBookCoordinateInput) int
@@ -940,7 +940,7 @@ type ComplexityRoot struct {
 		GetAllAppointmentBookingsByUserID             func(childComplexity int, userID string) int
 		GetAllCategories                              func(childComplexity int, vendorID string) int
 		GetAllCategoriesFromGallery                   func(childComplexity int, serviceID string) int
-		GetAllCategoryBox                             func(childComplexity int, query *string) int
+		GetAllCategoryBox                             func(childComplexity int, query *string, vendorID string) int
 		GetAllChatMessageByNumber                     func(childComplexity int, customerNumber string) int
 		GetAllGallery                                 func(childComplexity int, serviceID string, query *string, limit *int32, offset *int32) int
 		GetAllIsochroneResults                        func(childComplexity int) int
@@ -1114,10 +1114,16 @@ type ComplexityRoot struct {
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
 		ImageUrls   func(childComplexity int) int
+		ItemType    func(childComplexity int) int
 		Name        func(childComplexity int) int
+		OrderID     func(childComplexity int) int
 		Price       func(childComplexity int) int
+		Quantity    func(childComplexity int) int
+		ServiceID   func(childComplexity int) int
 		State       func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
+		UserID      func(childComplexity int) int
+		WebLink     func(childComplexity int) int
 	}
 
 	ResetPasswordResponse struct {
@@ -1716,8 +1722,8 @@ type MutationResolver interface {
 	DeleteBookingOrOrder(ctx context.Context, entityID string, entityType string) (*model.StateMessage, error)
 	UpdateBookingType(ctx context.Context, typeArg model.BookingType) (*model.BookingType, error)
 	UpdateBookingTypeByAdmin(ctx context.Context, typeArg model.BookingType, serviceID string) (*model.BookingType, error)
-	CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput) (*model.GalleryProfession, error)
-	UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string) (*model.GalleryProfession, error)
+	CreateGallery(ctx context.Context, files []*graphql.Upload, input model.GalleryProfessionInput, webLink *string) (*model.GalleryProfession, error)
+	UpdateGallery(ctx context.Context, galleryID string, files []*graphql.Upload, input model.GalleryProfessionInput, removeURL []*string, removeWebLink *bool, webLink *string) (*model.GalleryProfession, error)
 	DeleteGallery(ctx context.Context, id string) (*bool, error)
 	CreateFavorite(ctx context.Context, input *model.CreateFavoriteInput) (*model.Favorite, error)
 	CreateSocialMedia(ctx context.Context, input *model.SocialMediaInput) (*model.SocialMedia, error)
@@ -1875,7 +1881,7 @@ type QueryResolver interface {
 	GetOrderChat(ctx context.Context, orderID *string) (*model.OrderChat, error)
 	GetAllChatMessageByNumber(ctx context.Context, customerNumber string) ([]*model.ChatMessage, error)
 	GetAllRequestItems(ctx context.Context) ([]*model.RequestItem, error)
-	GetAllCategoryBox(ctx context.Context, query *string) ([]*model.ViewcategoryBox, error)
+	GetAllCategoryBox(ctx context.Context, query *string, vendorID string) ([]*model.ViewcategoryBox, error)
 	GetNewAddedCategoryBox(ctx context.Context) ([]*model.CategoryBox, error)
 	GetCategoryBox(ctx context.Context, categoryID string) (*model.CategoryBox, error)
 	GetProductsByCategory(ctx context.Context, categoryID string) (*model.ViewcategoryBox, error)
@@ -1967,11 +1973,6 @@ type QueryResolver interface {
 	GetUserManager(ctx context.Context, userID string, entityID *string) (*model.UserManagerData, error)
 	GetUserManagerData(ctx context.Context, userID string) (*model.UserManager, error)
 	GetAllUserManagerData(ctx context.Context) ([]*model.UserManager, error)
-}
-type RequestItemResolver interface {
-	ID(ctx context.Context, obj *model.RequestItem) (*string, error)
-
-	ImageUrls(ctx context.Context, obj *model.RequestItem) ([]*string, error)
 }
 type RiderResolver interface {
 	ID(ctx context.Context, obj *model.Rider) (string, error)
@@ -3891,6 +3892,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.GalleryProfession.UpdatedAt(childComplexity), true
 
+	case "GalleryProfession.webLink":
+		if e.complexity.GalleryProfession.WebLink == nil {
+			break
+		}
+
+		return e.complexity.GalleryProfession.WebLink(childComplexity), true
+
 	case "GrowthData.currentOrders":
 		if e.complexity.GrowthData.CurrentOrders == nil {
 			break
@@ -4541,7 +4549,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateGallery(childComplexity, args["files"].([]*graphql.Upload), args["input"].(model.GalleryProfessionInput)), true
+		return e.complexity.Mutation.CreateGallery(childComplexity, args["files"].([]*graphql.Upload), args["input"].(model.GalleryProfessionInput), args["webLink"].(*string)), true
 
 	case "Mutation.createInvoice":
 		if e.complexity.Mutation.CreateInvoice == nil {
@@ -5674,7 +5682,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateGallery(childComplexity, args["galleryID"].(string), args["files"].([]*graphql.Upload), args["input"].(model.GalleryProfessionInput), args["removeUrl"].([]*string)), true
+		return e.complexity.Mutation.UpdateGallery(childComplexity, args["galleryID"].(string), args["files"].([]*graphql.Upload), args["input"].(model.GalleryProfessionInput), args["removeUrl"].([]*string), args["removeWebLink"].(*bool), args["webLink"].(*string)), true
 
 	case "Mutation.updateInventoryItem":
 		if e.complexity.Mutation.UpdateInventoryItem == nil {
@@ -7507,7 +7515,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetAllCategoryBox(childComplexity, args["query"].(*string)), true
+		return e.complexity.Query.GetAllCategoryBox(childComplexity, args["query"].(*string), args["vendorId"].(string)), true
 
 	case "Query.getAllChatMessageByNumber":
 		if e.complexity.Query.GetAllChatMessageByNumber == nil {
@@ -9172,6 +9180,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.RequestItem.ImageUrls(childComplexity), true
 
+	case "RequestItem.itemType":
+		if e.complexity.RequestItem.ItemType == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.ItemType(childComplexity), true
+
 	case "RequestItem.name":
 		if e.complexity.RequestItem.Name == nil {
 			break
@@ -9179,12 +9194,33 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.RequestItem.Name(childComplexity), true
 
+	case "RequestItem.orderId":
+		if e.complexity.RequestItem.OrderID == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.OrderID(childComplexity), true
+
 	case "RequestItem.price":
 		if e.complexity.RequestItem.Price == nil {
 			break
 		}
 
 		return e.complexity.RequestItem.Price(childComplexity), true
+
+	case "RequestItem.quantity":
+		if e.complexity.RequestItem.Quantity == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.Quantity(childComplexity), true
+
+	case "RequestItem.serviceId":
+		if e.complexity.RequestItem.ServiceID == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.ServiceID(childComplexity), true
 
 	case "RequestItem.state":
 		if e.complexity.RequestItem.State == nil {
@@ -9199,6 +9235,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.RequestItem.UpdatedAt(childComplexity), true
+
+	case "RequestItem.userId":
+		if e.complexity.RequestItem.UserID == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.UserID(childComplexity), true
+
+	case "RequestItem.webLink":
+		if e.complexity.RequestItem.WebLink == nil {
+			break
+		}
+
+		return e.complexity.RequestItem.WebLink(childComplexity), true
 
 	case "ResetPasswordResponse.email":
 		if e.complexity.ResetPasswordResponse.Email == nil {
@@ -11039,6 +11089,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateRiderRangeInput,
 		ec.unmarshalInputUpdateServiceInput,
 		ec.unmarshalInputVerifyOtpInput,
+		ec.unmarshalInputWebLink,
 		ec.unmarshalInputZoneMetaDataInput,
 		ec.unmarshalInputaddBookCoordinateInput,
 		ec.unmarshalInputaddCoordinateInput,
@@ -12056,6 +12107,11 @@ func (ec *executionContext) field_Mutation_createGallery_args(ctx context.Contex
 		return nil, err
 	}
 	args["input"] = arg1
+	arg2, err := ec.field_Mutation_createGallery_argsWebLink(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["webLink"] = arg2
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_createGallery_argsFiles(
@@ -12081,6 +12137,19 @@ func (ec *executionContext) field_Mutation_createGallery_argsInput(
 	}
 
 	var zeroVal model.GalleryProfessionInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createGallery_argsWebLink(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("webLink"))
+	if tmp, ok := rawArgs["webLink"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -14936,6 +15005,16 @@ func (ec *executionContext) field_Mutation_updateGallery_args(ctx context.Contex
 		return nil, err
 	}
 	args["removeUrl"] = arg3
+	arg4, err := ec.field_Mutation_updateGallery_argsRemoveWebLink(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["removeWebLink"] = arg4
+	arg5, err := ec.field_Mutation_updateGallery_argsWebLink(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["webLink"] = arg5
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_updateGallery_argsGalleryID(
@@ -14987,6 +15066,32 @@ func (ec *executionContext) field_Mutation_updateGallery_argsRemoveURL(
 	}
 
 	var zeroVal []*string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateGallery_argsRemoveWebLink(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*bool, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("removeWebLink"))
+	if tmp, ok := rawArgs["removeWebLink"]; ok {
+		return ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+	}
+
+	var zeroVal *bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateGallery_argsWebLink(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("webLink"))
+	if tmp, ok := rawArgs["webLink"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -16980,6 +17085,11 @@ func (ec *executionContext) field_Query_getAllCategoryBox_args(ctx context.Conte
 		return nil, err
 	}
 	args["query"] = arg0
+	arg1, err := ec.field_Query_getAllCategoryBox_argsVendorID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["vendorId"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Query_getAllCategoryBox_argsQuery(
@@ -16992,6 +17102,19 @@ func (ec *executionContext) field_Query_getAllCategoryBox_argsQuery(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getAllCategoryBox_argsVendorID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("vendorId"))
+	if tmp, ok := rawArgs["vendorId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -31835,6 +31958,47 @@ func (ec *executionContext) fieldContext_GalleryProfession_description(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _GalleryProfession_webLink(ctx context.Context, field graphql.CollectedField, obj *model.GalleryProfession) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GalleryProfession_webLink(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.WebLink, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GalleryProfession_webLink(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GalleryProfession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GalleryProfession_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.GalleryProfession) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GalleryProfession_createdAt(ctx, field)
 	if err != nil {
@@ -39677,6 +39841,18 @@ func (ec *executionContext) fieldContext_Mutation_requestItem(ctx context.Contex
 				return ec.fieldContext_RequestItem_state(ctx, field)
 			case "description":
 				return ec.fieldContext_RequestItem_description(ctx, field)
+			case "quantity":
+				return ec.fieldContext_RequestItem_quantity(ctx, field)
+			case "itemType":
+				return ec.fieldContext_RequestItem_itemType(ctx, field)
+			case "orderId":
+				return ec.fieldContext_RequestItem_orderId(ctx, field)
+			case "userId":
+				return ec.fieldContext_RequestItem_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_RequestItem_serviceId(ctx, field)
+			case "webLink":
+				return ec.fieldContext_RequestItem_webLink(ctx, field)
 			case "categories":
 				return ec.fieldContext_RequestItem_categories(ctx, field)
 			case "imageUrls":
@@ -39749,6 +39925,18 @@ func (ec *executionContext) fieldContext_Mutation_updateRequestItemStatus(ctx co
 				return ec.fieldContext_RequestItem_state(ctx, field)
 			case "description":
 				return ec.fieldContext_RequestItem_description(ctx, field)
+			case "quantity":
+				return ec.fieldContext_RequestItem_quantity(ctx, field)
+			case "itemType":
+				return ec.fieldContext_RequestItem_itemType(ctx, field)
+			case "orderId":
+				return ec.fieldContext_RequestItem_orderId(ctx, field)
+			case "userId":
+				return ec.fieldContext_RequestItem_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_RequestItem_serviceId(ctx, field)
+			case "webLink":
+				return ec.fieldContext_RequestItem_webLink(ctx, field)
 			case "categories":
 				return ec.fieldContext_RequestItem_categories(ctx, field)
 			case "imageUrls":
@@ -43579,7 +43767,7 @@ func (ec *executionContext) _Mutation_createGallery(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateGallery(rctx, fc.Args["files"].([]*graphql.Upload), fc.Args["input"].(model.GalleryProfessionInput))
+		return ec.resolvers.Mutation().CreateGallery(rctx, fc.Args["files"].([]*graphql.Upload), fc.Args["input"].(model.GalleryProfessionInput), fc.Args["webLink"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -43616,6 +43804,8 @@ func (ec *executionContext) fieldContext_Mutation_createGallery(ctx context.Cont
 				return ec.fieldContext_GalleryProfession_imageUrls(ctx, field)
 			case "description":
 				return ec.fieldContext_GalleryProfession_description(ctx, field)
+			case "webLink":
+				return ec.fieldContext_GalleryProfession_webLink(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_GalleryProfession_createdAt(ctx, field)
 			case "updatedAt":
@@ -43652,7 +43842,7 @@ func (ec *executionContext) _Mutation_updateGallery(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateGallery(rctx, fc.Args["galleryID"].(string), fc.Args["files"].([]*graphql.Upload), fc.Args["input"].(model.GalleryProfessionInput), fc.Args["removeUrl"].([]*string))
+		return ec.resolvers.Mutation().UpdateGallery(rctx, fc.Args["galleryID"].(string), fc.Args["files"].([]*graphql.Upload), fc.Args["input"].(model.GalleryProfessionInput), fc.Args["removeUrl"].([]*string), fc.Args["removeWebLink"].(*bool), fc.Args["webLink"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -43689,6 +43879,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGallery(ctx context.Cont
 				return ec.fieldContext_GalleryProfession_imageUrls(ctx, field)
 			case "description":
 				return ec.fieldContext_GalleryProfession_description(ctx, field)
+			case "webLink":
+				return ec.fieldContext_GalleryProfession_webLink(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_GalleryProfession_createdAt(ctx, field)
 			case "updatedAt":
@@ -58270,6 +58462,18 @@ func (ec *executionContext) fieldContext_Query_getAllRequestItems(_ context.Cont
 				return ec.fieldContext_RequestItem_state(ctx, field)
 			case "description":
 				return ec.fieldContext_RequestItem_description(ctx, field)
+			case "quantity":
+				return ec.fieldContext_RequestItem_quantity(ctx, field)
+			case "itemType":
+				return ec.fieldContext_RequestItem_itemType(ctx, field)
+			case "orderId":
+				return ec.fieldContext_RequestItem_orderId(ctx, field)
+			case "userId":
+				return ec.fieldContext_RequestItem_userId(ctx, field)
+			case "serviceId":
+				return ec.fieldContext_RequestItem_serviceId(ctx, field)
+			case "webLink":
+				return ec.fieldContext_RequestItem_webLink(ctx, field)
 			case "categories":
 				return ec.fieldContext_RequestItem_categories(ctx, field)
 			case "imageUrls":
@@ -58299,7 +58503,7 @@ func (ec *executionContext) _Query_getAllCategoryBox(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetAllCategoryBox(rctx, fc.Args["query"].(*string))
+		return ec.resolvers.Query().GetAllCategoryBox(rctx, fc.Args["query"].(*string), fc.Args["vendorId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -61717,6 +61921,8 @@ func (ec *executionContext) fieldContext_Query_getAllGallery(ctx context.Context
 				return ec.fieldContext_GalleryProfession_imageUrls(ctx, field)
 			case "description":
 				return ec.fieldContext_GalleryProfession_description(ctx, field)
+			case "webLink":
+				return ec.fieldContext_GalleryProfession_webLink(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_GalleryProfession_createdAt(ctx, field)
 			case "updatedAt":
@@ -61787,6 +61993,8 @@ func (ec *executionContext) fieldContext_Query_getGallery(ctx context.Context, f
 				return ec.fieldContext_GalleryProfession_imageUrls(ctx, field)
 			case "description":
 				return ec.fieldContext_GalleryProfession_description(ctx, field)
+			case "webLink":
+				return ec.fieldContext_GalleryProfession_webLink(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_GalleryProfession_createdAt(ctx, field)
 			case "updatedAt":
@@ -65394,7 +65602,7 @@ func (ec *executionContext) _RequestItem_id(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.RequestItem().ID(rctx, obj)
+		return obj.ID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -65412,8 +65620,8 @@ func (ec *executionContext) fieldContext_RequestItem_id(_ context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "RequestItem",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -65585,6 +65793,255 @@ func (ec *executionContext) fieldContext_RequestItem_description(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_quantity(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int32)
+	fc.Result = res
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestItem_itemType(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_itemType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_itemType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestItem_orderId(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_orderId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OrderID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_orderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestItem_userId(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_userId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestItem_serviceId(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_serviceId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ServiceID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_serviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestItem_webLink(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RequestItem_webLink(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.WebLink, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RequestItem_webLink(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestItem_categories(ctx context.Context, field graphql.CollectedField, obj *model.RequestItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_RequestItem_categories(ctx, field)
 	if err != nil {
@@ -65640,7 +66097,7 @@ func (ec *executionContext) _RequestItem_imageUrls(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.RequestItem().ImageUrls(rctx, obj)
+		return obj.ImageUrls, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -65658,8 +66115,8 @@ func (ec *executionContext) fieldContext_RequestItem_imageUrls(_ context.Context
 	fc = &graphql.FieldContext{
 		Object:     "RequestItem",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -81451,7 +81908,7 @@ func (ec *executionContext) unmarshalInputRequestInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "price", "category", "description", "images"}
+	fieldsInOrder := [...]string{"name", "price", "category", "description", "quantity", "itemType", "orderId", "webLink", "images"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -81486,6 +81943,34 @@ func (ec *executionContext) unmarshalInputRequestInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.Description = data
+		case "quantity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Quantity = data
+		case "itemType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemType"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ItemType = data
+		case "orderId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OrderID = data
+		case "webLink":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("webLink"))
+			data, err := ec.unmarshalOWebLink2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐWebLink(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebLink = data
 		case "images":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("images"))
 			data, err := ec.unmarshalOUpload2ᚕᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUploadᚄ(ctx, v)
@@ -82470,6 +82955,40 @@ func (ec *executionContext) unmarshalInputVerifyOtpInput(ctx context.Context, ob
 				return it, err
 			}
 			it.Type = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputWebLink(ctx context.Context, obj any) (model.WebLink, error) {
+	var it model.WebLink
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "link"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "link":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("link"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Link = data
 		}
 	}
 
@@ -85869,6 +86388,8 @@ func (ec *executionContext) _GalleryProfession(ctx context.Context, sel ast.Sele
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "description":
 			out.Values[i] = ec._GalleryProfession_description(ctx, field, obj)
+		case "webLink":
+			out.Values[i] = ec._GalleryProfession_webLink(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._GalleryProfession_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -93447,38 +93968,7 @@ func (ec *executionContext) _RequestItem(ctx context.Context, sel ast.SelectionS
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RequestItem")
 		case "id":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._RequestItem_id(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			out.Values[i] = ec._RequestItem_id(ctx, field, obj)
 		case "name":
 			out.Values[i] = ec._RequestItem_name(ctx, field, obj)
 		case "price":
@@ -93487,41 +93977,25 @@ func (ec *executionContext) _RequestItem(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = ec._RequestItem_state(ctx, field, obj)
 		case "description":
 			out.Values[i] = ec._RequestItem_description(ctx, field, obj)
+		case "quantity":
+			out.Values[i] = ec._RequestItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "itemType":
+			out.Values[i] = ec._RequestItem_itemType(ctx, field, obj)
+		case "orderId":
+			out.Values[i] = ec._RequestItem_orderId(ctx, field, obj)
+		case "userId":
+			out.Values[i] = ec._RequestItem_userId(ctx, field, obj)
+		case "serviceId":
+			out.Values[i] = ec._RequestItem_serviceId(ctx, field, obj)
+		case "webLink":
+			out.Values[i] = ec._RequestItem_webLink(ctx, field, obj)
 		case "categories":
 			out.Values[i] = ec._RequestItem_categories(ctx, field, obj)
 		case "imageUrls":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._RequestItem_imageUrls(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			out.Values[i] = ec._RequestItem_imageUrls(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._RequestItem_createdAt(ctx, field, obj)
 		case "updatedAt":
@@ -103485,6 +103959,14 @@ func (ec *executionContext) marshalOViewcategoryBox2ᚖgithubᚗcomᚋlehxeesᚋ
 		return graphql.Null
 	}
 	return ec._ViewcategoryBox(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOWebLink2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐWebLink(ctx context.Context, v any) (*model.WebLink, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputWebLink(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOZoneMetaData2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐZoneMetaData(ctx context.Context, sel ast.SelectionSet, v *model.ZoneMetaData) graphql.Marshaler {

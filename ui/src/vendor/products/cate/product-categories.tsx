@@ -6,31 +6,19 @@ import { getImageUrl } from "@/components/global/formatPrice";
 
 // GraphQL query for fetching category boxes
 const GET_ALL_CATEGORY_BOX = gql`
-  query GetAllCategoryBox($query: String) {
-    getAllCategoryBox(query: $query) {
+  query GetAllCategoryBox($query: String,$vendorId:String!) {
+    getAllCategoryBox(query: $query,vendorId:$vendorId) {
       categoryBox {
         id
         name
+        itemsIds
         imageUrl
         state
-        itemsIds
         vendorId
         createdAt
         updatedAt
       }
-      products {
-        id
-        name
-        price
-        state
-        categories
-        imageUrls
-        itemsType
-        description
-        VendorId
-        createdAt
-        updatedAt
-      }
+    
     }
   }
 `;
@@ -83,9 +71,8 @@ export default function ProductCategories() {
   serviceId = serviceId ?? localServiceId ?? "";
   // Fetch category boxes from GraphQL API
   const { loading, error, data } = useQuery(GET_ALL_CATEGORY_BOX, {
-    variables: {
-      query: null, // Fetch all categories initially
-    },
+        variables: { query: null, vendorId:serviceId },
+
   });
 
   // Extract category boxes from the GraphQL response

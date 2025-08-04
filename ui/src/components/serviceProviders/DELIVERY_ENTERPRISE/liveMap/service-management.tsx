@@ -391,7 +391,7 @@ import {
   productInfor,
   ServiceData,
 } from "./serviceDataAndTypes";
-import { formatPrice } from "@/components/global/formatPrice";
+import { formatPrice, getImageUrl } from "@/components/global/formatPrice";
 // DELETE_BOOKING_MUTATION
 const DELETE_BOOKING_MUTATION = gql`
   mutation DeleteBookingOrOrder($entityId: String!, $entityType: String!) {
@@ -1255,7 +1255,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
           {item.product.map((prod) => (
             <div key={prod.id} className="flex items-center gap-4 mt-2">
               <img
-                src={prod.imageUrls?.[0] ?? "/fallback.jpg"}
+                src={getImageUrl(prod.imageUrls?.[0]) ?? "/fallback.jpg"}
                 alt={prod.name}
                 className="w-12 h-12 rounded-md object-cover border"
               />

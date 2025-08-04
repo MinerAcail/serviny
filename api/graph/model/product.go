@@ -117,17 +117,17 @@ type ChatMessage struct {
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
 }
-type RequestItem struct {
-	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	Name        *string        `json:"name,omitempty"`
-	Price       *string        `json:"price,omitempty"`
-	State       *ProductState  `json:"state,omitempty"`
-	Categories  *string        `json:"categories,omitempty"`
-	ImageUrls   pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
-	Description *string        `json:"description,omitempty"`
+// type RequestItem struct {
+// 	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+// 	Name        *string        `json:"name,omitempty"`
+// 	Price       *string        `json:"price,omitempty"`
+// 	State       *ProductState  `json:"state,omitempty"`
+// 	Categories  *string        `json:"categories,omitempty"`
+// 	ImageUrls   pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
+// 	Description *string        `json:"description,omitempty"`
 
-	CreatedAt *time.Time `json:"createdAt,omitempty"`
-	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
-}
+// 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+// 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+// }
 
 

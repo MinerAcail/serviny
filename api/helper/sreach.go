@@ -692,7 +692,8 @@ func ExecuteGlobalSearch(db *gorm.DB, query string, limit int, offset int, servi
 }
 
 
-func ExecuteCategorySearchQuery(db *gorm.DB, query string) ([]*model.CategoryBox, error) {
+// ExecuteCategorySearchQuery performs category search with vendor filtering
+func ExecuteCategorySearchQuery(db *gorm.DB, query string, vendorID string) ([]*model.CategoryBox, error) {
 	var categoryBoxes []*model.CategoryBox
 	similarityThreshold := 0.12
 
@@ -710,11 +711,12 @@ func ExecuteCategorySearchQuery(db *gorm.DB, query string) ([]*model.CategoryBox
                 levenshtein(LOWER(name), LOWER(?)) AS typo_distance
             FROM category_boxes
             WHERE 
-                search_vector @@ plainto_tsquery('english', ?) OR 
+                vendor_id = ? AND
+                (search_vector @@ plainto_tsquery('english', ?) OR 
                 (similarity(LOWER(name), LOWER(?)) > CAST(? AS NUMERIC)) OR 
                 (name ILIKE '%' || ? || '%') OR 
                 (name ILIKE ? || '%') OR 
-                (levenshtein(LOWER(name), LOWER(?)) <= 2)
+                (levenshtein(LOWER(name), LOWER(?)) <= 2))
         )
         SELECT * FROM ranked_categories
         ORDER BY
@@ -731,7 +733,7 @@ func ExecuteCategorySearchQuery(db *gorm.DB, query string) ([]*model.CategoryBox
             (word_sim * 3.0) +
             (CASE WHEN typo_distance <= 2 THEN (5 - typo_distance) * 2 ELSE 0 END)
         DESC LIMIT 50
-    `, query, query, query, query, query, query, query, query, fmt.Sprintf("%f", similarityThreshold),
+    `, query, query, query, query, query, query, vendorID, query, query, fmt.Sprintf("%f", similarityThreshold),
 		query, query, query, query, query, query, query, query).Find(&categoryBoxes).Error
 
 	if err != nil {
@@ -740,8 +742,9 @@ func ExecuteCategorySearchQuery(db *gorm.DB, query string) ([]*model.CategoryBox
 
 	return categoryBoxes, nil
 }
-// ExecuteSearchProductQuery performs the full-text search with ranking
-func ExecuteSearchProductQuery(db *gorm.DB, query string) ([]*model.Product, error) {
+
+// ExecuteSearchProductQuery performs product search with vendor filtering
+func ExecuteSearchProductQuery(db *gorm.DB, query string, vendorID string) ([]*model.Product, error) {
 	var products []*model.Product
 	similarityThreshold := 0.12
 
@@ -760,6 +763,7 @@ func ExecuteSearchProductQuery(db *gorm.DB, query string) ([]*model.Product, err
             FROM products
             WHERE 
                 state != 'INACTIVE' AND 
+                vendor_id = ? AND
                 (search_vector @@ plainto_tsquery('english', ?) OR 
                 (similarity(LOWER(name), LOWER(?)) > CAST(? AS NUMERIC)) OR 
                 (name ILIKE '%' || ? || '%') OR 
@@ -781,7 +785,7 @@ func ExecuteSearchProductQuery(db *gorm.DB, query string) ([]*model.Product, err
             (word_sim * 3.0) +
             (CASE WHEN typo_distance <= 2 THEN (5 - typo_distance) * 2 ELSE 0 END)
         DESC LIMIT 50
-    `, query, query, query, query, query, query, query, query, fmt.Sprintf("%f", similarityThreshold),
+    `, query, query, query, query, query, query, vendorID, query, query, fmt.Sprintf("%f", similarityThreshold),
 		query, query, query, query, query, query, query, query).Find(&products).Error
 
 	if err != nil {

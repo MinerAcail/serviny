@@ -58,6 +58,7 @@ type GalleryProfession {
   categories: [String]
   imageUrls: [String]
   description: String
+  webLink: String
   createdAt: Time!
   updatedAt: Time!
 }
@@ -105,17 +106,10 @@ extend type Query {
   getOrderServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
   getBookingServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
 
-
   getOrderServiceData: [ServiceData!]!
   getAllUserServiceData(entityId: String): [ServiceData!]!
-  getSpecificOrderServiceData(
-    userId: String
-    entityId: String
-  ): ServiceData
-  getSpecificBookingServiceData(
-    userId: String
-    entityId: String
-  ): ServiceData
+  getSpecificOrderServiceData(userId: String, entityId: String): ServiceData
+  getSpecificBookingServiceData(userId: String, entityId: String): ServiceData
   getBookingServiceDataByUserId(userId: String): [ServiceData!]!
   getOrderServiceDataByUserId(userId: String): [ServiceData!]!
   getBookingServiceDataByBookingId(bookingId: String!): AppointmentBookingData!
@@ -151,33 +145,33 @@ extend type Mutation {
     removeProfession: [String]
   ): Service
   updateBusinessType(businessType: String): BusinessType
-  generateSubDomain(serviceId: String!,tryName:String): Service
+  generateSubDomain(serviceId: String!, tryName: String): Service
   useTheme(ServiceId: String!, theme: String): String
-updateServiceByAmin(
+  updateServiceByAmin(
     serviceId: String!
     input: updateServiceByAminInput!
   ): Service
   deleteService(id: String!): Boolean
-deleteBookingOrOrder(
-    entityId: String!
-    entityType: String!
-  ): stateMessage
+  deleteBookingOrOrder(entityId: String!, entityType: String!): stateMessage
   updateBookingType(
     type: BookingType! # serviceId: String!
   ): BookingType
-    updateBookingTypeByAdmin(
+  updateBookingTypeByAdmin(
     type: BookingType! # serviceId: String!
     serviceId: String!
   ): BookingType
   createGallery(
     files: [Upload]
     input: GalleryProfessionInput!
+    webLink: String
   ): GalleryProfession!
   updateGallery(
     galleryID: String!
     files: [Upload]
     input: GalleryProfessionInput!
     removeUrl: [String]
+    removeWebLink: Boolean
+    webLink: String
   ): GalleryProfession!
   deleteGallery(id: String!): Boolean
   createFavorite(input: CreateFavoriteInput): Favorite

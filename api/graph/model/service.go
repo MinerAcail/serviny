@@ -47,6 +47,7 @@ type GalleryProfession struct {
 	ServiceID   *string        `gorm:"column:service_id" json:"ServiceId,omitempty"`
 	ImageUrls   pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
 	Description *string        `json:"description,omitempty"`
+	WebLink *string        `json:"web_link,omitempty"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 }

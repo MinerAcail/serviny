@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -717,6 +716,8 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			order.DeliveryFee = &feeStr
 			order.RangeMetaID = &rangeId
 			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
+			log.Printf("range metadatadd: %s", riderRange)
+
 		}
 	}
 
@@ -1188,64 +1189,36 @@ func (r *mutationResolver) DeleteAllChatMessageByNumber(ctx context.Context, cus
 
 // RequestItem is the resolver for the requestItem field.
 func (r *mutationResolver) RequestItem(ctx context.Context, input model.RequestInput) (*model.RequestItem, error) {
-	// Generate a bucket name for storing images
-	timestamp := time.Now().UnixNano() / 1000000 // milliseconds
+	// // Retrieve the user ID from the context
+	// userIDStr, err := r.Query().GetID(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get user ID: %v", err)
+	// }
+	// // Set default state for new request items
+	// initialState := "PENDING"
 
-	var simpleName string
-	if input.Name != nil {
-		simpleName = strings.ToLower(strings.ReplaceAll(*input.Name, " ", "-"))
-		simpleName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(simpleName, "")
-	} else {
-		simpleName = "request"
-	}
+	// // Optional category handling
+	// var category string
+	// if input.Category != nil {
+	// 	category = *input.Category
+	// }
 
-	bucketName := fmt.Sprintf("req-%s-%d", simpleName[:helper.MinInt(len(simpleName), 10)], timestamp)
+	// // Create a new request item
+	// requestItem := model.RequestItem{
+	// 	Name:        input.Name,
+	// 	Price:       input.Price,
+	// 	State:       (*model.ProductState)(&initialState),
+	// 	Categories:  &category,
+	// 	ImageUrls:   imageURLs,
+	// 	Description: input.Description,
+	// }
 
-	log.Printf("Creating request item bucket: %s", bucketName)
+	// // Save the request item to the database
+	// if err := r.DB.Create(&requestItem).Error; err != nil {
+	// 	return nil, fmt.Errorf("failed to save request item: %v", err)
+	// }
 
-	// Ensure the bucket exists in MinIO
-	if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
-		return nil, err
-	}
-
-	var imageURLs []string
-
-	// Upload each image and store the URL
-	if input.Images != nil {
-		for _, file := range input.Images {
-			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "request", file)
-			if err != nil {
-				return nil, fmt.Errorf("failed to upload file %s: %v", file.Filename, err)
-			}
-			imageURLs = append(imageURLs, fileURL)
-		}
-	}
-
-	// Set default state for new request items
-	initialState := "PENDING"
-
-	// Optional category handling
-	var category string
-	if input.Category != nil {
-		category = *input.Category
-	}
-
-	// Create a new request item
-	requestItem := model.RequestItem{
-		Name:        input.Name,
-		Price:       input.Price,
-		State:       (*model.ProductState)(&initialState),
-		Categories:  &category,
-		ImageUrls:   imageURLs,
-		Description: input.Description,
-	}
-
-	// Save the request item to the database
-	if err := r.DB.Create(&requestItem).Error; err != nil {
-		return nil, fmt.Errorf("failed to save request item: %v", err)
-	}
-
-	return &requestItem, nil
+	return nil, nil
 }
 
 // UpdateRequestItemStatus is the resolver for the updateRequestItemStatus field.
@@ -1299,7 +1272,7 @@ func (r *mutationResolver) DeleteRequestItem(ctx context.Context, requestID stri
 		// Extract bucket name from the first image URL
 		// Assuming URL format like: http://minio:9000/bucket-name/...
 		firstImageURL := requestItem.ImageUrls[0]
-		parts := strings.Split(firstImageURL, "/")
+		parts := strings.Split(*firstImageURL, "/")
 		if len(parts) >= 4 {
 			bucketName := parts[3]
 
@@ -1341,7 +1314,7 @@ func (r *mutationResolver) DeleteAllRequestItems(ctx context.Context) (*bool, er
 		if len(item.ImageUrls) > 0 {
 			// Extract bucket name from the first image URL
 			firstImageURL := item.ImageUrls[0]
-			parts := strings.Split(firstImageURL, "/")
+			parts := strings.Split(*firstImageURL, "/")
 			if len(parts) >= 4 {
 				bucketName := parts[3]
 
@@ -2272,43 +2245,39 @@ func (r *queryResolver) GetAllRequestItems(ctx context.Context) ([]*model.Reques
 }
 
 // GetAllCategoryBox is the resolver for the getAllCategoryBox field.
-func (r *queryResolver) GetAllCategoryBox(ctx context.Context, query *string) ([]*model.ViewcategoryBox, error) {
+func (r *queryResolver) GetAllCategoryBox(ctx context.Context, query *string, vendorID string) ([]*model.ViewcategoryBox, error) {
 	var categoryBoxes []*model.CategoryBox
 	var products []*model.Product
 
 	// Apply search if query is provided
 	if query != nil && *query != "" {
-		searchedCategories, err := helper.ExecuteCategorySearchQuery(r.DB, *query)
+		searchedCategories, err := helper.ExecuteCategorySearchQuery(r.DB, *query, vendorID)
 		if err != nil {
 			return nil, err
 		}
-
 		if len(searchedCategories) > 0 {
 			categoryBoxes = searchedCategories
 		} else {
 			// No categories found, search in products
-			searchedProducts, err := helper.ExecuteSearchProductQuery(r.DB, *query)
+			searchedProducts, err := helper.ExecuteSearchProductQuery(r.DB, *query, vendorID)
 			if err != nil {
 				return nil, err
 			}
-
 			if len(searchedProducts) > 0 {
 				products = searchedProducts
-
-				// Get all categories that contain any of these products
+				// Get all categories that contain any of these products and belong to the vendor
 				var productIDs []string
 				for _, product := range products {
 					productIDs = append(productIDs, product.ID.String())
 				}
-
-				if err := r.DB.Where("items_ids && ?", pq.Array(productIDs)).Find(&categoryBoxes).Error; err != nil {
+				if err := r.DB.Where("vendor_id = ? AND items_ids && ?", vendorID, pq.Array(productIDs)).Find(&categoryBoxes).Error; err != nil {
 					return nil, err
 				}
 			}
 		}
 	} else {
-		// Fetch all categories if no search query
-		if err := r.DB.Find(&categoryBoxes).Error; err != nil {
+		// Fetch all categories for the specific vendor if no search query
+		if err := r.DB.Where("vendor_id = ?", vendorID).Find(&categoryBoxes).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -2317,11 +2286,11 @@ func (r *queryResolver) GetAllCategoryBox(ctx context.Context, query *string) ([
 	for _, categoryBox := range categoryBoxes {
 		var categoryProducts []*model.Product
 		if len(categoryBox.ItemsIds) > 0 {
-			if err := r.DB.Where("id = ANY(?)", pq.Array(categoryBox.ItemsIds)).Find(&categoryProducts).Error; err != nil {
+			// Filter products by vendor ID as well
+			if err := r.DB.Where("vendor_id = ? AND id = ANY(?)", vendorID, pq.Array(categoryBox.ItemsIds)).Find(&categoryProducts).Error; err != nil {
 				return nil, err
 			}
 		}
-
 		viewCategoryBox := &model.ViewcategoryBox{
 			CategoryBox: categoryBox,
 			Products:    categoryProducts,
@@ -2382,22 +2351,6 @@ func (r *queryResolver) GetProductsByCategory(ctx context.Context, categoryID st
 }
 
 // ID is the resolver for the id field.
-func (r *requestItemResolver) ID(ctx context.Context, obj *model.RequestItem) (*string, error) {
-	id := obj.ID.String()
-	return &id, nil
-}
-
-// ImageUrls is the resolver for the imageUrls field.
-func (r *requestItemResolver) ImageUrls(ctx context.Context, obj *model.RequestItem) ([]*string, error) {
-	var eachArray []*string
-	for _, url := range obj.ImageUrls {
-		urlCopy := url
-		eachArray = append(eachArray, &urlCopy)
-	}
-	return eachArray, nil
-}
-
-// ID is the resolver for the id field.
 func (r *categoryBoxResolver) ID(ctx context.Context, obj *model.CategoryBox) (*string, error) {
 	id := obj.ID.String()
 	return &id, nil
@@ -2425,9 +2378,6 @@ func (r *Resolver) Order() graph.OrderResolver { return &orderResolver{r} }
 // Product returns graph.ProductResolver implementation.
 func (r *Resolver) Product() graph.ProductResolver { return &productResolver{r} }
 
-// RequestItem returns graph.RequestItemResolver implementation.
-func (r *Resolver) RequestItem() graph.RequestItemResolver { return &requestItemResolver{r} }
-
 // CategoryBox returns graph.CategoryBoxResolver implementation.
 func (r *Resolver) CategoryBox() graph.CategoryBoxResolver { return &categoryBoxResolver{r} }
 
@@ -2435,5 +2385,4 @@ type cartItemResolver struct{ *Resolver }
 type chatMessageResolver struct{ *Resolver }
 type orderResolver struct{ *Resolver }
 type productResolver struct{ *Resolver }
-type requestItemResolver struct{ *Resolver }
 type categoryBoxResolver struct{ *Resolver }

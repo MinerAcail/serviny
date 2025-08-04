@@ -84,8 +84,8 @@ const REMOVE_PRODUCT_FROM_CATEGORY_BOX = gql`
 `;
 
 const GET_ALL_CATEGORY_BOXES = gql`
-  query GetAllCategoryBox($query: String) {
-    getAllCategoryBox(query: $query) {
+  query GetAllCategoryBox($query: String,$vendorId:String!) {
+    getAllCategoryBox(query: $query,vendorId:$vendorId) {
       categoryBox {
         id
         name
@@ -322,7 +322,7 @@ const DragDropBoxes: React.FC = () => {
 
   // Fetch existing category boxes
   const { data: categoryBoxesData, loading: categoryBoxesLoading, refetch: refetchCategoryBoxes } = useQuery(GET_ALL_CATEGORY_BOXES, {
-    variables: { query: "" },
+    variables: { query: "",vendorId },
   });
 
   useEffect(() => {

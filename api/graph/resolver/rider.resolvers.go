@@ -890,7 +890,7 @@ func (r *queryResolver) GetRiderAssignedOrders(ctx context.Context, riderID stri
 		// Get range metadata
 		var rangeMetaData *model.RiderRange
 		if order.RiderID != nil {
-			if err := r.DB.Where("rider_id = ?", order.RiderID).First(&rangeMetaData).Error; err != nil {
+			if err := r.DB.Where("id = ?", order.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 				if err != gorm.ErrRecordNotFound {
 					log.Printf("Warning: failed to get range metadata for order %s: %v", order.ID, err)
 				}
@@ -1062,7 +1062,7 @@ func (r *queryResolver) GetRiderAssignedBookings(ctx context.Context, riderID st
 
 		// Get range metadata
 		var rangeMetaData *model.RiderRange
-		if err := r.DB.Where("rider_id = ?", riderID).First(&rangeMetaData).Error; err != nil {
+		if err := r.DB.Where("id = ?", booking.RangeMetaID).First(&rangeMetaData).Error; err != nil {
 			if err != gorm.ErrRecordNotFound {
 				log.Printf("Warning: failed to get range metadata for booking %s: %v", booking.ID, err)
 			}

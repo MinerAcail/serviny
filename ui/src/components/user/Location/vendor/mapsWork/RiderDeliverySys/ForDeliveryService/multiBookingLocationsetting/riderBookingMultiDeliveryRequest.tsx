@@ -66,6 +66,7 @@ import {
 import { MapAndMultiBooking } from "./MapAndMultiBooking";
 import { RiderMultiBookingMenu } from "./RiderMultiBookingMenu";
 import { findClosestDelivery } from "@/components/GlobalLogic/distanceUtils";
+import { GOOGLE_MAPS_CONFIG } from "@/components/global/formatPrice";
 
 // ==========================================
 // CONSTANTS
@@ -88,7 +89,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   const isService = queryParams.get("service");
   const isOrder = queryParams.get("order") === "true";
 
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
   // const [searchParams] = useSearchParams()
   // const isCargo = searchParams.get('cargo') === 'true'
@@ -139,10 +140,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
   // 4. GOOGLE MAPS API
   // ==========================================
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: googleMapsApiKey || "",
-    libraries,
-  });
+  const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_CONFIG);
 
   // ==========================================
   // 5. MULTI-GROUP BOOKING MANAGEMENT
@@ -557,7 +555,7 @@ export default function RiderBookingMultiDeliveryRequest() {
 
     if (isTrackingActive && routeData) {
       if (!showRoutePanel) {
-        console.log("✅ Showing route panel");
+        // console.log("✅ Showing route panel");
         setShowRoutePanel(true);
       }
     } else if (!isTrackingActive && showRoutePanel) {
@@ -657,6 +655,7 @@ export default function RiderBookingMultiDeliveryRequest() {
 
       // Update existing bookings with location data
       const updatedBookings = await updateBookingsWithLocations(updateInputs);
+      
 
       // console.log("✅ Bookings updated successfully:", updatedBookings);
 
@@ -726,20 +725,18 @@ export default function RiderBookingMultiDeliveryRequest() {
       // console.log("📦 Updating existing multi-delivery bookings...");
 
       
-   
-      const closestDelivery = findClosestDelivery(
-  pickupLocation,
-  deliveryItems.map(item => ({
-    id: item.id,
-    dropoffLocation: item.dropoffLocation,
-    address: item.deliveryAddress
-  }))
-);
+       const updateInputs = convertDeliveryItemsToUpdateInputs(
+        deliveryItems,
+        pickupLocation,
+        riderId,
+        riderZones // Pass riderZones instead of undefined 'zones'
+      );
+
       const InputOrder: UpdateOrderWithLocationInput = {
         coordinates: [ pickupLocation.lat,pickupLocation.lng],
         deliveryAddress:  deliveryItems[0]?.deliveryAddress,
         dropoffLocation:  deliveryItems[0]?.dropoffLocation,
-        rangeMetaId: closestDelivery?.id || "",
+        rangeMetaId: updateInputs[0].rangeMetaId || "",
         orderId: orderId || bookId, // Use orderId if available, otherwise fallback to bookId
         ridersId: riderId,
       }
@@ -1093,7 +1090,7 @@ export default function RiderBookingMultiDeliveryRequest() {
       <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading multi-delivery booking...</p>
+          <p className="text-gray-500">Loading delivery setup...</p>
           <p className="text-xs text-gray-400 mt-2">
             {isLoadingBookings
               ? "Loading existing bookings..."

@@ -550,7 +550,29 @@ type RequestInput struct {
 	Price       *string           `json:"price,omitempty"`
 	Category    *string           `json:"category,omitempty"`
 	Description *string           `json:"description,omitempty"`
+	Quantity    *int32            `json:"quantity,omitempty"`
+	ItemType    *string           `json:"itemType,omitempty"`
+	OrderID     *string           `json:"orderId,omitempty"`
+	WebLink     *WebLink          `json:"webLink,omitempty"`
 	Images      []*graphql.Upload `json:"images,omitempty"`
+}
+
+type RequestItem struct {
+	ID          *string       `json:"id,omitempty"`
+	Name        *string       `json:"name,omitempty"`
+	Price       *string       `json:"price,omitempty"`
+	State       *ProductState `json:"state,omitempty"`
+	Description *string       `json:"description,omitempty"`
+	Quantity    int32         `json:"quantity"`
+	ItemType    *string       `json:"itemType,omitempty"`
+	OrderID     *string       `json:"orderId,omitempty"`
+	UserID      *string       `json:"userId,omitempty"`
+	ServiceID   *string       `json:"serviceId,omitempty"`
+	WebLink     *string       `json:"webLink,omitempty"`
+	Categories  *string       `json:"categories,omitempty"`
+	ImageUrls   []*string     `json:"imageUrls,omitempty"`
+	CreatedAt   *time.Time    `json:"createdAt,omitempty"`
+	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
 }
 
 type RequestOtpInput struct {
@@ -839,6 +861,11 @@ type ViewInvoice struct {
 type ViewcategoryBox struct {
 	CategoryBox *CategoryBox `json:"categoryBox,omitempty"`
 	Products    []*Product   `json:"products,omitempty"`
+}
+
+type WebLink struct {
+	Name *string `json:"name,omitempty"`
+	Link *string `json:"link,omitempty"`
 }
 
 type ZoneMetaData struct {

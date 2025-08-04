@@ -97,6 +97,24 @@ type Order {
   createdAt: Time!
   updatedAt: Time!
 }
+type RequestItem {
+  id: String
+  name: String
+  price: String
+  state: ProductState
+  description: String
+  quantity: Int!
+  itemType: String
+  orderId: String
+  userId:String
+  serviceId:String
+  webLink:String
+  categories: String
+  imageUrls: [String]
+  createdAt: Time
+  updatedAt: Time
+}
+# type webLink
 input OrderInput {
   productId: String!
   quantity: Int!
@@ -173,7 +191,7 @@ extend type Query {
 
   getAllRequestItems: [RequestItem!]!
 
-  getAllCategoryBox(query: String): [ViewcategoryBox!]!
+  getAllCategoryBox(query: String,vendorId:String!): [ViewcategoryBox!]!
   getNewAddedCategoryBox: [categoryBox!]!
   getCategoryBox(categoryId: String!): categoryBox
   getProductsByCategory(categoryId: String!): ViewcategoryBox
@@ -237,26 +255,33 @@ input CategoryBoxInput {
   files: Upload
   productId: [String]
 }
-type RequestItem {
-  id: String
-  name: String
-  price: String
-  state: ProductState
-  description: String
-  categories: String
-  imageUrls: [String]
-  createdAt: Time
-  updatedAt: Time
-}
+# type RequestItem {
+#   id: String
+#   name: String
+#   price: String
+#   state: ProductState
+#   description: String
+#   categories: String
+#   imageUrls: [String]
+#   createdAt: Time
+#   updatedAt: Time
+# }
 
 input RequestInput {
   name: String
   price: String
   category: String
   description: String
+  quantity: Int
+  itemType: String
+  orderId: String
+  webLink: WebLink
   images: [Upload!]
 }
-
+input WebLink{
+  name:String
+  link:String
+}
 type categoryBox {
   id: String
   name: String
