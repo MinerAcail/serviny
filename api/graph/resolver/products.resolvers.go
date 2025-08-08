@@ -6,6 +6,7 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -682,6 +683,7 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 			dropoffLat := *input.DropoffLocation[1]
 			//google uses lng,lat format, but the right format is lat,lng
 			geoJSONStr, err := directions.GetBookRouteGeoJSON(lng, lat, dropoffLng, dropoffLat)
+
 			if err == nil {
 				routeInfo := &model.RouteInfo{
 					OrderID: orderID.String(),
@@ -692,6 +694,8 @@ func (r *mutationResolver) UpdateWithLocation(ctx context.Context, input model.A
 					log.Printf("Warning: failed to save route info: %v", err)
 				} else {
 					log.Printf("Successfully saved route info for order %s", orderID.String())
+					routeInfoID := routeInfo.ID.String()
+					order.RouteInfoID = &routeInfoID
 				}
 			} else {
 				log.Printf("Warning: failed to generate route GeoJSON: %v", err)
@@ -1188,37 +1192,507 @@ func (r *mutationResolver) DeleteAllChatMessageByNumber(ctx context.Context, cus
 }
 
 // RequestItem is the resolver for the requestItem field.
-func (r *mutationResolver) RequestItem(ctx context.Context, input model.RequestInput) (*model.RequestItem, error) {
-	// // Retrieve the user ID from the context
-	// userIDStr, err := r.Query().GetID(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get user ID: %v", err)
-	// }
-	// // Set default state for new request items
-	// initialState := "PENDING"
+func (r *mutationResolver) RequestItem(ctx context.Context, input model.RequestInput, serviceID string) (*model.RequestItem, error) {
+	// Validate required input
+	if input.Name == nil || *input.Name == "" {
+		return nil, fmt.Errorf("item name is required")
+	}
 
-	// // Optional category handling
-	// var category string
-	// if input.Category != nil {
-	// 	category = *input.Category
+	// Retrieve the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	if userIDStr == nil || *userIDStr == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// Parse UUID from string
+	userID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Validate serviceID
+	if serviceID == "" {
+		return nil, fmt.Errorf("serviceID is required")
+	}
+
+	serviceUUID, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID format: %w", err)
+	}
+
+	log.Printf("Creating request item for user %s with service %s", userID, serviceUUID)
+
+	// Start database transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start database transaction: %w", tx.Error)
+	}
+
+	// Ensure rollback on panic or error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// // Find the associated user
+	// var user model.User
+	// if err := tx.First(&user, "id = ?", userID).Error; err != nil {
+	// 	tx.Rollback()
+	// 	if err == gorm.ErrRecordNotFound {
+	// 		return nil, fmt.Errorf("user not found")
+	// 	}
+	// 	return nil, fmt.Errorf("failed to find user: %w", err)
 	// }
 
-	// // Create a new request item
-	// requestItem := model.RequestItem{
-	// 	Name:        input.Name,
-	// 	Price:       input.Price,
-	// 	State:       (*model.ProductState)(&initialState),
-	// 	Categories:  &category,
-	// 	ImageUrls:   imageURLs,
-	// 	Description: input.Description,
-	// }
+	// Verify service exists
+	var service model.Service
+	if err := tx.First(&service, "id = ?", serviceUUID).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("service not found")
+		}
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
 
-	// // Save the request item to the database
-	// if err := r.DB.Create(&requestItem).Error; err != nil {
-	// 	return nil, fmt.Errorf("failed to save request item: %v", err)
-	// }
+	// Set default state for new request items
+	initialState := model.ProductState("PREORDER")
 
-	return nil, nil
+	// Handle category
+	var category string
+	if input.Category != nil {
+		category = *input.Category
+	}
+
+	var imageURLs []string
+
+	// Handle image uploads if provided
+	if len(input.Images) > 0 {
+		// Create bucket name based on user ID
+		bucketName := fmt.Sprintf("user-%s-bucket", userID)
+
+		// Ensure the bucket exists
+		if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create bucket: %w", err)
+		}
+
+		// Upload files to MinIO
+		for _, file := range input.Images {
+			fileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "request-item", file)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to upload file %s: %v", file.Filename, err)
+			}
+			imageURLs = append(imageURLs, fileURL)
+		}
+		log.Printf("Uploaded %d images for request item", len(imageURLs))
+	}
+
+	// Handle web link
+	var webLinkJSON json.RawMessage
+	if input.WebLink != nil {
+		// Create WebLink struct
+		webLinkData := map[string]interface{}{}
+
+		if input.WebLink.Name != nil && *input.WebLink.Name != "" {
+			webLinkData["name"] = *input.WebLink.Name
+		}
+
+		if input.WebLink.Link != nil && *input.WebLink.Link != "" {
+			link := *input.WebLink.Link
+			// Add protocol if missing
+			if !strings.HasPrefix(link, "http://") && !strings.HasPrefix(link, "https://") {
+				link = "https://" + link
+			}
+			webLinkData["link"] = link
+		}
+
+		// Convert to JSON if we have data
+		if len(webLinkData) > 0 {
+			webLinkBytes, err := json.Marshal(webLinkData)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to marshal web link data: %w", err)
+			}
+			webLinkJSON = json.RawMessage(webLinkBytes)
+			log.Printf("Created web link data: %s", string(webLinkJSON))
+		}
+	}
+
+	// Validate that either images or web link is provided
+	if len(imageURLs) == 0 && len(webLinkJSON) == 0 {
+		tx.Rollback()
+		return nil, fmt.Errorf("either images or web link must be provided")
+	}
+
+	// Handle quantity with default value
+	quantity := int32(1)
+	if input.Quantity != nil {
+		if *input.Quantity <= 0 {
+			tx.Rollback()
+			return nil, fmt.Errorf("quantity must be greater than 0")
+		}
+		quantity = *input.Quantity
+	}
+
+	// Create a new request item
+	requestItem := model.RequestItem{
+		Name:        input.Name,
+		Price:       input.Price,
+		State:       &initialState,
+		Categories:  &category,
+		ImageUrls:   imageURLs,
+		Description: input.Description,
+		Quantity:    quantity,
+		ItemType:    input.ItemType,
+		UserID:      userIDStr,
+		ServiceID:   &serviceID,
+		WebLink:     &webLinkJSON,
+	}
+
+	// Save the request item to the database
+	if err := tx.Create(&requestItem).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to save request item: %w", err)
+	}
+
+	// Load the complete request item
+	var createdRequestItem model.RequestItem
+	if err := tx.Where("id = ?", requestItem.ID).First(&createdRequestItem).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to load created request item: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	log.Printf("Request item %s created successfully for user %s", createdRequestItem.ID, *userIDStr)
+	return &createdRequestItem, nil
+}
+
+// UpdateRequestItemWithLocation is the resolver for the updateRequestItemWithLocation field.
+func (r *mutationResolver) UpdateRequestItemWithLocation(ctx context.Context, input *model.AddRequestItemCoordinateInput) (*model.RequestItem, error) {
+	// Validate required input
+	if input.RequestID == "" {
+		return nil, fmt.Errorf("requestID is required")
+	}
+
+	// Parse and validate request ID
+	requestID, err := uuid.Parse(input.RequestID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid request ID format: %w", err)
+	}
+
+	// Get user ID from context for authorization
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID from context: %w", err)
+	}
+
+	if userIDStr == nil || *userIDStr == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	log.Printf("Updating request item %s with location for user %s", requestID, *userIDStr)
+
+	// Start database transaction
+	tx := r.DB.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start database transaction: %w", tx.Error)
+	}
+
+	// Ensure rollback on panic or error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Find and verify request item ownership
+	var requestItem model.RequestItem
+	if err := tx.Where("id = ? AND user_id = ?", requestID, *userIDStr).First(&requestItem).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("request item not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to fetch request item: %w", err)
+	}
+
+	// Update delivery address if provided
+	if input.DeliveryAddress != nil {
+		requestItem.DeliveryAddress = input.DeliveryAddress
+		log.Printf("Updated delivery address: %s", input.DeliveryAddress)
+	}
+
+	// Update pickup address if provided
+	if input.PickUpAddress != nil {
+		requestItem.PickUpAddress = input.PickUpAddress
+		log.Printf("Updated pickup address: %s", input.PickUpAddress)
+	}
+
+	// Update dropoff coordinates if provided
+	if input.DropoffLocation != nil && len(input.DropoffLocation) >= 2 {
+		lng := *input.DropoffLocation[0]
+		lat := *input.DropoffLocation[1]
+
+		// Validate coordinate ranges
+		if lng < -180 || lng > 180 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid dropoff longitude: %.6f (must be between -180 and 180)", lng)
+		}
+		if lat < -90 || lat > 90 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid dropoff latitude: %.6f (must be between -90 and 90)", lat)
+		}
+		//lat and lng
+		dropoffCoords := []float64{lat, lng}
+		requestItem.DropoffLocation = dropoffCoords
+		log.Printf("Updated dropoff coordinates: [%.6f, %.6f]", lng, lat)
+	}
+
+	// Update pickup coordinates if provided (using pq.Float64Array like in booking)
+	if input.PickupLocation != nil && len(input.PickupLocation) >= 2 {
+		lng := *input.PickupLocation[0]
+		lat := *input.PickupLocation[1]
+
+		// Validate coordinate ranges
+		if lng < -180 || lng > 180 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid pickup longitude: %.6f (must be between -180 and 180)", lng)
+		}
+		if lat < -90 || lat > 90 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid pickup latitude: %.6f (must be between -90 and 90)", lat)
+		}
+
+		// Use the same pattern as booking - store as []*float64
+		pickupCoords := []float64{lat, lng}
+		requestItem.PickupLocation = pickupCoords
+		log.Printf("Updated pickup coordinates: [%.6f, %.6f]", lat, lng)
+	}
+
+	// Update rider ID if provided (following booking pattern)
+	if input.RidersID != nil {
+		// Validate rider ID format
+		riderUUID, err := uuid.Parse(*input.RidersID)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid rider ID format: %w", err)
+		}
+
+		// Ensure service ID is available
+		if requestItem.ServiceID == nil || *requestItem.ServiceID == "" {
+			tx.Rollback()
+			return nil, fmt.Errorf("request item must have a service assigned before assigning a rider")
+		}
+
+		// Ensure coordinates are available for validation
+		if input.PickupLocation == nil || len(input.PickupLocation) < 2 ||
+			input.DropoffLocation == nil || len(input.DropoffLocation) < 2 {
+			tx.Rollback()
+			return nil, fmt.Errorf("both pickup and dropoff coordinates are required when assigning a rider")
+		}
+
+		// Check if it's a service
+		var service model.Service
+		serviceErr := tx.Where("id = ?", riderUUID).First(&service).Error
+
+		if serviceErr == nil {
+			// It's a service - find the best rider for this service
+			validRiderID, err := tracking.ValidateRiderService(tx, riderUUID.String(), input.PickupLocation)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to assign rider from service: %w", err)
+			}
+
+			// Store rider ID as string (matching RequestItem struct)
+			requestItem.UserID = &validRiderID // Assuming UserID stores the assigned rider
+			log.Printf("Assigned rider %s from service %s", validRiderID, riderUUID)
+		} else if serviceErr == gorm.ErrRecordNotFound {
+			// Check if it's a direct rider
+			var rider model.Rider
+			riderErr := tx.Where("id = ?", riderUUID).First(&rider).Error
+
+			if riderErr == nil {
+				// It's a direct rider - validate the relationship
+				validRiderID, err := tracking.ValidateDirectRider(tx, riderUUID.String(), input.PickupLocation)
+				if err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to assign rider: %w", err)
+				}
+				requestItem.UserID = &validRiderID
+				log.Printf("Assigned direct rider %s", validRiderID)
+			} else if riderErr == gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return nil, fmt.Errorf("no rider or service found with ID: %s", riderUUID)
+			} else {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to check rider: %w", riderErr)
+			}
+		} else {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to check service: %w", serviceErr)
+		}
+	}
+
+	// Generate route data if both pickup and dropoff locations are available
+	if input.PickupLocation != nil && len(input.PickupLocation) >= 2 &&
+		input.DropoffLocation != nil && len(input.DropoffLocation) >= 2 {
+
+		pickupLng := *input.PickupLocation[0]
+		pickupLat := *input.PickupLocation[1]
+		dropoffLng := *input.DropoffLocation[0]
+		dropoffLat := *input.DropoffLocation[1]
+
+		// Generate route data (following booking pattern - note lat/lng order)
+
+		geoJSONStr, err := directions.GetBookRouteGeoJSON(pickupLng, pickupLat, dropoffLng, dropoffLat)
+		if err == nil {
+			routeInfo := &model.RouteInfo{
+				OrderID: requestID.String(),
+				Geojson: &geoJSONStr,
+				UserID:  *userIDStr,
+			}
+			if err := tx.Create(routeInfo).Error; err != nil {
+				log.Printf("Warning: failed to save route info: %v", err)
+			} else {
+				log.Printf("Successfully saved route info for request item %s", requestID.String())
+				routeInfoID := routeInfo.ID.String()
+				requestItem.RouteInfoID = &routeInfoID
+			}
+		} else {
+			log.Printf("Warning: failed to generate route GeoJSON: %v", err)
+		}
+	}
+
+	// Get range metadata if provided (alternative pricing method)
+	if input.RangeMetaID != nil {
+		var riderRange model.RiderRange
+		if err := tx.Where("id = ?", input.RangeMetaID).First(&riderRange).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Printf("Warning: range metadata not found for ID: %s", input.RangeMetaID)
+			} else {
+				log.Printf("Warning: failed to get range metadata: %v", err)
+			}
+		} else {
+			feeStr := fmt.Sprintf("%.2f", riderRange.Price)
+			rangeId := riderRange.ID.String()
+			requestItem.DeliveryFee = &feeStr
+			requestItem.RangeMetaID = &rangeId
+			log.Printf("Updated delivery fee from range metadata: %s", feeStr)
+		}
+	}
+
+	// Save the updated request item
+	if err := tx.Save(&requestItem).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update request item: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Update request item with route data in a goroutine (non-blocking) - following booking pattern
+	go func(requestIDStr string, resolver *mutationResolver) {
+		// Add a small delay to ensure the route data is fully committed
+		time.Sleep(500 * time.Millisecond)
+
+		// Create a new context for the goroutine (with timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Get route data
+		routeData, err := resolver.Query().GetRouteData(ctx, requestIDStr)
+		if err != nil {
+			log.Printf("Goroutine warning: could not get route data for request item %s: %v", requestIDStr, err)
+			return
+		}
+
+		if routeData != nil {
+			// Update request item with route data
+			distanceStr := routeData.Distance
+			durationStr := routeData.Duration
+
+			// Use a new transaction for this update
+			updateTx := resolver.DB.Begin()
+			if updateTx.Error != nil {
+				log.Printf("Goroutine warning: failed to start transaction for request item %s: %v", requestIDStr, updateTx.Error)
+				return
+			}
+
+			if err := updateTx.Model(&model.RequestItem{}).Where("id = ?", requestIDStr).Updates(map[string]interface{}{
+				"distance": &distanceStr,
+				"duration": &durationStr,
+			}).Error; err != nil {
+				updateTx.Rollback()
+				log.Printf("Goroutine warning: failed to update request item %s with route data: %v", requestIDStr, err)
+			} else {
+				if err := updateTx.Commit().Error; err != nil {
+					log.Printf("Goroutine warning: failed to commit route data update for request item %s: %v", requestIDStr, err)
+				} else {
+					log.Printf("Goroutine success: updated request item %s with route data (distance: %s, duration: %s)",
+						requestIDStr, distanceStr, durationStr)
+				}
+			}
+		}
+	}(input.RequestID, r)
+
+	// Send push notification following booking pattern
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Goroutine panic in push notification: %v", r)
+			}
+		}()
+
+		requestItemID := requestItem.ID.String()
+		truncate := func(s string, max int) string {
+			if len(s) <= max {
+				return s
+			}
+			return s[:max] + "..."
+		}
+
+		pickup := "Unknown"
+		if requestItem.PickUpAddress != nil {
+			pickup = truncate(*requestItem.PickUpAddress, 40)
+		}
+
+		delivery := "Unknown"
+		if requestItem.DeliveryAddress != nil {
+			delivery = truncate(*requestItem.DeliveryAddress, 40)
+		}
+
+		// Notify service if available
+		if requestItem.ServiceID != nil && *requestItem.ServiceID != "" {
+			err := helper.SendPushNotification(r.DB, *requestItem.ServiceID, helper.NotificationPayload{
+				Title:   "📦 Request Item Updated",
+				Body:    fmt.Sprintf("Request from %s to %s has been updated", pickup, delivery),
+				Tag:     "request-item-" + requestItemID,
+				URL:     "/requests/" + requestItemID,
+				OrderID: &requestItemID, // Reusing OrderID field for request item ID
+			})
+			if err != nil {
+				log.Printf("❌ Push notification failed for service: %v", err)
+			} else {
+				log.Printf("✅ Push notification sent for request item %s", requestItemID)
+			}
+		}
+	}()
+
+	log.Printf("Request item %s updated successfully", requestItem.ID)
+	return &requestItem, nil
 }
 
 // UpdateRequestItemStatus is the resolver for the updateRequestItemStatus field.
@@ -1272,7 +1746,7 @@ func (r *mutationResolver) DeleteRequestItem(ctx context.Context, requestID stri
 		// Extract bucket name from the first image URL
 		// Assuming URL format like: http://minio:9000/bucket-name/...
 		firstImageURL := requestItem.ImageUrls[0]
-		parts := strings.Split(*firstImageURL, "/")
+		parts := strings.Split(firstImageURL, "/")
 		if len(parts) >= 4 {
 			bucketName := parts[3]
 
@@ -1314,7 +1788,7 @@ func (r *mutationResolver) DeleteAllRequestItems(ctx context.Context) (*bool, er
 		if len(item.ImageUrls) > 0 {
 			// Extract bucket name from the first image URL
 			firstImageURL := item.ImageUrls[0]
-			parts := strings.Split(*firstImageURL, "/")
+			parts := strings.Split(firstImageURL, "/")
 			if len(parts) >= 4 {
 				bucketName := parts[3]
 
@@ -2244,6 +2718,24 @@ func (r *queryResolver) GetAllRequestItems(ctx context.Context) ([]*model.Reques
 	return requestItems, nil
 }
 
+// GetRequestItem is the resolver for the getRequestItem field.
+func (r *queryResolver) GetRequestItem(ctx context.Context, requestID string) (*model.RequestItem, error) {
+	parsedrequestID, err := uuid.Parse(requestID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid request Item ID: %w", err)
+	}
+
+	var requestItem model.RequestItem
+	if err := r.DB.Where("id = ?", parsedrequestID).First(&requestItem).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("request Item not found with ID: %s", requestID)
+		}
+		return nil, fmt.Errorf("failed to fetch request Item details: %w", err)
+	}
+
+	return &requestItem, nil
+}
+
 // GetAllCategoryBox is the resolver for the getAllCategoryBox field.
 func (r *queryResolver) GetAllCategoryBox(ctx context.Context, query *string, vendorID string) ([]*model.ViewcategoryBox, error) {
 	var categoryBoxes []*model.CategoryBox
@@ -2351,6 +2843,52 @@ func (r *queryResolver) GetProductsByCategory(ctx context.Context, categoryID st
 }
 
 // ID is the resolver for the id field.
+func (r *requestItemResolver) ID(ctx context.Context, obj *model.RequestItem) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// WebLink is the resolver for the webLink field.
+func (r *requestItemResolver) WebLink(ctx context.Context, obj *model.RequestItem) (*string, error) {
+	if obj.WebLink == nil {
+		return nil, nil
+	}
+
+	jsonStr := string(*obj.WebLink)
+	return &jsonStr, nil
+}
+
+// ImageUrls is the resolver for the imageUrls field.
+func (r *requestItemResolver) ImageUrls(ctx context.Context, obj *model.RequestItem) ([]*string, error) {
+	var eachArray []*string
+	for _, url := range obj.ImageUrls {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
+	}
+	return eachArray, nil
+}
+
+// DropoffLocation is the resolver for the dropoffLocation field.
+func (r *requestItemResolver) DropoffLocation(ctx context.Context, obj *model.RequestItem) ([]*float64, error) {
+	result := make([]*float64, 0, len(obj.DropoffLocation))
+	for _, v := range obj.DropoffLocation {
+		val := v
+		result = append(result, &val)
+	}
+	return result, nil
+}
+
+// PickupLocation is the resolver for the pickupLocation field.
+func (r *requestItemResolver) PickupLocation(ctx context.Context, obj *model.RequestItem) ([]*float64, error) {
+	result := make([]*float64, 0, len(obj.PickupLocation))
+	for _, v := range obj.PickupLocation {
+		val := v
+		result = append(result, &val)
+	}
+	return result, nil
+}
+
+// ID is the resolver for the id field.
 func (r *categoryBoxResolver) ID(ctx context.Context, obj *model.CategoryBox) (*string, error) {
 	id := obj.ID.String()
 	return &id, nil
@@ -2378,6 +2916,9 @@ func (r *Resolver) Order() graph.OrderResolver { return &orderResolver{r} }
 // Product returns graph.ProductResolver implementation.
 func (r *Resolver) Product() graph.ProductResolver { return &productResolver{r} }
 
+// RequestItem returns graph.RequestItemResolver implementation.
+func (r *Resolver) RequestItem() graph.RequestItemResolver { return &requestItemResolver{r} }
+
 // CategoryBox returns graph.CategoryBoxResolver implementation.
 func (r *Resolver) CategoryBox() graph.CategoryBoxResolver { return &categoryBoxResolver{r} }
 
@@ -2385,4 +2926,5 @@ type cartItemResolver struct{ *Resolver }
 type chatMessageResolver struct{ *Resolver }
 type orderResolver struct{ *Resolver }
 type productResolver struct{ *Resolver }
+type requestItemResolver struct{ *Resolver }
 type categoryBoxResolver struct{ *Resolver }

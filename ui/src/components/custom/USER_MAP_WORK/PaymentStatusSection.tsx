@@ -1,12 +1,27 @@
 import { useState, useEffect } from "react";
 import { useLazyQuery } from "@apollo/client";
-import { AlertCircle, CreditCard, CheckCircle, XCircle, Clock, Clipboard, FileText, Truck, ChevronDown } from "lucide-react";
+import {
+  AlertCircle,
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Clipboard,
+  FileText,
+  Truck,
+  ChevronDown,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { GET_BOOKING_ORDER_PAYMENT_STATUS } from "./types";
+import { GET_BOOKING_ORDER_PAYMENT_STATUS, ServiceData } from "./types";
 import { useNavigate } from "react-router";
 import { formatPrice } from "@/components/global/formatPrice";
 
@@ -21,17 +36,17 @@ interface PaymentStatus {
   currency?: string;
 }
 
-interface ServiceData {
-  id: string;
-  type: "ORDER" | "BOOKING";
-  orderData?: {
-    orderId?: string;
-  };
-  bookingData?: {
-    bookingId?: string;
-    cargoId?: string;
-  };
-}
+// interface ServiceData {
+//   id: string;
+//   type: "ORDER" | "BOOKING";
+//   orderData?: {
+//     orderId?: string;
+//   };
+//   bookingData?: {
+//     bookingId?: string;
+//     cargoId?: string;
+//   };
+// }
 
 interface PaymentStatusProps {
   selectedItem: ServiceData | null;
@@ -44,7 +59,9 @@ export function PaymentStatusSection({
   onPayNow,
   onViewInvoice,
 }: PaymentStatusProps) {
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(
+    null
+  );
   const navigate = useNavigate();
 
   // GraphQL query for payment status
@@ -67,13 +84,20 @@ export function PaymentStatusSection({
       const entityId =
         selectedItem.type === "ORDER"
           ? selectedItem.orderData?.orderId
-          : selectedItem.bookingData?.bookingId;
+          : selectedItem.type === "BOOKING"
+          ? selectedItem.bookingData?.bookingId
+          : selectedItem.requestItemData?.requestId;
 
       if (entityId) {
         getPaymentStatus({
           variables: {
             entityId,
-            entityType: selectedItem.type === "ORDER" ? "ORDER" : "BOOKING",
+            entityType:
+              selectedItem.type === "ORDER"
+                ? "ORDER"
+                : selectedItem.type === "BOOKING"
+                ? "BOOKING"
+                : "REQUESTITEM",
           },
         });
       }
@@ -118,41 +142,79 @@ export function PaymentStatusSection({
     navigate(`/invoice/${selectedItem?.bookingData?.cargoId}`);
   };
 
-  const isCargoBooking = selectedItem.type === "BOOKING" && selectedItem.bookingData?.cargoId;
-// Calculates the total price of all products in the order
-const calculateSelectedItemTotalPrice = () => {
-  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+  const isCargoBooking =
+    selectedItem.type === "BOOKING" && selectedItem.bookingData?.cargoId;
+  // Calculates the total price of all products in the order
+  const calculateSelectedItemTotalPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "ORDER" ||
+      !selectedItem.orderData
+    )
+      return 0;
 
-  const orderData = selectedItem.orderData;
-  if (!orderData.productInfor) return 0;
+    const orderData = selectedItem.orderData;
+    if (!orderData.productInfor) return 0;
 
-  return orderData.productInfor.reduce((total, item) => {
-    const productTotal = item.product.reduce((sum, product) => {
-      const price = typeof product.price === "string"
-        ? parseFloat(product.price)
-        : product.price ?? 0;
+    return orderData.productInfor.reduce((total, item) => {
+      const productTotal = item.product.reduce((sum, product) => {
+        const price =
+          typeof product.price === "string"
+            ? parseFloat(product.price)
+            : product.price ?? 0;
 
-      return sum + price;
+        return sum + price;
+      }, 0);
+
+      return total + productTotal * item.quantity;
     }, 0);
+  };
+  const calculateSelectedItemsWithdeliveryPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "ORDER" ||
+      !selectedItem.orderData
+    )
+      return 0;
 
-    return total + productTotal * item.quantity;
-  }, 0);
-};
-const calculateSelectedItemsWithdeliveryPrice = () => {
-  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+    const orderData = selectedItem.orderData;
+    if (!orderData.productInfor) return 0;
 
-  const orderData = selectedItem.orderData;
-  if (!orderData.productInfor) return 0;
+    return parseFloat(
+      (
+        Number(calculateSelectedItemTotalPrice()) +
+        Number(orderData.serviceFee || 0)
+      ).toFixed(2)
+    );
+   
+  };
+   const calculateSelectedRequestItemTotalPrice = () => {
+      if (
+        !selectedItem ||
+        selectedItem.type !== "REQUESTITEM" ||
+        !selectedItem.requestItemData
+      )
+        return 0;
 
-return parseFloat(
-  (
-    Number(calculateSelectedItemTotalPrice()) +
-    Number(orderData.serviceFee || 0)
-  ).toFixed(2)
-);
+      const requestItemData = selectedItem.requestItemData;
+      if (!requestItemData.requestItem) return 0;
 
-
-};
+      return parseFloat(
+        (
+          Number(requestItemData?.requestItem?.price) *
+          Number(requestItemData?.requestItem?.quantity || 0)
+        ).toFixed(2)
+      );
+    };
+    const DisplayTotalProductPriceData = () => {
+      if (selectedItem?.type === "ORDER") {
+        return calculateSelectedItemTotalPrice() ?? 0;
+      } else if (selectedItem?.type === "REQUESTITEM") {
+        return calculateSelectedRequestItemTotalPrice() ?? 0;
+      } else {
+        return selectedItem?.bookingData?.deliveryFee;
+      }
+    };
   return (
     <div className="mt-4 pt-4 border-t border-white/20">
       {/* <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
@@ -172,20 +234,6 @@ return parseFloat(
       {paymentStatus && (
         <div className="mb-4">
           {/* Status Overview */}
-          {/* <div className="flex items-center justify-between p-3 bg-gray-50/80 backdrop-blur-xl rounded-lg">
-            <div className="flex items-center gap-2">
-              {getStatusIcon(paymentStatus.status)}
-              <span className={`font-medium ${getStatusColor(paymentStatus.status)}`}>
-                {paymentStatus.status}
-              </span>
-              <span className="text-sm text-gray-500">• {paymentStatus.method}</span>
-            </div>
-            {paymentStatus.amount && (
-              <span className="font-medium text-gray-900">
-                {paymentStatus.currency || "$"}{paymentStatus.amount.toFixed(2)}
-              </span>
-            )}
-          </div> */}
 
           {/* Critical Alerts - Always Visible */}
           {paymentStatus.status === "FAILED" && (
@@ -194,7 +242,8 @@ return parseFloat(
               <AlertDescription className="text-red-800">
                 <div className="font-medium mb-1">Payment Failed</div>
                 <div className="text-sm">
-                  There was an issue processing your payment. Please try again or contact support.
+                  There was an issue processing your payment. Please try again
+                  or contact support.
                 </div>
               </AlertDescription>
               {onPayNow && (
@@ -217,7 +266,8 @@ return parseFloat(
               <AlertDescription className="text-green-800">
                 <div className="font-medium">Payment Successful</div>
                 <div className="text-sm">
-                  Your payment has been processed and the vendor can now fulfill your {selectedItem.type.toLowerCase()}.
+                  Your payment has been processed and the vendor can now fulfill
+                  your {selectedItem.type.toLowerCase()}.
                 </div>
               </AlertDescription>
             </Alert>
@@ -231,15 +281,16 @@ return parseFloat(
                   <>
                     <div className="font-medium">Payment Processing</div>
                     <div className="text-sm">
-                      Your payment is being processed. This usually takes a few minutes.
-                      Please make sure you have completed the payment.
+                      Your payment is being processed. This usually takes a few
+                      minutes. Please make sure you have completed the payment.
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="font-medium">Payment Processing</div>
                     <div className="text-sm">
-                      Your payment will be processed when the rider confirms that you have given them the cash.
+                      Your payment will be processed when the rider confirms
+                      that you have given them the cash.
                     </div>
                   </>
                 )}
@@ -269,9 +320,12 @@ return parseFloat(
                         <Truck className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <h5 className="font-medium text-gray-900">Cargo Booking</h5>
+                        <h5 className="font-medium text-gray-900">
+                          Cargo Booking
+                        </h5>
                         <p className="text-sm text-gray-600">
-                          Cargo ID: #{selectedItem.bookingData?.cargoId?.slice(-6)}
+                          Cargo ID: #
+                          {selectedItem.bookingData?.cargoId?.slice(-6)}
                         </p>
                       </div>
                     </div>
@@ -286,7 +340,8 @@ return parseFloat(
                   </div>
                   <div className="mt-3 p-2 bg-blue-100/60 rounded-lg">
                     <p className="text-xs text-blue-800">
-                      💡 Click "View Invoice" to see detailed billing information for this cargo shipment
+                      💡 Click "View Invoice" to see detailed billing
+                      information for this cargo shipment
                     </p>
                   </div>
                 </CardContent>
@@ -317,29 +372,30 @@ return parseFloat(
                   <span className="text-gray-500">Status:</span>
                   <div className="flex items-center gap-1">
                     {getStatusIcon(paymentStatus.status)}
-                    <span className={`font-medium ${getStatusColor(paymentStatus.status)}`}>
+                    <span
+                      className={`font-medium ${getStatusColor(
+                        paymentStatus.status
+                      )}`}
+                    >
                       {paymentStatus.status}
                     </span>
                   </div>
                 </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Amount:</span>
-                    <span className="font-medium text-gray-900">
-                         {selectedItem.type === "ORDER" ? (
-                                                           <>
-                                                            {formatPrice(calculateSelectedItemsWithdeliveryPrice()) || "0"}
-                                                           </>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className="font-medium text-gray-900">
+                        {formatPrice(DisplayTotalProductPriceData()) || "0"}
 
-              ) : (
-                <>  
-                {formatPrice(paymentStatus.amount.toFixed(2))}
-                  </>)}
-                      
-                      {/* {paymentStatus.currency || "$"} */}
-                      
-                    </span>
-                  </div>
+                    {/* {selectedItem.type === "ORDER" ? (
+                      <>{formatPrice(DisplayTotalProductPriceData()) || "0"}</>
+                    ) : (
+                      <>{formatPrice(paymentStatus.amount.toFixed(2))}</>
+                    )} */}
+
+                    {/* {paymentStatus.currency || "$"} */}
+                  </span>
+                </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Reference:</span>

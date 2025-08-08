@@ -16,6 +16,8 @@ import {
   Filter,
   ChevronUp,
   X,
+  Clipboard,
+  PictureInPicture,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +96,43 @@ function ServiceCard({
   useEffect(() => {
     setIsExpandable(isSelected);
   }, [isSelected]);
+ // Helper function to get the appropriate icon for the service type
+  const getServiceIcon = () => {
+    if (item.type === "ORDER") {
+      return <Package className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />;
+    } else if (item.type === "BOOKING") {
+      return <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />;
+    } else {
+      return <PictureInPicture className="h-5 w-5 sm:h-6 sm:w-6 text-teal-600" />;
+    }
+  };
+// Helper function to get the appropriate background color
+  const getServiceBgColor = () => {
+    if (item.type === "ORDER") {
+      return "bg-orange-100/60";
+    } else if (item.type === "BOOKING") {
+      return "bg-purple-100/60";
+    } else {
+      return "bg-teal-100/60";
+    }
+  };
+   // Helper function to get service ID display
+  const getServiceIdDisplay = () => {
+    if (item.type === "ORDER") {
+      return item.orderData?.orderId?.slice(-6) || "N/A";
+    } else if (item.type === "BOOKING") {
+      return item.bookingData?.bookingId?.slice(-6) || "N/A";
+    } else {
+      return item.requestItemData?.requestId?.slice(-6) || "N/A";
+    }
+  };
 
+  // Helper function to get service name
+  const getServiceName = () => {
+    if (item.type === "ORDER") return "Order";
+    if (item.type === "BOOKING") return "Booking";
+    return "Request";
+  };
   // Helper function to format date and time
   const formatDateTime = (dateString: string) => {
     const date = moment(dateString);
@@ -211,18 +249,12 @@ const calculateSelectedItemItemsCount = () => {
                 item.type === "ORDER" ? "bg-orange-100/60" : "bg-purple-100/60"
               }`}
             >
-              {item.type === "ORDER" ? (
-                <Package className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
-              ) : (
-                <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-              )}
+              {getServiceIcon()}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">
-                {item.type === "ORDER" ? "Order" : "Booking"} #
-                {item.type === "ORDER"
-                  ? item.orderData?.orderId?.slice(-6) || "N/A"
-                  : item.bookingData?.bookingId?.slice(-6) || "N/A"}
+                {getServiceName()} #
+                {getServiceIdDisplay() }
               </h3>
               <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">
                 {item.vendor.name}
@@ -253,12 +285,12 @@ const calculateSelectedItemItemsCount = () => {
           <div className="flex items-center gap-2">
             <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
             <span className="text-xs sm:text-sm text-gray-600 truncate">
-                 {item.type === "ORDER" ? (
-                                <>{item.vendor.location}</>
-
-              ) : (
-                <>{item.bookingData?.deliveryAddress}</>
-                )}
+                {item.type === "ORDER"
+                  ? item.vendor.location
+                  : item.type === "BOOKING"
+                  ? item.bookingData?.pickUpAddress ?? item.vendor.location
+                  : item.requestItemData?.requestItem?.pickUpAddress ?? 
+                    item.vendor.location}
               
             </span>
           </div>
@@ -480,6 +512,143 @@ const calculateSelectedItemItemsCount = () => {
                       <p className="text-gray-500 text-xs">Notes:</p>
                       <p className="font-medium text-xs">
                         {item.bookingData.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {item.type === "REQUESTITEM" && item.requestItemData && (
+              <div className="backdrop-blur-xl bg-purple-50/60 rounded-xl p-3 border border-purple-200/40">
+                <h4 className="font-medium text-gray-900 mb-2 text-sm">
+                  Request Details
+                </h4>
+                <div className="text-xs sm:text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium capitalize">
+                        {item.requestItemData.requestItem?.state || "N/A"}
+                      </span>
+                      {handleOpenStatusDialog && isSelected && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenStatusDialog();
+                          }}
+                          disabled={isUpdatingStatus}
+                          className="h-6 px-2 text-xs backdrop-blur-xl bg-white/20 hover:bg-white/30 border-white/30"
+                        >
+                          {isUpdatingStatus ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Update"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Item/Service */}
+                  {/* {item.requestItemData.requestItem?.item && (
+                    <p>
+                      <span className="text-gray-500">Service:</span>{" "}
+                      <span className="font-medium">
+                        {item.bookingData.item}
+                      </span>
+                    </p>
+                  )} */}
+
+                  {/* Location Information */}
+                  {item.requestItemData.requestItem?.pickUpAddress && (
+                    <p>
+                      <span className="text-gray-500">Pick-up Location:</span>{" "}
+                      <span className="font-medium">
+                        {item.requestItemData.requestItem?.pickUpAddress}
+                      </span>
+                    </p>
+                  )}
+
+                  {item.requestItemData.requestItem?.deliveryAddress && (
+                    <p>
+                      <span className="text-gray-500">Delivery Address:</span>{" "}
+                      <span className="font-medium">
+                        {item.requestItemData.requestItem?.deliveryAddress}
+                      </span>
+                    </p>
+                  )}
+
+                  {item.requestItemData.requestItem?.createdAt && item.requestItemData.requestItem?.estimatedDeliveryDate ? (
+                    // Use the new date-time range formatter
+                    (() => {
+                      const { date, time } = formatDateTimeRange(
+                        item.requestItemData.requestItem?.createdAt,
+                        item.requestItemData.requestItem?.estimatedDeliveryDate
+                      );
+                      return (
+                        <>
+                          <p>
+                            <span className="text-gray-500">Date:</span>{" "}
+                            <span className="font-medium">{date}</span>
+                          </p>
+                          <p>
+                            <span className="text-gray-500">Time:</span>{" "}
+                            <span className="font-medium">{time}</span>
+                          </p>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    // Fallback to individual date/time if available
+                    <>
+                      <p>
+                        <span className="text-gray-500">Date:</span>{" "}
+                        <span className="font-medium">
+                          {item.requestItemData.requestItem?.createdAt
+                            ? formatDate(item.requestItemData.requestItem?.createdAt)
+                            : "N/A"}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500">Time:</span>{" "}
+                        {/* <span className="font-medium">
+                          {item.bookingData.startTime
+                            ? formatTime(item.bookingData.startTime)
+                            : "N/A"}{" "}
+                          -{" "}
+                          {item.bookingData.endTime
+                            ? formatTime(item.bookingData.endTime)
+                            : "N/A"}
+                        </span> */}
+                      </p>
+                    </>
+                  )}
+
+                  {item.requestItemData.requestItem?.quantity && (
+                    <p>
+                      <span className="text-gray-500">Items:</span>{" "}
+                      <span className="font-medium">
+                        {item.requestItemData.requestItem?.quantity}
+                      </span>
+                    </p>
+                  )}
+                  {item.requestItemData.requestItem?.deliveryFee && (
+                    <p>
+                      <span className="text-gray-500">Fee:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        GH₵{item.requestItemData.requestItem?.deliveryFee || "0"}
+                      </span>
+                    </p>
+                  )}
+
+                  {/* Notes */}
+                  {item.requestItemData.requestItem?.description && (
+                    <div className="mt-2 pt-2 border-t border-purple-200/30">
+                      <p className="text-gray-500 text-xs">Notes:</p>
+                      <p className="font-medium text-xs">
+                        {item.requestItemData.requestItem?.description}
                       </p>
                     </div>
                   )}

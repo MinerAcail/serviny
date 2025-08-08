@@ -67,6 +67,7 @@ interface MultiLocationInputDialogProps {
   placesServiceRef: React.RefObject<google.maps.places.PlacesService | null>;
   isLoaded: boolean;
   isOrder?: boolean; // Add isOrder prop to determine if this is for an order
+  
 }
 
 // Generate a simple UUID for new delivery items

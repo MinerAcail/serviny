@@ -50,6 +50,7 @@ import {
   // Menu,
   Info,
   BarChart3,
+  PictureInPicture,
 } from "lucide-react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import maplibregl from "maplibre-gl";
@@ -73,6 +74,7 @@ import { ActiveRiders } from "./active-riders";
 import { RiderDetails } from "./rider-details";
 import { ServiceManagement } from "./service-management";
 import { GOOGLE_MAPS_CONFIG } from "@/components/global/formatPrice";
+import { DropShippingServiceManagement } from "./drop-shipping-service-management";
 
 // Separate query for route data
 export const GET_ROUTE_DATA_FOR_EACH_ORDER = gql`
@@ -175,6 +177,8 @@ const LiveMap: React.FC = () => {
       | "booking"
       | "vendor"
       | "multigroup"
+      | "request"
+
       | null;
     value: string;
     relatedData: any[];
@@ -293,24 +297,44 @@ const LiveMap: React.FC = () => {
     const bookings = serviceData
       .filter((s) => s.type === "BOOKING" && s.bookingData?.bookingId)
       .filter((s) => {
-        const bookingId = s.bookingData.bookingId.toLowerCase();
-        const shortId = bookingId.slice(-6);
+        const bookingId = s.bookingData?.bookingId.toLowerCase();
+        const shortId = bookingId?.slice(-6);
         return (
-          bookingId.includes(query) ||
-          shortId.includes(query) ||
-          bookingId.includes(query.replace("#", "")) ||
-          shortId.includes(query.replace("#", ""))
+          bookingId?.includes(query) ||
+          shortId?.includes(query) ||
+          bookingId?.includes(query.replace("#", "")) ||
+          shortId?.includes(query.replace("#", ""))
         );
       })
       .slice(0, 3)
       .map((s) => ({
         type: "booking",
-        value: `#${s.bookingData.bookingId.slice(-6)}`,
-        label: `Booking #${s.bookingData.bookingId.slice(-6)}`,
+        value: `#${s.bookingData?.bookingId.slice(-6)}`,
+        label: `Booking #${s.bookingData?.bookingId.slice(-6)}`,
         icon: "📅",
         customer: s.customer.name,
       }));
 
+ const requestItems = serviceData
+    .filter((s) => s.type === "REQUESTITEM" && s.requestItemData?.requestId)
+    .filter((s) => {
+      const requestId = s.requestItemData?.requestId.toLowerCase();
+      const shortId = requestId?.slice(-6);
+      return (
+        requestId?.includes(query) ||
+        shortId?.includes(query) ||
+        requestId?.includes(query.replace("#", "")) ||
+        shortId?.includes(query.replace("#", ""))
+      );
+    })
+    .slice(0, 3)
+    .map((s) => ({
+      type: "request",
+      value: `#${s?.requestItemData?.requestId?.slice(-6)}`,
+      label: `Request #${s?.requestItemData?.requestId?.slice(-6)}`,
+      icon: "📋",
+      customer: s.customer.name,
+    }));
     // Get vendor names
     const vendors = [...new Set(serviceData.map((s) => s.vendor.name))]
       .filter((name) => name.toLowerCase().includes(query))
@@ -332,10 +356,10 @@ const riderNames = uniqueRiderNames
     const rider = riders.find(r => r.name === name);
     return {
       type: "rider",
-      value: rider.name,
-      label: `Rider: ${rider.name}`,
-      icon: rider.vehicle === "Motorcycle" ? "🏍️" : "🚲",
-      status: rider.status,
+      value: rider?.name,
+      label: `Rider: ${rider?.name}`,
+      icon: rider?.vehicle === "Motorcycle" ? "🏍️" : "🚲",
+      status: rider?.status,
     };
   });
 
@@ -345,19 +369,19 @@ const riderNames = uniqueRiderNames
         ...new Set(
           serviceData
             .filter((s) => s.type === "BOOKING" && s.bookingData?.multiGroupId)
-            .map((s) => s.bookingData.multiGroupId)
+            .map((s) => s?.bookingData?.multiGroupId)
         ),
       ];
 
       return multiGroupIds
         .filter((multiGroupId) => {
-          const shortId = multiGroupId.slice(-6).toLowerCase();
-          const fullId = multiGroupId.toLowerCase();
+          const shortId = multiGroupId?.slice(-6).toLowerCase();
+          const fullId = multiGroupId?.toLowerCase();
           return (
-            fullId.includes(query) ||
-            shortId.includes(query) ||
-            fullId.includes(query.replace("#", "")) ||
-            shortId.includes(query.replace("#", ""))
+            fullId?.includes(query) ||
+            shortId?.includes(query) ||
+            fullId?.includes(query.replace("#", "")) ||
+            shortId?.includes(query.replace("#", ""))
           );
         })
         .slice(0, 2)
@@ -395,6 +419,7 @@ const riderNames = uniqueRiderNames
       ...vendors,
       ...riderNames,
       ...multiGroupSuggestions,
+      ...requestItems,
     ]);
     setShowSuggestions(true);
   }, [searchQuery, serviceData, riders]);
@@ -403,6 +428,7 @@ const riderNames = uniqueRiderNames
   const filteredRiders = useMemo(
     () =>
       riders.filter((rider) => {
+
         const matchesSearch = (() => {
           if (!searchQuery.trim()) return true;
 
@@ -414,13 +440,14 @@ const riderNames = uniqueRiderNames
             .toLowerCase()
             .includes(query);
 
-          // Search in customer names from rider's current services
-          const customerNameMatch = [
-            ...rider.currentOrders,
-            ...(rider.currentBookings || []),
-          ].some((service) =>
-            service.customer.name.toLowerCase().includes(query)
-          );
+           // Search in customer names from rider's current services
+        const customerNameMatch = [
+          ...rider.currentOrders,
+          ...(rider.currentBookings || []),
+          ...(rider.currentRequestItems || []), // Add request items
+        ].some((service) =>
+          service.customer.name.toLowerCase().includes(query)
+        );
 
           // Search in order IDs (with and without # prefix)
           const orderIdMatch = rider.currentOrders.some((service) => {
@@ -480,47 +507,112 @@ const riderNames = uniqueRiderNames
               return false;
             }
           );
+// Search in request IDs (with and without # prefix) - NEW
+        const requestIdMatch = (rider.currentRequestItems || []).some(
+          (service) => {
+            if (
+              service.type === "REQUESTITEM" &&
+              service.requestItemData?.requestId
+            ) {
+              const requestId = service.requestItemData.requestId.toLowerCase();
+              const shortRequestId = requestId.slice(-6);
 
+              return (
+                requestId.includes(query) ||
+                shortRequestId.includes(query) ||
+                requestId.includes(query.replace("#", "")) ||
+                shortRequestId.includes(query.replace("#", ""))
+              );
+            }
+            return false;
+          }
+        );
           // Search in vendor names
           const vendorNameMatch = [
             ...rider.currentOrders,
             ...(rider.currentBookings || []),
+             ...(rider.currentRequestItems || []),
           ].some((service) =>
             service.vendor?.name?.toLowerCase().includes(query)
           );
 
           // Search in delivery addresses
           const deliveryAddressMatch = [
-            ...rider.currentOrders.filter((s) => s.orderData?.deliveryAddress),
-            ...(rider.currentBookings || []).filter(
-              (s) => s.bookingData?.deliveryAddress
-            ),
-          ].some((service) => {
-            const address =
-              service.type === "ORDER"
-                ? service.orderData?.deliveryAddress
-                : service.bookingData?.deliveryAddress;
-            return address?.toLowerCase().includes(query);
-          });
+          ...rider.currentOrders.filter((s) => s.orderData?.deliveryAddress),
+          ...(rider.currentBookings || []).filter(
+            (s) => s.bookingData?.deliveryAddress
+          ),
+          ...(rider.currentRequestItems || []).filter( // Add request items
+            (s) => s.requestItemData?.requestItem?.deliveryAddress
+          ),
+        ].some((service) => {
+          let address;
+          if (service.type === "ORDER") {
+            address = service.orderData?.deliveryAddress;
+          } else if (service.type === "BOOKING") {
+            address = service.bookingData?.deliveryAddress;
+          } else if (service.type === "REQUESTITEM") {
+            address = service.requestItemData?.requestItem?.deliveryAddress;
+          }
+          return address?.toLowerCase().includes(query);
+        });
 
           // Search in pickup addresses (for bookings)
-          const pickupAddressMatch = (rider.currentBookings || [])
-            .filter((s) => s.bookingData?.pickUpAddress)
-            .some((service) => {
-              const pickupAddress = service.bookingData?.pickUpAddress;
-              return pickupAddress?.toLowerCase().includes(query);
-            });
+       const pickupAddressMatch = [
+          ...(rider.currentBookings || []).filter((s) => s.bookingData?.pickUpAddress),
+          ...(rider.currentRequestItems || []).filter( // Add request items
+            (s) => s.requestItemData?.requestItem?.pickUpAddress
+          ),
+        ].some((service) => {
+          let pickupAddress;
+          if (service.type === "BOOKING") {
+            pickupAddress = service.bookingData?.pickUpAddress;
+          } else if (service.type === "REQUESTITEM") {
+            pickupAddress = service.requestItemData?.requestItem?.pickUpAddress;
+          }
+          return pickupAddress?.toLowerCase().includes(query);
+        });
 
+          // Search in request item names - NEW
+        const requestItemNameMatch = (rider.currentRequestItems || []).some(
+          (service) => {
+            if (
+              service.type === "REQUESTITEM" &&
+              service.requestItemData?.requestItem?.name
+            ) {
+              return service.requestItemData.requestItem.name
+                .toLowerCase()
+                .includes(query);
+            }
+            return false;
+          }
+        );
+        const requestItemDescriptionMatch = (rider.currentRequestItems || []).some(
+          (service) => {
+            if (
+              service.type === "REQUESTITEM" &&
+              service.requestItemData?.requestItem?.description
+            ) {
+              return service.requestItemData.requestItem.description
+                .toLowerCase()
+                .includes(query);
+            }
+            return false;
+          }
+        );
           return (
             riderNameMatch ||
             riderLocationMatch ||
             customerNameMatch ||
             orderIdMatch ||
             bookingIdMatch ||
+            requestIdMatch ||
             multiGroupIdMatch ||
             vendorNameMatch ||
             deliveryAddressMatch ||
-            pickupAddressMatch
+            pickupAddressMatch||
+             requestItemNameMatch || 
+          requestItemDescriptionMatch
           );
         })();
 
@@ -534,11 +626,14 @@ const riderNames = uniqueRiderNames
           const hasOrderType = rider.currentOrders.some(
             (order) => order.type === typeFilter
           );
+
           const hasBookingType =
             rider.currentBookings?.some(
               (booking) => booking.type === typeFilter
             ) || false;
-          matchesType = hasOrderType || hasBookingType;
+            
+          const hasRequestType = rider.currentRequestItems?.some((request) => request.type === typeFilter) || false;
+          matchesType = hasOrderType || hasBookingType|| hasRequestType
         }
 
         return matchesSearch && matchesStatus && matchesVehicle && matchesType;
@@ -550,13 +645,14 @@ const riderNames = uniqueRiderNames
   const stats = useMemo(() => {
     const orderCount = serviceData.filter((s) => s.type === "ORDER").length;
     const bookingCount = serviceData.filter((s) => s.type === "BOOKING").length;
-
+  const requestCount = serviceData.filter((s) => s.type === "REQUESTITEM").length;
     return {
       activeRiders: riders.filter((r) => r.status === "On Delivery").length,
       availableRiders: riders.filter((r) => r.status === "Available").length,
       onBreakRiders: riders.filter((r) => r.status === "On Break").length,
       totalOrders: orderCount,
       totalBookings: bookingCount,
+       totalRequests: requestCount,
       totalServiceData: serviceData.length,
       ordersWithRoutes: orderRouteCache.size,
       routeFetchProgress: routeFetchProgress,
@@ -688,7 +784,7 @@ const riderNames = uniqueRiderNames
 
   const handleViewOnLiveMap = (
     entityId: string,
-    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor" |"request"
   ) => {
     // console.log("Entity ID:", entityId);
     // console.log("Entity Type:", entityType);
@@ -706,6 +802,10 @@ const riderNames = uniqueRiderNames
         setSearchQuery(`#${entityId}`);
         break;
       case "booking":
+        // console.log("Opening live map for booking:", entityId);
+        setSearchQuery(`#${entityId}`);
+        break;
+      case "request":
         // console.log("Opening live map for booking:", entityId);
         setSearchQuery(`#${entityId}`);
         break;
@@ -1224,6 +1324,7 @@ const riderNames = uniqueRiderNames
           selectedEntity
         );
 
+
         // Store markers for cleanup
         markersRef.current = newMarkers;
 
@@ -1243,20 +1344,38 @@ const riderNames = uniqueRiderNames
                 ? selectedEntity.relatedData.services
                 : serviceData;
 
-            servicesToShow.forEach((service) => {
-              if (service.type === "ORDER") {
-                if (service.vendor?.coordinates)
-                  bounds.extend(service.vendor.coordinates);
-                if (service.orderData?.order?.coordinates)
-                  bounds.extend(service.orderData.order.coordinates);
-              } else if (service.type === "BOOKING" && service.bookingData) {
-                // Enhanced for multigroup - add ALL pickup/dropoff locations
-                if (service.bookingData.pickupLocation)
-                  bounds.extend(service.bookingData.pickupLocation);
-                if (service.bookingData.dropoffLocation)
-                  bounds.extend(service.bookingData.dropoffLocation);
+          servicesToShow.forEach((service) => {
+            if (service.type === "ORDER") {
+              if (service.vendor?.coordinates)
+                bounds.extend(service.vendor.coordinates);
+              if (service.orderData?.order?.coordinates)
+                bounds.extend(service.orderData.order.coordinates);
+            } else if (service.type === "BOOKING" && service.bookingData) {
+              // Enhanced for multigroup - add ALL pickup/dropoff locations
+              if (service.bookingData.pickupLocation)
+                bounds.extend(service.bookingData.pickupLocation);
+              if (service.bookingData.dropoffLocation)
+                bounds.extend(service.bookingData.dropoffLocation);
+            } else if (service.type === "REQUESTITEM" && service.requestItemData) {
+              // Add REQUEST_ITEM locations to bounds
+              const requestItem = service.requestItemData.requestItem;
+              
+              // Add pickup location
+              if (requestItem?.pickupLocation) {
+                bounds.extend(requestItem.pickupLocation);
               }
-            });
+              
+              // Add dropoff location
+              if (requestItem?.dropoffLocation) {
+                bounds.extend(requestItem.dropoffLocation);
+              }
+              
+              // Add vendor location if available
+              if (service.vendor?.coordinates) {
+                bounds.extend(service.vendor.coordinates);
+              }
+            }
+          });
 
             if (filteredRiders.length > 1 || servicesToShow.length > 0) {
               mapInstance.current?.fitBounds(bounds, {
@@ -1334,183 +1453,200 @@ const riderNames = uniqueRiderNames
     }
   }, [mapReadyToInit]);
 
-  const getRelatedEntityData = useCallback(
-    (entityType: string, entityValue: string) => {
-      const related = {
-        riders: [],
-        services: [],
-        vendors: [],
-        customers: [],
-        routes: [],
-      };
+const getRelatedEntityData = useCallback(
+  (entityType: string, entityValue: string) => {
+    const related = {
+      riders: [],
+      services: [],
+      vendors: [],
+      customers: [],
+      routes: [],
+    };
 
-      switch (entityType) {
-        case "rider": {
-          const rider = riders.find((r) => r.name === entityValue);
-          if (rider) {
-            related.riders = [rider];
-            related.services = [
-              ...rider.currentOrders,
-              ...(rider.currentBookings || []),
-            ];
-            related.vendors = [
-              ...new Set(related.services.map((s) => s.vendor)),
-            ];
-            related.customers = [
-              ...new Set(related.services.map((s) => s.customer)),
-            ];
-            related.routes = related.services
-              .filter((s) => {
-                if (s.type === "ORDER") return s.orderData?.routeData?.geojson;
-                if (s.type === "BOOKING")
-                  return s.bookingData?.routeData?.geojson;
-                return false;
-              })
-              .map((s) =>
-                s.type === "ORDER"
-                  ? s.orderData.routeData
-                  : s.bookingData.routeData
-              );
-          }
-          break;
-        }
-        case "customer": {
-          const customerServices = serviceData.filter(
-            (s) => s.customer.name === entityValue
-          );
-          related.services = customerServices;
-          related.riders = customerServices
-            .filter((s) => s.rider)
-            .map((s) => riders.find((r) => r.id === s.rider.id))
-            .filter(Boolean);
-          related.vendors = [...new Set(customerServices.map((s) => s.vendor))];
-          related.customers = [customerServices[0]?.customer].filter(Boolean);
-          related.routes = customerServices
-            .filter((s) => {
-              if (s.type === "ORDER") return s.orderData?.routeData?.geojson;
-              if (s.type === "BOOKING")
-                return s.bookingData?.routeData?.geojson;
-              return false;
-            })
-            .map((s) =>
-              s.type === "ORDER"
-                ? s.orderData.routeData
-                : s.bookingData.routeData
-            );
-          break;
-        }
-        case "order": {
-          const orderService = serviceData.find(
-            (s) =>
-              s.type === "ORDER" &&
-              s.orderData?.orderId?.slice(-6) === entityValue.replace("#", "")
-          );
-          if (orderService) {
-            related.services = [orderService];
-            related.vendors = [orderService.vendor];
-            related.customers = [orderService.customer];
-            if (orderService.rider) {
-              related.riders = [
-                riders.find((r) => r.id === orderService.rider.id),
-              ].filter(Boolean);
-            }
-            if (orderService.orderData?.routeData?.geojson) {
-              related.routes = [orderService.orderData.routeData];
-            }
-          }
-          break;
-        }
-        case "booking": {
-          const bookingService = serviceData.find(
-            (s) =>
-              s.type === "BOOKING" &&
-              s.bookingData?.bookingId?.slice(-6) ===
-                entityValue.replace("#", "")
-          );
-          if (bookingService) {
-            related.services = [bookingService];
-            related.vendors = [bookingService.vendor];
-            related.customers = [bookingService.customer];
-            if (bookingService.rider) {
-              related.riders = [
-                riders.find((r) => r.id === bookingService.rider.id),
-              ].filter(Boolean);
-            }
-            if (bookingService.bookingData?.routeData?.geojson) {
-              related.routes = [bookingService.bookingData.routeData];
-            }
-          }
-          break;
-        }
-       case "multigroup": {
-  const shortId = entityValue.replace("#", "");
-  const multiGroupServices = serviceData.filter(
-    (s) =>
-      s.type === "BOOKING" &&
-      s.bookingData?.multiGroupId &&
-      s.bookingData.multiGroupId.slice(-6) === shortId
-  );
-
-  if (multiGroupServices.length > 0) {
-    // Get unique rider IDs
-    const uniqueRiderIds = [
-      ...new Set(
-        multiGroupServices
-          .filter(s => s.rider)
-          .map(s => s.rider.id)
-      )
-    ];
-
-    related.services = multiGroupServices;
-    related.vendors = [
-      ...new Set(multiGroupServices.map((s) => s.vendor)),
-    ];
-    related.customers = [
-      ...new Set(multiGroupServices.map((s) => s.customer)),
-    ];
-    related.riders = uniqueRiderIds
-      .map((id) => riders.find((r) => r.id === id))
-      .filter(Boolean); // Filter out undefined values
-    related.routes = multiGroupServices
-      .filter((s) => s.bookingData?.routeData?.geojson)
-      .map((s) => s.bookingData.routeData);
-  }
-  break;
-}
-
-        case "vendor": {
-          const vendorServices = serviceData.filter(
-            (s) => s.vendor.name === entityValue
-          );
-          related.services = vendorServices;
-          related.vendors = [vendorServices[0]?.vendor].filter(Boolean);
-          related.customers = [
-            ...new Set(vendorServices.map((s) => s.customer)),
+    switch (entityType) {
+      case "rider": {
+        const rider = riders.find((r) => r.name === entityValue);
+        if (rider) {
+          related.riders = [rider];
+          related.services = [
+            ...rider.currentOrders,
+            ...(rider.currentBookings || []),
+            ...(rider.currentRequestItems || []),
           ];
-          related.riders = vendorServices
-            .filter((s) => s.rider)
-            .map((s) => riders.find((r) => r.id === s.rider.id))
-            .filter(Boolean);
-          related.routes = vendorServices
+          related.vendors = [...new Set(related.services.map((s) => s.vendor))];
+          related.customers = [...new Set(related.services.map((s) => s.customer))];
+          related.routes = related.services
             .filter((s) => {
               if (s.type === "ORDER") return s.orderData?.routeData?.geojson;
-              if (s.type === "BOOKING")
-                return s.bookingData?.routeData?.geojson;
+              if (s.type === "BOOKING") return s.bookingData?.routeData?.geojson;
+              if (s.type === "REQUESTITEM") return s.requestItemData?.routeData?.geojson;
               return false;
             })
-            .map((s) =>
-              s.type === "ORDER"
-                ? s.orderData.routeData
-                : s.bookingData.routeData
-            );
-          break;
+            .map((s) => {
+              if (s.type === "ORDER") return s.orderData.routeData;
+              if (s.type === "BOOKING") return s.bookingData.routeData;
+              if (s.type === "REQUESTITEM") return s.requestItemData.routeData;
+            });
         }
+        break;
       }
 
-      return related;
-    },
-    [riders, serviceData]
-  );
+      case "customer": {
+        const customerServices = serviceData.filter(
+          (s) => s.customer.name === entityValue
+        );
+        related.services = customerServices;
+        related.riders = customerServices
+          .filter((s) => s.rider)
+          .map((s) => riders.find((r) => r.id === s.rider.id))
+          .filter(Boolean);
+        related.vendors = [...new Set(customerServices.map((s) => s.vendor))];
+        related.customers = [customerServices[0]?.customer].filter(Boolean);
+        related.routes = customerServices
+          .filter((s) => {
+            if (s.type === "ORDER") return s.orderData?.routeData?.geojson;
+            if (s.type === "BOOKING") return s.bookingData?.routeData?.geojson;
+            if (s.type === "REQUESTITEM") return s.requestItemData?.routeData?.geojson;
+            return false;
+          })
+          .map((s) => {
+            if (s.type === "ORDER") return s.orderData.routeData;
+            if (s.type === "BOOKING") return s.bookingData.routeData;
+            if (s.type === "REQUESTITEM") return s.requestItemData.routeData;
+          });
+        break;
+      }
+
+      case "order": {
+        const orderService = serviceData.find(
+          (s) =>
+            s.type === "ORDER" &&
+            s.orderData?.orderId?.slice(-6) === entityValue.replace("#", "")
+        );
+        if (orderService) {
+          related.services = [orderService];
+          related.vendors = [orderService.vendor];
+          related.customers = [orderService.customer];
+          if (orderService.rider) {
+            related.riders = [
+              riders.find((r) => r.id === orderService.rider.id),
+            ].filter(Boolean);
+          }
+          if (orderService.orderData?.routeData?.geojson) {
+            related.routes = [orderService.orderData.routeData];
+          }
+        }
+        break;
+      }
+
+      case "booking": {
+        const bookingService = serviceData.find(
+          (s) =>
+            s.type === "BOOKING" &&
+            s.bookingData?.bookingId?.slice(-6) === entityValue.replace("#", "")
+        );
+        if (bookingService) {
+          related.services = [bookingService];
+          related.vendors = [bookingService.vendor];
+          related.customers = [bookingService.customer];
+          if (bookingService.rider) {
+            related.riders = [
+              riders.find((r) => r.id === bookingService.rider.id),
+            ].filter(Boolean);
+          }
+          if (bookingService.bookingData?.routeData?.geojson) {
+            related.routes = [bookingService.bookingData.routeData];
+          }
+        }
+        break;
+      }
+
+      case "request": {
+        const requestService = serviceData.find(
+          (s) =>
+            s.type === "REQUESTITEM" &&
+            s.requestItemData?.requestId?.slice(-6) ===
+              entityValue.replace("#", "")
+        );
+        if (requestService) {
+          related.services = [requestService];
+          related.vendors = [requestService.vendor];
+          related.customers = [requestService.customer];
+          if (requestService.rider) {
+            related.riders = [
+              riders.find((r) => r.id === requestService.rider.id),
+            ].filter(Boolean);
+          }
+          if (requestService.requestItemData?.routeData?.geojson) {
+            related.routes = [requestService.requestItemData.routeData];
+          }
+        }
+        break;
+      }
+
+      case "multigroup": {
+        const shortId = entityValue.replace("#", "");
+        const multiGroupServices = serviceData.filter(
+          (s) =>
+            s.type === "BOOKING" &&
+            s.bookingData?.multiGroupId &&
+            s.bookingData.multiGroupId.slice(-6) === shortId
+        );
+
+        if (multiGroupServices.length > 0) {
+          const uniqueRiderIds = [
+            ...new Set(
+              multiGroupServices
+                .filter((s) => s.rider)
+                .map((s) => s.rider.id)
+            ),
+          ];
+
+          related.services = multiGroupServices;
+          related.vendors = [...new Set(multiGroupServices.map((s) => s.vendor))];
+          related.customers = [...new Set(multiGroupServices.map((s) => s.customer))];
+          related.riders = uniqueRiderIds
+            .map((id) => riders.find((r) => r.id === id))
+            .filter(Boolean);
+          related.routes = multiGroupServices
+            .filter((s) => s.bookingData?.routeData?.geojson)
+            .map((s) => s.bookingData.routeData);
+        }
+        break;
+      }
+
+      case "vendor": {
+        const vendorServices = serviceData.filter(
+          (s) => s.vendor.name === entityValue
+        );
+        related.services = vendorServices;
+        related.vendors = [vendorServices[0]?.vendor].filter(Boolean);
+        related.customers = [...new Set(vendorServices.map((s) => s.customer))];
+        related.riders = vendorServices
+          .filter((s) => s.rider)
+          .map((s) => riders.find((r) => r.id === s.rider.id))
+          .filter(Boolean);
+        related.routes = vendorServices
+          .filter((s) => {
+            if (s.type === "ORDER") return s.orderData?.routeData?.geojson;
+            if (s.type === "BOOKING") return s.bookingData?.routeData?.geojson;
+            if (s.type === "REQUESTITEM") return s.requestItemData?.routeData?.geojson;
+            return false;
+          })
+          .map((s) => {
+            if (s.type === "ORDER") return s.orderData.routeData;
+            if (s.type === "BOOKING") return s.bookingData.routeData;
+            if (s.type === "REQUESTITEM") return s.requestItemData.routeData;
+          });
+        break;
+      }
+    }
+
+    return related;
+  },
+  [riders, serviceData]
+);
+
 
   // Enhanced FilterControlPanel with detailed entity-specific information
   const FilterControlPanel = () => {
@@ -1940,6 +2076,7 @@ const riderNames = uniqueRiderNames
           },
         };
       }
+      
 
       default:
         return null;
@@ -3009,6 +3146,7 @@ useEffect(() => {
                       <Eye className="h-4 w-4 mr-2" />
                       Delivery Zones
                     </DropdownMenuCheckboxItem>
+                    
                     <DropdownMenuCheckboxItem
                       checked={showRoutes}
                       onCheckedChange={setShowRoutes}
@@ -3181,7 +3319,13 @@ useEffect(() => {
                       <Calendar className="h-4 w-4 mr-2" />
                       Bookings ({stats.totalBookings})
                     </DropdownMenuCheckboxItem>
-
+                    <DropdownMenuCheckboxItem
+                      checked={typeFilter === "REQUESTITEM"}
+                      onCheckedChange={() => setTypeFilter("REQUESTITEM")}
+                    >
+                      <PictureInPicture className="h-4 w-4 mr-2" />
+                      Requests ({stats.totalRequests})
+                    </DropdownMenuCheckboxItem>
                     <DropdownMenuSeparator />
 
                     {/* Status Filter */}

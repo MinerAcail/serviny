@@ -410,7 +410,15 @@ func (r *mutationResolver) UpdateBookingOrderPaymentStatus(ctx context.Context, 
 			updatedStatus = booking.Status
 		}
 	}
-
+	if statusType == "REQUESTITEM" {
+		var request model.RequestItem
+		if err := r.DB.Where("id = ?", entityID).First(&request).Error; err == nil {
+			if err := r.DB.Model(&request).Update("status", status).Error; err != nil {
+				return "", fmt.Errorf("failed to update request status: %w", err)
+			}
+			updatedStatus = string(*request.State)
+		}
+	}
 	// Handle PAYMENT status
 	if statusType == "PAYMENT" {
 		var paymentStatus model.BookingOrderPaymentStatus
@@ -525,7 +533,18 @@ func (r *mutationResolver) OrderOrBookingPayment(ctx context.Context, entityID s
 			riderID = &booking.RiderID
 		}
 	}
-
+	if entityType == "REQUESTITEM" {
+		var requestItem model.RequestItem
+		if err := r.DB.Where("id = ?", entityID).First(&requestItem).Error; err == nil {
+			requestItem.State = (*model.ProductState)(&status)
+			if err := r.DB.Save(&requestItem).Error; err != nil {
+				return nil, fmt.Errorf("failed to update reques tItem status: %w", err)
+			}
+			serviceID = requestItem.ServiceID
+			userID = requestItem.UserID
+			riderID = requestItem.RiderID
+		}
+	}
 	// Create new payment status record
 	newPaymentStatus := model.BookingOrderPaymentStatus{
 		EntityID:   entityID,
@@ -610,6 +629,18 @@ func (r *mutationResolver) UpdateOrderBookStatus(ctx context.Context, entityID s
 		serviceID = &booking.ServiceID
 		userID = &booking.UserID
 		riderID = &booking.RiderID
+
+	case "REQUESTITEM":
+		var requestItem model.RequestItem
+		if err := r.DB.Where("id = ?", entityID).First(&requestItem).Error; err != nil {
+			return nil, fmt.Errorf("Request Item not found: %w", err)
+		}
+		if err := r.DB.Model(&requestItem).Update("status", status).Error; err != nil {
+			return nil, fmt.Errorf("failed to update Request Item status: %w", err)
+		}
+		serviceID = requestItem.ServiceID
+		userID = requestItem.UserID
+		riderID = requestItem.RiderID
 
 	default:
 		return nil, fmt.Errorf("invalid entityType: %s", entityType)

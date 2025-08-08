@@ -1,6 +1,7 @@
 // Fixed mapUtils.ts with ServiceData support
 import maplibregl from "maplibre-gl"
 import type { ServiceData, ProcessedRider, RouteData, ParsedRouteData } from "../serviceDataAndTypes"
+import { ZONE_COLORS } from "@/components/config/map"
 
 export const getStatusColor = (status: string): string => {
   switch (status) {
@@ -22,6 +23,9 @@ export const getStatusFromServices = (services: ServiceData[]): "Available" | "O
     }
     if (service.type === 'BOOKING' && service.bookingData) {
       return service.bookingData.isConfirmed === true
+    }
+      if (service.type === 'REQUESTITEM' && service.requestItemData) {
+      return service.requestItemData.isConfirmed === true
     }
     return false
   })
@@ -70,6 +74,7 @@ export const processRiders = (serviceData: ServiceData[]): ProcessedRider[] => {
           location: service.rider.location || "",
           orders: 0,
           bookings: 0,
+          requestItems: 0,
           rating: 4.5 + (Math.abs(riderId.split("").reduce((a, b) => a + b.charCodeAt(0), 0)) % 10) / 20,
           phone: service.rider.number,
           vehicle: Math.random() > 0.5 ? "Motorcycle" : "Bicycle",
@@ -77,6 +82,7 @@ export const processRiders = (serviceData: ServiceData[]): ProcessedRider[] => {
           earnings: "GH₵0",
           currentOrders: [],
           currentBookings: [],
+          currentRequestItems: [],
           position: position,
           direction: Math.abs(riderId.split("").reduce((a, b) => a + b.charCodeAt(0), 0)) % 360,
         })
@@ -109,10 +115,36 @@ export const processRiders = (serviceData: ServiceData[]): ProcessedRider[] => {
           const currentEarnings = parseFloat(rider.earnings.replace("GH₵", ""))
           rider.earnings = `GH₵${(currentEarnings + bookingFee).toFixed(2)}`
         }
+      } else if (service.type === 'REQUESTITEM') {
+        // Add REQUEST_ITEM handling
+        rider.currentRequestItems = rider.currentRequestItems || []
+        rider.currentRequestItems.push(service)
+        rider.requestItems = (rider.requestItems || 0) + 1
+
+        // Calculate earnings from request item
+        if (service.requestItemData?.deliveryFee) {
+          const requestFee = parseFloat(service.requestItemData.deliveryFee)
+          const currentEarnings = parseFloat(rider.earnings.replace("GH₵", ""))
+          rider.earnings = `GH₵${(currentEarnings + requestFee).toFixed(2)}`
+        }
+        
+        // Also calculate from item price if available
+        if (service.requestItemData?.requestItem?.price) {
+          const itemPrice = parseFloat(service.requestItemData.requestItem.price)
+          const quantity = service.requestItemData.requestItem.quantity || 1
+          const currentEarnings = parseFloat(rider.earnings.replace("GH₵", ""))
+          rider.earnings = `GH₵${(currentEarnings + (itemPrice * quantity)).toFixed(2)}`
+        }
       }
 
+
       // Update rider status based on current workload
-      const allServices = [...rider.currentOrders, ...(rider.currentBookings || [])]
+           const allServices = [
+        ...rider.currentOrders, 
+        ...(rider.currentBookings || []),
+        ...(rider.currentRequestItems || [])
+      ]
+
       rider.status = getStatusFromServices(allServices)
 
       // Extract route coordinates from service route data if available
@@ -123,6 +155,12 @@ export const processRiders = (serviceData: ServiceData[]): ProcessedRider[] => {
         }
       } else if (service.type === 'BOOKING' && service.bookingData?.routeData?.geojson) {
         const parsedRoute = parseRouteGeoJSON(service.bookingData.routeData.geojson)
+        if (parsedRoute && !rider.routeCoordinates) {
+          rider.routeCoordinates = parsedRoute.coordinates
+        }
+      }else if (service.type === 'REQUESTITEM' && service.requestItemData?.routeData?.geojson) {
+        // Add route handling for request items
+        const parsedRoute = parseRouteGeoJSON(service.requestItemData.routeData.geojson)
         if (parsedRoute && !rider.routeCoordinates) {
           rider.routeCoordinates = parsedRoute.coordinates
         }
@@ -343,13 +381,16 @@ export const addRiderRoutesToMap = (
         return service.orderData?.routeData?.geojson
       } else if (service.type === 'BOOKING') {
         return service.bookingData?.routeData?.geojson
+      }else if (service.type === 'REQUESTITEM') {
+        return service.requestItemData?.routeData?.geojson
       }
+      
       return false
     })
 
     if (servicesWithRoutes.length === 0) return
 
-    console.log(`Processing ${servicesWithRoutes.length} database routes for rider ${rider.name}`)
+    // console.log(`Processing ${servicesWithRoutes.length} database routes for rider ${rider.name}`)
 
     // Check if we have multigroup bookings
     const multiGroupServices = servicesWithRoutes.filter(service => 
@@ -380,20 +421,10 @@ export const addRiderRoutesToMap = (
 
             const serviceLayerId = `db-route-${rider.id}-service-${index}`
 
-            // Create unique colors for different routes in multigroup
-            const routeColors = [
-              '#8B5CF6', // Purple
-              '#EC4899', // Pink  
-              '#06B6D4', // Cyan
-              '#84CC16', // Lime
-              '#F59E0B', // Amber
-              '#EF4444', // Red
-              '#10B981', // Emerald
-              '#6366F1', // Indigo
-            ]
-            
+          
+          
             const routeColor = serviceType === 'BOOKING' 
-              ? routeColors[index % routeColors.length] 
+              ? ZONE_COLORS[index % ZONE_COLORS.length] 
               : getStatusColor(rider.status)
 
             const routeGeoJSONFeature = {
@@ -411,6 +442,8 @@ export const addRiderRoutesToMap = (
                 multiGroupId: service.type === 'BOOKING' ? service.bookingData?.multiGroupId : null,
                 bookingId: service.type === 'BOOKING' ? service.bookingData?.bookingId : null,
                 orderId: service.type === 'ORDER' ? service.orderData?.orderId : null,
+                requestId: service.type === 'REQUESTITEM' ? service.requestItemData?.requestId : null,
+                
               },
               geometry: {
                 type: "LineString",
@@ -474,6 +507,8 @@ export const addRiderRoutesToMap = (
         routeGeoJSON = firstServiceWithRoute.orderData.routeData.geojson
       } else if (firstServiceWithRoute.type === 'BOOKING' && firstServiceWithRoute.bookingData?.routeData?.geojson) {
         routeGeoJSON = firstServiceWithRoute.bookingData.routeData.geojson
+      } else if (firstServiceWithRoute.type === 'REQUESTITEM' && firstServiceWithRoute.requestItemData?.routeData?.geojson) {
+        routeGeoJSON = firstServiceWithRoute.requestItemData.routeData.geojson
       }
 
       if (routeGeoJSON) {
@@ -484,6 +519,7 @@ export const addRiderRoutesToMap = (
 
           const dbLayerId = `db-route-${rider.id}`
           const routeColor = firstServiceWithRoute.type === 'BOOKING' ? '#8B5CF6' : getStatusColor(rider.status)
+
 
           const routeGeoJSONFeature = {
             type: "Feature",
@@ -881,6 +917,103 @@ export const createAllMarkersWithLocations = (
         dropoffMarker.addTo(mapInstance);
         markers.push(dropoffMarker);
       }
+    }else if (service.type === "REQUESTITEM" && service.requestItemData) {
+      // Handle REQUEST_ITEM markers
+      const requestData = service.requestItemData;
+      const requestItem = requestData.requestItem;
+      
+      // Create unique keys for request item pickup/dropoff locations
+      const requestPickupKey = requestItem?.pickupLocation 
+        ? `request-pickup-${requestItem.pickupLocation[0]}-${requestItem.pickupLocation[1]}-${requestData.requestId}`
+        : null;
+      const requestDropoffKey = requestItem?.dropoffLocation 
+        ? `request-dropoff-${requestItem.dropoffLocation[0]}-${requestItem.dropoffLocation[1]}-${requestData.requestId}`
+        : null;
+
+      // Request item pickup marker
+      if (requestItem?.pickupLocation && requestPickupKey && !addedPickupDropoff.has(requestPickupKey)) {
+        addedPickupDropoff.add(requestPickupKey);
+        
+        let extraInfo = `📋 ${requestItem.quantity || 1} ${requestItem.quantity === 1 ? 'item' : 'items'}`;
+        if (requestItem.name) {
+          extraInfo += ` • ${requestItem.name}`;
+        }
+        if (requestItem.price) {
+          extraInfo += ` • GH₵${requestItem.price}`;
+        }
+
+        const requestPickupMarker = createServiceMarker(
+          requestItem.pickupLocation,
+          {
+            title: "Request Pickup",
+            subtitle: `${service.customer.name} • Request #${requestData.requestId.slice(-6)}`,
+            location: requestItem.pickUpAddress || "Pickup location",
+            type: 'pickup',
+            color: "#F59E0B", // Amber color for request items
+            extraInfo: extraInfo
+          },
+          showOnlyRelevant
+        );
+
+        requestPickupMarker.addTo(mapInstance);
+        markers.push(requestPickupMarker);
+      }
+
+      // Request item dropoff marker
+      if (requestItem?.dropoffLocation && requestDropoffKey && !addedPickupDropoff.has(requestDropoffKey)) {
+        addedPickupDropoff.add(requestDropoffKey);
+        
+        let extraInfo = '';
+        if (requestItem.description) {
+          extraInfo += requestItem.description;
+        }
+        if (requestData.estimatedDeliveryDate) {
+          const deliveryDate = new Date(requestData.estimatedDeliveryDate);
+          extraInfo += (extraInfo ? ' • ' : '') + `ETA: ${deliveryDate.toLocaleDateString()}`;
+        }
+        if (requestData.distance && requestData.duration) {
+          extraInfo += (extraInfo ? ' • ' : '') + `${requestData.distance} • ${requestData.duration}`;
+        }
+
+        const requestDropoffMarker = createServiceMarker(
+          requestItem.dropoffLocation,
+          {
+            title: "Request Dropoff",
+            subtitle: `${service.customer.name} • Request #${requestData.requestId.slice(-6)}`,
+            location: requestItem.deliveryAddress || "Delivery location",
+            type: 'dropoff',
+            color: "#D97706", // Darker amber for dropoff
+            extraInfo: extraInfo || 'Request item delivery'
+          },
+          showOnlyRelevant
+        );
+
+        requestDropoffMarker.addTo(mapInstance);
+        markers.push(requestDropoffMarker);
+      }
+
+      // If there's a vendor associated with the request item, add vendor marker
+      if (service.vendor?.coordinates) {
+        const vendorKey = `${service.vendor.id}-${service.vendor.coordinates[0]}-${service.vendor.coordinates[1]}`;
+        if (!addedVendors.has(vendorKey)) {
+          addedVendors.add(vendorKey);
+
+          const vendorMarker = createServiceMarker(
+            service.vendor.coordinates,
+            {
+              title: service.vendor.name,
+              location: service.vendor.location,
+              type: 'vendor',
+              color: "#10B981",
+              extraInfo: `Request #${requestData.requestId.slice(-6)} • ${service.customer.name}`
+            },
+            showOnlyRelevant
+          );
+
+          vendorMarker.addTo(mapInstance);
+          markers.push(vendorMarker);
+        }
+      }
     }
   });
 
@@ -897,7 +1030,11 @@ export const createAllMarkersWithLocations = (
 
       // Enhanced popup for riders with multigroup info
       let extraInfo = `📦 ${rider.currentOrders.length} orders • 📅 ${rider.currentBookings?.length || 0} bookings • ⭐ ${rider.rating}/5`;
-      
+      // Add request items info
+      if (rider.currentRequestItems && rider.currentRequestItems.length > 0) {
+        extraInfo += ` • 📋 ${rider.currentRequestItems.length} requests`;
+      }
+      extraInfo += ` • ⭐ ${rider.rating}/5`;
       // Check if rider has multigroup bookings
       const multiGroupBookings = rider.currentBookings?.filter(booking => 
         booking.type === 'BOOKING' && booking.bookingData?.multiGroupId
@@ -1003,7 +1140,7 @@ export const createRouteDataFromParsed = (parsedRoute: ParsedRouteData, rider: P
     durationSeconds = minutes * 60
   }
 
-  console.log(`Created route data: ${distanceNum}km, ${durationSeconds}s, ${parsedRoute.coordinates.length} points`)
+  // console.log(`Created route data: ${distanceNum}km, ${durationSeconds}s, ${parsedRoute.coordinates.length} points`)
 
   return {
     coordinates: parsedRoute.coordinates,
@@ -1054,7 +1191,30 @@ export const setupDirectionsRequest = (
           }
         }
       })
+      rider.currentOrders.forEach((service) => {
+      
 
+        if (service.type === "REQUESTITEM" && service.requestItemData) {
+          // Pickup (request origin)
+          if (service?.requestItemData?.requestItem?.pickupLocation) {
+            waypoints.push({
+              location: new google.maps.LatLng(
+                service?.requestItemData?.requestItem?.pickupLocation[1],
+                service?.requestItemData?.requestItem?.pickupLocation[0]
+              ),
+              stopover: true,
+            });
+          }
+
+          // Dropoff
+          if (service?.requestItemData?.requestItem?.dropoffLocation) {
+            destination = new google.maps.LatLng(
+              service?.requestItemData?.requestItem?.dropoffLocation[1],
+              service?.requestItemData?.requestItem?.dropoffLocation[0]
+            );
+          }
+        }
+      })
       // Process bookings
       rider.currentBookings?.forEach((service) => {
         if (service.type === 'BOOKING' && service.bookingData) {

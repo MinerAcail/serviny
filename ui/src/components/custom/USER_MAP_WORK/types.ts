@@ -122,6 +122,55 @@ export const GET_ALL_USER_SERVICE_DATA = gql`
           createdAt
         }
       }
+      requestItemData {
+        requestId
+        userType
+        isConfirmed
+        paymentStatus
+        paymentMethod
+        transportType
+        deliveryFee
+        distance
+        duration
+        estimatedDeliveryDate
+        requestItem {
+          id
+          name
+          webLink
+          price
+          state
+          description
+          quantity
+          itemType
+          imageUrls
+          duration
+          distance
+          deliveryFee
+          dropoffLocation
+          pickupLocation
+          estimatedDeliveryDate
+          deliveryAddress
+          pickUpAddress
+          rangeMetaId
+          categories
+          createdAt
+          updatedAt
+        }
+        rangeMetaData {
+          id
+          riderId
+          startKm
+          endKm
+          price
+        }
+        routeData {
+          id
+          orderId
+          geojson
+          userId
+          createdAt
+        }
+      }
     }
   }
 `
@@ -151,7 +200,7 @@ export const UPDATE_ORDER_BOOK_STATUS = gql`
 export interface ServiceData {
   id: string
   serviceId: string
-  type: "ORDER" | "BOOKING"
+  type: "ORDER" | "BOOKING" | "REQUESTITEM"
   rider?: {
     id: string
     name: string
@@ -224,8 +273,9 @@ export interface ServiceData {
     tableSize?: number
     userType?: string
     status?: string // Using status field for bookings instead of isConfirmed
-    pickupLocation?: string
-    dropoffLocation?: string
+      pickupLocation?: [number, number]
+
+      dropoffLocation?: [number, number]
     deliveryAddress?: string
     pickUpAddress?: string
     cargoId?:string
@@ -249,7 +299,61 @@ export interface ServiceData {
       createdAt: string
     }
   }
+  requestItemData?: RequestItemData
 }
+// Updated Type definitions
+export interface RequestItem {
+  id: string
+  name?: string
+  price?: string
+  state?: string
+  description?: string
+  quantity: number
+  itemType?: string
+  categories?: string
+  imageUrls?: string[]
+  duration?: string
+  distance?: string
+  deliveryFee?: string
+  dropoffLocation?: [number, number]
+  pickupLocation?: [number, number]
+  estimatedDeliveryDate?: string
+  deliveryAddress?: string
+  pickUpAddress?: string
+  rangeMetaId?: string
+  webLink?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface RequestItemData {
+  requestId: string
+  userType: string
+  isConfirmed?: boolean
+  paymentStatus?: string
+  paymentMethod?: string
+  transportType?: string
+  deliveryFee?: string
+  distance?: string
+  duration?: string
+  estimatedDeliveryDate?: string
+  requestItem?: RequestItem
+  rangeMetaData?: {
+    id: string
+    riderId: string
+    startKm: number
+    endKm: number
+    price: number
+  }
+  routeData?: {
+    id: string
+    orderId: string
+    geojson: any
+    userId: string
+    createdAt: string
+  }
+}
+
 export interface Product {
    id: string
         name: string
@@ -274,7 +378,7 @@ export interface ServiceStats {
 }
 
 export type ViewMode = "all" | "selected"
-export type ActiveTab = "all" | "orders" | "bookings"
+export type ActiveTab = "all" | "orders" | "bookings"  | "requests"
 export type SortBy = "date" | "status" | "type"
 
 // Order status constants
@@ -294,6 +398,14 @@ export const BOOKING_STATUSES = {
   COMPLETED: "COMPLETED",
   CANCELLED: "CANCELLED",
 } as const
+// Request status constants (new)
+export const REQUEST_STATUSES = {
+  PENDING: "PENDING",
+  CONFIRMED: "CONFIRMED",
+  IN_PROGRESS: "IN_PROGRESS",
+  DELIVERED: "DELIVERED",
+  CANCELLED: "CANCELLED",
+} as const
 
 // Payment status constants
 export const PAYMENT_STATUSES = {
@@ -305,4 +417,5 @@ export const PAYMENT_STATUSES = {
 
 export type OrderStatus = typeof ORDER_STATUSES[keyof typeof ORDER_STATUSES]
 export type BookingStatus = typeof BOOKING_STATUSES[keyof typeof BOOKING_STATUSES]
+export type RequestStatus = typeof REQUEST_STATUSES[keyof typeof REQUEST_STATUSES]
 export type PaymentStatusType = typeof PAYMENT_STATUSES[keyof typeof PAYMENT_STATUSES]

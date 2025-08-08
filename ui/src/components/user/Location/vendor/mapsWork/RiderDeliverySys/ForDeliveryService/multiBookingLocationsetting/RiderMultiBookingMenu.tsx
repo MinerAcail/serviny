@@ -50,7 +50,12 @@ import {
 } from "./RiderMultiBookingMenuComponents";
 
 // REUSE: Import existing types
-import type { RiderProfile, PricingZone, OrderDetails } from "../riderBookingHooks";
+import type {
+  RiderProfile,
+  PricingZone,
+  OrderDetails,
+  GetRequestItem,
+} from "../riderBookingHooks";
 
 // Import multi-delivery types
 import type { MultiDeliveryItem } from "./riderBookingMultiDeliveryRequest";
@@ -84,6 +89,7 @@ interface RiderMultiBookingMenuProps {
   // Handlers
   onBooking: () => void;
   onOrder: () => void;
+  onRequest: () => void;
 
   onReset: () => void;
   setCurrentStep: (step: "locations" | "review" | "complete") => void;
@@ -100,10 +106,11 @@ interface RiderMultiBookingMenuProps {
   onStopTracking?: () => void;
   isLoadingRoute?: boolean;
   bookId?: string;
-    orderData?: OrderDetails | null; // NEW: Order data for orders
-    isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
-    vendorData?:vendorData
-
+  orderData?: OrderDetails | null; // NEW: Order data for orders
+  isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
+  vendorData?: vendorData;
+  requestData?: GetRequestItem;
+  isRequest?: boolean;
 }
 
 export function RiderMultiBookingMenu({
@@ -117,6 +124,7 @@ export function RiderMultiBookingMenu({
   bookingReference,
   onBooking,
   onOrder,
+  onRequest,
   onReset,
   setCurrentStep,
   isOpen,
@@ -131,6 +139,8 @@ export function RiderMultiBookingMenu({
   orderData = null,
   isOrder = false, // NEW: Optional prop to indicate if this is an order
   vendorData, // NEW: Vendor data for orders
+  isRequest,
+  requestData,
 }: RiderMultiBookingMenuProps) {
   const { user } = useAuth();
 
@@ -150,7 +160,7 @@ export function RiderMultiBookingMenu({
 
   // Use database cargo type if available, otherwise fall back to URL parameter
   const actualCargoType = primaryTransportType || urlCargoType;
-  console.log("Actual Cargo Type:", actualCargoType);
+  // console.log("Actual Cargo Type:", actualCargoType);
 
   // Payment modal state - but don't show for cargo
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -219,13 +229,14 @@ export function RiderMultiBookingMenu({
     // Proceed with booking after payment
     setTimeout(() => {
       if (isOrder) {
-        // For orders, just confirm the booking
         onOrder();
+      } else if (isRequest) {
+        // Handle requests
+        onRequest();
       } else {
-        // For regular deliveries, confirm the booking  
-      onBooking();
+        // Handle regular bookings
+        onBooking();
       }
-      // onOrder();
     }, 500);
   };
 
@@ -259,7 +270,8 @@ export function RiderMultiBookingMenu({
       vendor: riderProfile.name || "Multi-Delivery Service",
     };
   };
-    const calculateOrderDataTotalPrice = () => {
+
+  const calculateOrderDataTotalPrice = () => {
     if (!orderData || !orderData.items) return 0;
     return orderData.items.reduce((total, item) => {
       return total + (item.product?.price || 0) * item.quantity;
@@ -272,14 +284,50 @@ export function RiderMultiBookingMenu({
       return count + item.quantity;
     }, 0);
   };
- // FIXED: Payment and confirm handler based on working version
+  const calculateRequestDataTotalPrice = () => {
+    if (!requestData) return 0;
+
+    const price =
+      typeof requestData.price === "string"
+        ? parseFloat(requestData.price)
+        : requestData.price;
+    const quantity =
+      typeof requestData.quantity === "string"
+        ? parseInt(requestData.quantity)
+        : requestData.quantity;
+
+    //      return parseFloat(
+    //   (
+    //     Number(requestData?.price) *
+    //     Number(requestData?.quantity || 0)
+    //   ).toFixed(2)
+    // );
+    return price * quantity;
+  };
+
+  // const calculateSelectedRequestItemTotalPrice = (selectedItem:ServiceData) => {
+  //   if (
+  //     !selectedItem ||
+  //     selectedItem.type !== "REQUESTITEM" ||
+  //     !selectedItem.requestItemData
+  //   )
+  //     return 0;
+
+  //   const requestItemData = selectedItem.requestItemData;
+  //   if (!requestItemData.requestItem) return 0;
+
+  // return parseFloat(
+  //   (
+  //     Number(requestItemData?.requestItem?.price) *
+  //     Number(requestItemData?.requestItem?.quantity || 0)
+  //   ).toFixed(2)
+  // );
+  // };
+  const totalItemsPrice = isRequest
+    ? calculateRequestDataTotalPrice()
+    : calculateOrderDataTotalPrice();
+  // FIXED: Payment and confirm handler based on working version
   const handlePaymentAndConfirm = () => {
-    
-
-    
-
-   
-
     // Calculate totals
     // const { zonePriceCalculated } = getDeliveryZonePriceAndOrderDetails();
     // const itemsTotal = calculateItemsTotal();
@@ -287,11 +335,15 @@ export function RiderMultiBookingMenu({
 
     // Create payment order details
     const paymentDetails = {
-      id: orderData?.id,
-      amount: calculateOrderDataTotalPrice() + totalCalculations?.totalPrice || 0,
-      description: `Order delivery from ${vendorData?.location.split(',')[0] || 'Store'} to ${deliveryItems[0].deliveryAddress.split(',')[0] || 'Your location'}`,
-      vendor: "WinneMart",
-      itemsTotal: calculateOrderDataTotalPrice(),
+      id: !isRequest ? orderData?.id : requestData?.id,
+      amount: totalItemsPrice + (totalCalculations?.totalPrice || 0),
+      description: `Order delivery from ${
+        vendorData?.location.split(",")[0] || "Store"
+      } to ${
+        deliveryItems[0].deliveryAddress.split(",")[0] || "Your location"
+      }`,
+      vendor: vendorData?.name,
+      itemsTotal: totalItemsPrice,
       deliveryFee: totalCalculations?.totalPrice || 0,
     };
 
@@ -430,6 +482,8 @@ export function RiderMultiBookingMenu({
                       allTransportTypes={allTransportTypes}
                       orderData={orderData}
                       isOrder={isOrder}
+                      requestData={requestData}
+                      isRequest={isRequest}
                     />
                   </motion.div>
                 )}
@@ -497,7 +551,7 @@ export function RiderMultiBookingMenu({
       </Dialog>
 
       {/* Payment Modal for non-cargo deliveries only */}
-      {!isOrder && createOrderDetails() && (
+      {!isOrder && createOrderDetails() && !isRequest && (
         <PaymentModal
           open={showPaymentModal}
           onOpenChange={setShowPaymentModal}
@@ -505,15 +559,17 @@ export function RiderMultiBookingMenu({
           onPaymentComplete={handlePaymentComplete}
         />
       )}
-       {isOrder && (
-              <OrderPaymentModal
-                open={showPaymentModal}
-                onOpenChange={setShowPaymentModal}
-                orderDetails={paymentOrderDetails}
-                onPaymentComplete={handlePaymentComplete}
-                vendorData={vendorData}
-              />
-            )}
+      {(isOrder || isRequest) && (
+        <OrderPaymentModal
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          orderDetails={paymentOrderDetails}
+          onPaymentComplete={handlePaymentComplete}
+          vendorData={vendorData}
+          isRequest={isRequest}
+          // requestData={requestData}
+        />
+      )}
     </div>
   );
 }

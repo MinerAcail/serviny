@@ -3,14 +3,11 @@ import RiderLiveMap from "../rider/LiveMap";
 import UserServiceViewer from "../custom/USER_MAP_WORK/viewService";
 import StandardDelveryRiderServiceLiveMap from "../serviceProviders/DELIVERY_STANDARD/LiveMap";
 import { useParams } from "react-router";
-// import UserServiceViewer from "../custom/USER_MAP_WORK/viewService";
-// import StandardDelveryRiderServiceLiveMap from "../serviceProviders/DELIVERY_STANDARD/LiveMap";
 
 function CheckBookingOrderDelivery() {
   const { user } = useAuth();
   const type = user?.type;
-  // console.log("User type in CheckBookingOrderDelivery:", type);
-  // get the entityId from url params
+
     const { entityId } = useParams<{ entityId: string }>();
   
 
@@ -24,7 +21,7 @@ function CheckBookingOrderDelivery() {
             case "delivery-standard":
             return <StandardDelveryRiderServiceLiveMap />;
           default:
-            // return <UserServiceViewer entityId={entityId ??""} />;
+            
             return <UserServiceViewer entityId={entityId ??""} />;
         }
       })()}

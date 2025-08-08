@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -24,7 +25,7 @@ type CategoryBox struct {
 	ImageUrl string         `json:"imageUrl"`
 	State    *ProductState  `json:"state,omitempty"`
 	ItemsIds pq.StringArray `gorm:"type:text[]" json:"itemsIds,omitempty"`
-	VendorID        *string         `json:"vendorId,omitempty"`
+	VendorID *string        `json:"vendorId,omitempty"`
 
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
@@ -61,18 +62,20 @@ type Order struct {
 	VendorID        *string         `json:"vendorId,omitempty"`
 	IsochroneMetaID *string         `json:"isochroneMetaId,omitempty"`
 	//   userType:String
+	RouteInfoID         *string         `json:"routeInfoId,omitempty"`
+
 	//
 	DeliveryFee *string `json:"deliveryFee,omitempty"`
 	Distance    *string `json:"distance,omitempty"`
 	Duration    *string `json:"duration,omitempty"`
 
-	Status                string      `json:"status"`
-	Items                 []*CartItem `json:"items"`
-	RangeMetaID               *string         `json:"rangeMetaId,omitempty"`
+	Status      string      `json:"status"`
+	Items       []*CartItem `json:"items"`
+	RangeMetaID *string     `json:"rangeMetaId,omitempty"`
 
-	EstimatedDeliveryDate string      `json:"estimatedDeliveryDate"`
-	CreatedAt             time.Time   `json:"createdAt"`
-	UpdatedAt             time.Time   `json:"updatedAt"`
+	EstimatedDeliveryDate string    `json:"estimatedDeliveryDate"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
 }
 type Product struct {
 	ID           uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
@@ -117,17 +120,35 @@ type ChatMessage struct {
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
 }
-// type RequestItem struct {
-// 	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-// 	Name        *string        `json:"name,omitempty"`
-// 	Price       *string        `json:"price,omitempty"`
-// 	State       *ProductState  `json:"state,omitempty"`
-// 	Categories  *string        `json:"categories,omitempty"`
-// 	ImageUrls   pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
-// 	Description *string        `json:"description,omitempty"`
+type RequestItem struct {
+	ID          uuid.UUID        `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	Name        *string          `json:"name,omitempty"`
+	Price       *string          `json:"price,omitempty"`
+	State       *ProductState    `json:"state,omitempty"`
+	Description *string          `json:"description,omitempty"`
+	Quantity    int32            `json:"quantity"`
+	ItemType    *string          `json:"itemType,omitempty"`
+	// OrderID     *string          `json:"orderId,omitempty"`
+	RiderID         *string         `json:"riderId,omitempty"`
+	RouteInfoID         *string         `json:"routeInfoId,omitempty"`
 
-// 	CreatedAt *time.Time `json:"createdAt,omitempty"`
-// 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
-// }
+	UserID      *string          `json:"userId,omitempty"`
+	ServiceID   *string          `json:"serviceId,omitempty"`
+	WebLink     *json.RawMessage `json:"webLink,omitempty"`
 
+	Categories *string `json:"categories,omitempty"`
+	ImageUrls pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
 
+	Duration        *string         `json:"duration,omitempty"`
+	Distance        *string         `json:"distance,omitempty"`
+	DeliveryFee     *string         `json:"deliveryFee,omitempty"`
+	DropoffLocation pq.Float64Array ` gorm:"type:float[]" json:"dropoffLocation"` // [lng, lat]
+	PickupLocation  pq.Float64Array ` gorm:"type:float[]" json:"pickupLocation"`  // [lng, lat]
+
+	EstimatedDeliveryDate *string    `json:"estimatedDeliveryDate,omitempty"`
+	DeliveryAddress       *string    `json:"deliveryAddress,omitempty"`
+	PickUpAddress         *string    `json:"pickUpAddress,omitempty"`
+	RangeMetaID           *string    `json:"rangeMetaId,omitempty"`
+	CreatedAt             *time.Time `json:"createdAt,omitempty"`
+	UpdatedAt             *time.Time `json:"updatedAt,omitempty"`
+}

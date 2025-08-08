@@ -37,6 +37,7 @@ import type {
   RiderProfile,
   PricingZone,
   OrderDetails,
+  GetRequestItem,
 } from "../riderBookingHooks";
 import { ZONE_COLORS } from "@/components/config/map";
 
@@ -420,7 +421,9 @@ export function MultiReviewStep({
   allTransportTypes = [],
   cargoError = null,
   isOrder = false, // NEW: Optional prop to indicate if this is an order
-  orderData , // NEW: Order data for orders
+  orderData, // NEW: Order data for orders
+  isRequest,
+  requestData,
 }: {
   totalCalculations: any;
   deliveryItems: MultiDeliveryItem[];
@@ -438,6 +441,8 @@ export function MultiReviewStep({
   cargoError?: string | null;
   isOrder?: boolean; // NEW: Optional prop to indicate if this is an order
   orderData?: OrderDetails; // NEW: Order data for orders
+  requestData?: GetRequestItem;
+  isRequest?: boolean;
 }) {
   const [showItemDetails, setShowItemDetails] = useState(false);
 
@@ -455,6 +460,21 @@ export function MultiReviewStep({
       return total + (item.product?.price || 0) * item.quantity;
     }, 0);
   };
+  const calculateRequestDataTotalPrice = () => {
+    if (!requestData) return 0;
+
+    const price =
+      typeof requestData.price === "string"
+        ? parseFloat(requestData.price)
+        : requestData.price;
+    const quantity =
+      typeof requestData.quantity === "string"
+        ? parseInt(requestData.quantity)
+        : requestData.quantity;
+
+    return price * quantity;
+  };
+
   // calculateOrderDataItemsCount
   const calculateOrderDataItemsCount = () => {
     if (!orderData || !orderData.items) return 0;
@@ -462,6 +482,16 @@ export function MultiReviewStep({
       return count + item.quantity;
     }, 0);
   };
+  const calculateRequestItemQuantity = () => {
+    if (!requestData || requestData.quantity == null) return 0;
+
+    const quantity =
+      typeof requestData.quantity === "string"
+        ? parseInt(requestData.quantity)
+        : requestData.quantity;
+    return quantity || 0;
+  };
+
   return (
     <div className="space-y-4">
       {/* Delivery Summary */}
@@ -515,6 +545,14 @@ export function MultiReviewStep({
                       ? "1 Product"
                       : "No Products"}
                   </div>
+                ) : isRequest ? (
+                  <div className="text-lg font-semibold text-blue-900">
+                    {calculateRequestItemQuantity() > 1
+                      ? `${calculateRequestItemQuantity()} Items`
+                      : calculateRequestItemQuantity() === 1
+                      ? "1 Item"
+                      : "No Items"}
+                  </div>
                 ) : (
                   <>
                     <div className="text-lg font-semibold text-blue-900">
@@ -552,7 +590,29 @@ export function MultiReviewStep({
                   </div>
                 </div>
               )}
-              {!isOrder && (
+              {isRequest && (
+                <div>
+                  <div className="text-lg font-bold text-green-600">
+                    Total: GH₵
+                    {(
+                      totalCalculations.totalPrice +
+                      calculateRequestDataTotalPrice()
+                    ).toFixed(2)}
+                  </div>
+                  {/* small div for total products price */}
+                  <div className="text-xs text-gray-500">
+                    Delivery GH₵{totalCalculations.totalPrice.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {calculateRequestDataTotalPrice() > 0
+                      ? `Products: GH₵${calculateRequestDataTotalPrice().toFixed(
+                          2
+                        )}`
+                      : "No products"}
+                  </div>
+                </div>
+              )}
+              {!isOrder && !isRequest  && (
                 <div>
                   <div className="text-lg font-semibold text-green-600">
                     GH₵{totalCalculations?.totalPrice?.toFixed(2) || "0.00"}
@@ -686,17 +746,26 @@ export function MultiReviewStep({
               {completedItems.length})
             </span>
             <div className="flex items-center space-x-2">
-              {!isCargo && totalCalculations && !isOrder && (
+              {!isCargo && totalCalculations && !isOrder && !isRequest && (
                 <Badge variant="secondary" className="text-xs">
                   GH₵{totalCalculations.totalPrice.toFixed(2)}
                 </Badge>
               )}
-              {isOrder && totalCalculations && (
+              {isOrder  && totalCalculations && (
                 <Badge variant="secondary" className="text-xs">
                   GH₵
                   {(
                     totalCalculations.totalPrice +
                     calculateOrderDataTotalPrice()
+                  ).toFixed(2)}
+                </Badge>
+              )}
+               {isRequest && totalCalculations && (
+                <Badge variant="secondary" className="text-xs">
+                  GH₵
+                  {(
+                    totalCalculations.totalPrice +
+                    calculateRequestDataTotalPrice()
                   ).toFixed(2)}
                 </Badge>
               )}
@@ -764,9 +833,9 @@ export function MultiReviewStep({
                                 <span>{calculation.distance}km</span>
                                 <span>{calculation.duration}</span>
                               </div>
-                             <span className="font-medium text-green-600">
-                                  GH₵{calculation.price.toFixed(2)}
-                                </span>
+                              <span className="font-medium text-green-600">
+                                GH₵{calculation.price.toFixed(2)}
+                              </span>
                               {/* {isOrder && (
                                 <span className="font-medium text-green-600">
                                   GH₵

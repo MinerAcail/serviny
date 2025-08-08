@@ -57,7 +57,7 @@ const Login = ({
   // const { firstProfileId } = useProfileUpdate(userId ? null : serviceId);
   // serviceId = firstProfileId ?? serviceId;
   const { triggerUpdate, triggerUpdateByUserId } = useProfileUpdate(null);
-console.log("entityIdll",entityId);
+// console.log("entityIdll",entityId);
 
   const [number, setNumber] = useState("");
   const [password, setPassword] = useState("");

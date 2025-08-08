@@ -552,27 +552,24 @@ type RequestInput struct {
 	Description *string           `json:"description,omitempty"`
 	Quantity    *int32            `json:"quantity,omitempty"`
 	ItemType    *string           `json:"itemType,omitempty"`
-	OrderID     *string           `json:"orderId,omitempty"`
 	WebLink     *WebLink          `json:"webLink,omitempty"`
 	Images      []*graphql.Upload `json:"images,omitempty"`
 }
 
-type RequestItem struct {
-	ID          *string       `json:"id,omitempty"`
-	Name        *string       `json:"name,omitempty"`
-	Price       *string       `json:"price,omitempty"`
-	State       *ProductState `json:"state,omitempty"`
-	Description *string       `json:"description,omitempty"`
-	Quantity    int32         `json:"quantity"`
-	ItemType    *string       `json:"itemType,omitempty"`
-	OrderID     *string       `json:"orderId,omitempty"`
-	UserID      *string       `json:"userId,omitempty"`
-	ServiceID   *string       `json:"serviceId,omitempty"`
-	WebLink     *string       `json:"webLink,omitempty"`
-	Categories  *string       `json:"categories,omitempty"`
-	ImageUrls   []*string     `json:"imageUrls,omitempty"`
-	CreatedAt   *time.Time    `json:"createdAt,omitempty"`
-	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
+type RequestItemData struct {
+	RequestID             string       `json:"requestId"`
+	UserType              string       `json:"userType"`
+	IsConfirmed           *bool        `json:"isConfirmed,omitempty"`
+	RequestItem           *RequestItem `json:"requestItem,omitempty"`
+	PaymentStatus         *string      `json:"paymentStatus,omitempty"`
+	PaymentMethod         *string      `json:"paymentMethod,omitempty"`
+	TransportType         *string      `json:"transportType,omitempty"`
+	DeliveryFee           *string      `json:"deliveryFee,omitempty"`
+	Distance              *string      `json:"distance,omitempty"`
+	Duration              *string      `json:"duration,omitempty"`
+	EstimatedDeliveryDate *string      `json:"estimatedDeliveryDate,omitempty"`
+	RouteData             *RouteInfo   `json:"routeData,omitempty"`
+	RangeMetaData         *RiderRange  `json:"rangeMetaData,omitempty"`
 }
 
 type RequestOtpInput struct {
@@ -708,15 +705,16 @@ type SearchResults struct {
 }
 
 type ServiceData struct {
-	ID          string                  `json:"id"`
-	ServiceID   string                  `json:"serviceId"`
-	Type        ServiceType             `json:"type"`
-	Rider       *UsersInfor             `json:"rider,omitempty"`
-	Customer    *UsersInfor             `json:"customer"`
-	Vendor      *Service                `json:"vendor"`
-	CreatedAt   time.Time               `json:"createdAt"`
-	OrderData   *CartItemOrder          `json:"orderData,omitempty"`
-	BookingData *AppointmentBookingData `json:"bookingData,omitempty"`
+	ID              string                  `json:"id"`
+	ServiceID       string                  `json:"serviceId"`
+	Type            ServiceType             `json:"type"`
+	Rider           *UsersInfor             `json:"rider,omitempty"`
+	Customer        *UsersInfor             `json:"customer"`
+	Vendor          *Service                `json:"vendor"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	OrderData       *CartItemOrder          `json:"orderData,omitempty"`
+	BookingData     *AppointmentBookingData `json:"bookingData,omitempty"`
+	RequestItemData *RequestItemData        `json:"requestItemData,omitempty"`
 }
 
 type SocialMediaInput struct {
@@ -902,6 +900,16 @@ type AddCoordinateInput struct {
 	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
 	RangeMetaID     *string    `json:"rangeMetaId,omitempty"`
 	IsochroneMetaID *string    `json:"isochroneMetaId,omitempty"`
+	RidersID        *string    `json:"ridersId,omitempty"`
+}
+
+type AddRequestItemCoordinateInput struct {
+	RequestID       string     `json:"requestId"`
+	DeliveryAddress *string    `json:"deliveryAddress,omitempty"`
+	PickUpAddress   *string    `json:"pickUpAddress,omitempty"`
+	DropoffLocation []*float64 `json:"dropoffLocation,omitempty"`
+	PickupLocation  []*float64 `json:"pickupLocation,omitempty"`
+	RangeMetaID     *string    `json:"rangeMetaId,omitempty"`
 	RidersID        *string    `json:"ridersId,omitempty"`
 }
 
@@ -1542,18 +1550,20 @@ func (e SenderType) MarshalGQL(w io.Writer) {
 type ServiceType string
 
 const (
-	ServiceTypeOrder   ServiceType = "ORDER"
-	ServiceTypeBooking ServiceType = "BOOKING"
+	ServiceTypeOrder       ServiceType = "ORDER"
+	ServiceTypeBooking     ServiceType = "BOOKING"
+	ServiceTypeRequestitem ServiceType = "REQUESTITEM"
 )
 
 var AllServiceType = []ServiceType{
 	ServiceTypeOrder,
 	ServiceTypeBooking,
+	ServiceTypeRequestitem,
 }
 
 func (e ServiceType) IsValid() bool {
 	switch e {
-	case ServiceTypeOrder, ServiceTypeBooking:
+	case ServiceTypeOrder, ServiceTypeBooking, ServiceTypeRequestitem:
 		return true
 	}
 	return false

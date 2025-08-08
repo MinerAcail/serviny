@@ -2597,6 +2597,7 @@ export const GET_MULTI_GROUPED_BOOKINGS = gql`
     }
   }
 `;
+
 const GET_ORDER_DETAILS = gql`
   query GetOrderDetails($orderId: String!) {
     getOrderDetails(orderId: $orderId) {
@@ -2624,6 +2625,49 @@ const GET_ORDER_DETAILS = gql`
           description
         }
       }
+    }
+  }
+`;
+export const GET_REQUEST_ITEM = gql`
+query GetRequestItem ($requestId:String!){
+  getRequestItem(requestId: $requestId) {
+    id
+    name
+    price
+    
+    dropoffLocation
+    pickupLocation
+    pickUpAddress
+    deliveryAddress
+    serviceId
+    updatedAt
+    userId
+   state
+    description
+    quantity
+    itemType
+    webLink
+  }
+}
+`;
+const UPDATE_REQUEST_ITEM_WITH_LOCATION = gql`
+  mutation UpdateRequestItemWithLocation($input: addRequestItemCoordinateInput!) {
+    updateRequestItemWithLocation(input: $input) {
+      id
+      name
+      price
+      dropoffLocation
+      pickupLocation
+      pickUpAddress
+      deliveryAddress
+      serviceId
+      updatedAt
+      userId
+      state
+      description
+      quantity
+      itemType
+      webLink
     }
   }
 `;
@@ -2764,7 +2808,45 @@ export interface UpdateOrderWithLocationInput {
 
   isochroneMetaId?: string | undefined;
 }
+export interface AddRequestItemCoordinateInput {
+  requestId: string;
+  pickUpAddress?: string;
+  deliveryAddress?: string;
+  dropoffLocation?: [number, number];
+  pickupLocation?: [number, number];
+    rangeMetaId: string ;
+  ridersId: string ;
+}
+interface GetRequestItemVars {
+  requestId: string;
+}
+export interface GetRequestItem {
+  id: string;
+  name: string;
+  price: string;
+  dropoffLocation: {
+    lat: number;
+    lng: number;
+  };
+  pickupLocation: {
+    lat: number;
+    lng: number;
+  };
+  pickUpAddress: string;
+  deliveryAddress: string;
+  serviceId: string;
+  updatedAt: string; // ISO date string
+  userId: string;
+  state: string; 
+  description: string;
+  quantity: string;
+  itemType: string; 
+  webLink?: string; 
+}
 
+interface GetRequestItemData {
+  getRequestItem: GetRequestItem;
+}
 // ==========================================
 // UPDATED: useMultiGroupBookingManagement Hook
 // ==========================================
@@ -2775,6 +2857,7 @@ export function useMultiGroupBookingManagement(
   // Conditionally skip based on entityType
   const isBooking = entityType === "BOOKING";
   const isOrder = entityType === "ORDER";
+  const isRequest = entityType === "REQUEST";
   // Query to get multi-group bookings if type is BOOKING
   const {
     data: multiGroupData,
@@ -2801,6 +2884,21 @@ export function useMultiGroupBookingManagement(
     skip: !entityId || !isOrder,
   });
 
+  const {
+    data: requestData,
+    loading: requestLoading,
+    error: requestError,
+    refetch: refetchRequest,
+  } = useQuery<GetRequestItemData, GetRequestItemVars>(GET_REQUEST_ITEM, {
+    variables: { requestId: entityId || "" },
+    fetchPolicy: "cache-and-network",
+    skip: !entityId || !isRequest,
+    onError: (error) => {
+      console.error("Error loading request item:", error);
+      toast.error("Failed to load request item");
+    },
+  });
+
   // Mutation for orders (ORDER only)
   const [updateWithLocation, { loading: isUpdatingOrder }] = useMutation(
     UPDATE_WITH_LOCATION,
@@ -2820,7 +2918,14 @@ export function useMultiGroupBookingManagement(
         toast.error("Failed to update booking locations");
       },
     });
-
+ // Mutation to update request item with location (REQUEST only)
+  const [updateRequestWithLocation, { loading: isUpdatingRequest }] =
+    useMutation(UPDATE_REQUEST_ITEM_WITH_LOCATION, {
+      onError: (error) => {
+        console.error("Error updating request item location:", error);
+        toast.error("Failed to update request item location");
+      },
+    });
   const updateBookingsWithLocations = useCallback(
     async (inputs: UpdateBookingLocationInput[]) => {
       try {
@@ -2883,6 +2988,43 @@ export function useMultiGroupBookingManagement(
     },
     [isOrder, updateWithLocation, refetchOrder]
   );
+   // Method: Update request item with location
+  const updateRequestItemWithLocation = useCallback(
+    async (input: AddRequestItemCoordinateInput) => {
+      if (!isRequest) throw new Error("Invalid usage for non-REQUEST entity");
+
+      try {
+        console.log("🔄 Updating request item with location:", input);
+
+        const result = await updateRequestWithLocation({
+          variables: { input },
+        });
+
+        const updated = result?.data?.updateRequestItemWithLocation;
+        if (!updated) throw new Error("No data returned from request update");
+
+        toast.success("Request item location updated successfully!", {
+          duration: 4000,
+        });
+
+        await refetchRequest();
+        return updated;
+      } catch (error: any) {
+        console.error("Update request item location error:", error);
+        
+        let errorMessage = "Failed to update request item location";
+        if (error.graphQLErrors?.length > 0) {
+          errorMessage = error.graphQLErrors[0].message;
+        } else if (error.networkError) {
+          errorMessage = "Network error - please check your connection";
+        }
+
+        toast.error(errorMessage, { duration: 5000 });
+        throw error;
+      }
+    },
+    [isRequest, updateRequestWithLocation, refetchRequest]
+  );
   return {
     // Existing bookings data
     multiGroupBookings:
@@ -2904,6 +3046,16 @@ export function useMultiGroupBookingManagement(
     orderError: orderError?.message,
     updateOrderWithLocation,
     refetchOrder,
+
+    
+    // Request-related data (REQUEST)
+    requestData: requestData?.getRequestItem,
+    requestLoading,
+    requestError: requestError?.message,
+    updateRequestItemWithLocation,
+    isUpdatingRequest,
+    refetchRequest,
+
   };
 }
 

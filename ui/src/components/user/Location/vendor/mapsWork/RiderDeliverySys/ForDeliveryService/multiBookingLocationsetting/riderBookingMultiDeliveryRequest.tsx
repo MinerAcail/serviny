@@ -47,6 +47,7 @@ import {
   // Import the multi-delivery map manager
   useMultiDeliveryMapManager,
   UpdateOrderWithLocationInput,
+  AddRequestItemCoordinateInput,
 } from "../riderBookingHooks";
 
 import {
@@ -88,6 +89,7 @@ export default function RiderBookingMultiDeliveryRequest() {
   const queryParams = new URLSearchParams(location.search);
   const isService = queryParams.get("service");
   const isOrder = queryParams.get("order") === "true";
+  const isRequest = queryParams.get("request") === "true";
 
   // const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -111,6 +113,8 @@ export default function RiderBookingMultiDeliveryRequest() {
   const mapUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const calculationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMapUpdatingRef = useRef(false);
+
+
 
   // ==========================================
   // 3. LOCAL STATE
@@ -145,6 +149,12 @@ export default function RiderBookingMultiDeliveryRequest() {
   // ==========================================
   // 5. MULTI-GROUP BOOKING MANAGEMENT
   // ==========================================
+  let BookStateType: "BOOKING" | "ORDER" | "REQUEST" = "BOOKING";
+if (isRequest) {
+  BookStateType = "REQUEST";
+} else if (isOrder) {
+  BookStateType = "ORDER";
+}
   const {
     multiGroupBookings,
     isLoadingBookings,
@@ -159,7 +169,14 @@ export default function RiderBookingMultiDeliveryRequest() {
     refetchOrder,
     orderError,
 
-  } = useMultiGroupBookingManagement(bookId, isOrder ? "ORDER" : "BOOKING");
+    requestData,
+    requestLoading,
+    requestError,
+    updateRequestItemWithLocation,
+    isUpdatingRequest,
+    refetchRequest,
+
+  } = useMultiGroupBookingManagement(bookId,BookStateType);
   // console.log("orderData",orderData);
   const orderId = orderData?.getOrderDetails.id ; // Use orderData if available, otherwise fallback to bookId
 
@@ -459,8 +476,8 @@ export default function RiderBookingMultiDeliveryRequest() {
     };
   }, [
     mapLoaded,
-    pickupLocation?.lat,
     pickupLocation?.lng,
+    pickupLocation?.lat,
     memoizedDeliveryData.key, // Use the memoized key instead of complex dependencies
     riderZones.length,
     showZones,
@@ -519,8 +536,8 @@ export default function RiderBookingMultiDeliveryRequest() {
       }
     };
   }, [
-    pickupLocation?.lat,
     pickupLocation?.lng,
+    pickupLocation?.lat,
     memoizedDeliveryData.count, // Use count instead of complex dependency
     riderZones.length,
     isCalculating,
@@ -753,6 +770,89 @@ export default function RiderBookingMultiDeliveryRequest() {
       setCurrentStep("complete");
 
       toast.success("Multi-delivery bookings updated!", {
+        description: `${
+          deliveryItems.length
+        } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
+        duration: 5000,
+      });
+   
+
+      //redirect
+         const timeout = setTimeout(() => {
+          window.location.href = `/vob`;
+        }, 5000);
+
+        return () => clearTimeout(timeout);
+    } catch (error: unknown) {
+      // console.error("❌ Multi-delivery booking update failed:", error);
+      toast.error(
+        "Failed to update delivery order. Please try again.",
+        {
+          duration: 5000,
+        }
+      );
+    } finally {
+      setIsBooking(false);
+    }
+  }, [
+    totalCalculations,
+    pickupLocation,
+    // deliveryItems,
+    riderId,
+    bookId,
+    riderZones, // Add riderZones to dependency array
+    updateOrderWithLocation,
+    bookId,
+  ]);
+   const handleRequestUpdateWithLocation = useCallback(async () => {
+    if (
+      !totalCalculations ||
+      !pickupLocation ||
+      !deliveryItems.length ||
+      !riderId ||
+      !bookId
+    ) {
+      toast.error("Missing required multi-delivery booking information");
+      return;
+    }
+
+    setIsBooking(true);
+
+    try {
+      // console.log("📦 Updating existing multi-delivery bookings...");
+
+      
+       const updateInputs = convertDeliveryItemsToUpdateInputs(
+        deliveryItems,
+        pickupLocation,
+        riderId,
+        riderZones // Pass riderZones instead of undefined 'zones'
+      );
+
+      const InputRequest: AddRequestItemCoordinateInput = {
+        ridersId: riderId,
+        pickUpAddress: pickupLocation.address,
+        deliveryAddress:  deliveryItems[0]?.deliveryAddress,
+        dropoffLocation:  deliveryItems[0]?.dropoffLocation,
+
+        pickupLocation: [ pickupLocation.lat,pickupLocation.lng],
+        rangeMetaId: updateInputs[0].rangeMetaId || "",
+        
+        requestId: bookId, // Use orderId if available, otherwise fallback to bookId
+      }
+
+      console.log("📝Request Update inputs prepared:", InputRequest);
+
+      // Update existing request with location data
+      const updatedRequest = await updateRequestItemWithLocation(InputRequest);
+
+      console.log("✅ request updated successfully:", updatedRequest);
+
+      setBookingReference(bookId);
+      setBookingComplete(true);
+      setCurrentStep("complete");
+
+      toast.success("delivery request updated!", {
         description: `${
           deliveryItems.length
         } deliveries • Total: $${totalCalculations.totalPrice.toFixed(2)}`,
@@ -1187,7 +1287,8 @@ export default function RiderBookingMultiDeliveryRequest() {
           autocompleteServiceRef={autocompleteServiceRef}
           placesServiceRef={placesServiceRef}
           isLoaded={isLoaded}
-          isOrder={isOrder}
+          isOrder={isOrder || isRequest}
+
           serviceID={riderId}
           getVendorData={handlVendorData}
         />
@@ -1220,7 +1321,7 @@ export default function RiderBookingMultiDeliveryRequest() {
               !showLocationDialog &&
               !hasLoadedFromBookings && <WelcomeMessage />}
 
-            {/* Main Interface (when has pickup) */}
+            {/* Main Interface (when has pickup) contain the toppopup infor*/}
             {pickupLocation && (
               <div className="relative">
                 <MapAndMultiBooking
@@ -1246,6 +1347,8 @@ export default function RiderBookingMultiDeliveryRequest() {
                   setShowRouteDialog={setShowRouteDialog}
                   setIsOpen={setIsOpenBookingMenu}
                   orderData={orderData?.getOrderDetails}
+                  requestData={requestData}
+                  isRequest={isRequest}
                   isOrder={isOrder}
                 />
 
@@ -1289,7 +1392,11 @@ export default function RiderBookingMultiDeliveryRequest() {
                 orderData={orderData?.getOrderDetails}
                 isOrder={isOrder}
                 vendorData={vendorData}
+                requestData={requestData}
+                
+                  isRequest={isRequest}
                 onOrder={handleOrderUpdateWithLocation}
+                onRequest={handleRequestUpdateWithLocation}
               />
             )}
           </>

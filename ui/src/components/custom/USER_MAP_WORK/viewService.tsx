@@ -17,6 +17,7 @@ import {
   BarChart3,
   Clipboard,
   LogIn,
+  PictureInPicture,
 } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ import {
   destroyMap,
   debugMapState,
   type MapState,
+  debugItemCoordinates,
 } from "./mapManager";
 import ServiceListDialog from "./serviceListDialog";
 import { formatPrice } from "@/components/global/formatPrice";
@@ -68,7 +70,11 @@ const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 // Default center coordinates (Accra, Ghana - customer location)
 // const DEFAULT_CENTER: [number, number] = [-0.187, 5.6037];
 
-export default function UserServiceViewer({entityId = ""}: { entityId?: string }) {
+export default function UserServiceViewer({
+  entityId = "",
+}: {
+  entityId?: string;
+}) {
   // State management
   const [showDialog, setShowDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -101,7 +107,6 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       setMapContainer(null);
     }
   }, []);
-  
 
   // GraphQL query
   const { loading, error, data, refetch } = useQuery(
@@ -161,7 +166,6 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
 
     // Check if container has dimensions
     const containerRect = mapContainer.getBoundingClientRect();
-  
 
     if (containerRect.width === 0 || containerRect.height === 0) {
       // console.warn("⚠️ Container has no dimensions, waiting...");
@@ -170,7 +174,6 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       const retryTimeout = setTimeout(() => {
         const newRect = mapContainer.getBoundingClientRect();
         if (newRect.width > 0 && newRect.height > 0) {
-          
           // Trigger re-render to retry
           setMapContainer(mapContainer);
         }
@@ -179,7 +182,6 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       return () => clearTimeout(retryTimeout);
     }
 
-  
     try {
       // Create map state
       mapStateRef.current = createMapState();
@@ -189,7 +191,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
         mapStateRef.current,
         mapContainer,
         maptilerApiKey || "",
-        
+
         () => {
           console.log("✅ Map loaded successfully - setting mapLoaded to true");
           setMapLoaded(true);
@@ -260,18 +262,32 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
         (item.type === "BOOKING" &&
           item.bookingData?.bookingId
             ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())) ||
+        (item.type === "REQUESTITEM" &&
+          item.requestItemData?.requestId
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())) ||
+        (item.type === "REQUESTITEM" &&
+          item.requestItemData?.requestItem?.name
+            ?.toLowerCase()
             .includes(searchQuery.toLowerCase()));
 
       // Updated status filtering to use status field for both orders and bookings
       const matchesStatus =
         statusFilter === "all" ||
         (item.type === "ORDER" && item.orderData?.status === statusFilter) ||
-        (item.type === "BOOKING" && item.bookingData?.status === statusFilter);
+        (item.type === "BOOKING" &&
+          item.bookingData?.status === statusFilter) ||
+        (item.type === "REQUESTITEM" &&
+          (item.requestItemData?.isConfirmed === true
+            ? "CONFIRMED"
+            : "PENDING") === statusFilter);
 
       const matchesTab =
         activeTab === "all" ||
         (activeTab === "orders" && item.type === "ORDER") ||
-        (activeTab === "bookings" && item.type === "BOOKING");
+        (activeTab === "bookings" && item.type === "BOOKING") ||
+        (activeTab === "requests" && item.type === "REQUESTITEM");
 
       return matchesSearch && matchesStatus && matchesTab;
     });
@@ -308,9 +324,9 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   // Update map when data changes - using functional approach
   useEffect(() => {
     if (mapStateRef.current && mapLoaded && serviceData.length > 0) {
-      console.log(
-        `🔄 Updating map with ${filteredData.length} filtered items from ${serviceData.length} total`
-      );
+      // console.log(
+      //   `🔄 Updating map with ${filteredData.length} filtered items from ${serviceData.length} total`
+      // );
       try {
         updateMapData(
           mapStateRef.current,
@@ -329,6 +345,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   const stats: ServiceStats = useMemo(() => {
     const orders = serviceData.filter((item) => item.type === "ORDER");
     const bookings = serviceData.filter((item) => item.type === "BOOKING");
+    const requests = serviceData.filter((item) => item.type === "REQUESTITEM");
 
     return {
       totalOrders: orders.length,
@@ -342,12 +359,17 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
       confirmedBookings: bookings.filter(
         (booking) => booking.bookingData?.status === "CONFIRMED"
       ).length,
+      confirmedRequests: requests.filter(
+        (request) => request.requestItemData?.isConfirmed === true
+      ).length,
     };
   }, [serviceData]);
 
   // Event handlers
   const handleItemClick = (item: ServiceData) => {
-    console.log(`👆 Selected item: ${item.type} ${item.id}`);
+    // console.log(`👆 Selected item: ${item.type} ${item.id}`);
+    // Debug coordinates before setting selection
+    debugItemCoordinates(item);
     setSelectedItem(item);
     setIsCardOpen(true);
     setViewMode("selected");
@@ -357,32 +379,44 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
     const entityId =
       item.type === "ORDER"
         ? item.orderData?.orderId
-        : item.bookingData?.bookingId;
+        : item.type === "BOOKING"
+        ? item.bookingData?.bookingId
+        : item.requestItemData?.requestId;
 
     if (entityId) {
       getPaymentStatus({
         variables: {
           entityId,
-          entityType: item.type === "ORDER" ? "ORDER" : "BOOKING",
+          entityType:
+            item.type === "ORDER"
+              ? "ORDER"
+              : item.type === "BOOKING"
+              ? "BOOKING"
+              : "REQUESTITEM",
         },
       });
     }
   };
 
-    const handleJustPaymentItemClick = (item: ServiceData) => {
-  
-
+  const handleJustPaymentItemClick = (item: ServiceData) => {
     // Fetch payment status for the selected item
     const entityId =
       item.type === "ORDER"
         ? item.orderData?.orderId
-        : item.bookingData?.bookingId;
+        : item.type === "BOOKING"
+        ? item.bookingData?.bookingId
+        : item.requestItemData?.requestId;
 
     if (entityId) {
       getPaymentStatus({
         variables: {
           entityId,
-          entityType: item.type === "ORDER" ? "ORDER" : "BOOKING",
+          entityType:
+            item.type === "ORDER"
+              ? "ORDER"
+              : item.type === "BOOKING"
+              ? "BOOKING"
+              : "REQUESTITEM",
         },
       });
     }
@@ -444,6 +478,7 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
   };
 
   // Status badge helper - Updated to use status field for both types
+  // 5. Update status badge helper function
   const getStatusBadge = (item: ServiceData) => {
     let status: string;
     let colors: Record<string, string>;
@@ -459,13 +494,24 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
         CANCELLED: "bg-red-100/80 text-red-800 border-red-200/50",
         PENDING: "bg-gray-100/80 text-gray-800 border-gray-200/50",
       };
-    } else {
+    } else if (item.type === "BOOKING") {
       status = item.bookingData?.status || "UNKNOWN";
       colors = {
         CONFIRMED: "bg-green-100/80 text-green-800 border-green-200/50",
         PENDING: "bg-yellow-100/80 text-yellow-800 border-yellow-200/50",
         CANCELLED: "bg-red-100/80 text-red-800 border-red-200/50",
         COMPLETED: "bg-blue-100/80 text-blue-800 border-blue-200/50",
+      };
+    } else {
+      // REQUEST type
+      status =
+        item.requestItemData?.isConfirmed === true ? "CONFIRMED" : "PENDING";
+      colors = {
+        CONFIRMED: "bg-teal-100/80 text-teal-800 border-teal-200/50",
+        PENDING: "bg-amber-100/80 text-amber-800 border-amber-200/50",
+        CANCELLED: "bg-red-100/80 text-red-800 border-red-200/50",
+        IN_PROGRESS: "bg-indigo-100/80 text-indigo-800 border-indigo-200/50",
+        DELIVERED: "bg-green-100/80 text-green-800 border-green-200/50",
       };
     }
 
@@ -502,66 +548,180 @@ export default function UserServiceViewer({entityId = ""}: { entityId?: string }
     );
   }
 
+  // Calculates the total price of all products in the order
+  const calculateSelectedItemTotalPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "ORDER" ||
+      !selectedItem.orderData
+    )
+      return 0;
 
-// Calculates the total price of all products in the order
-const calculateSelectedItemTotalPrice = () => {
-  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+    const orderData = selectedItem.orderData;
+    if (!orderData.productInfor) return 0;
 
-  const orderData = selectedItem.orderData;
-  if (!orderData.productInfor) return 0;
+    return orderData.productInfor.reduce((total, item) => {
+      const productTotal = item.product.reduce((sum, product) => {
+        const price =
+          typeof product.price === "string"
+            ? parseFloat(product.price)
+            : product.price ?? 0;
 
-  return orderData.productInfor.reduce((total, item) => {
-    const productTotal = item.product.reduce((sum, product) => {
-      const price = typeof product.price === "string"
-        ? parseFloat(product.price)
-        : product.price ?? 0;
+        return sum + price;
+      }, 0);
 
-      return sum + price;
+      return total + productTotal * item.quantity;
     }, 0);
+  };
 
-    return total + productTotal * item.quantity;
-  }, 0);
-};
-const calculateSelectedItemsWithdeliveryPrice = () => {
-  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+  const calculateSelectedRequestItemTotalPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "REQUESTITEM" ||
+      !selectedItem.requestItemData
+    )
+      return 0;
 
-  const orderData = selectedItem.orderData;
-  if (!orderData.productInfor) return 0;
+    const requestItemData = selectedItem.requestItemData;
+    if (!requestItemData.requestItem) return 0;
 
-return parseFloat(
-  (
-    Number(calculateSelectedItemTotalPrice()) +
-    Number(orderData.serviceFee || 0)
-  ).toFixed(2)
-);
+    return parseFloat(
+      (
+        Number(requestItemData?.requestItem?.price) *
+        Number(requestItemData?.requestItem?.quantity || 0)
+      ).toFixed(2)
+    );
+  };
+  const calculateSelectedRequestItemDeliveryPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "REQUESTITEM" ||
+      !selectedItem.requestItemData
+    )
+      return 0;
 
+    const requestItemData = selectedItem.requestItemData;
+    if (!requestItemData.requestItem) return 0;
 
-};
+    return parseFloat(requestItemData?.requestItem?.deliveryFee ?? "0");
+  };
+  const calculateSelectedItemsWithdeliveryPrice = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "ORDER" ||
+      !selectedItem.orderData
+    )
+      return 0;
 
-// Calculates total quantity of items in the order
-const calculateSelectedItemItemsCount = () => {
-  if (!selectedItem || selectedItem.type !== "ORDER" || !selectedItem.orderData) return 0;
+    const orderData = selectedItem.orderData;
+    if (!orderData.productInfor) return 0;
 
-  const orderData = selectedItem.orderData;
-  if (!orderData.productInfor) return 0;
+    return parseFloat(
+      (
+        Number(calculateSelectedItemTotalPrice()) +
+        Number(orderData.serviceFee || 0)
+      ).toFixed(2)
+    );
+  };
+  const calculateSelectedItemsTotal = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "REQUESTITEM" ||
+      !selectedItem.requestItemData
+    )
+      return 0;
 
-  return orderData.productInfor.reduce((count, item) => {
-    return count + item.quantity;
-  }, 0);
-};
+    const requestItemData = selectedItem.requestItemData;
+    if (!requestItemData.requestItem) return 0;
 
+    return parseFloat(
+      (
+        Number(calculateSelectedRequestItemDeliveryPrice()) +
+        Number(calculateSelectedRequestItemTotalPrice())
+      ).toFixed(2)
+    );
+  };
+  // Calculates total quantity of items in the order
+  const calculateSelectedItemItemsCount = () => {
+    if (
+      !selectedItem ||
+      selectedItem.type !== "ORDER" ||
+      !selectedItem.orderData
+    )
+      return 0;
 
+    const orderData = selectedItem.orderData;
+    if (!orderData.productInfor) return 0;
+
+    return orderData.productInfor.reduce((count, item) => {
+      return count + item.quantity;
+    }, 0);
+  };
+  // Helper function to get service ID display
+  const getServiceIdDisplay = () => {
+    if (selectedItem?.type === "ORDER") {
+      return selectedItem?.orderData?.orderId?.slice(-6) || "N/A";
+    } else if (selectedItem?.type === "BOOKING") {
+      return selectedItem?.bookingData?.bookingId?.slice(-6) || "N/A";
+    } else {
+      return selectedItem?.requestItemData?.requestId?.slice(-6) || "N/A";
+    }
+  };
+
+  const DisplayTotalProductPriceData = () => {
+    if (selectedItem?.type === "ORDER") {
+      return calculateSelectedItemTotalPrice() ?? 0;
+    } else if (selectedItem?.type === "REQUESTITEM") {
+      return calculateSelectedRequestItemTotalPrice() ?? 0;
+    } else {
+      return 0;
+    }
+  };
+  const DisplayAllTotalData = () => {
+    if (selectedItem?.type === "ORDER") {
+      return calculateSelectedItemsWithdeliveryPrice() ?? 0;
+    } else if (selectedItem?.type === "REQUESTITEM") {
+      return calculateSelectedItemsTotal() ?? 0;
+    } else {
+      return 0;
+    }
+  };
+  const DisplayDeliveryTotalData = () => {
+    if (selectedItem?.type === "ORDER") {
+      return Number(selectedItem.orderData.serviceFee || 0);
+    } else if (selectedItem?.type === "REQUESTITEM") {
+      return calculateSelectedRequestItemDeliveryPrice() ?? 0;
+    } else {
+      return 0;
+    }
+  };
+  // Helper function to get service name
+  const getServiceName = () => {
+    if (selectedItem?.type === "ORDER") return "Order";
+    if (selectedItem?.type === "BOOKING") return "Booking";
+    return "Request";
+  };
+  const getServiceIcon = () => {
+    if (selectedItem?.type === "ORDER") {
+      return <Package className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />;
+    } else if (selectedItem?.type === "BOOKING") {
+      return <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />;
+    } else {
+      return (
+        <PictureInPicture className="h-5 w-5 sm:h-6 sm:w-6 text-teal-600" />
+      );
+    }
+  };
   return (
     <div className="relative h-screen  z-5">
       {/* Full Screen Map */}
-    {/* Error state first */}
-{error && (
-  <ErrorState entityId={entityId} handleRefresh={handleRefresh} />
-)}
+      {/* Error state first */}
+      {error && (
+        <ErrorState entityId={entityId} handleRefresh={handleRefresh} />
+      )}
 
-{/* No data found */}
-{!error && data?.length === 0 && <ItemNotFound />}
-
+      {/* No data found */}
+      {!error && data?.length === 0 && <ItemNotFound />}
 
       <div className="absolute inset-0">
         <div ref={mapRefCallback} className="w-full h-full " />
@@ -580,8 +740,6 @@ const calculateSelectedItemItemsCount = () => {
               <p className="text-sm text-gray-500 mb-4">
                 Connecting to map services...
               </p>
-
-             
 
               {/* Force show button after 10 seconds */}
               <Button
@@ -656,44 +814,49 @@ const calculateSelectedItemItemsCount = () => {
                     className={`w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-xl ${
                       selectedItem.type === "ORDER"
                         ? "bg-orange-100/50"
-                        : "bg-purple-100/50"
+                        : selectedItem.type === "BOOKING"
+                        ? "bg-purple-100/50"
+                        : "bg-teal-100/50"
                     }`}
                   >
-                    {selectedItem.type === "ORDER" ? (
-                      <Package className="h-5 w-5 text-orange-600" />
-                    ) : (
-                      <Calendar className="h-5 w-5 text-purple-600" />
-                    )}
+                    {getServiceIcon()}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      {selectedItem.type === "ORDER" ? "Order" : "Booking"} #
-                      {selectedItem.type === "ORDER"
-                        ? selectedItem.orderData?.orderId?.slice(-6)
-                        : selectedItem.bookingData?.bookingId?.slice(-6)}
+                      {getServiceName()} #{getServiceIdDisplay()}
                     </h3>
                     <p className="text-sm text-gray-600">
                       {selectedItem.vendor.name}
                     </p>
+                   {selectedItem.type !=="BOOKING" ?(
+                    <>
+                     <p>
+                      <span className="text-gray-500"> Total Fee:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        {formatPrice(DisplayAllTotalData()) || "0"}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Product :</span>{" "}
+                      <span className="font-light text-green-500">
+                        {formatPrice(DisplayTotalProductPriceData()) || "0"}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Delivery :</span>{" "}
+                      <span className="font-light text-green-500">
+                        {formatPrice(DisplayDeliveryTotalData()) || "0"}
+                      </span>
+                    </p>
+                    </>
+                   ):(
                       <p>
-                        
-                    <span className="text-gray-500"> Total Fee:</span>{" "}
-                    <span className="font-medium text-green-600">
-                      {formatPrice(calculateSelectedItemsWithdeliveryPrice()) || "0"}
-                    </span>
-                  </p>
-                    <p>
-                    <span className="text-gray-500">Product :</span>{" "}
-                    <span className="font-light text-green-500">
-                      {formatPrice(calculateSelectedItemTotalPrice()) || "0"}
-                    </span>
-                  </p>
-                    <p>
-                    <span className="text-gray-500">Delivery :</span>{" "}
-                    <span className="font-light text-green-500">
-                      {formatPrice(selectedItem?.orderData?.serviceFee) || "0"}
-                    </span>
-                  </p>
+                      <span className="text-gray-500"> Total Fee:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        {formatPrice(selectedItem.bookingData?.deliveryFee) || "0"}
+                      </span>
+                    </p>
+                   )}
                   </div>
                 </div>
                 <Button
@@ -723,7 +886,11 @@ const calculateSelectedItemItemsCount = () => {
                     <span className="text-sm text-gray-600">
                       {selectedItem.type === "ORDER"
                         ? selectedItem.vendor.location
-                        : selectedItem.bookingData?.pickUpAddress ?? "ere"}
+                        : selectedItem.type === "BOOKING"
+                        ? selectedItem.bookingData?.pickUpAddress ??
+                          selectedItem.vendor.location
+                        : selectedItem.requestItemData?.requestItem
+                            ?.pickUpAddress ?? selectedItem.vendor.location}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -757,9 +924,7 @@ const calculateSelectedItemItemsCount = () => {
                   </div>
                 </div>
 
-               
                 <PaymentStatusSection
-                
                   // paymentStatus={paymentStatus}
                   selectedItem={selectedItem}
                   onPayNow={() => {}}
@@ -1114,9 +1279,3 @@ const calculateSelectedItemItemsCount = () => {
     </div>
   );
 }
-
-
-
-
-
-

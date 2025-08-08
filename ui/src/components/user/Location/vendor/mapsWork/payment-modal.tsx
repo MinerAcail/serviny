@@ -27,6 +27,7 @@ interface PaymentModalProps {
   }
   onPaymentComplete: (paymentData: PaymentResult) => void
       vendorData?:vendorData
+      isRequest?:boolean
   
 }
 
@@ -66,7 +67,7 @@ interface PaymentMutationResult {
 
 type PaymentMethod = "cash" | "momo" | null
 
-export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete,vendorData }: PaymentModalProps) {
+export default function PaymentModal({ open, onOpenChange, orderDetails, onPaymentComplete,vendorData,isRequest }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const [referenceCode, setReferenceCode] = useState("")
@@ -74,7 +75,7 @@ export default function PaymentModal({ open, onOpenChange, orderDetails, onPayme
   const [paymentStep, setPaymentStep] = useState<"select" | "details" | "processing" | "success" | "error">("select")
   const [copied, setCopied] = useState(false)
   const [paymentError, setPaymentError] = useState<string>("")
-console.log("orderData",orderDetails);
+// console.log("orderData",orderDetails);
   
   const navigate = useNavigate()
 
@@ -97,7 +98,7 @@ console.log("orderData",orderDetails);
   const generateReferenceCode = () => {
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.random().toString(36).substring(2, 8).toUpperCase()
-    return `ORDER${timestamp}${random}`
+    return `${!isRequest?"ORDER":"REQUEST"}${timestamp}${random}`
   }
 
   // Reset modal state when opened
@@ -139,7 +140,7 @@ console.log("orderData",orderDetails);
       // Prepare mutation variables with correct method values
       const mutationVariables = {
         entityId: orderDetails?.id,
-        entityType: "ORDER", // Always ORDER for this component
+        entityType: !isRequest?"ORDER":"REQUESTITEM", // Always ORDER for this component
         method: selectedMethod!, // Pass "cash" or "momo" directly
         reference: referenceCode
       }

@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, gql } from "@apollo/client";
-import { X, ChevronRight, Eye, Grid, ShoppingBag } from "lucide-react";
+import {
+  X,
+  ChevronRight,
+  Eye,
+  Grid,
+  NotepadText,
+  PictureInPicture2,
+  PictureInPicture,
+} from "lucide-react";
 import { ProductCard, ProductDetailDialog } from "@/vendor/AllProducts";
-import { SubmitItemDialog } from "@/components/custom/users/userReview/submit-item-form";
+import { SubmitRequestItemDialog } from "@/components/custom/users/userReview/submitRequestItemForm";
 import { Button } from "@/components/ui/button";
 import SocialMediaManager from "@/components/custom/Socials/forms";
 import UserAuthCard from "@/components/custom/users/create";
 import { useAuth } from "@/middleware/context/authContext";
+import { DeliveryServiceSystem } from "../../APPOINTMENT/DeliveryServiceBooking/DeliveryServiceSystem";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 // GraphQL Queries
 const GET_ALL_GALLERY = gql`
@@ -29,6 +39,7 @@ const GET_ALL_GALLERY = gql`
       imageUrls
       createdAt
       updatedAt
+      webLink
     }
   }
 `;
@@ -89,6 +100,8 @@ interface GalleryItem {
   id: string;
   title: string;
   description: string;
+  webLink: string;
+
   categories: string[];
   imageUrls: string[];
   createdAt: string;
@@ -237,8 +250,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({
   }
 
   return (
-  <section className="pt-6 pb-4 bg-[#d8f3de8c] rounded-lg overflow-hidden">
-
+    <section className="pt-6 pb-4 bg-[#d8f3de8c] rounded-lg overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 md:mb-8 space-y-3 sm:space-y-0">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-blue-400">
@@ -267,20 +279,26 @@ const GallerySection: React.FC<GallerySectionProps> = ({
                 }}
               >
                 <div className="relative overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg group-hover:shadow-2xl transition-all duration-500">
-                  <img
-                    src={
-                      image.imageUrls?.[0] ||
-                      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop"
-                    }
-                    alt={image.title}
-                    className="w-full h-24 sm:h-28 md:h-32 lg:h-36 object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 md:bottom-4 md:left-4 md:right-4">
-                    <h3 className="text-white font-semibold text-xs sm:text-sm md:text-lg drop-shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      {image.title}
-                    </h3>
-                  </div>
+                  <a
+                    href={image.webLink || "#"}
+                    target={image.webLink ? "_blank" : undefined}
+                    rel={image.webLink ? "noopener noreferrer" : undefined}
+                  >
+                    <img
+                      src={
+                        getImageUrl(image.imageUrls?.[0]) ||
+                        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop"
+                      }
+                      alt={image.title}
+                      className="w-full h-24 sm:h-28 md:h-32 lg:h-36 object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                    <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 md:bottom-4 md:left-4 md:right-4">
+                      <h3 className="text-white font-semibold text-xs sm:text-sm md:text-lg drop-shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {image.title}
+                      </h3>
+                    </div>
+                  </a>
                 </div>
               </div>
             ))}
@@ -305,10 +323,15 @@ const GallerySection: React.FC<GallerySectionProps> = ({
             <div className="p-3 sm:p-4 lg:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {galleryItems.map((image) => (
                 <div key={image.id} className="group cursor-pointer">
+                   <a
+                    href={image.webLink || "#"}
+                    target={image.webLink ? "_blank" : undefined}
+                    rel={image.webLink ? "noopener noreferrer" : undefined}
+                  >
                   <div className="relative overflow-hidden rounded-lg shadow-md group-hover:shadow-xl transition-shadow duration-300">
                     <img
                       src={
-                        image.imageUrls?.[0] ||
+                        getImageUrl(image.imageUrls?.[0]) ||
                         "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop"
                       }
                       alt={image.title}
@@ -324,6 +347,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({
                       {image.description}
                     </p>
                   )}
+                  </a>
                 </div>
               ))}
             </div>
@@ -449,12 +473,11 @@ const CategoriesSection: React.FC<CategoriesSectionProps> = ({ vendorId }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 md:mb-12 space-y-4 sm:space-y-0">
-           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-blue-400">
-                      Categories
-            </h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-blue-400">
+            Categories
+          </h2>
           <button
-                          onClick={() => setShowCategoriesDialog(true)}
-
+            onClick={() => setShowCategoriesDialog(true)}
             className="group flex items-center justify-center sm:justify-start space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 sm:py-3 rounded-full border border-purple-200 hover:border-purple-400 transition-all duration-300 hover:shadow-lg w-full sm:w-auto text-sm sm:text-base"
           >
             <Eye className="w-4 h-4 text-purple-600" />
@@ -479,7 +502,7 @@ const CategoriesSection: React.FC<CategoriesSectionProps> = ({ vendorId }) => {
                   {category.imageUrl ? (
                     <>
                       <img
-                        src={category.imageUrl}
+                        src={getImageUrl(category.imageUrl)}
                         alt={category.name}
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         onError={(e) => {
@@ -601,7 +624,7 @@ const CategoriesSection: React.FC<CategoriesSectionProps> = ({ vendorId }) => {
                       {category.imageUrl ? (
                         <>
                           <img
-                            src={category.imageUrl}
+                            src={getImageUrl(category.imageUrl)}
                             alt={category.name}
                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             onError={(e) => {
@@ -778,8 +801,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
 
   return (
     <>
-        <section className="py-6 mt-2  bg-[#fff9f590] min-h-screen rounded-md">
-
+      <section className="py-6 mt-2  bg-[#fff9f590] min-h-screen rounded-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="mb-6 md:mb-8">
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
@@ -836,22 +858,67 @@ export function DropShippingPage({
   provider,
 }: DropShippingPageProps) {
   const { isAuthenticated } = useAuth();
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [bookText, setBookText] = useState("Book Delivery");
+
+  // Update useEffect to only run interval if not hovered
+  useEffect(() => {
+    if (isHovered) return;
+
+    const options = ["Book Delivery", "Book Rider"];
+    let index = 0;
+
+    const interval = setInterval(() => {
+      index = (index + 1) % options.length;
+      setBookText(options[index]);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isHovered]);
+
   return (
     <div className="min-h-screen overflow-x-hidden">
       <div className="mb-3 flex  items-end justify-between gap-4 sm:flex-row sm:items-center">
         {isAuthenticated ? (
-          <SubmitItemDialog>
+          <div className="grid grid-cols-2 gap-2">
+            <SubmitRequestItemDialog serviceId={serviceId ?? ""}>
+              <Button
+                variant="secondary"
+                className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
+              >
+                <PictureInPicture className="h-4 w-4" />
+                Request Item
+              </Button>
+            </SubmitRequestItemDialog>
             <Button
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={() => setDialogOpen(true)}
               variant="secondary"
               className="gap-2 rounded-full bg-secondary hover:bg-secondary/90"
             >
-              Request Item
+              <NotepadText className="h-4 w-4" />
+              {bookText}
             </Button>
-          </SubmitItemDialog>
+          </div>
         ) : (
-          <UserAuthCard>
-            <Button>Request Item</Button>
-          </UserAuthCard>
+          <div className="grid grid-cols-2 gap-2">
+            <UserAuthCard>
+              <Button className="gap-2">
+                <PictureInPicture className="h-4 w-4" />
+                Request Item
+              </Button>
+            </UserAuthCard>
+            <UserAuthCard>
+              <Button
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                {bookText}
+              </Button>
+            </UserAuthCard>
+          </div>
         )}
         <SocialMediaManager provider={provider} serviceId={serviceId ?? ""} />
       </div>
@@ -865,6 +932,11 @@ export function DropShippingPage({
         vendorId={serviceId ?? ""}
         filter={filter}
         limit={limit}
+      />
+      <DeliveryServiceSystem
+        isDialogOpenMain={isDialogOpen}
+        setDialogOpenMain={setDialogOpen}
+        serviceId={serviceId}
       />
     </div>
   );

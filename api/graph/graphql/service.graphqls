@@ -105,12 +105,16 @@ extend type Query {
 
   getOrderServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
   getBookingServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
+  getRequestItemServiceDataByUserIdFromServiceId(userId: String): [ServiceData!]!
 
   getOrderServiceData: [ServiceData!]!
+  getRequestItemServiceData: [ServiceData!]!
   getAllUserServiceData(entityId: String): [ServiceData!]!
   getSpecificOrderServiceData(userId: String, entityId: String): ServiceData
   getSpecificBookingServiceData(userId: String, entityId: String): ServiceData
+  getSpecificRequestItemServiceData(userId: String, entityId: String): ServiceData
   getBookingServiceDataByUserId(userId: String): [ServiceData!]!
+  getRequestItemServiceDataByUserId(userId: String): [ServiceData!]!
   getOrderServiceDataByUserId(userId: String): [ServiceData!]!
   getBookingServiceDataByBookingId(bookingId: String!): AppointmentBookingData!
 
@@ -259,6 +263,7 @@ type ServiceData {
   # Union-like approach - only one will be populated based on type
   orderData: CartItemOrder
   bookingData: AppointmentBookingData
+  requestItemData:RequestItemData
 }
 type AppointmentBookingData {
   bookingId: String!
@@ -289,10 +294,25 @@ type AppointmentBookingData {
   routeData: RouteInfo
   rangeMetaData: RiderRange # Booking uses RangeMetaData instead of ZoneMetaData
 }
-
+type RequestItemData {
+  requestId: String!
+  userType: String!
+  isConfirmed: Boolean
+requestItem:RequestItem
+  paymentStatus: String
+  paymentMethod: String
+  transportType: String
+  deliveryFee: String
+  distance: String
+  duration: String
+  estimatedDeliveryDate: String
+  routeData: RouteInfo
+  rangeMetaData: RiderRange # Booking uses RangeMetaData instead of ZoneMetaData
+}
 enum ServiceType {
   ORDER
   BOOKING
+  REQUESTITEM
 }
 
 type BusinessType {

@@ -658,7 +658,10 @@ func (r *mutationResolver) UpdateMultipleBookingsWithLocation(ctx context.Contex
 				log.Printf("Warning: failed to save route info: %v", err)
 			} else {
 				log.Printf("Successfully saved route info for order %s", bookingID.String())
+				routeInfoID := routeInfo.ID.String()
+				booking.RouteInfoID = &routeInfoID
 			}
+
 		} else {
 			log.Printf("Warning: failed to generate route GeoJSON: %v", err)
 		}
@@ -1117,6 +1120,8 @@ func (r *mutationResolver) UpdateMultiGroupBookingsWithLocationBybookID(ctx cont
 					log.Printf("Warning: failed to save route info for booking %s: %v", in.BookID, err)
 				} else {
 					log.Printf("Successfully saved route info for booking %s", in.BookID)
+					routeInfoID := routeInfo.ID.String()
+					booking.RouteInfoID = &routeInfoID
 				}
 			} else {
 				log.Printf("Warning: failed to generate route GeoJSON for booking %s: %v", in.BookID, err)

@@ -42,13 +42,13 @@ export function initializeMap(
   onLoad: () => void
 ): void {
   if (state.isInitialized) {
-    console.warn("⚠️ Map already initialized")
+    // console.warn("⚠️ Map already initialized")
     return
   }
 
-  console.log("🗺️ Starting map initialization...")
-  console.log("📍 Container:", container)
-  console.log("🔑 API Key:", maptilerApiKey ? "Provided" : "Using demo tiles")
+  // console.log("🗺️ Starting map initialization...")
+  // console.log("📍 Container:", container)
+  // console.log("🔑 API Key:", maptilerApiKey ? "Provided" : "Using demo tiles")
 
   const mapStyle = maptilerApiKey
     ? `https://api.maptiler.com/maps/streets/style.json?key=${maptilerApiKey}`
@@ -61,13 +61,13 @@ export function initializeMap(
       container,
       style: mapStyle,
       center: [-0.187, 5.6037], // Accra, Ghana
-      zoom: 11,
+      zoom: 12,
       attributionControl: false,
-      maxZoom: 18,
+      maxZoom: 24,
       minZoom: 8,
     })
 
-    console.log("✅ Map instance created successfully")
+    // console.log("✅ Map instance created successfully")
 
     // Set up event listeners
     state.map.on("load", () => {
@@ -134,6 +134,7 @@ export function debugMapState(state: MapState): void {
 }
 
 // Update map data with better error handling
+// Updated updateMapData function to fly to pickup location when item is selected
 export function updateMapData(
   state: MapState,
   serviceData: ServiceData[],
@@ -180,9 +181,9 @@ export function updateMapData(
       // Add markers
       addServiceMarkers(state, item, isSelected, bounds)
 
-      // Process routes with js
+      // Process routes
       processRouteData(item, isSelected, routeFeatures)
-
+      
       // Process isochrones
       processIsochroneData(item, isSelected, isochroneFeatures)
     })
@@ -190,7 +191,15 @@ export function updateMapData(
     // Add processed data to map
     addRoutesToMap(state, routeFeatures)
     addIsochronesToMap(state, isochroneFeatures)
-    fitMapToBounds(state, bounds, dataToShow.length)
+
+    // Handle map centering/fitting
+    if (selectedItem && viewMode !== "all") {
+      // When a specific item is selected, fly to its pickup location
+      flyToPickupLocation(state, selectedItem)
+    } else {
+      // When viewing all items, fit to bounds
+      fitMapToBounds(state, bounds, dataToShow.length)
+    }
 
     console.log("✅ Map update completed successfully")
   } catch (error) {
@@ -198,6 +207,76 @@ export function updateMapData(
     debugMapState(state)
   }
 }
+function flyToPickupLocation(state: MapState, item: ServiceData): void {
+  if (!state.map) return
+
+  let pickupCoords: [number, number] | null = null
+  let locationName = ""
+
+  // Get pickup coordinates based on item type
+  if (item.type === "BOOKING" && item.bookingData?.pickupLocation) {
+    pickupCoords = item.bookingData.pickupLocation
+    locationName = item.bookingData.pickUpAddress || "Pickup Location"
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem?.pickupLocation) {
+    pickupCoords = item.requestItemData.requestItem.pickupLocation
+    locationName = item.requestItemData.requestItem.pickUpAddress || "Pickup Location"
+  } else if (item.type === "ORDER" && item.vendor?.coordinates) {
+    // For orders, pickup is at vendor location
+    pickupCoords = item.vendor.coordinates
+    locationName = item.vendor.location || "Vendor Location"
+  }
+
+  // Validate coordinates
+  if (pickupCoords && Array.isArray(pickupCoords) && pickupCoords.length === 2) {
+    const [lng, lat] = pickupCoords
+    
+    if (
+      typeof lng === 'number' && 
+      typeof lat === 'number' && 
+      !isNaN(lng) && 
+      !isNaN(lat) &&
+      lng >= -180 && lng <= 180 &&
+      lat >= -90 && lat <= 90
+    ) {
+      console.log(`🎯 Flying to pickup location for ${item.type}:`, pickupCoords, locationName)
+      
+      // Fly to the pickup location with smooth animation
+      state.map.flyTo({
+        center: pickupCoords,
+        zoom: 16, // Closer zoom for selected item
+        duration: 1500, // Smooth 1.5 second animation
+        essential: true // This animation is essential for user experience
+      })
+      
+      return
+    }
+  }
+
+  // Fallback: if no valid pickup coordinates, try destination
+  console.warn(`No valid pickup coordinates found for ${item.type}, trying destination`)
+  const destinationCoords = getDestinationCoords(item)
+  
+  if (destinationCoords) {
+    console.log(`🎯 Flying to destination as fallback for ${item.type}:`, destinationCoords)
+    state.map.flyTo({
+      center: destinationCoords,
+      zoom: 16,
+      duration: 1500,
+      essential: true
+    })
+  } else {
+    // Final fallback: use vendor location or default
+    const fallbackCoords = item.vendor?.coordinates || [-0.187, 5.6037] // Accra default
+    console.log(`🎯 Flying to fallback location for ${item.type}:`, fallbackCoords)
+    state.map.flyTo({
+      center: fallbackCoords,
+      zoom: 14,
+      duration: 1500,
+      essential: true
+    })
+  }
+}
+
 
 // Add service markers
 function addServiceMarkers(
@@ -206,33 +285,64 @@ function addServiceMarkers(
   isSelected: boolean, 
   bounds: maplibregl.LngLatBounds
 ): void {
+  console.log(`Adding markers for ${item.type} item:`, item.id);
+  
   // Add vendor marker
   if (item.vendor.coordinates) {
-    const vendorMarker = createVendorMarker(state, item, isSelected)
-    state.markers.push(vendorMarker)
-    bounds.extend(item.vendor.coordinates)
+    console.log('Adding vendor marker at:', item.vendor.coordinates);
+    const vendorMarker = createVendorMarker(state, item, isSelected);
+    state.markers.push(vendorMarker);
+    bounds.extend(item.vendor.coordinates);
   }
 
   // Add destination marker
-  const destinationCoords = getDestinationCoords(item)
+  const destinationCoords = getDestinationCoords(item);
+  console.log(`Destination coords for ${item.type}:`, destinationCoords);
+
   if (destinationCoords) {
-    const destMarker = createDestinationMarker(state, item, destinationCoords, isSelected)
-    state.markers.push(destMarker)
-    bounds.extend(destinationCoords)
+    console.log('Adding destination marker at:', destinationCoords);
+    const destMarker = createDestinationMarker(state, item, destinationCoords, isSelected);
+    state.markers.push(destMarker);
+    bounds.extend(destinationCoords);
+  } else {
+    console.warn(`No valid destination coordinates found for ${item.type}`);
   }
 
-  // Add pickup marker for bookings
+  // Add pickup marker for different types
+  let pickupCoords: [number, number] | null = null;
+
   if (item.type === "BOOKING" && item.bookingData?.pickupLocation) {
-    const pickupMarker = createPickupMarker(state, item, isSelected)
-    state.markers.push(pickupMarker)
-    bounds.extend(item.bookingData.pickupLocation)
+    pickupCoords = item.bookingData.pickupLocation;
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem?.pickupLocation) {
+    pickupCoords = item.requestItemData.requestItem.pickupLocation;
+  } else if (item.type === "ORDER" && item.vendor?.coordinates) {
+    // For orders, pickup is typically at vendor location
+    pickupCoords = item.vendor.coordinates;
+  }
+
+  if (pickupCoords && Array.isArray(pickupCoords) && pickupCoords.length === 2) {
+    const [lng, lat] = pickupCoords;
+    if (
+      typeof lng === 'number' && 
+      typeof lat === 'number' && 
+      !isNaN(lng) && 
+      !isNaN(lat) &&
+      lng >= -180 && lng <= 180 &&
+      lat >= -90 && lat <= 90
+    ) {
+      console.log('Adding pickup marker at:', pickupCoords);
+      const pickupMarker = createPickupMarker(state, item, isSelected);
+      state.markers.push(pickupMarker);
+      bounds.extend(pickupCoords);
+    }
   }
 
   // Add rider marker
   if (item.rider?.coordinates) {
-    const riderMarker = createRiderMarker(state, item, isSelected)
-    state.markers.push(riderMarker)
-    bounds.extend(item.rider.coordinates)
+    console.log('Adding rider marker at:', item.rider.coordinates);
+    const riderMarker = createRiderMarker(state, item, isSelected);
+    state.markers.push(riderMarker);
+    bounds.extend(item.rider.coordinates);
   }
 }
 
@@ -243,6 +353,8 @@ function processRouteData(item: ServiceData, isSelected: boolean, routeFeatures:
     routeGeoJSON = item.orderData.routeData.geojson
   } else if (item.type === "BOOKING" && item.bookingData?.routeData?.geojson) {
     routeGeoJSON = item.bookingData.routeData.geojson
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.routeData?.geojson) {
+    routeGeoJSON =  item.requestItemData?.routeData.geojson
   }
 
   if (routeGeoJSON) {
@@ -307,14 +419,7 @@ function processRouteData(item: ServiceData, isSelected: boolean, routeFeatures:
           })
         }
 
-        console.log(`✅ Processed route for ${item.type} ${item.id}:`, {
-          calculatedLength: `${routeLength.toFixed(2)}km`,
-          apiDistance: routeDistance,
-          apiDuration: routeDuration,
-          coordinateCount: coordinates.length,
-          arrows: directionPoints.length,
-          color: routeColor,
-        })
+     
       }
     } catch (error) {
       console.warn(`❌ Failed to parse route data for ${item.type} ${item.id}:`, error)
@@ -356,7 +461,7 @@ function generateDirectionArrows(routeLine: any): any[] {
   }
 }
 
-// Process isochrone data
+// Process isochrone data out dated
 function processIsochroneData(item: ServiceData, isSelected: boolean, isochroneFeatures: any[]): void {
   if (item.type === "ORDER" && item.orderData?.deliveryMetaData?.geojson) {
     try {
@@ -608,12 +713,21 @@ function createDestinationMarker(state: MapState, item: ServiceData, coords: [nu
 }
 
 // Create pickup marker
-function createPickupMarker(state: MapState, item: ServiceData, isSelected: boolean): maplibregl.Marker {
+function createPickupMarker(state: MapState, item: ServiceData, isSelected: boolean): maplibregl.Marker | undefined {
+  const pickLocation =
+    item.type === "ORDER"
+      ? item.vendor?.coordinates
+      : item.type === "BOOKING"
+      ? item.bookingData?.pickupLocation
+      : item.requestItemData?.requestItem?.pickupLocation;
+
+  if (!pickLocation) return; // 👈 Exit early if no valid coordinates
+
   return new maplibregl.Marker({
     color: "#F59E0B",
     scale: isSelected ? 1.3 : 1.0,
   })
-    .setLngLat(item.bookingData.pickupLocation)
+    .setLngLat(pickLocation)
     .setPopup(
       new maplibregl.Popup({
         offset: 25,
@@ -635,8 +749,9 @@ function createPickupMarker(state: MapState, item: ServiceData, isSelected: bool
         </div>
       `),
     )
-    .addTo(state.map!)
+    .addTo(state.map!);
 }
+
 
 // Create rider marker
 function createRiderMarker(state: MapState, item: ServiceData, isSelected: boolean): maplibregl.Marker {
@@ -671,23 +786,76 @@ function createRiderMarker(state: MapState, item: ServiceData, isSelected: boole
 }
 
 // Get destination coordinates
-function getDestinationCoords(item: ServiceData): [number, number] | null {
+
+function getDestinationCoordsold(item: ServiceData): [number, number] | null {
   if (item.type === "ORDER" && item.orderData?.order?.coordinates) {
-    return item.orderData.order.coordinates
+    return item.orderData.order.coordinates;
   } else if (item.type === "BOOKING" && item.bookingData?.dropoffLocation) {
-    return item.bookingData.dropoffLocation
+    return item.bookingData.dropoffLocation;
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem?.dropoffLocation) {
+    return item.requestItemData?.requestItem?.dropoffLocation;
   }
-  return null
+  return null;
+}
+function getDestinationCoords(item: ServiceData): [number, number] | null {
+  let coords: [number, number] | null = null;
+  
+  if (item.type === "ORDER" && item.orderData?.order?.coordinates) {
+    coords = item.orderData.order.coordinates;
+  } else if (item.type === "BOOKING" && item.bookingData?.dropoffLocation) {
+    coords = item.bookingData.dropoffLocation;
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem?.dropoffLocation) {
+    coords = item.requestItemData.requestItem.dropoffLocation;
+  }
+  
+  // Validate coordinates - ensure they are valid longitude/latitude
+  if (coords && Array.isArray(coords) && coords.length === 2) {
+    const [lng, lat] = coords;
+    
+    // Check if coordinates are valid (not NaN, within valid ranges)
+    if (
+      typeof lng === 'number' && 
+      typeof lat === 'number' && 
+      !isNaN(lng) && 
+      !isNaN(lat) &&
+      lng >= -180 && lng <= 180 &&
+      lat >= -90 && lat <= 90
+    ) {
+      // Ensure proper format [longitude, latitude]
+      return [lng, lat];
+    }
+  }
+  
+  console.warn(`Invalid coordinates for ${item.type}:`, coords);
+  return null;
 }
 
 // Get destination address
+// function getDestinationAddress(item: ServiceData): string {
+//   if (item.type === "ORDER") {
+//     return item.orderData?.deliveryAddress || item.orderData?.order?.deliveryAddress || ""
+//   } else if (item.type === "BOOKING") {
+//     return item.bookingData?.deliveryAddress || ""
+//   }
+//   return ""
+// }
 function getDestinationAddress(item: ServiceData): string {
   if (item.type === "ORDER") {
-    return item.orderData?.deliveryAddress || item.orderData?.order?.deliveryAddress || ""
+    return (
+      item.orderData?.deliveryAddress ||
+      item.orderData?.order?.deliveryAddress ||
+      ""
+    );
   } else if (item.type === "BOOKING") {
-    return item.bookingData?.deliveryAddress || ""
+    return item.bookingData?.deliveryAddress || "";
+  } else if (item.type === "REQUESTITEM") {
+    return (
+      
+      item.requestItemData?.requestItem?.deliveryAddress ||
+      ""
+    );
   }
-  return ""
+  return "";
 }
 
 // Get route color using zone colors
@@ -696,7 +864,15 @@ function getRouteColor(item: ServiceData): string {
   const hash = hashString(item.id)
   
   // Use type as primary differentiator, then ID for uniqueness
-  const baseIndex = item.type === "ORDER" ? 0 : 2 // Different starting points for ORDER vs BOOKING
+ let baseIndex = 0
+
+  if (item.type === "ORDER") {
+    baseIndex = 0
+  } else if (item.type === "BOOKING") {
+    baseIndex = 2
+  } else if (item.type === "REQUESTITEM") {
+    baseIndex = 4
+  }
   const colorIndex = (baseIndex + hash) % ZONE_COLORS.length
   
   return ZONE_COLORS[colorIndex]
@@ -714,17 +890,42 @@ function hashString(str: string): number {
 }
 
 // Fit map to bounds
-function fitMapToBounds(state: MapState, bounds: maplibregl.LngLatBounds, dataLength: number): void {
-  if (!state.map || dataLength === 0) return
+function fitMapToBounds(state: MapState, bounds: maplibregl.LngLatBounds, itemCount: number): void {
+  if (!state.map) return
+  
+  // Check if bounds are valid
+  const ne = bounds.getNorthEast()
+  const sw = bounds.getSouthWest()
+  
+  console.log('Fitting map to bounds:', {
+    ne: [ne.lng, ne.lat],
+    sw: [sw.lng, sw.lat],
+    itemCount
+  })
+  
+  // If bounds are empty or invalid, use default center (Accra, Ghana)
+  if (
+    isNaN(ne.lng) || isNaN(ne.lat) || isNaN(sw.lng) || isNaN(sw.lat) ||
+    ne.lng === sw.lng || ne.lat === sw.lat
+  ) {
+    console.warn('Invalid bounds, using default center')
+    state.map.setCenter([-0.187, 5.6037]) // Accra, Ghana
+    state.map.setZoom(12)
+    return
+  }
 
   try {
+    // Add padding and fit to bounds
     state.map.fitBounds(bounds, {
-      padding: 80,
-      maxZoom: 15,
-      duration: 1000,
+      padding: itemCount === 1 ? 100 : 50,
+      maxZoom: itemCount === 1 ? 15 : 14,
+      duration: 1000
     })
   } catch (error) {
-    console.warn("Failed to fit bounds:", error)
+    console.error('Error fitting bounds:', error)
+    // Fallback to default center
+    state.map.setCenter([-0.187, 5.6037])
+    state.map.setZoom(12)
   }
 }
 
@@ -767,4 +968,53 @@ export function destroyMap(state: MapState): void {
 // Get map instance
 export function getMap(state: MapState): maplibregl.Map | null {
   return state.map
+}
+// Also add a debug function to help troubleshoot coordinates
+export function debugItemCoordinates(item: ServiceData): void {
+  console.log(`=== Debugging ${item.type} Coordinates ===`)
+  console.log('Item ID:', item.id)
+  
+  const pickupCoords = getPickupCoords(item)
+  const pickupAddress = getPickupAddress(item)
+  const destinationCoords = getDestinationCoords(item)
+  
+  console.log('Pickup Coordinates:', pickupCoords)
+  console.log('Pickup Address:', pickupAddress)
+  console.log('Destination Coordinates:', destinationCoords)
+  console.log('Vendor Coordinates:', item.vendor?.coordinates)
+  
+  if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem) {
+    console.log('RequestItem Details:', {
+      pickupLocation: item.requestItemData.requestItem.pickupLocation,
+      dropoffLocation: item.requestItemData.requestItem.dropoffLocation,
+      pickUpAddress: item.requestItemData.requestItem.pickUpAddress,
+      deliveryAddress: item.requestItemData.requestItem.deliveryAddress
+    })
+  }
+  
+  console.log('==========================================')
+}
+
+// Helper function to get pickup coordinates (reusable)
+function getPickupCoords(item: ServiceData): [number, number] | null {
+  if (item.type === "BOOKING" && item.bookingData?.pickupLocation) {
+    return item.bookingData.pickupLocation
+  } else if (item.type === "REQUESTITEM" && item.requestItemData?.requestItem?.pickupLocation) {
+    return item.requestItemData.requestItem.pickupLocation
+  } else if (item.type === "ORDER" && item.vendor?.coordinates) {
+    return item.vendor.coordinates
+  }
+  return null
+}
+
+// Helper function to get pickup address (reusable)
+function getPickupAddress(item: ServiceData): string {
+  if (item.type === "BOOKING") {
+    return item.bookingData?.pickUpAddress || "Pickup Location"
+  } else if (item.type === "REQUESTITEM") {
+    return item.requestItemData?.requestItem?.pickUpAddress || "Pickup Location"
+  } else if (item.type === "ORDER") {
+    return item.vendor?.location || "Vendor Location"
+  }
+  return "Unknown Location"
 }

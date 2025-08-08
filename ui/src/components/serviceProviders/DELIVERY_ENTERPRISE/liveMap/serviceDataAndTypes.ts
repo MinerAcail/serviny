@@ -93,7 +93,7 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
         day
         item
         notes
-        
+
         tableSize
         userType
         isConfirmed
@@ -109,6 +109,56 @@ export const GET_ALL_RIDERS_SERVICE_DATA = gql`
         distance
         duration
         estimatedDeliveryDate
+        rangeMetaData {
+          id
+          riderId
+          startKm
+          endKm
+          price
+        }
+        routeData {
+          id
+          orderId
+          geojson
+          userId
+          createdAt
+        }
+      }
+     
+       requestItemData {
+        requestId
+        userType
+        isConfirmed
+        paymentStatus
+        paymentMethod
+        transportType
+        deliveryFee
+        distance
+        duration
+        estimatedDeliveryDate
+        requestItem {
+          id
+          name
+          webLink
+          price
+          state
+          description
+          quantity
+          itemType
+          imageUrls
+          duration
+          distance
+          deliveryFee
+          dropoffLocation
+          pickupLocation
+          estimatedDeliveryDate
+          deliveryAddress
+          pickUpAddress
+          rangeMetaId
+          categories
+          createdAt
+          updatedAt
+        }
         rangeMetaData {
           id
           riderId
@@ -140,15 +190,7 @@ export const GET_ROUTE_DATA_FOR_EACH_ORDER = gql`
   }
 `;
 
-// Google Maps Configuration
-// const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-// const libraries: Libraries = ["places"];
 
-// export const GOOGLE_MAPS_CONFIG = {
-//   id: "google-map-script",
-//   googleMapsApiKey: googleMapsApiKey,
-//   libraries: libraries,
-// };
 
 // Base types that are shared
 export interface UsersInfor {
@@ -181,14 +223,13 @@ export interface Product {
   name: string;
   price: string;
   state: string;
-  imageUrls:string[];
+  imageUrls: string[];
 }
 
 export interface productInfor {
   product: Product[];
   quantity: number;
   itemType: string;
-  
 }
 
 export interface ZoneMetaData {
@@ -271,124 +312,174 @@ export interface AppointmentBookingData {
 export interface ServiceData {
   id: string;
   serviceId: string;
-  type: "ORDER" | "BOOKING";
+  type: "ORDER" | "BOOKING" | "REQUESTITEM";
   rider?: UsersInfor;
   customer: UsersInfor;
   vendor: Service;
   createdAt: string;
   orderData?: CartItemOrder;
   bookingData?: AppointmentBookingData;
+  requestItemData?: RequestItemData;
+}
+export interface RequestItem {
+  id: string;
+  name?: string;
+  price?: string;
+  state?: string;
+  description?: string;
+  quantity: number;
+  itemType?: string;
+  categories?: string;
+  imageUrls?: string[];
+  duration?: string;
+  distance?: string;
+  deliveryFee?: string;
+  dropoffLocation?: [number, number];
+  pickupLocation?: [number, number];
+  estimatedDeliveryDate?: string;
+  deliveryAddress?: string;
+  pickUpAddress?: string;
+  rangeMetaId?: string;
+  webLink?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RequestItemData {
+  requestId: string;
+  userType: string;
+  isConfirmed?: boolean;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  transportType?: string;
+  deliveryFee?: string;
+  distance?: string;
+  duration?: string;
+  estimatedDeliveryDate?: string;
+  requestItem?: RequestItem;
+  rangeMetaData?: {
+    id: string;
+    riderId: string;
+    startKm: number;
+    endKm: number;
+    price: number;
+  };
+  routeData?: {
+    id: string;
+    orderId: string;
+    geojson: any;
+    userId: string;
+    createdAt: string;
+  };
 }
 export interface RidersServiceData {
-  getAllRidersServiceData:ServiceData
+  getAllRidersServiceData: ServiceData;
 }
 
 export interface getAllRidersServiceData {
- 
-  id: string
-  serviceId: string
-  type: "ORDER" | "BOOKING"
+  id: string;
+  serviceId: string;
+  type: "ORDER" | "BOOKING";
   rider?: {
-    id: string
-    name: string
-    number: string
-    location?: string
-    coordinates?: [number, number]
-  }
+    id: string;
+    name: string;
+    number: string;
+    location?: string;
+    coordinates?: [number, number];
+  };
   customer: {
-    name: string
-    dpfile?: string
-    number: string
-  }
+    name: string;
+    dpfile?: string;
+    number: string;
+  };
   vendor: {
-    id: string
-    name: string
-    location: string
-    coordinates: [number, number]
-  }
-  createdAt: string
+    id: string;
+    name: string;
+    location: string;
+    coordinates: [number, number];
+  };
+  createdAt: string;
   orderData?: {
-    orderId?: string
-    status?: string // Using status field for orders
-    deliveryAddress?: string
-    estimatedDeliveryDate?: string
-    serviceFee?: number
+    orderId?: string;
+    status?: string; // Using status field for orders
+    deliveryAddress?: string;
+    estimatedDeliveryDate?: string;
+    serviceFee?: number;
     productInfor?: Array<{
-      product: Product[]
-      quantity: number
-  itemType: string;
-
-    }>
+      product: Product[];
+      quantity: number;
+      itemType: string;
+    }>;
     deliveryMetaData?: {
-      id: string
-      price: number
-      duration: string
-      distance: string
-      zone: string
-      geojson: any
-      isochroneId: string
-    }
+      id: string;
+      price: number;
+      duration: string;
+      distance: string;
+      zone: string;
+      geojson: any;
+      isochroneId: string;
+    };
     routeData?: {
-      id: string
-      orderId: string
-      geojson: any
-      userId: string
-      createdAt: string
-    }
+      id: string;
+      orderId: string;
+      geojson: any;
+      userId: string;
+      createdAt: string;
+    };
     order?: {
-      id: string
-      coordinates: [number, number]
-      deliveryAddress: string
-      distance: string
-      duration: string
+      id: string;
+      coordinates: [number, number];
+      deliveryAddress: string;
+      distance: string;
+      duration: string;
       items: Array<{
-        id: string
-        orderId: string
-        quantity: number
-  itemType: string;
+        id: string;
+        orderId: string;
+        quantity: number;
+        itemType: string;
 
-        itemType: string
+        itemType: string;
         product: {
-          id: string
-          name: string
-        }
-      }>
-    }
-  }
+          id: string;
+          name: string;
+        };
+      }>;
+    };
+  };
   bookingData?: {
-    bookingId?: string
-    startTime?: string
-    endTime?: string
-    day?: string
-    item?: string
-    tableSize?: number
-    userType?: string
-    status?: string // Using status field for bookings instead of isConfirmed
-    pickupLocation?: string
-    dropoffLocation?: string
-    deliveryAddress?: string
-    pickUpAddress?: string
-    cargoId?:string
-    deliveryFee?: number
-    distance?: string
-    duration?: string
-    estimatedDeliveryDate?: string
-    notes?: string
+    bookingId?: string;
+    startTime?: string;
+    endTime?: string;
+    day?: string;
+    item?: string;
+    tableSize?: number;
+    userType?: string;
+    status?: string; // Using status field for bookings instead of isConfirmed
+    pickupLocation?: string;
+    dropoffLocation?: string;
+    deliveryAddress?: string;
+    pickUpAddress?: string;
+    cargoId?: string;
+    deliveryFee?: number;
+    distance?: string;
+    duration?: string;
+    estimatedDeliveryDate?: string;
+    notes?: string;
     rangeMetaData?: {
-      id: string
-      riderId: string
-      startKm: number
-      endKm: number
-      price: number
-    }
+      id: string;
+      riderId: string;
+      startKm: number;
+      endKm: number;
+      price: number;
+    };
     routeData?: {
-      id: string
-      orderId: string
-      geojson: any
-      userId: string
-      createdAt: string
-    }
-  }
+      id: string;
+      orderId: string;
+      geojson: any;
+      userId: string;
+      createdAt: string;
+    };
+  };
 }
 // Processed rider type for the map
 export interface ProcessedRider {
@@ -398,6 +489,7 @@ export interface ProcessedRider {
   location: string;
   orders: number;
   bookings?: number;
+  requestItems?: number;
   rating: number;
   phone: string;
   vehicle: "Motorcycle" | "Bicycle";
@@ -405,6 +497,8 @@ export interface ProcessedRider {
   earnings: string;
   currentOrders: ServiceData[];
   currentBookings?: ServiceData[];
+  currentRequestItems?: ServiceData[];
+  
   position: { lat: number; lng: number };
   direction: number;
   routeCoordinates?: [number, number][];

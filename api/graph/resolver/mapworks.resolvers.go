@@ -608,15 +608,15 @@ func (r *mutationResolver) CreateRiderRange(ctx context.Context, input model.New
 	if err := r.DB.Create(newRange).Error; err != nil {
 		return nil, fmt.Errorf("failed to create rider range: %w", err)
 	}
-	riderRangeID := newRange.ID.String()
+	// riderRangeID := newRange.ID.String()
 
-	_, err = r.CreateIsochroneFromInput(ctx, *riderIDStr, input, riderRangeID)
-	if err != nil {
-		// Log error but don't fail the range creation
-		fmt.Printf("Error auto-generating isochrone after range creation for rider %s: %v\n", *riderIDStr, err)
-	} else {
-		fmt.Printf("Successfully auto-generated isochrone after creating range for rider %s\n", *riderIDStr)
-	}
+	// _, err = r.CreateIsochroneFromInput(ctx, *riderIDStr, input, riderRangeID)
+	// if err != nil {
+	// 	// Log error but don't fail the range creation
+	// 	fmt.Printf("Error auto-generating isochrone after range creation for rider %s: %v\n", *riderIDStr, err)
+	// } else {
+	// 	fmt.Printf("Successfully auto-generated isochrone after creating range for rider %s\n", *riderIDStr)
+	// }
 	// Log the validation result for debugging/auditing
 	if validationResult.WasStartAdjusted {
 		fmt.Printf("Range adjusted for rider %s: %s\n", *riderIDStr, validationResult.Message)
@@ -1111,6 +1111,11 @@ func (r *queryResolver) GetRiderRanges(ctx context.Context) ([]*model.RiderRange
 		return nil, fmt.Errorf("failed to get rider ranges for rider ID %s: %w", riderIDStr, err)
 	}
 	return ranges, nil
+}
+
+// GetAllRanges is the resolver for the getAllRanges field.
+func (r *queryResolver) GetAllRanges(ctx context.Context) ([]*model.RiderRange, error) {
+	panic(fmt.Errorf("not implemented: GetAllRanges - getAllRanges"))
 }
 
 // GetARiderRanges is the resolver for the getARiderRanges field.

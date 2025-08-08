@@ -649,6 +649,7 @@ const router = createBrowserRouter([
               BusinessTypeEnum?.DELIVERY_STANDARD,
               BusinessTypeEnum.DELIVERY_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum.DROP_SHIPPING,
             ]}
           />
         ),
@@ -666,6 +667,7 @@ const router = createBrowserRouter([
               BusinessTypeEnum?.DELIVERY_STANDARD,
               BusinessTypeEnum.DELIVERY_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum.DROP_SHIPPING,
             ]}
           />
         ),
@@ -684,6 +686,7 @@ const router = createBrowserRouter([
               BusinessTypeEnum?.DELIVERY_STANDARD,
               BusinessTypeEnum.DELIVERY_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum.DROP_SHIPPING,
             ]}
           />
         ),
@@ -698,6 +701,7 @@ const router = createBrowserRouter([
                 BusinessTypeEnum?.DELIVERY_STANDARD,
                 BusinessTypeEnum.DELIVERY_ENTERPRISE,
                 BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+                BusinessTypeEnum.DROP_SHIPPING,
               ]}
             />
           </LoadingWrapper>
@@ -716,18 +720,12 @@ const router = createBrowserRouter([
               BusinessTypeEnum?.ECOMMERCE_ENTERPRISE,
               BusinessTypeEnum.DELIVERY_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
+              BusinessTypeEnum.DROP_SHIPPING,
             ]}
           />
         ),
       },
-      // {
-      //   path: "analytics",
-      //   element: (
-      //     <LoadingWrapper>
-      //       <Analytics />
-      //     </LoadingWrapper>
-      //   )
-      // },
+    
 
       {
         path: "history",

@@ -36,7 +36,6 @@ input ProductInputUpdate {
   itemsType: [String]
 
   description: String
-
 }
 enum ProductState {
   ACTIVE
@@ -68,7 +67,6 @@ type CartItemOrder {
   estimatedDeliveryDate: String!
   deliveryMetaData: ZoneMetaData
   rangeMetaData: RiderRange # order uses RangeMetaData instead of ZoneMetaData new update
-
   routeData: RouteInfo
   serviceFee: String
   createdAt: Time!
@@ -88,6 +86,8 @@ type Order {
   distance: String
   riderId: String
   userId: String!
+  routeInfoId: String
+
   status: String!
   items: [CartItem!]!
   estimatedDeliveryDate: String!
@@ -98,21 +98,33 @@ type Order {
   updatedAt: Time!
 }
 type RequestItem {
-  id: String
+  id: String!
   name: String
   price: String
   state: ProductState
   description: String
   quantity: Int!
   itemType: String
-  orderId: String
-  userId:String
-  serviceId:String
-  webLink:String
+  # orderId: String
+  riderId:String
+  userId: String
+  serviceId: String
+  routeInfoId: String
+  
+  webLink: String
   categories: String
   imageUrls: [String]
-  createdAt: Time
-  updatedAt: Time
+  duration: String
+  distance: String
+  deliveryFee: String
+  dropoffLocation: [Float]
+  pickupLocation: [Float]
+  estimatedDeliveryDate: String
+  deliveryAddress: String
+  pickUpAddress: String
+  rangeMetaId: String
+  createdAt: Time!
+  updatedAt: Time!
 }
 # type webLink
 input OrderInput {
@@ -190,8 +202,9 @@ extend type Query {
   getAllChatMessageByNumber(customerNumber: String!): [ChatMessage]!
 
   getAllRequestItems: [RequestItem!]!
+  getRequestItem(requestId:String!): RequestItem!
 
-  getAllCategoryBox(query: String,vendorId:String!): [ViewcategoryBox!]!
+  getAllCategoryBox(query: String, vendorId: String!): [ViewcategoryBox!]!
   getNewAddedCategoryBox: [categoryBox!]!
   getCategoryBox(categoryId: String!): categoryBox
   getProductsByCategory(categoryId: String!): ViewcategoryBox
@@ -206,7 +219,6 @@ input addCoordinateInput {
   ridersId: String
 }
 
- 
 extend type Mutation {
   clearCart: Boolean!
   VendorUpload(files: [Upload], input: ProductInput!): Product!
@@ -232,7 +244,8 @@ extend type Mutation {
   markMessagesAsRead(sender: SenderType!): Boolean!
   deleteAllChatMessageByNumber(customerNumber: String!): Boolean!
 
-  requestItem(input: RequestInput!): RequestItem
+  requestItem(input: RequestInput!, serviceId: String!): RequestItem
+  updateRequestItemWithLocation(input:addRequestItemCoordinateInput):RequestItem!
   updateRequestItemStatus(
     requestId: String!
     status: ProductState!
@@ -255,17 +268,15 @@ input CategoryBoxInput {
   files: Upload
   productId: [String]
 }
-# type RequestItem {
-#   id: String
-#   name: String
-#   price: String
-#   state: ProductState
-#   description: String
-#   categories: String
-#   imageUrls: [String]
-#   createdAt: Time
-#   updatedAt: Time
-# }
+input addRequestItemCoordinateInput {
+  requestId: String!
+  deliveryAddress: String
+  pickUpAddress: String
+  dropoffLocation: [Float]
+  pickupLocation: [Float]
+  rangeMetaId: String
+  ridersId: String
+}
 
 input RequestInput {
   name: String
@@ -274,13 +285,12 @@ input RequestInput {
   description: String
   quantity: Int
   itemType: String
-  orderId: String
   webLink: WebLink
   images: [Upload!]
 }
-input WebLink{
-  name:String
-  link:String
+input WebLink {
+  name: String
+  link: String
 }
 type categoryBox {
   id: String

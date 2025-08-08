@@ -2149,9 +2149,17 @@ func (r *queryResolver) GetAllRidersServiceData(ctx context.Context) ([]*model.S
 		results = append(results, bookingResults...)
 		log.Printf("Retrieved %d bookings for service %s", len(bookingResults), *serviceIDStr)
 	}
+	// Get requests
+	requestResults, requestErr := r.GetRequestItemServiceData(ctx)
+	if requestErr != nil {
+		log.Printf("Warning: failed to get request service data: %v", requestErr)
+	} else {
+		results = append(results, requestResults...)
+		log.Printf("Retrieved %d requests for service %s", len(requestResults), *serviceIDStr)
+	}
 
 	// If both failed, return error
-	if orderErr != nil && bookingErr != nil {
+	if orderErr != nil && bookingErr != nil && requestErr != nil {
 		return nil, fmt.Errorf("failed to get both orders and bookings: orders error: %v, bookings error: %v", orderErr, bookingErr)
 	}
 
@@ -2757,6 +2765,135 @@ func (r *queryResolver) GetBookingServiceDataByUserIDFromServiceID(ctx context.C
 	return results, nil
 }
 
+// GetRequestItemServiceDataByUserIDFromServiceID is the resolver for the getRequestItemServiceDataByUserIdFromServiceId field.
+func (r *queryResolver) GetRequestItemServiceDataByUserIDFromServiceID(ctx context.Context, userID *string) ([]*model.ServiceData, error) {
+	// Get service ID from context (assuming the authenticated user is a service/vendor)
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID from context: %v", err)
+	}
+
+	// Use the provided userID parameter if available for filtering by customer
+	var targetUserID *string
+	if userID != nil && *userID != "" {
+		targetUserID = userID
+	}
+
+	// Build query for request items belonging to this service
+	query := r.DB.Where("service_id = ?", *serviceIDStr).Order("created_at DESC")
+
+	// If userID is provided, also filter by user_id (customer)
+	if targetUserID != nil {
+		query = query.Where("user_id = ?", *targetUserID)
+	}
+
+	// Fetch request items for this service
+	var requestItems []model.RequestItem
+	if err := query.Find(&requestItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch request items for service %s: %w", *serviceIDStr, err)
+	}
+
+	var results []*model.ServiceData
+
+	for _, requestItem := range requestItems {
+		// Get customer information
+		customer, err := r.Query().GetUserInfor(ctx, *requestItem.UserID)
+		if err != nil {
+			log.Printf("Warning: failed to get customer info for request item %s: %v", requestItem.ID, err)
+			continue
+		}
+
+		// Get rider information if assigned
+		var rider *model.UsersInfor
+	
+
+		if requestItem.RiderID != nil && *requestItem.RiderID != "" {
+			rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
+			if err != nil {
+				log.Printf("Warning: failed to get rider info for request item %s: %v", requestItem.ID, err)
+			}
+		}
+
+		// Get service information (should be the authenticated service)
+		var service model.Service
+		if err := r.DB.Where("id = ?", *serviceIDStr).First(&service).Error; err != nil {
+			log.Printf("Warning: service not found for request item %s: %v", requestItem.ID, err)
+			continue
+		}
+
+		// Get route data
+		var routeData *model.RouteInfo
+		if err := r.DB.Where("order_id = ?", requestItem.ID.String()).First(&routeData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get route data for request item %s: %v", requestItem.ID, err)
+			}
+			routeData = nil // Explicitly set to nil if not found
+		} else {
+			// Validate the route data has required fields
+			if routeData.CreatedAt.IsZero() {
+				log.Printf("Warning: route data for request item %s has invalid createdAt, setting to request createdAt", requestItem.ID)
+				if requestItem.CreatedAt != nil {
+					routeData.CreatedAt = *requestItem.CreatedAt
+				}
+			}
+			if routeData.UpdatedAt.IsZero() {
+				if requestItem.CreatedAt != nil {
+					routeData.UpdatedAt = *requestItem.CreatedAt
+				}
+			}
+		}
+
+		// Get range metadata if available
+		var rangeMetaData *model.RiderRange
+		if requestItem.RangeMetaID != nil && *requestItem.RangeMetaID != "" {
+			if err := r.DB.Where("id = ?", *requestItem.RangeMetaID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for request item %s: %v", requestItem.ID, err)
+				}
+			}
+		}
+
+		// Create ServiceData for request item
+		serviceData := &model.ServiceData{
+			ID:        requestItem.ID.String(),
+			ServiceID: service.ID.String(),
+			Type:      model.ServiceTypeRequestitem,
+			Rider:     rider,
+			Customer:  customer,
+			Vendor:    &service,
+			CreatedAt: *requestItem.CreatedAt,
+
+			// Populate request item specific data
+			RequestItemData: &model.RequestItemData{
+				RequestID:   requestItem.ID.String(),
+				UserType:    "service", // This is from service perspective
+				IsConfirmed: nil,       // Add if available in your model
+				RequestItem: &requestItem,
+
+				DeliveryFee:           requestItem.DeliveryFee,
+				Distance:              requestItem.Distance,
+				Duration:              requestItem.Duration,
+				EstimatedDeliveryDate: requestItem.EstimatedDeliveryDate,
+				RouteData:             routeData,
+				RangeMetaData:         rangeMetaData,
+			},
+			OrderData:   nil, // Not populated for request items
+			BookingData: nil, // Not populated for request items
+		}
+
+		results = append(results, serviceData)
+		log.Printf("Successfully processed request item %s for service %s", requestItem.ID, service.ID)
+	}
+
+	if targetUserID != nil {
+		log.Printf("Retrieved %d request items for service %s and user %s", len(results), *serviceIDStr, *targetUserID)
+	} else {
+		log.Printf("Retrieved %d request items for service %s (all users)", len(results), *serviceIDStr)
+	}
+
+	return results, nil
+}
+
 // GetOrderServiceData is the resolver for the getOrderServiceData field.
 func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.ServiceData, error) {
 	// Get service ID from context
@@ -2991,6 +3128,136 @@ func (r *queryResolver) GetOrderServiceData(ctx context.Context) ([]*model.Servi
 	return results, nil
 }
 
+// GetRequestItemServiceData is the resolver for the getRequestItemServiceData field.
+func (r *queryResolver) GetRequestItemServiceData(ctx context.Context) ([]*model.ServiceData, error) {
+	// Get service ID from context (assuming the authenticated user is a service/vendor)
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Service ID from context: %v", err)
+	}
+
+	// Use the provided userID parameter if available for filtering by customer
+	// var targetUserID *string
+	// if userID != nil && *userID != "" {
+	// 	targetUserID = userID
+	// }
+
+	// Build query for request items belonging to this service
+	query := r.DB.Where("service_id = ?", *serviceIDStr).Order("created_at DESC")
+
+	// If userID is provided, also filter by user_id (customer)
+	// if targetUserID != nil {
+	// 	query = query.Where("user_id = ?", *targetUserID)
+	// }
+
+	// Fetch request items for this service
+	var requestItems []model.RequestItem
+	if err := query.Find(&requestItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch request items for service %s: %w", *serviceIDStr, err)
+	}
+
+	var results []*model.ServiceData
+
+	for _, requestItem := range requestItems {
+		// Get customer information
+		customer, err := r.Query().GetUserInfor(ctx, *requestItem.UserID)
+		if err != nil {
+			log.Printf("Warning: failed to get customer info for request item %s: %v", requestItem.ID, err)
+			continue
+		}
+
+		// Get rider information if assigned
+		var rider *model.UsersInfor
+	
+
+		if requestItem.RiderID != nil && *requestItem.RiderID != "" {
+			rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
+			if err != nil {
+				log.Printf("Warning: failed to get rider info for request item %s: %v", requestItem.ID, err)
+			}
+		}
+
+		// Get service information (should be the authenticated service)
+		var service model.Service
+		if err := r.DB.Where("id = ?", *serviceIDStr).First(&service).Error; err != nil {
+			log.Printf("Warning: service not found for request item %s: %v", requestItem.ID, err)
+			continue
+		}
+
+		// Get route data
+		var routeData *model.RouteInfo
+		if err := r.DB.Where("order_id = ?", requestItem.ID.String()).First(&routeData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get route data for request item %s: %v", requestItem.ID, err)
+			}
+			routeData = nil // Explicitly set to nil if not found
+		} else {
+			// Validate the route data has required fields
+			if routeData.CreatedAt.IsZero() {
+				log.Printf("Warning: route data for request item %s has invalid createdAt, setting to request createdAt", requestItem.ID)
+				if requestItem.CreatedAt != nil {
+					routeData.CreatedAt = *requestItem.CreatedAt
+				}
+			}
+			if routeData.UpdatedAt.IsZero() {
+				if requestItem.CreatedAt != nil {
+					routeData.UpdatedAt = *requestItem.CreatedAt
+				}
+			}
+		}
+
+		// Get range metadata if available
+		var rangeMetaData *model.RiderRange
+		if requestItem.RangeMetaID != nil && *requestItem.RangeMetaID != "" {
+			if err := r.DB.Where("id = ?", *requestItem.RangeMetaID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for request item %s: %v", requestItem.ID, err)
+				}
+			}
+		}
+
+		// Create ServiceData for request item
+		serviceData := &model.ServiceData{
+			ID:        requestItem.ID.String(),
+			ServiceID: service.ID.String(),
+			Type:      model.ServiceTypeRequestitem,
+			Rider:     rider,
+			Customer:  customer,
+			Vendor:    &service,
+			CreatedAt: *requestItem.CreatedAt,
+
+			// Populate request item specific data
+			RequestItemData: &model.RequestItemData{
+				RequestID:   requestItem.ID.String(),
+				UserType:    "service", // This is from service perspective
+				IsConfirmed: nil,       // Add if available in your model
+				RequestItem: &requestItem,
+
+				DeliveryFee:           requestItem.DeliveryFee,
+				Distance:              requestItem.Distance,
+				Duration:              requestItem.Duration,
+				EstimatedDeliveryDate: requestItem.EstimatedDeliveryDate,
+				RouteData:             routeData,
+				RangeMetaData:         rangeMetaData,
+			},
+			OrderData:   nil, // Not populated for request items
+			BookingData: nil, // Not populated for request items
+		}
+
+		results = append(results, serviceData)
+		log.Printf("Successfully processed request item %s for service %s", requestItem.ID, service.ID)
+	}
+
+	// if targetUserID != nil {
+	// 	log.Printf("Retrieved %d request items for service %s and user %s", len(results), *serviceIDStr, *targetUserID)
+	// } else {
+	// 	log.Printf("Retrieved %d request items for service %s (all users)", len(results), *serviceIDStr)
+	// }
+
+	return results, nil
+
+}
+
 // GetAllUserServiceData is the resolver for the getAllUserServiceData field.
 func (r *queryResolver) GetAllUserServiceData(ctx context.Context, entityID *string) ([]*model.ServiceData, error) {
 	// Get user ID from context
@@ -3023,7 +3290,12 @@ func (r *queryResolver) GetAllUserServiceData(ctx context.Context, entityID *str
 			log.Printf("Found order with ID %s for user %s", *entityID, *userIDStr)
 			return results, nil
 		}
-
+		requestResult, requestErr := r.GetSpecificRequestItemServiceData(ctx, userIDStr, entityID)
+		if requestErr == nil && requestResult != nil {
+			results = append(results, requestResult)
+			log.Printf("Found order with ID %s for user %s", *entityID, *userIDStr)
+			return results, nil
+		}
 		// Log errors for debugging
 		if bookingErr != nil {
 			log.Printf("Booking search error for ID %s: %v", *entityID, bookingErr)
@@ -3055,7 +3327,14 @@ func (r *queryResolver) GetAllUserServiceData(ctx context.Context, entityID *str
 		results = append(results, bookingResults...)
 		log.Printf("Retrieved %d bookings for user %s", len(bookingResults), *userIDStr)
 	}
-
+	// Get requests for this user
+	requestResults, requestErr := r.GetRequestItemServiceDataByUserID(ctx, nil)
+	if requestErr != nil {
+		log.Printf("Warning: failed to get request service data for user %s: %v", *userIDStr, requestErr)
+	} else {
+		results = append(results, requestResults...)
+		log.Printf("Retrieved %d requests for user %s", len(requestResults), *userIDStr)
+	}
 	// If both failed, return error
 	if orderErr != nil && bookingErr != nil {
 		return nil, fmt.Errorf("failed to get both orders and bookings for user %s: orders error: %v, bookings error: %v", *userIDStr, orderErr, bookingErr)
@@ -3078,6 +3357,13 @@ func (r *queryResolver) GetAllUserServiceData(ctx context.Context, entityID *str
 		func() int {
 			if bookingErr == nil {
 				return len(bookingResults)
+			} else {
+				return 0
+			}
+		}(),
+		func() int {
+			if requestErr == nil {
+				return len(requestResults)
 			} else {
 				return 0
 			}
@@ -3385,6 +3671,123 @@ func (r *queryResolver) GetSpecificBookingServiceData(ctx context.Context, userI
 	return serviceData, nil
 }
 
+// GetSpecificRequestItemServiceData is the resolver for the getSpecificRequestItemServiceData field.
+func (r *queryResolver) GetSpecificRequestItemServiceData(ctx context.Context, userID *string, entityID *string) (*model.ServiceData, error) {
+	// Get user ID from context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get User ID: %v", err)
+	}
+
+	// Use the provided userID parameter if available, otherwise use context userID
+	var targetUserID string
+	if userID != nil && *userID != "" {
+		targetUserID = *userID
+	} else {
+		targetUserID = *userIDStr
+	}
+
+	// Fetch specific request item for this user
+	var requestItem model.RequestItem
+	if err := r.DB.Where("id = ? AND user_id = ?", entityID, targetUserID).
+		First(&requestItem).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Not found, but not an error
+		}
+		return nil, fmt.Errorf("failed to fetch request item %s for user %s: %w", *entityID, targetUserID, err)
+	}
+
+	// Get customer information
+	customer, err := r.Query().GetUserInfor(ctx, *requestItem.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer info for request item %s: %v", requestItem.ID, err)
+	}
+
+	// Get rider information if assigned (RequestItem might not have this initially)
+	var rider *model.UsersInfor
+	if requestItem.RiderID != nil {
+		rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
+		if err != nil {
+			log.Printf("Warning: failed to get rider info for request Item %s: %v", requestItem.ID, err)
+		}
+	}
+	// Get service information if available
+	var service *model.Service
+	if requestItem.ServiceID != nil && *requestItem.ServiceID != "" {
+		var serviceModel model.Service
+		if err := r.DB.Where("id = ?", *requestItem.ServiceID).First(&serviceModel).Error; err != nil {
+			log.Printf("Warning: service not found for request item %s: %v", requestItem.ID, err)
+		} else {
+			service = &serviceModel
+		}
+	}
+
+	// Get route data
+	var routeData *model.RouteInfo
+	if err := r.DB.Where("order_id = ?", requestItem.ID.String()).First(&routeData).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			log.Printf("Warning: failed to get route data for request item %s: %v", requestItem.ID, err)
+		}
+		routeData = nil
+	} else {
+		if routeData.CreatedAt.IsZero() && requestItem.CreatedAt != nil {
+			routeData.CreatedAt = *requestItem.CreatedAt
+		}
+		if routeData.UpdatedAt.IsZero() && requestItem.CreatedAt != nil {
+			routeData.UpdatedAt = *requestItem.CreatedAt
+		}
+	}
+
+	// Get range metadata
+	var rangeMetaData *model.RiderRange
+	if requestItem.RangeMetaID != nil && *requestItem.RangeMetaID != "" {
+		if err := r.DB.Where("id = ?", *requestItem.RangeMetaID).First(&rangeMetaData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get range metadata for request item %s: %v", requestItem.ID, err)
+			}
+		}
+	}
+
+	// Determine service ID
+	var serviceID string
+	if service != nil {
+		serviceID = service.ID.String()
+	} else if requestItem.ServiceID != nil {
+		serviceID = *requestItem.ServiceID
+	} else {
+		serviceID = requestItem.ID.String()
+	}
+
+	// Create ServiceData for request item
+	serviceData := &model.ServiceData{
+		ID:        requestItem.ID.String(),
+		ServiceID: serviceID,
+		Type:      model.ServiceTypeRequestitem,
+		Rider:     rider,
+		Customer:  customer,
+		Vendor:    service,
+		CreatedAt: *requestItem.CreatedAt,
+
+		RequestItemData: &model.RequestItemData{
+			RequestID:   requestItem.ID.String(),
+			UserType:    "customer",
+			IsConfirmed: nil,
+			RequestItem: &requestItem,
+
+			DeliveryFee:           requestItem.DeliveryFee,
+			Distance:              requestItem.Distance,
+			Duration:              requestItem.Duration,
+			EstimatedDeliveryDate: requestItem.EstimatedDeliveryDate,
+			RouteData:             routeData,
+			RangeMetaData:         rangeMetaData,
+		},
+		OrderData:   nil,
+		BookingData: nil,
+	}
+
+	return serviceData, nil
+}
+
 // GetBookingServiceDataByUserID is the resolver for the getBookingServiceDataByUserId field.
 func (r *queryResolver) GetBookingServiceDataByUserID(ctx context.Context, userID *string) ([]*model.ServiceData, error) {
 	// Get user ID from context
@@ -3525,6 +3928,132 @@ func (r *queryResolver) GetBookingServiceDataByUserID(ctx context.Context, userI
 	}
 
 	log.Printf("Retrieved %d bookings for user %s", len(results), *userIDStr)
+	return results, nil
+}
+
+// GetRequestItemServiceDataByUserID is the resolver for the getRequestItemServiceDataByUserId field.
+func (r *queryResolver) GetRequestItemServiceDataByUserID(ctx context.Context, userID *string) ([]*model.ServiceData, error) {
+	// Get user ID from context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get User ID: %v", err)
+	}
+
+	// Fetch all request items for this user directly by user_id
+	var requestItems []model.RequestItem
+	if err := r.DB.Where("user_id = ?", *userIDStr).
+		Order("created_at DESC").
+		Find(&requestItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch request items for user %s: %w", *userIDStr, err)
+	}
+
+	var results []*model.ServiceData
+
+	for _, requestItem := range requestItems {
+		// Get customer information (should be the same user)
+		customer, err := r.Query().GetUserInfor(ctx, *requestItem.UserID)
+		if err != nil {
+			log.Printf("Warning: failed to get customer info for request item %s: %v", requestItem.ID, err)
+			continue
+		}
+
+		// Get rider information if assigned (RequestItem doesn't seem to have RiderID, so we'll skip this)
+		// Based on the structure, requests might not have assigned riders initially
+		var rider *model.UsersInfor
+		if requestItem.RiderID != nil {
+			rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
+			if err != nil {
+				log.Printf("Warning: failed to get rider info for request Item %s: %v", requestItem.ID, err)
+			}
+		}
+		// Get service information if available
+		var service *model.Service
+		if requestItem.ServiceID != nil && *requestItem.ServiceID != "" {
+			var serviceModel model.Service
+			if err := r.DB.Where("id = ?", *requestItem.ServiceID).First(&serviceModel).Error; err != nil {
+				log.Printf("Warning: service not found for request item %s: %v", requestItem.ID, err)
+				// Continue without service for now, as requests might not always have a service assigned
+			} else {
+				service = &serviceModel
+			}
+		}
+
+		// Get route data (if exists)
+		var routeData *model.RouteInfo
+		if err := r.DB.Where("order_id = ?", requestItem.ID.String()).First(&routeData).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: failed to get route data for request item %s: %v", requestItem.ID, err)
+			}
+			routeData = nil // Explicitly set to nil if not found
+		} else {
+			// Validate the route data has required fields
+			if routeData.CreatedAt.IsZero() {
+				log.Printf("Warning: route data for request item %s has invalid createdAt, setting to request createdAt", requestItem.ID)
+				if requestItem.CreatedAt != nil {
+					routeData.CreatedAt = *requestItem.CreatedAt
+				}
+			}
+			if routeData.UpdatedAt.IsZero() {
+				if requestItem.CreatedAt != nil {
+					routeData.UpdatedAt = *requestItem.CreatedAt
+				}
+			}
+		}
+
+		// Get range metadata if available
+		var rangeMetaData *model.RiderRange
+		if requestItem.RangeMetaID != nil && *requestItem.RangeMetaID != "" {
+			if err := r.DB.Where("id = ?", *requestItem.RangeMetaID).First(&rangeMetaData).Error; err != nil {
+				if err != gorm.ErrRecordNotFound {
+					log.Printf("Warning: failed to get range metadata for request item %s: %v", requestItem.ID, err)
+				}
+			}
+		}
+
+		// Determine service ID for the ServiceData
+		var serviceID string
+		if service != nil {
+			serviceID = service.ID.String()
+		} else if requestItem.ServiceID != nil {
+			serviceID = *requestItem.ServiceID
+		} else {
+			// Use a default or the request ID itself if no service is available
+			serviceID = requestItem.ID.String()
+		}
+
+		// Create ServiceData for request item
+		serviceData := &model.ServiceData{
+			ID:        requestItem.ID.String(),
+			ServiceID: serviceID,
+			Type:      model.ServiceTypeRequestitem, // Assuming this enum exists
+			Rider:     rider,
+			Customer:  customer,
+			Vendor:    service,
+			CreatedAt: *requestItem.CreatedAt,
+
+			// Populate request item specific data
+			RequestItemData: &model.RequestItemData{
+				RequestID:   requestItem.ID.String(),
+				UserType:    "customer", // Default, adjust as needed
+				IsConfirmed: nil,        // RequestItem doesn't seem to have this field
+				RequestItem: &requestItem,
+
+				DeliveryFee:           requestItem.DeliveryFee,
+				Distance:              requestItem.Distance,
+				Duration:              requestItem.Duration,
+				EstimatedDeliveryDate: requestItem.EstimatedDeliveryDate,
+				RouteData:             routeData,
+				RangeMetaData:         rangeMetaData,
+			},
+			OrderData:   nil, // Not populated for request items
+			BookingData: nil, // Not populated for request items
+		}
+
+		results = append(results, serviceData)
+		log.Printf("Successfully processed request item %s for user %s", requestItem.ID, *requestItem.UserID)
+	}
+
+	log.Printf("Retrieved %d request items for user %s", len(results), *userIDStr)
 	return results, nil
 }
 

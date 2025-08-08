@@ -62,8 +62,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.FormField{},
 		&model.FormField{},
 		&model.FormSubmission{},
-
 		&model.AppointmentBooking{},
+		&model.RequestItem{},
 		&model.BookingCargo{},
 
 		&model.UserBookings{},

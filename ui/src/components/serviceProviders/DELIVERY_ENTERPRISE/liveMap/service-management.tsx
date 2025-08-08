@@ -31,6 +31,7 @@ import {
   X,
   RecycleIcon,
   Trash2,
+  PictureInPicture,
 } from "lucide-react";
 
 // Type definitions (keeping all the original interfaces)
@@ -239,7 +240,7 @@ interface ServiceManagementProps {
   setShowOrdersBookings: (show: boolean) => void;
   onViewOnLiveMap?: (
     entityId: string,
-    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"| "request"
   ) => void;
 }
 
@@ -513,6 +514,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
   const processedData = useMemo(() => {
     const orders = serviceData.filter((s) => s.type === "ORDER");
     const bookings = serviceData.filter((s) => s.type === "BOOKING");
+    const requestItems = serviceData.filter((s) => s.type === "REQUESTITEM"); // ADD THIS
 
     const multiGroupMap = new Map<string, ServiceItem[]>();
     bookings.forEach((booking) => {
@@ -631,34 +633,37 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
           .length,
       };
     });
-
+const stats = {
+    totalOrders: orders.length,
+    totalBookings: bookings.length,
+    totalRequestItems: requestItems.length, // ADD THIS
+    totalMultiGroups: multiGroups.length,
+    totalCustomers: customers.length,
+    totalVendors: vendors.length,
+    totalRevenue: serviceData.reduce((sum, service) => {
+      if (service.type === "ORDER") {
+        return sum + (service.orderData?.deliveryMetaData?.price || 0);
+      }
+      if (service.type === "BOOKING") {
+        return sum + Number.parseFloat(service.bookingData?.deliveryFee || "0");
+      }
+      // ADD REQUESTITEM REVENUE CALCULATION
+      if (service.type === "REQUESTITEM") {
+        return sum + Number.parseFloat(service.requestItemData?.deliveryFee || "0");
+      }
+      return sum;
+    }, 0),
+  };
     return {
-      orders,
-      bookings,
-      multiGroups,
-      customers,
-      vendors,
-      stats: {
-        totalOrders: orders.length,
-        totalBookings: bookings.length,
-        totalMultiGroups: multiGroups.length,
-        totalCustomers: customers.length,
-        totalVendors: vendors.length,
-        totalRevenue: serviceData.reduce((sum, service) => {
-          if (service.type === "ORDER") {
-            return sum + (service.orderData?.deliveryMetaData?.price || 0);
-          }
-          if (service.type === "BOOKING") {
-            return (
-              sum + Number.parseFloat(service.bookingData?.deliveryFee || "0")
-            );
-          }
-          return sum;
-        }, 0),
-      },
-    };
-  }, [serviceData]);
- 
+    orders,
+    bookings,
+    requestItems, // ADD THIS
+    multiGroups,
+    customers,
+    vendors,
+    stats,
+  };
+}, [serviceData]);
 
   // Filter function
   const filterData = (data: any[], searchTerm: string) => {
@@ -678,7 +683,13 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
           item.customer?.name?.toLowerCase().includes(term) ||
           item.vendor?.name?.toLowerCase().includes(term)
         );
-      } else if (item.shortId) {
+      }else if (item.requestItemData?.requestId) { // ADD THIS
+      return (
+        item.requestItemData.requestId.toLowerCase().includes(term) ||
+        item.customer?.name?.toLowerCase().includes(term) ||
+        item.requestItemData?.requestItem?.name?.toLowerCase().includes(term)
+      );
+    }  else if (item.shortId) {
         return (
           item.shortId.toLowerCase().includes(term) ||
           item.id.toLowerCase().includes(term) ||
@@ -727,7 +738,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
   // Handle view on live map
   const handleViewOnLiveMap = (
     entityId: string,
-    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor"
+    entityType: "order" | "booking" | "multigroup" | "customer" | "vendor" |"request"
   ) => {
     if (onViewOnLiveMap) {
       let idShort = entityId;
@@ -1057,13 +1068,12 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
     const { itemType } = selectedItem;
 
     return (
-     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-        
-       <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white/95 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          <>
             {/* Header */}
-           <div className="p-4 sm:p-6 flex items-center justify-between">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-black">
+            <div className="p-4 sm:p-6 flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-black">
                 {itemType === "order" && (
                   <Package className="h-5 w-5 text-orange-500" />
                 )}
@@ -1100,8 +1110,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
             </div>
 
             {/* Scrollable Content */}
-           <ScrollArea className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-4">
-              
+            <ScrollArea className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-4">
               <>
                 {/* Content based on item type - keeping original logic but making responsive */}
                 {itemType === "order" && (
@@ -1186,8 +1195,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                           Distance
                         </p>
                         <p className="text-sm text-black">
-                          {selectedItem.orderData?.order.distance ||
-                            0}
+                          {selectedItem.orderData?.order.distance || 0}
                           km
                         </p>
                       </div>
@@ -1242,34 +1250,55 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                         )}
                       </div>
                     )}
-                      {selectedItem?.orderData?.productInfor.map((item, index) => (
-        <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Quantity</span>
-            <span className="text-sm text-black">{item.quantity}</span>
-          </div>
-  <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Item Type</span>
-            <span className="text-sm text-black">{item.itemType}</span>
-          </div>
-          {item.product.map((prod) => (
-            <div key={prod.id} className="flex items-center gap-4 mt-2">
-              <img
-                src={getImageUrl(prod.imageUrls?.[0]) ?? "/fallback.jpg"}
-                alt={prod.name}
-                className="w-12 h-12 rounded-md object-cover border"
-              />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-black">{prod.name}</p>
-                {/* <p className="text-xs text-gray-500">State: {prod.state}</p> */}
-                <p className="text-sm text-green-600 font-medium">
-                  {formatPrice(prod.price)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
+                    {selectedItem?.orderData?.productInfor.map(
+                      (item, index) => (
+                        <div
+                          key={index}
+                          className="border border-gray-200 rounded-lg p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">
+                              Quantity
+                            </span>
+                            <span className="text-sm text-black">
+                              {item.quantity}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">
+                              Item Type
+                            </span>
+                            <span className="text-sm text-black">
+                              {item.itemType}
+                            </span>
+                          </div>
+                          {item.product.map((prod) => (
+                            <div
+                              key={prod.id}
+                              className="flex items-center gap-4 mt-2"
+                            >
+                              <img
+                                src={
+                                  getImageUrl(prod.imageUrls?.[0]) ??
+                                  "/fallback.jpg"
+                                }
+                                alt={prod.name}
+                                className="w-12 h-12 rounded-md object-cover border"
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-black">
+                                  {prod.name}
+                                </p>
+                                {/* <p className="text-xs text-gray-500">State: {prod.state}</p> */}
+                                <p className="text-sm text-green-600 font-medium">
+                                  {formatPrice(prod.price)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
 
                     {selectedItem.rider && (
                       <div>
@@ -1472,6 +1501,148 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                     )}
                   </div>
                 )}
+{itemType === "request" && (
+  <div className="space-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <p className="text-sm font-medium text-black/60">Request ID</p>
+        <p className="text-sm text-black break-all">
+          {selectedItem.requestItemData?.requestId}
+        </p>
+      </div>
+      <div>
+        <p className="text-sm font-medium text-black/60">Status</p>
+        <StatusBadge
+          status={
+            selectedItem.requestItemData?.isConfirmed ? "Confirmed" : "Pending"
+          }
+        />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-black/60">Customer</p>
+        <p className="text-sm text-black">{selectedItem.customer.name}</p>
+        <p className="text-xs text-black/60">{selectedItem.customer.number}</p>
+      </div>
+      <div>
+        <p className="text-sm font-medium text-black/60">Payment Status</p>
+        <StatusBadge status={selectedItem.requestItemData?.paymentStatus || "Pending"} />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-black/60">Delivery Fee</p>
+        <p className="text-sm font-bold text-green-600">
+          GH₵{selectedItem.requestItemData?.deliveryFee || 0}
+        </p>
+      </div>
+      <div>
+        <p className="text-sm font-medium text-black/60">Distance</p>
+        <p className="text-sm text-black">
+          {selectedItem.requestItemData?.distance || 0}km
+        </p>
+      </div>
+    </div>
+
+    {/* Request Item Details */}
+    {selectedItem.requestItemData?.requestItem && (
+      <div className="space-y-4 border-t border-white/20 pt-4">
+        <h4 className="text-sm font-medium text-black/60">Item Details</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-medium text-black/60">Item Name</p>
+            <p className="text-sm text-black">
+              {selectedItem.requestItemData.requestItem.name || "Custom Item"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-black/60">Quantity</p>
+            <p className="text-sm text-black">
+              {selectedItem.requestItemData.requestItem.quantity}
+            </p>
+          </div>
+          {selectedItem.requestItemData.requestItem.price && (
+            <div>
+              <p className="text-sm font-medium text-black/60">Item Price</p>
+              <p className="text-sm font-bold text-green-600">
+                GH₵{selectedItem.requestItemData.requestItem.price}
+              </p>
+            </div>
+          )}
+          {selectedItem.requestItemData.requestItem.webLink && (
+            <div>
+              <p className="text-sm font-medium text-black/60">Web Link</p>
+              <a
+                href={selectedItem.requestItemData.requestItem.webLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline break-all"
+              >
+                {selectedItem.requestItemData.requestItem.webLink}
+              </a>
+            </div>
+          )}
+        </div>
+        
+        {selectedItem.requestItemData.requestItem.description && (
+          <div>
+            <p className="text-sm font-medium text-black/60">Description</p>
+            <p className="text-sm text-black">
+              {selectedItem.requestItemData.requestItem.description}
+            </p>
+          </div>
+        )}
+
+        {/* Addresses */}
+        <div className="grid grid-cols-1 gap-4">
+          {selectedItem.requestItemData.requestItem.pickUpAddress && (
+            <div>
+              <p className="text-sm font-medium text-black/60 flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-green-500" />
+                Pickup Address
+              </p>
+              <p className="text-sm text-black">
+                {selectedItem.requestItemData.requestItem.pickUpAddress}
+              </p>
+            </div>
+          )}
+          {selectedItem.requestItemData.requestItem.deliveryAddress && (
+            <div>
+              <p className="text-sm font-medium text-black/60 flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-red-500" />
+                Delivery Address
+              </p>
+              <p className="text-sm text-black">
+                {selectedItem.requestItemData.requestItem.deliveryAddress}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {selectedItem.rider && (
+      <div>
+        <p className="text-sm font-medium text-black/60">Assigned Rider</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-black">{selectedItem.rider.name}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const rider = riders.find((r) => r.id === selectedItem.rider.id);
+              if (rider) {
+                onRiderClick(rider);
+                handleCloseDetails();
+              }
+            }}
+            className="bg-white/10 backdrop-blur-xl hover:bg-white/20 border border-white/20"
+          >
+            <Navigation className="h-3 w-3 mr-1" />
+            Track
+          </Button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
                 {/* Continue with other item types... */}
               </>
@@ -1492,7 +1663,7 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
       </div>
     );
   };
-  
+
   // Calculates the total price of all products in the order
   // Calculates the total price of all products in the order
   // Calculates the total price of all products in the order
@@ -1546,12 +1717,11 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
     <div className="h-full px-1 flex flex-col bg-gradient-to-br from-gray-100 via-white to-gray-50">
       {/* Details Panel */}
       <DetailsPanel />
-     {selectedItem?.orderData?.productInfor && (
-  <DetailsPanelProductInfor
-    productInfor={selectedItem.orderData.productInfor}
-  />
-)}
-
+      {selectedItem?.orderData?.productInfor && (
+        <DetailsPanelProductInfor
+          productInfor={selectedItem.orderData.productInfor}
+        />
+      )}
 
       {/* Multi-Group Bookings Dialog */}
       <MultiGroupBookingsDialog />
@@ -1576,6 +1746,16 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
               </span>
               <span className="hidden sm:inline">
                 ({processedData.stats.totalOrders})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="request" className="flex items-center gap-2">
+              <PictureInPicture className="h-4 w-4" />
+              <span className="hidden sm:inline">Requests</span>
+              <span className="sm:hidden">
+                ({processedData.stats.totalRequestItems})
+              </span>
+              <span className="hidden sm:inline">
+                ({processedData.stats.totalRequestItems})
               </span>
             </TabsTrigger>
             <TabsTrigger value="bookings" className="flex items-center gap-2">
@@ -1643,6 +1823,18 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                       </div>
                     </div>
                   </Card>
+<Card className="p-4">
+  <div className="flex items-center gap-3">
+    <PictureInPicture className="h-6 w-6 text-pink-600" />
+    <div>
+      <p className="text-sm text-black/60">Requests</p>
+      <p className="text-xl sm:text-2xl font-bold text-pink-600">
+        {processedData.stats.totalRequestItems}
+      </p>
+      <p className="text-xs text-black/50">Custom items</p>
+    </div>
+  </div>
+</Card>
 
                   <Card className="p-4">
                     <div className="flex items-center gap-3">
@@ -1921,15 +2113,14 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
                                   )}
                                 </span>
                               </p>
-                              
+
                               <p>
                                 <span className="font-mono text-gray-500">
                                   Delivery :
                                 </span>{" "}
                                 <span className="font-thin text-green-500">
-                                  {formatPrice(
-                                    order?.orderData?.serviceFee
-                                  ) || "0"}
+                                  {formatPrice(order?.orderData?.serviceFee) ||
+                                    "0"}
                                 </span>
                               </p>
                               <p className="text-xs text-black/50">
@@ -2182,7 +2373,160 @@ export const ServiceManagement: React.FC<ServiceManagementProps> = ({
               </div>
             </ScrollArea>
           </TabsContent>
+          <TabsContent value="request">
+            <ScrollArea className="h-full p-4 sm:p-6">
+              <div className="space-y-3">
+                {filterData(processedData.requestItems, searchQuery).map(
+                  (request) => (
+                    <Card
+                      key={request.id}
+                      className="p-3 sm:p-4 bg-white/10 backdrop-blur-xl border border-white/20"
+                    >
+                      <div className="flex flex-col gap-3">
+                        {/* Top row - Icon, Title, Status */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <PictureInPicture className="h-5 w-5 text-pink-500 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-black text-sm sm:text-base">
+                                Request #
+                                {request.requestItemData?.requestId?.slice(-6)}
+                              </p>
+                              <p className="text-xs text-black/60">
+                                {request.requestItemData?.requestItem?.name ||
+                                  "Custom Request"}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusBadge
+                            status={
+                              request.requestItemData?.isConfirmed
+                                ? "Confirmed"
+                                : "Pending"
+                            }
+                          />
+                        </div>
 
+                        {/* Middle row - Customer and item info */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="text-black/60 truncate">
+                              👤 {request.customer.name}
+                            </p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-black/50 truncate">
+                              📦 Qty:{" "}
+                              {request.requestItemData?.requestItem?.quantity ||
+                                1}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom row - Price, Date, Actions */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="font-bold text-green-600 text-sm sm:text-base">
+                                GH₵{request.requestItemData?.deliveryFee || 0}
+                              </p>
+                              {request.requestItemData?.requestItem?.price && (
+                                <p className="text-xs text-black/50">
+                                  Item: GH₵
+                                  {request.requestItemData.requestItem.price}
+                                </p>
+                              )}
+                              <p className="text-xs text-black/50">
+                                {new Date(
+                                  request.createdAt
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-full p-2"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleViewDetails(request, "request")
+                                }
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={isDeleting === request.id}
+                                onClick={() =>
+                                  handleDeleteBooking(
+                                    request.requestItemData?.requestId,
+                                    "REQUESTITEM"
+                                  )
+                                }
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {isDeleting === request.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </DropdownMenuItem>
+                              <div
+                                className={cn(
+                                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0"
+                                )}
+                              >
+                                <ReAssignRiderDialog
+                                  entityId={
+                                    request.requestItemData?.requestId ||
+                                    request.id
+                                  }
+                                  entityType="request"
+                                  currentRiderId={request.rider?.id || null}
+                                  currentRiderName={request.rider?.name || null}
+                                />
+                              </div>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleViewOnLiveMap(
+                                    request.requestItemData?.requestId ||
+                                      request.id,
+                                    "request"
+                                  )
+                                }
+                              >
+                                <LiveMap className="h-4 w-4 mr-2" />
+                                View on Live Map
+                              </DropdownMenuItem>
+                              {request.rider && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const rider = riders.find(
+                                      (r) => r.id === request.rider!.id
+                                    );
+                                    if (rider) onRiderClick(rider);
+                                  }}
+                                >
+                                  <Navigation className="h-4 w-4 mr-2" />
+                                  Track Rider
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
           {/* Multi-Groups Tab */}
           <TabsContent value="multigroups">
             <ScrollArea className="h-full p-4 sm:p-6">
@@ -2565,7 +2909,9 @@ interface DetailsPanelProductInforProps {
   productInfor: productInfor[];
 }
 
-export const DetailsPanelProductInfor = ({ productInfor }: DetailsPanelProductInforProps) => {
+export const DetailsPanelProductInfor = ({
+  productInfor,
+}: DetailsPanelProductInforProps) => {
   if (!productInfor || productInfor.length === 0) {
     return (
       <p className="text-sm text-gray-500 italic">No products in this order.</p>
@@ -2576,7 +2922,10 @@ export const DetailsPanelProductInfor = ({ productInfor }: DetailsPanelProductIn
     <div className="space-y-4">
       <h4 className="text-sm font-medium text-black/60">Product Details</h4>
       {productInfor.map((item, index) => (
-        <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-2">
+        <div
+          key={index}
+          className="border border-gray-200 rounded-lg p-3 space-y-2"
+        >
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">Quantity</span>
             <span className="text-sm text-black">{item.quantity}</span>

@@ -104,11 +104,12 @@ type AppointmentBooking {
   estimatedDeliveryDate: String
   deliveryAddress: String
   pickUpAddress: String
+  rangeMetaId: String
   userId: String!
   isConfirmed: Boolean
   userType: UserType!
   multiGroupId: String
-  rangeMetaId: String
+    routeInfoId: String
   cargoId: String
   status: String!
   createdAt: Time!
