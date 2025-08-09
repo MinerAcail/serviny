@@ -16,7 +16,6 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
-	"github.com/gosimple/slug"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
@@ -427,59 +426,99 @@ func (r *mutationResolver) UpdateBusinessType(ctx context.Context, businessType 
 }
 
 // GenerateSubDomain is the resolver for the generateSubDomain field.
-func (r *mutationResolver) GenerateSubDomain(ctx context.Context, serviceID string, tryName *string) (*model.Service, error) {
-	// Generate a subdomain for the service
-	uuid, err := uuid.Parse(serviceID)
+func (r *mutationResolver) GenerateSubDomain(ctx context.Context, tryName *string) (*model.Service, error) {
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	
+	serviceUUID, err := uuid.Parse(*serviceIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service ID: %w", err)
 	}
 
-	// Find the service by ID
 	var service model.Service
-	if err := r.DB.Where("id = ?", uuid).First(&service).Error; err != nil {
+	if err := r.DB.Where("id = ?", serviceUUID).First(&service).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("service not found with ID: %s", uuid)
+			return nil, fmt.Errorf("service not found with ID: %s", serviceUUID)
 		}
 		return nil, fmt.Errorf("failed to fetch service: %w", err)
 	}
 
-	// Check if service already has a subdomain
+	// If service already has a subdomain, return it
 	if service.SubDomain != nil && *service.SubDomain != "" {
-		// Service already has a subdomain, return the service without changes
 		return &service, nil
 	}
 
-	// Generate a new subdomain
-	clear := strings.ReplaceAll(service.Name, " ", "")
-	clear = strings.ReplaceAll(clear, "_", "")
-	// Generate a subdomain using gosimple/slug
-	subdomain := slug.Make(clear)
+	// Use provided name or service name
+	baseName := service.Name
+	if tryName != nil && *tryName != "" {
+		baseName = *tryName
+	}
 
-	// Ensure the subdomain is unique
-	var existingService model.Service
-	attempt := 0
+	subdomain := helper.GenerateCleanSubdomain(baseName)
+
+	// Ensure uniqueness
 	originalSubdomain := subdomain
+	attempt := 1
 
-	for {
-		if err := r.DB.Where("sub_domain = ?", subdomain).First(&existingService).Error; err == nil {
-			// Subdomain already exists, append a number to make it unique
-			attempt++
-			subdomain = fmt.Sprintf("%s%d", originalSubdomain, attempt)
-		} else if errors.Is(err, gorm.ErrRecordNotFound) {
-			// No match found, subdomain is unique
-			break
-		} else {
-			// Unexpected error
-			return nil, fmt.Errorf("failed to check for existing subdomain: %w", err)
+	for !helper.IsSubdomainAvailable(r.DB, subdomain) {
+		subdomain = fmt.Sprintf("%s%d", originalSubdomain, attempt)
+		attempt++
+		if attempt > 49 {
+			return nil, fmt.Errorf("unable to generate unique subdomain after 49 attempts")
 		}
 	}
 
-	// Assign the subdomain to the service
+	if err := helper.ValidateSubdomain(subdomain); err != nil {
+		return nil, fmt.Errorf("generated subdomain is invalid: %w", err)
+	}
+
 	service.SubDomain = &subdomain
 
-	// Save the updated service to the database
 	if err := r.DB.Save(&service).Error; err != nil {
 		return nil, fmt.Errorf("failed to save subdomain: %w", err)
+	}
+
+	return &service, nil
+}
+
+// UpdateSubdomain is the resolver for the updateSubdomain field.
+func (r *mutationResolver) UpdateSubdomain(ctx context.Context, newSubdomain string) (*model.Service, error) {
+	// Retrieve the service ID from the context
+	serviceIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service ID: %v", err)
+	}
+	
+	serviceUUID, err := uuid.Parse(*serviceIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID: %w", err)
+	}
+
+	// Validate the new subdomain
+	if err := helper.ValidateSubdomain(newSubdomain); err != nil {
+		return nil, fmt.Errorf("invalid subdomain: %w", err)
+	}
+
+	// Check if subdomain is available
+	if !helper.IsSubdomainAvailable(r.DB, newSubdomain) {
+		return nil, fmt.Errorf("subdomain '%s' is already taken", newSubdomain)
+	}
+
+	var service model.Service
+	if err := r.DB.Where("id = ?", serviceUUID).First(&service).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("service not found with ID: %s", serviceUUID)
+		}
+		return nil, fmt.Errorf("failed to fetch service: %w", err)
+	}
+
+	service.SubDomain = &newSubdomain
+
+	if err := r.DB.Save(&service).Error; err != nil {
+		return nil, fmt.Errorf("failed to update subdomain: %w", err)
 	}
 
 	return &service, nil
@@ -2121,6 +2160,30 @@ func (r *queryResolver) GetSocialMedia(ctx context.Context, serviceID string) (*
 	return &socialMedia, nil
 }
 
+// CheckSubdomainAvailability is the resolver for the checkSubdomainAvailability field.
+func (r *queryResolver) CheckSubdomainAvailability(ctx context.Context, subdomain string) (*model.SubdomainAvailability, error) {
+	if err := helper.ValidateSubdomain(subdomain); err != nil {
+		return &model.SubdomainAvailability{
+			Subdomain:   subdomain,
+			Available:   false,
+			Suggestions: []string{},
+		}, nil
+	}
+
+	available := helper.IsSubdomainAvailable(r.DB, subdomain)
+	suggestions := []string{}
+
+	if !available {
+		suggestions = helper.GenerateSuggestions(r.DB, subdomain)
+	}
+
+	return &model.SubdomainAvailability{
+		Subdomain:   subdomain,
+		Available:   available,
+		Suggestions: suggestions,
+	}, nil
+}
+
 // GetAllRidersServiceData is the resolver for the getAllRidersServiceData field.
 func (r *queryResolver) GetAllRidersServiceData(ctx context.Context) ([]*model.ServiceData, error) {
 	// Get service ID from context
@@ -2805,7 +2868,6 @@ func (r *queryResolver) GetRequestItemServiceDataByUserIDFromServiceID(ctx conte
 
 		// Get rider information if assigned
 		var rider *model.UsersInfor
-	
 
 		if requestItem.RiderID != nil && *requestItem.RiderID != "" {
 			rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
@@ -3168,7 +3230,6 @@ func (r *queryResolver) GetRequestItemServiceData(ctx context.Context) ([]*model
 
 		// Get rider information if assigned
 		var rider *model.UsersInfor
-	
 
 		if requestItem.RiderID != nil && *requestItem.RiderID != "" {
 			rider, err = r.Query().GetUserInfor(ctx, *requestItem.RiderID)
@@ -3255,7 +3316,6 @@ func (r *queryResolver) GetRequestItemServiceData(ctx context.Context) ([]*model
 	// }
 
 	return results, nil
-
 }
 
 // GetAllUserServiceData is the resolver for the getAllUserServiceData field.

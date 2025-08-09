@@ -250,7 +250,7 @@ export function SubmitRequestItemDialog({ children, serviceId }: SubmitItemDialo
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[70vh] px-6">
+        <ScrollArea className="max-h-[70vh] px-2">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pb-6">
               <FormField

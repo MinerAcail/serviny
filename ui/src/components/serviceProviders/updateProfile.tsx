@@ -71,6 +71,7 @@ import { ModeToggle } from "@/hooks/theme-selector";
 import BusinessTypeSelector from "./createProvider/business-type-selector";
 import { Link } from "react-router";
 import { getImageUrl } from "../global/formatPrice";
+import { SubdomainGenerator } from "./subDomain";
 // import MainNaveBar from "./menuBar";
 
 // GraphQL Queries and Mutations
@@ -664,6 +665,8 @@ export default function ProfileService() {
             </Button>
           </Link>
           <BusinessTypeSelector />
+          <SubdomainGenerator />
+
           <Badge
             variant="outline"
             className="gap-1 bg-primary/5 cursor-pointer"

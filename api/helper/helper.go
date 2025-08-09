@@ -15,6 +15,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"github.com/lehxees/serviny/graph/model"
 
 	"github.com/minio/minio-go/v7"
@@ -450,4 +451,171 @@ func ExecuteSearchQueryWithVendorPriority(db *gorm.DB, query string, vendorID st
 	}
 
 	return products, nil
+}
+// Helper functions
+func ValidateSubdomain(subdomain string) error {
+	if len(subdomain) < 3 {
+		return fmt.Errorf("subdomain must be at least 3 characters long")
+	}
+	if len(subdomain) > 63 {
+		return fmt.Errorf("subdomain must be no more than 63 characters long")
+	}
+
+	// DNS-compliant subdomain validation
+	validSubdomain := regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+	if !validSubdomain.MatchString(subdomain) {
+		return fmt.Errorf("subdomain can only contain lowercase letters, numbers, and hyphens, and cannot start or end with a hyphen")
+	}
+
+	// Reserved subdomains
+	reserved := []string{"www", "mail", "ftp", "api", "admin", "root", "support", "help", "ssr", "cdn", "assets", "static"}
+	for _, r := range reserved {
+		if subdomain == r {
+			return fmt.Errorf("subdomain '%s' is reserved", subdomain)
+		}
+	}
+
+	return nil
+}
+
+func GenerateCleanSubdomain1(name string) string {
+	if name == "" {
+		return "app"
+	}
+
+	// Convert to lowercase and clean
+	clean := strings.ToLower(name)
+	
+	// Remove special characters except spaces and hyphens
+	clean = regexp.MustCompile(`[^a-z0-9\s-]`).ReplaceAllString(clean, "")
+	
+	// Replace spaces with hyphens
+	clean = strings.ReplaceAll(clean, " ", "-")
+	
+	// Remove multiple consecutive hyphens
+	clean = regexp.MustCompile(`-+`).ReplaceAllString(clean, "-")
+	
+	// Trim hyphens from start and end
+	clean = strings.Trim(clean, "-")
+
+	// Use slug for additional cleaning if available
+	if clean != "" {
+		subdomain := slug.Make(clean)
+		if subdomain != "" {
+			clean = subdomain
+		}
+	}
+
+	// Ensure minimum length
+	if len(clean) < 3 {
+		if clean == "" {
+			clean = "app"
+		} else {
+			clean = clean + "app"
+		}
+	}
+
+	// Ensure maximum length (keep it reasonable for UI)
+	if len(clean) > 20 {
+		clean = clean[:20]
+	}
+
+	// Ensure it doesn't end with hyphen after truncation
+	clean = strings.TrimRight(clean, "-")
+
+	return clean
+}
+func GenerateCleanSubdomain(name string) string {
+	if name == "" {
+		return "app"
+	}
+
+	// Convert to lowercase
+	clean := strings.ToLower(strings.TrimSpace(name))
+	
+	// First remove all spaces and hyphens
+	clean = strings.ReplaceAll(clean, " ", "")
+	clean = strings.ReplaceAll(clean, "-", "")
+	
+	// Use slug for better Unicode handling and special character cleanup
+	clean = slug.Make(clean)
+	
+	// If slug.Make() resulted in empty string, fallback to manual cleaning
+	if clean == "" {
+		clean = strings.ToLower(strings.TrimSpace(name))
+		// Remove spaces and hyphens
+		clean = strings.ReplaceAll(clean, " ", "")
+		clean = strings.ReplaceAll(clean, "-", "")
+		// Remove all special characters, keep only alphanumeric
+		clean = regexp.MustCompile(`[^a-z0-9]`).ReplaceAllString(clean, "")
+	}
+	
+	// Remove any hyphens that might have been added by slug.Make()
+	clean = strings.ReplaceAll(clean, "-", "")
+
+	// Ensure minimum length
+	if len(clean) < 3 {
+		if clean == "" {
+			clean = "app"
+		} else {
+			clean = clean + "app"
+		}
+	}
+
+	// Ensure maximum length (keep it reasonable for subdomains)
+	if len(clean) > 30 {
+		clean = clean[:30]
+		// Ensure it doesn't end with hyphen after truncation
+		clean = strings.TrimRight(clean, "-")
+	}
+
+	// Final check - ensure it's not empty after cleaning
+	if clean == "" {
+		clean = "app"
+	}
+
+	return clean
+}
+func GenerateSuggestions(db *gorm.DB, baseSubdomain string) []string {
+	suggestions := make([]string, 0, 5)
+
+	// Try with numbers
+	for i := 1; i <= 99 && len(suggestions) < 3; i++ {
+		suggestion := fmt.Sprintf("%s%d", baseSubdomain, i)
+		if len(suggestion) <= 63 && ValidateSubdomain(suggestion) == nil && IsSubdomainAvailable(db, suggestion) {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	// Try with common suffixes
+	suffixes := []string{"app", "site", "web", "dev", "pro"}
+	for _, suffix := range suffixes {
+		if len(suggestions) >= 5 {
+			break
+		}
+		suggestion := baseSubdomain + suffix
+		if len(suggestion) <= 63 && ValidateSubdomain(suggestion) == nil && IsSubdomainAvailable(db, suggestion) {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	// Try with prefixes if we still need more
+	prefixes := []string{"my", "new", "the"}
+	for _, prefix := range prefixes {
+		if len(suggestions) >= 5 {
+			break
+		}
+		suggestion := prefix + baseSubdomain
+		if len(suggestion) <= 63 && ValidateSubdomain(suggestion) == nil && IsSubdomainAvailable(db, suggestion) {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	return suggestions
+}
+
+func IsSubdomainAvailable(db *gorm.DB, subdomain string) bool {
+	var count int64
+	db.Model(&model.Service{}).Where("sub_domain = ?", subdomain).Count(&count)
+	return count == 0
 }

@@ -98,8 +98,9 @@ extend type Query {
     connected: ConnectedContactIDsInput
   ): [UserData!]!
   getSocialMedia(serviceId: String!): SocialMedia
+  checkSubdomainAvailability(subdomain: String!): SubdomainAvailability!
 
-  getAllRidersServiceData: [ServiceData!]!
+  getAllRidersServiceData: [ServiceData!]! 
   getAllServiceDataByUserId(userId: String!): [ServiceData!]!
   getBookingServiceData: [ServiceData!]!
 
@@ -141,6 +142,11 @@ type stateMessage {
   # status: Boolean!
   success: Boolean!
 }
+type SubdomainAvailability {
+  subdomain: String!
+  available: Boolean!
+  suggestions: [String!]
+}
 extend type Mutation {
   createService(dpfile: Upload, input: CreateServiceInput!): Service
   updateService(
@@ -149,7 +155,8 @@ extend type Mutation {
     removeProfession: [String]
   ): Service
   updateBusinessType(businessType: String): BusinessType
-  generateSubDomain(serviceId: String!, tryName: String): Service
+  generateSubDomain( tryName: String): Service
+   updateSubdomain(newSubdomain: String!): Service!
   useTheme(ServiceId: String!, theme: String): String
   updateServiceByAmin(
     serviceId: String!

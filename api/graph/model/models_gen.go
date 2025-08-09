@@ -723,6 +723,12 @@ type SocialMediaInput struct {
 	Link string `json:"link"`
 }
 
+type SubdomainAvailability struct {
+	Subdomain   string   `json:"subdomain"`
+	Available   bool     `json:"available"`
+	Suggestions []string `json:"suggestions,omitempty"`
+}
+
 type Subscription struct {
 }
 

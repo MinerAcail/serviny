@@ -601,7 +601,7 @@ type ComplexityRoot struct {
 		GenerateBookRoute                            func(childComplexity int, input model.GenerateBookRouteInput) int
 		GenerateIsochrone                            func(childComplexity int, input model.IsochroneInput) int
 		GenerateRoute                                func(childComplexity int, input model.GenerateRouteInput) int
-		GenerateSubDomain                            func(childComplexity int, serviceID string, tryName *string) int
+		GenerateSubDomain                            func(childComplexity int, tryName *string) int
 		GetGrowthData                                func(childComplexity int, id string) int
 		InputRangeToGenerateIsochrone                func(childComplexity int, input *model.IsochroneInput) int
 		JobRequest                                   func(childComplexity int, serviceID string, input model.RidersRequestInput) int
@@ -676,6 +676,7 @@ type ComplexityRoot struct {
 		UpdateService                                func(childComplexity int, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) int
 		UpdateServiceByAmin                          func(childComplexity int, serviceID string, input model.UpdateServiceByAminInput) int
 		UpdateStateByServiceProvider                 func(childComplexity int, riderID string, state *string) int
+		UpdateSubdomain                              func(childComplexity int, newSubdomain string) int
 		UpdateSubmissionStatus                       func(childComplexity int, id string, status model.SubmissionStatus) int
 		UpdateUser                                   func(childComplexity int, input *model.InputUpdateUser) int
 		UpdateWithLocation                           func(childComplexity int, input model.AddCoordinateInput) int
@@ -923,6 +924,7 @@ type ComplexityRoot struct {
 		Categories                                     func(childComplexity int, serviceID *string) int
 		Category                                       func(childComplexity int, id string) int
 		CheakType                                      func(childComplexity int, serviceID string) int
+		CheckSubdomainAvailability                     func(childComplexity int, subdomain string) int
 		ClearClientCache                               func(childComplexity int) int
 		Event                                          func(childComplexity int, id string) int
 		Events                                         func(childComplexity int, filter *model.EventFilter) int
@@ -1359,6 +1361,12 @@ type ComplexityRoot struct {
 		UpdatedAt  func(childComplexity int) int
 	}
 
+	SubdomainAvailability struct {
+		Available   func(childComplexity int) int
+		Subdomain   func(childComplexity int) int
+		Suggestions func(childComplexity int) int
+	}
+
 	Subscription struct {
 		RiderLocationUpdated func(childComplexity int, riderID *string) int
 		RiderStatusChanged   func(childComplexity int, riderID *string) int
@@ -1753,7 +1761,8 @@ type MutationResolver interface {
 	CreateService(ctx context.Context, dpfile *graphql.Upload, input model.CreateServiceInput) (*model.Service, error)
 	UpdateService(ctx context.Context, dpfile *graphql.Upload, input model.UpdateServiceInput, removeProfession []*string) (*model.Service, error)
 	UpdateBusinessType(ctx context.Context, businessType *string) (*model.BusinessType, error)
-	GenerateSubDomain(ctx context.Context, serviceID string, tryName *string) (*model.Service, error)
+	GenerateSubDomain(ctx context.Context, tryName *string) (*model.Service, error)
+	UpdateSubdomain(ctx context.Context, newSubdomain string) (*model.Service, error)
 	UseTheme(ctx context.Context, serviceID string, theme *string) (*string, error)
 	UpdateServiceByAmin(ctx context.Context, serviceID string, input model.UpdateServiceByAminInput) (*model.Service, error)
 	DeleteService(ctx context.Context, id string) (*bool, error)
@@ -1980,6 +1989,7 @@ type QueryResolver interface {
 	GetConnectedContactIDs(ctx context.Context, serviceID string) (*model.ConnectedContactIDs, error)
 	SearchExternalContacts(ctx context.Context, search string, limit int32, offset int32, serviceID string, connected *model.ConnectedContactIDsInput) ([]*model.UserData, error)
 	GetSocialMedia(ctx context.Context, serviceID string) (*model.SocialMedia, error)
+	CheckSubdomainAvailability(ctx context.Context, subdomain string) (*model.SubdomainAvailability, error)
 	GetAllRidersServiceData(ctx context.Context) ([]*model.ServiceData, error)
 	GetAllServiceDataByUserID(ctx context.Context, userID string) ([]*model.ServiceData, error)
 	GetBookingServiceData(ctx context.Context) ([]*model.ServiceData, error)
@@ -5204,7 +5214,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.GenerateSubDomain(childComplexity, args["serviceId"].(string), args["tryName"].(*string)), true
+		return e.complexity.Mutation.GenerateSubDomain(childComplexity, args["tryName"].(*string)), true
 
 	case "Mutation.getGrowthData":
 		if e.complexity.Mutation.GetGrowthData == nil {
@@ -6068,6 +6078,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateStateByServiceProvider(childComplexity, args["riderId"].(string), args["state"].(*string)), true
+
+	case "Mutation.updateSubdomain":
+		if e.complexity.Mutation.UpdateSubdomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSubdomain_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateSubdomain(childComplexity, args["newSubdomain"].(string)), true
 
 	case "Mutation.updateSubmissionStatus":
 		if e.complexity.Mutation.UpdateSubmissionStatus == nil {
@@ -7352,6 +7374,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.CheakType(childComplexity, args["serviceId"].(string)), true
+
+	case "Query.checkSubdomainAvailability":
+		if e.complexity.Query.CheckSubdomainAvailability == nil {
+			break
+		}
+
+		args, err := ec.field_Query_checkSubdomainAvailability_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CheckSubdomainAvailability(childComplexity, args["subdomain"].(string)), true
 
 	case "Query.clearClientCache":
 		if e.complexity.Query.ClearClientCache == nil {
@@ -10554,6 +10588,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SocialMedia.UpdatedAt(childComplexity), true
 
+	case "SubdomainAvailability.available":
+		if e.complexity.SubdomainAvailability.Available == nil {
+			break
+		}
+
+		return e.complexity.SubdomainAvailability.Available(childComplexity), true
+
+	case "SubdomainAvailability.subdomain":
+		if e.complexity.SubdomainAvailability.Subdomain == nil {
+			break
+		}
+
+		return e.complexity.SubdomainAvailability.Subdomain(childComplexity), true
+
+	case "SubdomainAvailability.suggestions":
+		if e.complexity.SubdomainAvailability.Suggestions == nil {
+			break
+		}
+
+		return e.complexity.SubdomainAvailability.Suggestions(childComplexity), true
+
 	case "Subscription.riderLocationUpdated":
 		if e.complexity.Subscription.RiderLocationUpdated == nil {
 			break
@@ -13718,31 +13773,13 @@ func (ec *executionContext) field_Mutation_generateRoute_argsInput(
 func (ec *executionContext) field_Mutation_generateSubDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_generateSubDomain_argsServiceID(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_generateSubDomain_argsTryName(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["serviceId"] = arg0
-	arg1, err := ec.field_Mutation_generateSubDomain_argsTryName(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["tryName"] = arg1
+	args["tryName"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_generateSubDomain_argsServiceID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
-	if tmp, ok := rawArgs["serviceId"]; ok {
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	var zeroVal string
-	return zeroVal, nil
-}
-
 func (ec *executionContext) field_Mutation_generateSubDomain_argsTryName(
 	ctx context.Context,
 	rawArgs map[string]any,
@@ -16531,6 +16568,29 @@ func (ec *executionContext) field_Mutation_updateStateByServiceProvider_argsStat
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_updateSubdomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateSubdomain_argsNewSubdomain(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["newSubdomain"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateSubdomain_argsNewSubdomain(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("newSubdomain"))
+	if tmp, ok := rawArgs["newSubdomain"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_updateSubmissionStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -16941,6 +17001,29 @@ func (ec *executionContext) field_Query_cheakType_argsServiceID(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
 	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_checkSubdomainAvailability_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_checkSubdomainAvailability_argsSubdomain(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["subdomain"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_checkSubdomainAvailability_argsSubdomain(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("subdomain"))
+	if tmp, ok := rawArgs["subdomain"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -43959,7 +44042,7 @@ func (ec *executionContext) _Mutation_generateSubDomain(ctx context.Context, fie
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().GenerateSubDomain(rctx, fc.Args["serviceId"].(string), fc.Args["tryName"].(*string))
+		return ec.resolvers.Mutation().GenerateSubDomain(rctx, fc.Args["tryName"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -44041,6 +44124,111 @@ func (ec *executionContext) fieldContext_Mutation_generateSubDomain(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_generateSubDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSubdomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateSubdomain(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateSubdomain(rctx, fc.Args["newSubdomain"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Service)
+	fc.Result = res
+	return ec.marshalNService2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateSubdomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Service_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "type":
+				return ec.fieldContext_Service_type(ctx, field)
+			case "number":
+				return ec.fieldContext_Service_number(ctx, field)
+			case "email":
+				return ec.fieldContext_Service_email(ctx, field)
+			case "profession":
+				return ec.fieldContext_Service_profession(ctx, field)
+			case "categories":
+				return ec.fieldContext_Service_categories(ctx, field)
+			case "businessType":
+				return ec.fieldContext_Service_businessType(ctx, field)
+			case "businessTypeId":
+				return ec.fieldContext_Service_businessTypeId(ctx, field)
+			case "location":
+				return ec.fieldContext_Service_location(ctx, field)
+			case "aboutMe":
+				return ec.fieldContext_Service_aboutMe(ctx, field)
+			case "password":
+				return ec.fieldContext_Service_password(ctx, field)
+			case "dpfile":
+				return ec.fieldContext_Service_dpfile(ctx, field)
+			case "useTheme":
+				return ec.fieldContext_Service_useTheme(ctx, field)
+			case "bookTypes":
+				return ec.fieldContext_Service_bookTypes(ctx, field)
+			case "state":
+				return ec.fieldContext_Service_state(ctx, field)
+			case "isVerified":
+				return ec.fieldContext_Service_isVerified(ctx, field)
+			case "isAuth":
+				return ec.fieldContext_Service_isAuth(ctx, field)
+			case "numberType":
+				return ec.fieldContext_Service_numberType(ctx, field)
+			case "subDomain":
+				return ec.fieldContext_Service_subDomain(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_Service_coordinates(ctx, field)
+			case "h3Indexes":
+				return ec.fieldContext_Service_h3Indexes(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Service_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Service_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSubdomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -63458,6 +63646,69 @@ func (ec *executionContext) fieldContext_Query_getSocialMedia(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_checkSubdomainAvailability(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_checkSubdomainAvailability(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CheckSubdomainAvailability(rctx, fc.Args["subdomain"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.SubdomainAvailability)
+	fc.Result = res
+	return ec.marshalNSubdomainAvailability2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSubdomainAvailability(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_checkSubdomainAvailability(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "subdomain":
+				return ec.fieldContext_SubdomainAvailability_subdomain(ctx, field)
+			case "available":
+				return ec.fieldContext_SubdomainAvailability_available(ctx, field)
+			case "suggestions":
+				return ec.fieldContext_SubdomainAvailability_suggestions(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SubdomainAvailability", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_checkSubdomainAvailability_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getAllRidersServiceData(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getAllRidersServiceData(ctx, field)
 	if err != nil {
@@ -74983,6 +75234,135 @@ func (ec *executionContext) fieldContext_SocialMedia_updatedAt(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubdomainAvailability_subdomain(ctx context.Context, field graphql.CollectedField, obj *model.SubdomainAvailability) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubdomainAvailability_subdomain(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Subdomain, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubdomainAvailability_subdomain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubdomainAvailability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubdomainAvailability_available(ctx context.Context, field graphql.CollectedField, obj *model.SubdomainAvailability) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubdomainAvailability_available(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Available, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubdomainAvailability_available(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubdomainAvailability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubdomainAvailability_suggestions(ctx context.Context, field graphql.CollectedField, obj *model.SubdomainAvailability) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubdomainAvailability_suggestions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Suggestions, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubdomainAvailability_suggestions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubdomainAvailability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -90358,6 +90738,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_generateSubDomain(ctx, field)
 			})
+		case "updateSubdomain":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSubdomain(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "useTheme":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_useTheme(ctx, field)
@@ -95611,6 +95998,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "checkSubdomainAvailability":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_checkSubdomainAvailability(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getAllRidersServiceData":
 			field := field
 
@@ -98468,6 +98877,52 @@ func (ec *executionContext) _SocialMedia(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var subdomainAvailabilityImplementors = []string{"SubdomainAvailability"}
+
+func (ec *executionContext) _SubdomainAvailability(ctx context.Context, sel ast.SelectionSet, obj *model.SubdomainAvailability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subdomainAvailabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SubdomainAvailability")
+		case "subdomain":
+			out.Values[i] = ec._SubdomainAvailability_subdomain(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "available":
+			out.Values[i] = ec._SubdomainAvailability_available(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "suggestions":
+			out.Values[i] = ec._SubdomainAvailability_suggestions(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -103316,6 +103771,10 @@ func (ec *executionContext) marshalNSenderType2githubᚗcomᚋlehxeesᚋserviny�
 	return v
 }
 
+func (ec *executionContext) marshalNService2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v model.Service) graphql.Marshaler {
+	return ec._Service(ctx, sel, &v)
+}
+
 func (ec *executionContext) marshalNService2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐServiceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Service) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -103558,6 +104017,20 @@ func (ec *executionContext) marshalNString2ᚖstring(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNSubdomainAvailability2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSubdomainAvailability(ctx context.Context, sel ast.SelectionSet, v model.SubdomainAvailability) graphql.Marshaler {
+	return ec._SubdomainAvailability(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSubdomainAvailability2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSubdomainAvailability(ctx context.Context, sel ast.SelectionSet, v *model.SubdomainAvailability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SubdomainAvailability(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSubmissionStatus2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐSubmissionStatus(ctx context.Context, v any) (model.SubmissionStatus, error) {

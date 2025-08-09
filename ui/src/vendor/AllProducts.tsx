@@ -490,7 +490,7 @@ export function ProductCard({
       >
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={getImageUrl(product.imageUrls[0]) || "/placeholder.svg"}
+            src={ (product.imageUrls[0]) || "/placeholder.svg"}
             alt={product.name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
