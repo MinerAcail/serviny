@@ -11,6 +11,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/lehxees/serviny/database/otp"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
 	"github.com/lehxees/serviny/helper"
@@ -174,8 +175,146 @@ func (r *mutationResolver) UpdateNumber(ctx context.Context, number string, pass
 }
 
 // AdminLogin is the resolver for the adminLogin field.
-func (r *mutationResolver) AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error) {
-	panic(fmt.Errorf("not implemented: AdminLogin - adminLogin"))
+func (r *mutationResolver) AdminLogin(ctx context.Context, input model.LoginInput) (*model.OtpResponse, error) {
+	// Clean and validate phone number
+	cleanedNumber := helper.CleanPhoneNumber(*input.Number)
+	if cleanedNumber == "" {
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Phone number is required",
+			OtpSent: false,
+		}, nil
+	}
+
+	// Check if admin exists with this phone number
+	admin := &model.Admin{}
+	if err := r.DB.Where("number = ?", cleanedNumber).First(admin).Error; err != nil {
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Admin not found with this phone number",
+			OtpSent: false,
+		}, nil
+	}
+
+	// Verify password if provided
+	if input.Password != "" {
+		if admin.Password == nil {
+			return &model.OtpResponse{
+				Success: false,
+				Message: "Password not set for this admin",
+				OtpSent: false,
+			}, nil
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(*admin.Password), []byte(input.Password)); err != nil {
+			return &model.OtpResponse{
+				Success: false,
+				Message: "Invalid password",
+				OtpSent: false,
+			}, nil
+		}
+	}
+
+	// Initialize OTP service
+	otpService := otp.NewOtpService(r.RedisClient)
+
+	// Generate OTP
+	generatedOTP, err := otpService.GenerateOTP1(ctx, cleanedNumber)
+	if err != nil {
+		log.Printf("Error generating OTP: %v", err)
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Failed to generate OTP",
+			OtpSent: false,
+		}, nil
+	}
+
+	// Create SMS message
+	smsMessage := fmt.Sprintf("Your OTP for admin login is: %s. Valid for 10 minutes.", generatedOTP)
+
+	// Send OTP via SMS
+	err = otp.SendBulkSMS(ctx, []string{cleanedNumber}, smsMessage)
+	if err != nil {
+		log.Printf("Error sending OTP SMS: %v", err)
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Failed to send OTP SMS",
+			OtpSent: false,
+		}, nil
+	}
+
+	return &model.OtpResponse{
+		Success: true,
+		Message: "OTP sent successfully to your phone number",
+		OtpSent: true,
+	}, nil
+}
+
+// VerifyOtpAdmin is the resolver for the verifyOtpAdmin field.
+func (r *mutationResolver) VerifyOtpAdmin(ctx context.Context, number string, inputOtp string) (*model.OtpResponse, error) {
+	// Clean and validate phone number
+	cleanedNumber := helper.CleanPhoneNumber(number)
+	if cleanedNumber == "" {
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Phone number is required",
+			IsValid: false,
+		}, nil
+	}
+
+	// Validate OTP input
+	otpCode := strings.TrimSpace(inputOtp)
+	if otpCode == "" {
+		return &model.OtpResponse{
+			Success: false,
+			Message: "OTP is required",
+			IsValid: false,
+		}, nil
+	}
+
+	// Initialize OTP service with Redis client
+	otpService := otp.NewOtpService(r.RedisClient)
+
+	// Validate OTP
+	isValid, err := otpService.VerifyOTP1(ctx, cleanedNumber, otpCode)
+	if err != nil {
+		log.Printf("Error verifying OTP for admin %s: %v", cleanedNumber, err)
+		return &model.OtpResponse{
+			Success: false,
+			Message: fmt.Sprintf("OTP verification failed: %v", err),
+			IsValid: false,
+		}, nil
+	}
+
+	if !isValid {
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Invalid or expired OTP",
+			IsValid: false,
+		}, nil
+	}
+
+	// Find admin by phone number to ensure they exist
+	admin := &model.Admin{}
+	if err := r.DB.Where("number = ?", cleanedNumber).First(admin).Error; err != nil {
+		log.Printf("Admin not found with number %s: %v", cleanedNumber, err)
+		return &model.OtpResponse{
+			Success: false,
+			Message: "Admin not found",
+			IsValid: false,
+		}, nil
+	}
+
+	// Set authentication token in context
+	middleware.SetTokenForContext(ctx, admin.Type, admin.ID.String())
+
+	log.Printf("Admin OTP verification successful: ID=%s, Number=%s", admin.ID, cleanedNumber)
+
+	return &model.OtpResponse{
+		Success: true,
+		Message: "OTP verified successfully",
+		IsValid: true,
+	}, nil
 }
 
 // DeliveryLogin is the resolver for the deliveryLogin field.
@@ -937,7 +1076,19 @@ func (r *queryResolver) GetUserInforFromContextForAuthClient(ctx context.Context
 			Coordinates: rider.Coordinates,
 		}, nil
 	}
-
+admin := &model.Admin{}
+	if err := r.DB.First(admin, "id = ?", userId).Error; err == nil {
+		email := ""
+		
+		return &model.UsersInfor{
+			ID:          admin.ID.String(),
+			Name:        admin.Name,
+			Type:        admin.Type,
+			Number:      admin.Number,
+			Email:       email,
+		
+		}, nil
+	}
 	return nil, fmt.Errorf("no user or service found with the given ID")
 }
 

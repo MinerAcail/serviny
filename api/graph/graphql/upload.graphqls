@@ -1,0 +1,34 @@
+
+type VideoImage {
+  id: String!
+  name: String!
+  description: String
+  url: String!           
+  type:FileType
+  coverImageUrl: String
+  createdAt: Time!
+}
+enum FileType {
+  IMAGE
+  VIDEO
+ 
+}
+input VideoImageInput {
+  name: String!
+  description: String
+}
+
+type DeleteResult {
+  success: Boolean!
+  message: String!
+}
+
+extend type Query {
+  getUploadedImageVideos: [VideoImage!]!
+  getUploadedVideos(fileUrl:String!): VideoImage!
+}
+
+extend type Mutation {
+  videoImageUpload(file: Upload!,coverImage:Upload, input: VideoImageInput!): VideoImage! ##file can be image or video ig image not need for the coverImage
+  deleteVideo(id: String!): DeleteResult!
+}

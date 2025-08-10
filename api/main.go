@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 
 	"github.com/go-chi/chi"
@@ -64,6 +65,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.FormSubmission{},
 		&model.AppointmentBooking{},
 		&model.RequestItem{},
+		&model.VideoImage{},
+
 		&model.BookingCargo{},
 
 		&model.UserBookings{},
@@ -91,6 +94,8 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Invoice{},
 		&model.BusinessType{},
 		&model.PushSubscription{},
+		&model.Admin{},
+		
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
@@ -195,6 +200,10 @@ if port == "4003" {
 	// server := handler.NewDefaultServer(Resolvers: resolver)
 
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+	server.AddTransport(transport.MultipartForm{
+    MaxUploadSize: 2 << 30, // 2GB
+    MaxMemory:     32 << 20, // 32MB in RAM before writing to disk
+})
 	router.Handle("/query", server)
 
 	// GET endpoint for testing in browser

@@ -3,6 +3,7 @@ package otp
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -16,6 +17,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -27,6 +29,8 @@ type OtpService struct {
 	expiration      time.Duration
 	prefix          string
 	maxAttempts     int
+	maxAttempts1     int
+	
 	rateLimit       int
 	rateLimitWindow time.Duration
 }
@@ -44,6 +48,7 @@ type OTPConfig struct {
 
 	// Maximum number of attempts allowed for a single OTP
 	MaxAttempts int
+	MaxAttempts1 int
 
 	// Rate limit: maximum number of OTPs that can be generated per identifier per time window
 	RateLimit int
@@ -59,6 +64,7 @@ func DefaultConfig(redisClient *redis.Client) *OTPConfig {
 		Expiration:      3 * time.Minute,
 		Prefix:          "otp:",
 		MaxAttempts:     5,
+		MaxAttempts1: 3,
 		RateLimit:       3,
 		RateLimitWindow: 15 * time.Minute,
 	}
@@ -77,6 +83,7 @@ func NewOtpServiceWithConfig(config *OTPConfig) *OtpService {
 		expiration:      config.Expiration,
 		prefix:          config.Prefix,
 		maxAttempts:     config.MaxAttempts,
+maxAttempts1:config.MaxAttempts ,
 		rateLimit:       config.RateLimit,
 		rateLimitWindow: config.RateLimitWindow,
 	}
@@ -162,7 +169,97 @@ func (s *OtpService) GenerateOTP(ctx context.Context, identifier string) (string
 
 	return otp, nil
 }
+func (s *OtpService) GenerateOTP1(ctx context.Context, identifier string) (string, error) {
+	// Check rate limiting first
+	isLimited, _, err := s.IsRateLimited(ctx, identifier)
+	if err != nil {
+		return "", fmt.Errorf("failed to check rate limit: %w", err)
+	}
 
+	if isLimited {
+		return "", fmt.Errorf("rate limit exceeded for this identifier")
+	}
+
+	// Get token from environment variable
+	token := os.Getenv("JUS")
+	if token == "" {
+		return "", fmt.Errorf("OTP_TOKEN environment variable is not set")
+	}
+
+	// Generate OTP using token-based approach for better security
+	otp, err := s.generateSecureOTP(identifier, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate secure OTP: %w", err)
+	}
+
+	// Store in Redis with expiration using hashed key
+	key := s.getRedisKey(identifier)
+	err = s.redisClient.Set(ctx, key, otp, s.expiration).Err()
+	if err != nil {
+		return "", fmt.Errorf("failed to store OTP: %w", err)
+	}
+
+	// Reset attempts counter for this OTP
+	attemptsKey := s.getAttemptsKey(identifier)
+	err = s.redisClient.Set(ctx, attemptsKey, 0, s.expiration).Err()
+	if err != nil {
+		// Non-critical error, just log and continue
+		fmt.Printf("Warning: Failed to reset attempts counter: %v\n", err)
+	}
+
+	// Increment rate limit counter
+	rateLimitKey := s.getRateLimitKey(identifier)
+	count, err := s.redisClient.Incr(ctx, rateLimitKey).Result()
+	if err != nil {
+		// Non-critical error, just log and continue
+		fmt.Printf("Warning: Failed to increment rate limit counter: %v\n", err)
+	}
+
+	// Set expiration on rate limit key if it's the first attempt in this window
+	if count == 1 {
+		s.redisClient.Expire(ctx, rateLimitKey, s.rateLimitWindow)
+	}
+
+	return otp, nil
+}
+// generateSecureOTP creates a 10-digit OTP using HMAC with the token
+func (s *OtpService) generateSecureOTP(identifier, token string) (string, error) {
+	// Create a unique message using identifier and current timestamp (for time-based variation)
+	timestamp := time.Now().Unix() / 300 // 5-minute windows for some time variation
+	message := fmt.Sprintf("%s:%d", identifier, timestamp)
+	
+	// Create HMAC
+	h := hmac.New(sha256.New, []byte(token))
+	h.Write([]byte(message))
+	hash := h.Sum(nil)
+	
+	// Convert hash to hex and take first 10 characters as numeric
+	hashHex := hex.EncodeToString(hash)
+	
+	// Extract numeric characters and build 10-digit OTP
+	var otp string
+	for _, char := range hashHex {
+		if len(otp) >= 10 {
+			break
+		}
+		if char >= '0' && char <= '9' {
+			otp += string(char)
+		}
+	}
+	
+	// If we don't have enough digits from hash, supplement with random digits
+	for len(otp) < 10 {
+		// Generate random digit
+		max := big.NewInt(10)
+		n, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			return "", err
+		}
+		otp += strconv.Itoa(int(n.Int64()))
+	}
+	
+	return otp, nil
+}
 // VerifyOTP checks if the provided OTP is valid
 func (s *OtpService) VerifyOTP(ctx context.Context, identifier, otp string) (bool, error) {
 	// Get hashed key
@@ -198,7 +295,40 @@ func (s *OtpService) VerifyOTP(ctx context.Context, identifier, otp string) (boo
 
 	return false, nil
 }
+func (s *OtpService) VerifyOTP1(ctx context.Context, identifier, otp string) (bool, error) {
+	// Get hashed key
+	key := s.getRedisKey(identifier)
+	attemptsKey := s.getAttemptsKey(identifier)
 
+	// Check if too many attempts
+	attempts, err := s.redisClient.Get(ctx, attemptsKey).Int()
+	if err == nil && attempts >= s.maxAttempts1 {
+		return false, fmt.Errorf("maximum verification attempts exceeded")
+	}
+
+	// Increment attempt counter
+	s.redisClient.Incr(ctx, attemptsKey)
+
+	// Get OTP from Redis
+	storedOTP, err := s.redisClient.Get(ctx, key).Result()
+	if err != nil {
+		// OTP not found or expired
+		if err == redis.Nil {
+			return false, fmt.Errorf("OTP expired or not found")
+		}
+		return false, fmt.Errorf("error retrieving OTP: %w", err)
+	}
+
+	// Check if OTP matches
+	if storedOTP == otp {
+		// OTP is valid, delete it to prevent reuse
+		s.redisClient.Del(ctx, key)
+		s.redisClient.Del(ctx, attemptsKey)
+		return true, nil
+	}
+
+	return false, nil
+}
 // IsRateLimited checks if the identifier has exceeded the rate limit
 func (s *OtpService) IsRateLimited(ctx context.Context, identifier string) (bool, time.Duration, error) {
 	rateLimitKey := s.getRateLimitKey(identifier)

@@ -432,7 +432,7 @@ func (r *mutationResolver) GenerateSubDomain(ctx context.Context, tryName *strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
 	}
-	
+
 	serviceUUID, err := uuid.Parse(*serviceIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service ID: %w", err)
@@ -491,7 +491,7 @@ func (r *mutationResolver) UpdateSubdomain(ctx context.Context, newSubdomain str
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service ID: %v", err)
 	}
-	
+
 	serviceUUID, err := uuid.Parse(*serviceIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service ID: %w", err)

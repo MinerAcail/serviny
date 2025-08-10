@@ -1,6 +1,6 @@
 import { ApolloProvider } from "@apollo/client";
 import { createBrowserRouter, RouterProvider, useParams } from "react-router";
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import Client from "..";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth, useProfileUpdate } from "./context/authContext";
@@ -37,6 +37,18 @@ import { AdminSidebar } from "@/components/Admin/components/adminSide";
 import ServiceProvidersPage from "@/components/Admin/pages/service";
 import RidersPage from "@/components/Admin/pages/riders";
 import UsersPage from "@/components/Admin/pages/users";
+import {
+  DeliveryDocumentation,
+  ServiceDocumentation,
+} from "../components/global/document/deliveryDocumentation";
+import { EcommerceDocumentation } from "@/components/global/document/ecomDocumentation";
+import ShipmentDocumentation from "@/components/global/document/shipmentDocumentation";
+import { DocumentationLayout } from "@/components/global/document/nav";
+import { VideoImageUpload } from "@/components/Admin/pages/upload";
+import { UploadedFilesList } from "@/components/Admin/pages/list";
+import { Menu } from "lucide-react";
+import { AdminLoginDialog } from "@/components/Admin/AUTH/login";
+// import  { VideoImageUpload } from "@/components/Admin/pages/upload";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
 
@@ -186,7 +198,32 @@ const router = createBrowserRouter([
     path: "/all",
     element: <ServiceProvidersDirectory />,
   },
-
+  {
+    path: "/docus",
+    element: <DocumentationLayout />,
+    children: [
+      {
+        path: "ecom",
+        element: <EcommerceDocumentation />,
+      },
+      {
+        path: "delivery",
+        element: <DeliveryDocumentation />,
+      },
+      {
+        path: "ship",
+        element: <ShipmentDocumentation />,
+      },
+    ],
+  },
+  {
+    path: "/docus/ecom",
+    element: <EcommerceDocumentation />,
+  },
+  {
+    path: "/docus/ship",
+    element: <ShipmentDocumentation />,
+  },
   {
     path: "/",
     element: <Layout />,
@@ -352,7 +389,7 @@ const router = createBrowserRouter([
           </LoadingWrapper>
         ),
       },
-       {
+      {
         path: "/vob/:entityId",
         element: (
           <LoadingWrapper>
@@ -512,7 +549,10 @@ const router = createBrowserRouter([
         path: "update",
         element: (
           <ProtectedIsAuthRoute
-            expectedTypes={[BusinessTypeEnum.DELIVERY_STANDARD,BusinessTypeEnum.ECOMMERCE_STANDARD]}
+            expectedTypes={[
+              BusinessTypeEnum.DELIVERY_STANDARD,
+              BusinessTypeEnum.ECOMMERCE_STANDARD,
+            ]}
             element={
               <LoadingWrapper>
                 <ProfileService />
@@ -607,8 +647,6 @@ const router = createBrowserRouter([
               BusinessTypeEnum.ECOMMERCE_ENTERPRISE,
               BusinessTypeEnum.ECOMMERCE_STANDARD,
               BusinessTypeEnum.DROP_SHIPPING,
-
-
             ]}
             element={
               <LoadingWrapper>
@@ -679,7 +717,6 @@ const router = createBrowserRouter([
             element={
               <LoadingWrapper>
                 <RiderZoneSetup />
-                
               </LoadingWrapper>
             }
             expectedBusinessTypes={[
@@ -725,7 +762,6 @@ const router = createBrowserRouter([
           />
         ),
       },
-    
 
       {
         path: "history",
@@ -737,32 +773,46 @@ const router = createBrowserRouter([
       },
     ],
   },
-   {
+  {
     path: "/ddst/",
     element: (
       <LoadingWrapper>
-            <SidebarLayoutAdmin />
-          </LoadingWrapper>
+        <SidebarLayoutAdmin />
+      </LoadingWrapper>
     ),
     children: [
       {
         index: true,
-        element: (
-           <ServiceProvidersPage/>
-        ),
+        element: <ServiceProvidersPage />,
       },
       {
         path: "riders",
-        element: (
-           <RidersPage />
-        ),
+        element: <RidersPage />,
       },
-       {
+      {
         path: "users",
-        element: (
-           <UsersPage />
-        ),
-      }
+        element: <UsersPage />,
+      },
+      {
+        path: "upload",
+        element: <VideoImageUpload />,
+      },
+      {
+        path: "list",
+        element: <UploadedFilesList />,
+      },
+      {
+        path: "ecom",
+        element: <EcommerceDocumentation />,
+      },
+      {
+        path: "delivery",
+        element: <DeliveryDocumentation />,
+      },
+      {
+        path: "ship",
+        element: <ShipmentDocumentation />,
+      },
     ],
   },
 ]);
@@ -821,40 +871,93 @@ export function SidebarLayoutProvider() {
     </div>
   );
 }
-export function SidebarLayoutAdmin() {
-  const { firstProfileId } = useProfileUpdate(null);
-  const serviceId = firstProfileId;
-  const { showDialog, closeDialog, isSupported } = useNotificationDialog();
+function SidebarLayoutAdmin(): JSX.Element {
+  const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [isLoginOpen, setIsLoginOpen] = useState(true);
+  const [message, setMessage] = useState<string>("");
   const { isAuthenticated } = useAuth();
 
+  const handleLoginSuccess = () => {
+    setMessage("Admin logged in successfully!");
+    console.log("Admin authentication successful");
+    // Handle successful login (redirect, store auth token, etc.)
+  };
+
+  const handleLoginError = (error: string) => {
+    setMessage(`Login error: ${error}`);
+    console.error("Admin login error:", error);
+  };
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent): void => {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        window.innerWidth < 1024 // Only close on mobile
+      ) {
+        setIsMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && isMobileOpen) {
+        setIsMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMobileOpen]);
+
   return (
-    // <div className="flex w-full h-screen overflow-hidden">
-    //   <ProviderContextProvider serviceId={serviceId ?? ""}>
-    //     {/* <ScrollArea className="h-full border-r"> */}
-    //       <Sidebar />
-    //     {/* </ScrollArea> */}
-    //     <ScrollArea className="flex-1 p-1">
-    //       <Outlet />
-    //     </ScrollArea>
-    //   </ProviderContextProvider>
-    // </div>
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
-      <ProviderContextProvider serviceId={serviceId ?? ""}>
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-4 right-4 z-50">
+        <button
+          className="bg-background border shadow-md p-2 rounded-md hover:bg-muted transition-colors"
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <AdminSidebar
+        sidebarRef={sidebarRef}
+        isMobileOpen={isMobileOpen}
+        setIsMobileOpen={setIsMobileOpen}
+      />
+      {!isAuthenticated ? (
+        <AdminLoginDialog
+          isOpen={isLoginOpen}
+          onClose={() => setIsLoginOpen(false)}
+          onSuccess={handleLoginSuccess}
+          onError={handleLoginError}
+        />
+      ) : (
         <>
-          <div>
-            {isAuthenticated && (
-              <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
-            )}
+          {/* Main content */}
+          <div className="flex-1 flex flex-col lg:ml-0">
+            {/* Content area with proper spacing for mobile menu button */}
+            <div className="flex-1 overflow-auto ">
+              <ScrollArea className="h-full">
+                <Outlet />
+              </ScrollArea>
+            </div>
           </div>
-          {/* <ScrollArea className="h-full border-r"> */}
-          <AdminSidebar />
-          {/* </ScrollArea> */}
-          <ScrollArea className="flex-1">
-            <Outlet />
-          </ScrollArea>
-          {/* </div> */}
         </>
-      </ProviderContextProvider>
+      )}
     </div>
   );
 }
@@ -870,21 +973,21 @@ export function Layout() {
     <div className="flex w-full h-screen overflow-hidden bg-cyan-100/20">
       <ProviderContextProvider serviceId={serviceId ?? ""}>
         <ErrorBoundary>
-        <CartProvider>
-          {/* <ScrollArea className="h-full border-r"> */}
-          <SidebarMain serviceId={serviceId} />
-          {/* </ScrollArea> */}
-          <div>
-            {isAuthenticated && (
-              <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
-            )}
-          </div>
-          <CartDrawer />
-          <ScrollArea className="flex-1">
-            <Outlet />
-          </ScrollArea>
-          {/* </div> */}
-        </CartProvider>
+          <CartProvider>
+            {/* <ScrollArea className="h-full border-r"> */}
+            <SidebarMain serviceId={serviceId} />
+            {/* </ScrollArea> */}
+            <div>
+              {isAuthenticated && (
+                <NotificationDialog isOpen={showDialog} onClose={closeDialog} />
+              )}
+            </div>
+            <CartDrawer />
+            <ScrollArea className="flex-1">
+              <Outlet />
+            </ScrollArea>
+            {/* </div> */}
+          </CartProvider>
         </ErrorBoundary>
       </ProviderContextProvider>
     </div>

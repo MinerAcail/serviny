@@ -91,6 +91,7 @@ type ResolverRoot interface {
 	UserBookings() UserBookingsResolver
 	UserManager() UserManagerResolver
 	UsersInfor() UsersInforResolver
+	VideoImage() VideoImageResolver
 	CategoryBox() CategoryBoxResolver
 }
 
@@ -318,6 +319,11 @@ type ComplexityRoot struct {
 		RecentActivityIds      func(childComplexity int) int
 		TotalBookingsIds       func(childComplexity int) int
 		TotalUsers             func(childComplexity int) int
+	}
+
+	DeleteResult struct {
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
 	}
 
 	DeliveryNotification struct {
@@ -595,6 +601,7 @@ type ComplexityRoot struct {
 		DeleteTable                                  func(childComplexity int) int
 		DeleteUnavailablePeriod                      func(childComplexity int, id string) int
 		DeleteUserByID                               func(childComplexity int, id string) int
+		DeleteVideo                                  func(childComplexity int, id string) int
 		DeliveryLogin                                func(childComplexity int, input *model.LoginInput) int
 		DuplicateForm                                func(childComplexity int, id string, title *string) int
 		ExportFormSubmissions                        func(childComplexity int, formID string, format *string) int
@@ -686,6 +693,8 @@ type ComplexityRoot struct {
 		UserBookings                                 func(childComplexity int, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) int
 		VendorUpload                                 func(childComplexity int, files []*graphql.Upload, input model.ProductInput) int
 		VerifyOtp                                    func(childComplexity int, input model.VerifyOtpInput) int
+		VerifyOtpAdmin                               func(childComplexity int, number string, otp string) int
+		VideoImageUpload                             func(childComplexity int, file graphql.Upload, coverImage *graphql.Upload, input model.VideoImageInput) int
 	}
 
 	NearbyRider struct {
@@ -1064,6 +1073,8 @@ type ComplexityRoot struct {
 		GetSpecificRequestItemServiceData              func(childComplexity int, userID *string, entityID *string) int
 		GetUnavailablePeriods                          func(childComplexity int) int
 		GetUnavailablePeriodsByCurrectProfile          func(childComplexity int, serviceID string) int
+		GetUploadedImageVideos                         func(childComplexity int) int
+		GetUploadedVideos                              func(childComplexity int, fileURL string) int
 		GetUseTheme                                    func(childComplexity int, serviceID string) int
 		GetUserBookings                                func(childComplexity int, bookTypeID string, userID string) int
 		GetUserByID                                    func(childComplexity int, id string) int
@@ -1486,6 +1497,16 @@ type ComplexityRoot struct {
 		Vendor  func(childComplexity int) int
 	}
 
+	VideoImage struct {
+		CoverImageURL func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		Description   func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Type          func(childComplexity int) int
+		URL           func(childComplexity int) int
+	}
+
 	ViewInvoice struct {
 		Booking   func(childComplexity int) int
 		Cargo     func(childComplexity int) int
@@ -1749,7 +1770,8 @@ type MutationResolver interface {
 	DeleteTable(ctx context.Context) (bool, error)
 	ServiceLogin(ctx context.Context, input model.LoginInput, entityID *string) (model.Returns, error)
 	UpdateNumber(ctx context.Context, number string, password *string) (model.Returns, error)
-	AdminLogin(ctx context.Context, input model.LoginInput) (*model.Admin, error)
+	AdminLogin(ctx context.Context, input model.LoginInput) (*model.OtpResponse, error)
+	VerifyOtpAdmin(ctx context.Context, number string, otp string) (*model.OtpResponse, error)
 	DeliveryLogin(ctx context.Context, input *model.LoginInput) (model.Returns, error)
 	LogOut(ctx context.Context) (bool, error)
 	UserBookings(ctx context.Context, bookTypeID string, userID *string, tableSize *int32, notes *string, bookType *string) (*model.UserBookings, error)
@@ -1785,6 +1807,8 @@ type MutationResolver interface {
 	UpdateMultiGroupBookingsWithLocationBybookID(ctx context.Context, input []*model.AddBookCoordinateInput) ([]*model.AppointmentBooking, error)
 	ConfirmBooking(ctx context.Context, id string) (*model.AppointmentBooking, error)
 	DeleteBooking(ctx context.Context, id string) (*bool, error)
+	VideoImageUpload(ctx context.Context, file graphql.Upload, coverImage *graphql.Upload, input model.VideoImageInput) (*model.VideoImage, error)
+	DeleteVideo(ctx context.Context, id string) (*model.DeleteResult, error)
 	CreateUser(ctx context.Context, input model.InputUser, isService *bool) (*model.User, error)
 	DeleteUserByID(ctx context.Context, id string) (*bool, error)
 	UpdateUser(ctx context.Context, input *model.InputUpdateUser) (*model.User, error)
@@ -2022,6 +2046,8 @@ type QueryResolver interface {
 	GetMultiGroupedAppointmentBookingBybookID(ctx context.Context, bookID *string) ([]*model.AppointmentBooking, error)
 	GetCargoByBookingID(ctx context.Context, bookingID string) (*model.BookingCargo, error)
 	GetCargoByMultiGroupID(ctx context.Context, multiGroupID string) ([]*model.BookingCargo, error)
+	GetUploadedImageVideos(ctx context.Context) ([]*model.VideoImage, error)
+	GetUploadedVideos(ctx context.Context, fileURL string) (*model.VideoImage, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, error)
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
 	GetUserManager(ctx context.Context, userID string, entityID *string) (*model.UserManagerData, error)
@@ -2096,6 +2122,9 @@ type UserManagerResolver interface {
 }
 type UsersInforResolver interface {
 	Coordinates(ctx context.Context, obj *model.UsersInfor) ([]*float64, error)
+}
+type VideoImageResolver interface {
+	ID(ctx context.Context, obj *model.VideoImage) (string, error)
 }
 type CategoryBoxResolver interface {
 	ID(ctx context.Context, obj *model.CategoryBox) (*string, error)
@@ -3255,6 +3284,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.DashboardData.TotalUsers(childComplexity), true
+
+	case "DeleteResult.message":
+		if e.complexity.DeleteResult.Message == nil {
+			break
+		}
+
+		return e.complexity.DeleteResult.Message(childComplexity), true
+
+	case "DeleteResult.success":
+		if e.complexity.DeleteResult.Success == nil {
+			break
+		}
+
+		return e.complexity.DeleteResult.Success(childComplexity), true
 
 	case "DeliveryNotification.cargoId":
 		if e.complexity.DeliveryNotification.CargoID == nil {
@@ -5132,6 +5175,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeleteUserByID(childComplexity, args["id"].(string)), true
 
+	case "Mutation.deleteVideo":
+		if e.complexity.Mutation.DeleteVideo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteVideo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteVideo(childComplexity, args["id"].(string)), true
+
 	case "Mutation.deliveryLogin":
 		if e.complexity.Mutation.DeliveryLogin == nil {
 			break
@@ -6188,6 +6243,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.VerifyOtp(childComplexity, args["input"].(model.VerifyOtpInput)), true
+
+	case "Mutation.verifyOtpAdmin":
+		if e.complexity.Mutation.VerifyOtpAdmin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_verifyOtpAdmin_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VerifyOtpAdmin(childComplexity, args["number"].(string), args["otp"].(string)), true
+
+	case "Mutation.videoImageUpload":
+		if e.complexity.Mutation.VideoImageUpload == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_videoImageUpload_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VideoImageUpload(childComplexity, args["file"].(graphql.Upload), args["coverImage"].(*graphql.Upload), args["input"].(model.VideoImageInput)), true
 
 	case "NearbyRider.distance":
 		if e.complexity.NearbyRider.Distance == nil {
@@ -8825,6 +8904,25 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetUnavailablePeriodsByCurrectProfile(childComplexity, args["serviceId"].(string)), true
 
+	case "Query.getUploadedImageVideos":
+		if e.complexity.Query.GetUploadedImageVideos == nil {
+			break
+		}
+
+		return e.complexity.Query.GetUploadedImageVideos(childComplexity), true
+
+	case "Query.getUploadedVideos":
+		if e.complexity.Query.GetUploadedVideos == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUploadedVideos_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUploadedVideos(childComplexity, args["fileUrl"].(string)), true
+
 	case "Query.getUseTheme":
 		if e.complexity.Query.GetUseTheme == nil {
 			break
@@ -11158,6 +11256,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VendorsMapData.Vendor(childComplexity), true
 
+	case "VideoImage.coverImageUrl":
+		if e.complexity.VideoImage.CoverImageURL == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.CoverImageURL(childComplexity), true
+
+	case "VideoImage.createdAt":
+		if e.complexity.VideoImage.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.CreatedAt(childComplexity), true
+
+	case "VideoImage.description":
+		if e.complexity.VideoImage.Description == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.Description(childComplexity), true
+
+	case "VideoImage.id":
+		if e.complexity.VideoImage.ID == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.ID(childComplexity), true
+
+	case "VideoImage.name":
+		if e.complexity.VideoImage.Name == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.Name(childComplexity), true
+
+	case "VideoImage.type":
+		if e.complexity.VideoImage.Type == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.Type(childComplexity), true
+
+	case "VideoImage.url":
+		if e.complexity.VideoImage.URL == nil {
+			break
+		}
+
+		return e.complexity.VideoImage.URL(childComplexity), true
+
 	case "ViewInvoice.booking":
 		if e.complexity.ViewInvoice.Booking == nil {
 			break
@@ -11454,6 +11601,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateRiderRangeInput,
 		ec.unmarshalInputUpdateServiceInput,
 		ec.unmarshalInputVerifyOtpInput,
+		ec.unmarshalInputVideoImageInput,
 		ec.unmarshalInputWebLink,
 		ec.unmarshalInputZoneMetaDataInput,
 		ec.unmarshalInputaddBookCoordinateInput,
@@ -11580,7 +11728,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/formbuilder.graphqls" "graphql/mapworks.graphqls" "graphql/notification.graphqls" "graphql/otp.graphqls" "graphql/payment.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/rider.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/users.graphqls"
+//go:embed "graphql/admin.graphqls" "graphql/booking.graphqls" "graphql/event.graphqls" "graphql/formbuilder.graphqls" "graphql/mapworks.graphqls" "graphql/notification.graphqls" "graphql/otp.graphqls" "graphql/payment.graphqls" "graphql/products.graphqls" "graphql/rentals.graphqls" "graphql/rider.graphqls" "graphql/schema.graphqls" "graphql/service.graphqls" "graphql/servicePandP.graphqls" "graphql/timer.graphqls" "graphql/upload.graphqls" "graphql/users.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -11607,6 +11755,7 @@ var sources = []*ast.Source{
 	{Name: "graphql/service.graphqls", Input: sourceData("graphql/service.graphqls"), BuiltIn: false},
 	{Name: "graphql/servicePandP.graphqls", Input: sourceData("graphql/servicePandP.graphqls"), BuiltIn: false},
 	{Name: "graphql/timer.graphqls", Input: sourceData("graphql/timer.graphqls"), BuiltIn: false},
+	{Name: "graphql/upload.graphqls", Input: sourceData("graphql/upload.graphqls"), BuiltIn: false},
 	{Name: "graphql/users.graphqls", Input: sourceData("graphql/users.graphqls"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -13584,6 +13733,29 @@ func (ec *executionContext) field_Mutation_deleteUserById_args(ctx context.Conte
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_deleteUserById_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteVideo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteVideo_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteVideo_argsID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -16719,6 +16891,47 @@ func (ec *executionContext) field_Mutation_useTheme_argsTheme(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_verifyOtpAdmin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_verifyOtpAdmin_argsNumber(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["number"] = arg0
+	arg1, err := ec.field_Mutation_verifyOtpAdmin_argsOtp(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["otp"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_verifyOtpAdmin_argsNumber(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("number"))
+	if tmp, ok := rawArgs["number"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_verifyOtpAdmin_argsOtp(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("otp"))
+	if tmp, ok := rawArgs["otp"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_verifyOtp_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -16739,6 +16952,65 @@ func (ec *executionContext) field_Mutation_verifyOtp_argsInput(
 	}
 
 	var zeroVal model.VerifyOtpInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_videoImageUpload_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_videoImageUpload_argsFile(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["file"] = arg0
+	arg1, err := ec.field_Mutation_videoImageUpload_argsCoverImage(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["coverImage"] = arg1
+	arg2, err := ec.field_Mutation_videoImageUpload_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg2
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_videoImageUpload_argsFile(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+	if tmp, ok := rawArgs["file"]; ok {
+		return ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal graphql.Upload
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_videoImageUpload_argsCoverImage(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("coverImage"))
+	if tmp, ok := rawArgs["coverImage"]; ok {
+		return ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal *graphql.Upload
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_videoImageUpload_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.VideoImageInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNVideoImageInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImageInput(ctx, tmp)
+	}
+
+	var zeroVal model.VideoImageInput
 	return zeroVal, nil
 }
 
@@ -19649,6 +19921,29 @@ func (ec *executionContext) field_Query_getUnavailablePeriodsByCurrectProfile_ar
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceId"))
 	if tmp, ok := rawArgs["serviceId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getUploadedVideos_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getUploadedVideos_argsFileURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["fileUrl"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getUploadedVideos_argsFileURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("fileUrl"))
+	if tmp, ok := rawArgs["fileUrl"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -28231,6 +28526,94 @@ func (ec *executionContext) fieldContext_DashboardData_categoriesServiceTypes(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type BookingType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeleteResult_success(ctx context.Context, field graphql.CollectedField, obj *model.DeleteResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DeleteResult_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DeleteResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeleteResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeleteResult_message(ctx context.Context, field graphql.CollectedField, obj *model.DeleteResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DeleteResult_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DeleteResult_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeleteResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -43225,9 +43608,9 @@ func (ec *executionContext) _Mutation_adminLogin(ctx context.Context, field grap
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Admin)
+	res := resTmp.(*model.OtpResponse)
 	fc.Result = res
-	return ec.marshalOAdmin2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐAdmin(ctx, field.Selections, res)
+	return ec.marshalOOtpResponse2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐOtpResponse(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_adminLogin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -43238,22 +43621,24 @@ func (ec *executionContext) fieldContext_Mutation_adminLogin(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Admin_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Admin_name(ctx, field)
-			case "type":
-				return ec.fieldContext_Admin_type(ctx, field)
-			case "number":
-				return ec.fieldContext_Admin_number(ctx, field)
-			case "password":
-				return ec.fieldContext_Admin_password(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Admin_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_Admin_updatedAt(ctx, field)
+			case "success":
+				return ec.fieldContext_OtpResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_OtpResponse_message(ctx, field)
+			case "otpSent":
+				return ec.fieldContext_OtpResponse_otpSent(ctx, field)
+			case "IsValid":
+				return ec.fieldContext_OtpResponse_IsValid(ctx, field)
+			case "entityId":
+				return ec.fieldContext_OtpResponse_entityId(ctx, field)
+			case "entityType":
+				return ec.fieldContext_OtpResponse_entityType(ctx, field)
+			case "messageType":
+				return ec.fieldContext_OtpResponse_messageType(ctx, field)
+			case "email":
+				return ec.fieldContext_OtpResponse_email(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Admin", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type OtpResponse", field.Name)
 		},
 	}
 	defer func() {
@@ -43264,6 +43649,76 @@ func (ec *executionContext) fieldContext_Mutation_adminLogin(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_adminLogin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_verifyOtpAdmin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_verifyOtpAdmin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().VerifyOtpAdmin(rctx, fc.Args["number"].(string), fc.Args["otp"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.OtpResponse)
+	fc.Result = res
+	return ec.marshalOOtpResponse2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐOtpResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_verifyOtpAdmin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_OtpResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_OtpResponse_message(ctx, field)
+			case "otpSent":
+				return ec.fieldContext_OtpResponse_otpSent(ctx, field)
+			case "IsValid":
+				return ec.fieldContext_OtpResponse_IsValid(ctx, field)
+			case "entityId":
+				return ec.fieldContext_OtpResponse_entityId(ctx, field)
+			case "entityType":
+				return ec.fieldContext_OtpResponse_entityType(ctx, field)
+			case "messageType":
+				return ec.fieldContext_OtpResponse_messageType(ctx, field)
+			case "email":
+				return ec.fieldContext_OtpResponse_email(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type OtpResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_verifyOtpAdmin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -45830,6 +46285,138 @@ func (ec *executionContext) fieldContext_Mutation_deleteBooking(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteBooking_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_videoImageUpload(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_videoImageUpload(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().VideoImageUpload(rctx, fc.Args["file"].(graphql.Upload), fc.Args["coverImage"].(*graphql.Upload), fc.Args["input"].(model.VideoImageInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.VideoImage)
+	fc.Result = res
+	return ec.marshalNVideoImage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImage(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_videoImageUpload(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_VideoImage_id(ctx, field)
+			case "name":
+				return ec.fieldContext_VideoImage_name(ctx, field)
+			case "description":
+				return ec.fieldContext_VideoImage_description(ctx, field)
+			case "url":
+				return ec.fieldContext_VideoImage_url(ctx, field)
+			case "type":
+				return ec.fieldContext_VideoImage_type(ctx, field)
+			case "coverImageUrl":
+				return ec.fieldContext_VideoImage_coverImageUrl(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_VideoImage_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VideoImage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_videoImageUpload_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteVideo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteVideo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteVideo(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DeleteResult)
+	fc.Result = res
+	return ec.marshalNDeleteResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐDeleteResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteVideo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_DeleteResult_success(ctx, field)
+			case "message":
+				return ec.fieldContext_DeleteResult_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeleteResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -66248,6 +66835,137 @@ func (ec *executionContext) fieldContext_Query_getCargoByMultiGroupId(ctx contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getUploadedImageVideos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUploadedImageVideos(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUploadedImageVideos(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.VideoImage)
+	fc.Result = res
+	return ec.marshalNVideoImage2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImageᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUploadedImageVideos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_VideoImage_id(ctx, field)
+			case "name":
+				return ec.fieldContext_VideoImage_name(ctx, field)
+			case "description":
+				return ec.fieldContext_VideoImage_description(ctx, field)
+			case "url":
+				return ec.fieldContext_VideoImage_url(ctx, field)
+			case "type":
+				return ec.fieldContext_VideoImage_type(ctx, field)
+			case "coverImageUrl":
+				return ec.fieldContext_VideoImage_coverImageUrl(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_VideoImage_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VideoImage", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUploadedVideos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUploadedVideos(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUploadedVideos(rctx, fc.Args["fileUrl"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.VideoImage)
+	fc.Result = res
+	return ec.marshalNVideoImage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImage(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUploadedVideos(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_VideoImage_id(ctx, field)
+			case "name":
+				return ec.fieldContext_VideoImage_name(ctx, field)
+			case "description":
+				return ec.fieldContext_VideoImage_description(ctx, field)
+			case "url":
+				return ec.fieldContext_VideoImage_url(ctx, field)
+			case "type":
+				return ec.fieldContext_VideoImage_type(ctx, field)
+			case "coverImageUrl":
+				return ec.fieldContext_VideoImage_coverImageUrl(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_VideoImage_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VideoImage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUploadedVideos_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getUserById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getUserById(ctx, field)
 	if err != nil {
@@ -79039,6 +79757,305 @@ func (ec *executionContext) fieldContext_VendorsMapData_mapData(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _VideoImage_id(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.VideoImage().ID(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_name(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_description(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_url(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_type(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.FileType)
+	fc.Result = res
+	return ec.marshalOFileType2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFileType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FileType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_coverImageUrl(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_coverImageUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CoverImageURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_coverImageUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoImage_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.VideoImage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VideoImage_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VideoImage_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ViewInvoice_policy(ctx context.Context, field graphql.CollectedField, obj *model.ViewInvoice) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ViewInvoice_policy(ctx, field)
 	if err != nil {
@@ -85695,6 +86712,40 @@ func (ec *executionContext) unmarshalInputVerifyOtpInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVideoImageInput(ctx context.Context, obj any) (model.VideoImageInput, error) {
+	var it model.VideoImageInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputWebLink(ctx context.Context, obj any) (model.WebLink, error) {
 	var it model.WebLink
 	asMap := map[string]any{}
@@ -88082,6 +89133,50 @@ func (ec *executionContext) _DashboardData(ctx context.Context, sel ast.Selectio
 			}
 		case "categoriesServiceTypes":
 			out.Values[i] = ec._DashboardData_categoriesServiceTypes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deleteResultImplementors = []string{"DeleteResult"}
+
+func (ec *executionContext) _DeleteResult(ctx context.Context, sel ast.SelectionSet, obj *model.DeleteResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deleteResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeleteResult")
+		case "success":
+			out.Values[i] = ec._DeleteResult_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._DeleteResult_message(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -90675,6 +91770,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_adminLogin(ctx, field)
 			})
+		case "verifyOtpAdmin":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_verifyOtpAdmin(ctx, field)
+			})
 		case "deliveryLogin":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deliveryLogin(ctx, field)
@@ -90851,6 +91950,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteBooking(ctx, field)
 			})
+		case "videoImageUpload":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_videoImageUpload(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteVideo":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteVideo(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createUser":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createUser(ctx, field)
@@ -96706,6 +97819,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUploadedImageVideos":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUploadedImageVideos(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUploadedVideos":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUploadedVideos(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getUserById":
 			field := field
 
@@ -99911,6 +101068,97 @@ func (ec *executionContext) _VendorsMapData(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var videoImageImplementors = []string{"VideoImage"}
+
+func (ec *executionContext) _VideoImage(ctx context.Context, sel ast.SelectionSet, obj *model.VideoImage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, videoImageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VideoImage")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._VideoImage_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "name":
+			out.Values[i] = ec._VideoImage_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "description":
+			out.Values[i] = ec._VideoImage_description(ctx, field, obj)
+		case "url":
+			out.Values[i] = ec._VideoImage_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "type":
+			out.Values[i] = ec._VideoImage_type(ctx, field, obj)
+		case "coverImageUrl":
+			out.Values[i] = ec._VideoImage_coverImageUrl(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._VideoImage_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var viewInvoiceImplementors = []string{"ViewInvoice"}
 
 func (ec *executionContext) _ViewInvoice(ctx context.Context, sel ast.SelectionSet, obj *model.ViewInvoice) graphql.Marshaler {
@@ -101544,6 +102792,20 @@ func (ec *executionContext) unmarshalNCreateServiceInput2githubᚗcomᚋlehxees�
 func (ec *executionContext) unmarshalNCreateUnavailablePeriodInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐCreateUnavailablePeriodInput(ctx context.Context, v any) (model.CreateUnavailablePeriodInput, error) {
 	res, err := ec.unmarshalInputCreateUnavailablePeriodInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeleteResult2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐDeleteResult(ctx context.Context, sel ast.SelectionSet, v model.DeleteResult) graphql.Marshaler {
+	return ec._DeleteResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeleteResult2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐDeleteResult(ctx context.Context, sel ast.SelectionSet, v *model.DeleteResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeleteResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNEvent2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐEvent(ctx context.Context, sel ast.SelectionSet, v model.Event) graphql.Marshaler {
@@ -104684,6 +105946,69 @@ func (ec *executionContext) unmarshalNVerifyOtpInput2githubᚗcomᚋlehxeesᚋse
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNVideoImage2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImage(ctx context.Context, sel ast.SelectionSet, v model.VideoImage) graphql.Marshaler {
+	return ec._VideoImage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVideoImage2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.VideoImage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVideoImage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVideoImage2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImage(ctx context.Context, sel ast.SelectionSet, v *model.VideoImage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VideoImage(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVideoImageInput2githubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐVideoImageInput(ctx context.Context, v any) (model.VideoImageInput, error) {
+	res, err := ec.unmarshalInputVideoImageInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNViewcategoryBox2ᚕᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐViewcategoryBoxᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ViewcategoryBox) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -105754,6 +107079,22 @@ func (ec *executionContext) marshalOFavorite2ᚖgithubᚗcomᚋlehxeesᚋserviny
 		return graphql.Null
 	}
 	return ec._Favorite(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOFileType2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFileType(ctx context.Context, v any) (*model.FileType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.FileType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFileType2ᚖgithubᚗcomᚋlehxeesᚋservinyᚋgraphᚋmodelᚐFileType(ctx context.Context, sel ast.SelectionSet, v *model.FileType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOFloat2ᚕfloat64ᚄ(ctx context.Context, v any) ([]float64, error) {

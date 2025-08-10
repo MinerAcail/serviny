@@ -89,7 +89,9 @@ extend type Mutation {
   serviceLogin(input: LoginInput!,entityId:String): Returns
   updateNumber(number: String!,password:String): Returns
 
-  adminLogin(input: LoginInput!): Admin
+  adminLogin(input: LoginInput!): OtpResponse
+  verifyOtpAdmin(number: String!,otp: String!): OtpResponse
+
   # workersLogin(input: LoginInput!): jobRequest
   deliveryLogin(input: LoginInput): Returns
   logOut: Boolean!

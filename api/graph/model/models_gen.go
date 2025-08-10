@@ -227,6 +227,11 @@ type DateRange struct {
 	To   *time.Time `json:"to,omitempty"`
 }
 
+type DeleteResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 type DeliveryNotification struct {
 	ID            string    `json:"id"`
 	Type          string    `json:"type"`
@@ -853,6 +858,11 @@ type VerifyOtpInput struct {
 	Type   string `json:"type"`
 }
 
+type VideoImageInput struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}
+
 type ViewInvoice struct {
 	Policy    []*PolicyInformation  `json:"policy,omitempty"`
 	Price     []*FullCard           `json:"price,omitempty"`
@@ -1092,6 +1102,47 @@ func (e *FieldType) UnmarshalGQL(v any) error {
 }
 
 func (e FieldType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type FileType string
+
+const (
+	FileTypeImage FileType = "IMAGE"
+	FileTypeVideo FileType = "VIDEO"
+)
+
+var AllFileType = []FileType{
+	FileTypeImage,
+	FileTypeVideo,
+}
+
+func (e FileType) IsValid() bool {
+	switch e {
+	case FileTypeImage, FileTypeVideo:
+		return true
+	}
+	return false
+}
+
+func (e FileType) String() string {
+	return string(e)
+}
+
+func (e *FileType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FileType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FileType", str)
+	}
+	return nil
+}
+
+func (e FileType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

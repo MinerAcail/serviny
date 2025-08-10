@@ -6,9 +6,14 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/lehxees/serviny/database/otp"
 	"github.com/lehxees/serviny/graph"
 	"github.com/lehxees/serviny/graph/model"
+	"github.com/lehxees/serviny/helper"
+	"github.com/lehxees/serviny/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ID is the resolver for the id field.
@@ -19,21 +24,57 @@ func (r *adminResolver) ID(ctx context.Context, obj *model.Admin) (string, error
 
 // CreateAdmin is the resolver for the createAdmin field.
 func (r *mutationResolver) CreateAdmin(ctx context.Context, input model.CreateAdminInput) (*model.Admin, error) {
+
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanedNumber := helper.CleanPhoneNumber(input.Number)
+
+	// Hash the password if provided
+	var hashedPasswordPtr *string
+	if input.Password != nil {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		hashedPasswordStr := string(hashedPassword)
+		hashedPasswordPtr = &hashedPasswordStr
+	}
+
 	admin := &model.Admin{
 		Name:     input.Name,
 		Type:     input.Type,
-		Number:   input.Number,
-		Password: input.Password,
+		Number:   cleanedNumber, // Store the hashed phone number
+		Password: hashedPasswordPtr,
 	}
 
+	// Create the admin in the database
 	if err := r.DB.Create(admin).Error; err != nil {
 		return nil, err
 	}
+
+	// Create SMS message (using original cleaned number for notification)
+	smsMessage := fmt.Sprintf("Someone just created an account: %s with number: %s", input.Name, cleanedNumber)
+	adminNumber := "233555961728"
+
+	// Send notification SMS (non-blocking - if it fails, we still return the created admin)
+	err = otp.SendBulkSMS(ctx, []string{adminNumber}, smsMessage)
+	if err != nil {
+
+		fmt.Printf("Failed to send SMS notification: %v\n", err)
+	}
+
 	return admin, nil
 }
 
 // UpdateAdminStatus is the resolver for the updateAdminStatus field.
 func (r *mutationResolver) UpdateAdminStatus(ctx context.Context, id string, status string) (*model.Admin, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var admin model.Admin
 	if err := r.DB.First(&admin, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -49,6 +90,10 @@ func (r *mutationResolver) UpdateAdminStatus(ctx context.Context, id string, sta
 
 // UpdateAdmin is the resolver for the updateAdmin field.
 func (r *mutationResolver) UpdateAdmin(ctx context.Context, id string, input model.UpdateAdminInput) (*model.Admin, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var admin model.Admin
 	if err := r.DB.First(&admin, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -75,6 +120,10 @@ func (r *mutationResolver) UpdateAdmin(ctx context.Context, id string, input mod
 
 // DeleteAdmin is the resolver for the deleteAdmin field.
 func (r *mutationResolver) DeleteAdmin(ctx context.Context, id string) (*bool, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	state := true
 	if err := r.DB.Delete(&model.Admin{}, "id = ?", id).Error; err != nil {
 		state = false
@@ -96,6 +145,10 @@ func (r *queryResolver) GetAllSession(ctx context.Context) ([]*model.Session, er
 
 // GetAdmin is the resolver for the getAdmin field.
 func (r *queryResolver) GetAdmin(ctx context.Context, id string) (*model.Admin, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var admin model.Admin
 	if err := r.DB.First(&admin, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -105,6 +158,10 @@ func (r *queryResolver) GetAdmin(ctx context.Context, id string) (*model.Admin, 
 
 // GetGrowthData is the resolver for the getGrowthData field.
 func (r *queryResolver) GetGrowthData(ctx context.Context, id string) (*model.GrowthData, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// Example logic - replace with actual data fetching logic
 	data := &model.GrowthData{
 		TotalOrders:   "1000",
@@ -116,6 +173,10 @@ func (r *queryResolver) GetGrowthData(ctx context.Context, id string) (*model.Gr
 
 // ListAdmins is the resolver for the listAdmins field.
 func (r *queryResolver) ListAdmins(ctx context.Context) ([]*model.Admin, error) {
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var admins []*model.Admin
 	if err := r.DB.Find(&admins).Error; err != nil {
 		return nil, err

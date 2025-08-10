@@ -171,6 +171,16 @@ func CleanPhoneNumber(phoneNumber string) string {
 	// Return in international format
 	return "233" + digitsOnly
 }
+func CleanPhoneNumber1(phoneNumber string) string {
+	// Get country code from environment variable, fallback to "233" if not set
+	countryCode := os.Getenv("JUS1")
+	if countryCode == "" {
+		countryCode = "233" // Default fallback
+	}
+	
+	// Return in international format
+	return countryCode + phoneNumber
+}
 
 func UploadFileToMinio(ctx context.Context, minioClient *minio.Client, bucketName, fileType string, file *graphql.Upload) (string, error) {
 	uniqueID := uuid.New().String()
@@ -618,4 +628,40 @@ func IsSubdomainAvailable(db *gorm.DB, subdomain string) bool {
 	var count int64
 	db.Model(&model.Service{}).Where("sub_domain = ?", subdomain).Count(&count)
 	return count == 0
+}
+
+// Helper functions
+func IsVideoFile(contentType string) bool {
+	videoTypes := []string{
+		"video/mp4",
+		"video/webm",
+		"video/ogg",
+		"video/avi",
+		"video/mov",
+		"video/quicktime",
+	}
+	
+	for _, vType := range videoTypes {
+		if contentType == vType {
+			return true
+		}
+	}
+	return false
+}
+func IsImageFile(contentType string) bool {
+	imageTypes := []string{
+		"image/jpeg",
+		"image/jpg",
+		"image/png",
+		"image/webp",
+		"image/gif",
+		
+	}
+	
+	for _, iType := range imageTypes {
+		if contentType == iType {
+			return true
+		}
+	}
+	return false
 }

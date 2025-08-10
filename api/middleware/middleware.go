@@ -245,6 +245,26 @@ func ExtractCtxInfoForAllAccess(ctx context.Context) error {
 
 	return nil
 }
+func ExtractCTXinfo(ctx context.Context) error {
+	_, ok := ctx.Value(IDContextKey).(string)
+	if !ok {
+		return fmt.Errorf("token expired or you don't have access to the request context, try logging in again")
+	}
+
+	userType, ok := ctx.Value(UserTypeContextKey).(string)
+	if !ok {
+		return fmt.Errorf("userType not found in request context")
+	}
+
+	// userType = strings.ToLower(userType) // Convert userType to lowercase
+
+	// Check if the userType is not one of the allowed values.
+	if userType != "ADMIN"  {
+		return fmt.Errorf("%s is not allowed", userType)
+	}
+
+	return nil
+}
 
 // ValidateTokens validates the provided JWT token and returns the claims if the token is valid.
 func ValidateTokens(signedToken string) (*TokenStruct, error) {

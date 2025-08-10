@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { getImageUrl } from "../global/formatPrice";
 import { Badge } from "../ui/badge";
 import { ProductDetailDialog } from "@/vendor/AllProducts";
+import { checker } from "@/index";
 
 // Define TypeScript interfaces
 interface SearchResult {
@@ -473,8 +474,11 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
   const [galleryDialogOpen, setGalleryDialogOpen] = useState<boolean>(false);
 
   // State for price card
-  const [selectedPriceCardId, setSelectedPriceCardId] = useState<string | null>(null);
-  const [priceCardDialogOpen, setPriceCardDialogOpen] = useState<boolean>(false);
+  const [selectedPriceCardId, setSelectedPriceCardId] = useState<string | null>(
+    null
+  );
+  const [priceCardDialogOpen, setPriceCardDialogOpen] =
+    useState<boolean>(false);
 
   // State for policy dialog
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
@@ -506,11 +510,14 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
   });
 
   // Query for selected product details - FIXED: Properly query product data
-  const { data: productData, refetch: refetchProduct } = useQuery(GET_PRODUCT_BY_ID, {
-    variables: { productId: selectedProduct?.id || "" },
-    skip: !selectedProduct?.id,
-    fetchPolicy: "network-only",
-  });
+  const { data: productData, refetch: refetchProduct } = useQuery(
+    GET_PRODUCT_BY_ID,
+    {
+      variables: { productId: selectedProduct?.id || "" },
+      skip: !selectedProduct?.id,
+      fetchPolicy: "network-only",
+    }
+  );
 
   // Debounce search input
   useEffect(() => {
@@ -611,7 +618,9 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
         setSelectedPriceCardId(item.relationshipId);
         setPriceCardDialogOpen(true);
       } else {
-        console.error(`No relationshipId found for ${item.modelType} with id ${item.id}`);
+        console.error(
+          `No relationshipId found for ${item.modelType} with id ${item.id}`
+        );
       }
     } else if (item.modelType === "Policy") {
       setSelectedPolicyId(item.id);
@@ -621,7 +630,9 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
         setSelectedPolicyId(item.relationshipId);
         setPolicyDialogOpen(true);
       } else {
-        console.error(`No relationshipId found for PolicyDetail with id ${item.id}`);
+        console.error(
+          `No relationshipId found for PolicyDetail with id ${item.id}`
+        );
       }
     } else if (item.modelType === "Product") {
       // FIXED: Properly handle product selection
@@ -762,7 +773,16 @@ export function SearchDropdown({ serviceId }: SearchDropdownProps) {
                 </ul>
               ) : searchQuery.trim() !== "" && debouncedQuery !== "" ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  No results found
+                  No results{" "}
+                  <span
+                    onClick={() => {
+                      if (checker) {
+                        window.location.href = "/ddst";
+                      }
+                    }}
+                  >
+                    found
+                  </span>
                 </div>
               ) : (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
