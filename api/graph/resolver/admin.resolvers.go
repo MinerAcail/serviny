@@ -25,10 +25,10 @@ func (r *adminResolver) ID(ctx context.Context, obj *model.Admin) (string, error
 // CreateAdmin is the resolver for the createAdmin field.
 func (r *mutationResolver) CreateAdmin(ctx context.Context, input model.CreateAdminInput) (*model.Admin, error) {
 
-	err := middleware.ExtractCTXinfo(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// err := middleware.ExtractCTXinfo(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	cleanedNumber := helper.CleanPhoneNumber(input.Number)
 
