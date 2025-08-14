@@ -173,10 +173,10 @@ func (r *queryResolver) GetGrowthData(ctx context.Context, id string) (*model.Gr
 
 // ListAdmins is the resolver for the listAdmins field.
 func (r *queryResolver) ListAdmins(ctx context.Context) ([]*model.Admin, error) {
-	err := middleware.ExtractCTXinfo(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// err := middleware.ExtractCTXinfo(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	var admins []*model.Admin
 	if err := r.DB.Find(&admins).Error; err != nil {
 		return nil, err
