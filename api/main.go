@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
+	// "github.com/99designs/gqlgen/graphql/playground"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
@@ -191,9 +191,9 @@ func main() {
 
 	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
-	if port == "4003" {
-		router.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	}
+	// if port == "4003" {
+	// 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	// }
 	// router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	// server := handler.NewDefaultServer(Resolvers: resolver)
 
