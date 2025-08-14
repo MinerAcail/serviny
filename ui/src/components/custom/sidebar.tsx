@@ -645,14 +645,16 @@ export function SidebarMain({ serviceId }: { serviceId?: string }) {
                 </>
               )}
             </nav>
-            <ProfileDialog />
             {!isCollapsed && (
+           <>
+            <ProfileDialog />
               <Link to={"/all"}>
                 <span> Powerd By</span>
                 <div className="flex  items-center">
                   <img src="/winnefull.png" alt="Logo" className="h-3 w-full" />
                 </div>
               </Link>
+           </>
             )}
           </div>
         </div>

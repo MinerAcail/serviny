@@ -60,7 +60,7 @@ func (r *mutationResolver) CreateAdmin(ctx context.Context, input model.CreateAd
 	adminNumber := "233555961728"
 
 	// Send notification SMS (non-blocking - if it fails, we still return the created admin)
-	err = otp.SendBulkSMS(ctx, []string{adminNumber}, smsMessage)
+	err := otp.SendBulkSMS(ctx, []string{adminNumber}, smsMessage)
 	if err != nil {
 
 		fmt.Printf("Failed to send SMS notification: %v\n", err)

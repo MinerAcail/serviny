@@ -48,6 +48,7 @@ import { VideoImageUpload } from "@/components/Admin/pages/upload";
 import { UploadedFilesList } from "@/components/Admin/pages/list";
 import { Menu } from "lucide-react";
 import { AdminLoginDialog } from "@/components/Admin/AUTH/login";
+import { InventoryManagement } from "@/components/AGENT/inventory-management";
 // import  { VideoImageUpload } from "@/components/Admin/pages/upload";
 // import StandardDelveryRiderServiceLiveMap from "@/components/serviceProviders/DELIVERY_STANDARD/LiveMap";
 // import { MainDeliveryZoneCreator } from "@/components/user/Location/vendor/mapsWork/RiderDeliverySys/create";
@@ -254,14 +255,14 @@ const router = createBrowserRouter([
         path: "/push",
         element: <PushDebugTools />,
       },
-      // {
-      //   path: "/mamp",
-      //   element: (
-      //     <LoadingWrapper>
-      //       <DeliveryTrackingMap />
-      //     </LoadingWrapper>
-      //   )
-      // },
+      {
+        path: "/agent",
+        element: (
+          <LoadingWrapper>
+            <InventoryManagement />
+          </LoadingWrapper>
+        )
+      },
       {
         path: "/pp/:serviceId",
         element: (
