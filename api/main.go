@@ -94,7 +94,6 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.BusinessType{},
 		&model.PushSubscription{},
 		&model.Admin{},
-		
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
@@ -192,14 +191,14 @@ func main() {
 
 	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
-if port == "4003" {
-	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
-}
-	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	if port == "4003" {
+		router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	}
+	// router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	// server := handler.NewDefaultServer(Resolvers: resolver)
 
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
-	
+
 	router.Handle("/query", server)
 
 	// GET endpoint for testing in browser

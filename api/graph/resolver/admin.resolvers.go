@@ -25,10 +25,10 @@ func (r *adminResolver) ID(ctx context.Context, obj *model.Admin) (string, error
 // CreateAdmin is the resolver for the createAdmin field.
 func (r *mutationResolver) CreateAdmin(ctx context.Context, input model.CreateAdminInput) (*model.Admin, error) {
 
-	// err := middleware.ExtractCTXinfo(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	cleanedNumber := helper.CleanPhoneNumber(input.Number)
 
@@ -60,7 +60,7 @@ func (r *mutationResolver) CreateAdmin(ctx context.Context, input model.CreateAd
 	adminNumber := "233555961728"
 
 	// Send notification SMS (non-blocking - if it fails, we still return the created admin)
-	err := otp.SendBulkSMS(ctx, []string{adminNumber}, smsMessage)
+	err = otp.SendBulkSMS(ctx, []string{adminNumber}, smsMessage)
 	if err != nil {
 
 		fmt.Printf("Failed to send SMS notification: %v\n", err)
@@ -173,10 +173,10 @@ func (r *queryResolver) GetGrowthData(ctx context.Context, id string) (*model.Gr
 
 // ListAdmins is the resolver for the listAdmins field.
 func (r *queryResolver) ListAdmins(ctx context.Context) ([]*model.Admin, error) {
-	// err := middleware.ExtractCTXinfo(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err := middleware.ExtractCTXinfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var admins []*model.Admin
 	if err := r.DB.Find(&admins).Error; err != nil {
 		return nil, err
