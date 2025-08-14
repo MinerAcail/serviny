@@ -195,7 +195,7 @@ func main() {
 if port == "4003" {
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 }
-	// router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	// server := handler.NewDefaultServer(Resolvers: resolver)
 
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
