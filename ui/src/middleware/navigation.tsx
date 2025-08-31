@@ -200,16 +200,19 @@ const router = createBrowserRouter([
     element: <ServiceProvidersDirectory />,
   },
   {
-    path: "/docus",
+    path: "/docs",
     element: <DocumentationLayout />,
     children: [
       {
-        path: "ecom",
-        element: <EcommerceDocumentation />,
+        path: "delivery",
+        index: true,
+
+        element: <DeliveryDocumentation />,
       },
       {
-        path: "delivery",
-        element: <DeliveryDocumentation />,
+        path: "ecom",
+
+        element: <EcommerceDocumentation />,
       },
       {
         path: "ship",

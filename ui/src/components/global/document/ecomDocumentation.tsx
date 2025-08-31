@@ -4,8 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import {  ArrowRight, ExternalLink,} from "lucide-react"
 import { VideoPlayer } from "../MEDIA/video"
 import { getImageUrl } from "../formatPrice"
+import RegisterOptions from "@/app/checkUserCreateUI"
+import { useNavigate } from "react-router"
 
 export  function EcommerceDocumentation() {
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-white">
@@ -37,9 +40,9 @@ export  function EcommerceDocumentation() {
         </div>
 
         {/* 4. Featured Video */}
-        <div className="mb-12">
+        {/* <div className="mb-12">
                  <VideoPlayer src={getImageUrl("/minio/gb-bucket/gb-bucket-video-58b803ed-2666-4a4e-ac35-cc3d8d6bb646")??""} thumbnail={getImageUrl("/minio/gb-bucket/gb-bucket-cover-c5d49e95-f63c-4666-bc32-8d65069c7059")??""} />
-               </div>
+               </div> */}
 
         {/* 5. Main Content Area */}
         <div className="prose prose-lg max-w-none mb-12">
@@ -73,11 +76,11 @@ export  function EcommerceDocumentation() {
                   <span>Integration with our <a href="delivery" className="text-red-600 underline hover:text-red-700">Standard Delivery</a> service</span>
                 </div>
               </div>
-              <img
+              {/* <img
                 src="/placeholder.svg?height=200&width=400"
                 alt="Standard E-commerce Storefront"
                 className="w-full rounded-lg shadow-md"
-              />
+              /> */}
             </div>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Enterprise E-commerce</h3>
@@ -88,26 +91,26 @@ export  function EcommerceDocumentation() {
               </p>
               <div className="space-y-3 mb-4 text-sm text-gray-700">
                 <div>
-                  <strong>Full Rider Management</strong> — Riders have their own portal, linked to e-commerce orders
+                  <strong>Full Rider Management</strong> Riders have their own portal, linked to e-commerce orders
                 </div>
                 <div>
-                  <strong>Auto Dispatch</strong> — Orders instantly trigger rider assignments based on location
+                  <strong>Auto Dispatch</strong> Orders instantly trigger rider assignments based on location
                 </div>
                 <div>
-                  <strong>Customer Analytics</strong> — Purchase trends, product preferences, repeat customer tracking
+                  <strong>Customer Analytics</strong> Purchase trends, product preferences, repeat customer tracking
                 </div>
                 <div>
-                  <strong>Clickstream Data</strong> — See where users navigate and what products they linger on
+                  <strong>Clickstream Data</strong> See where users navigate and what products they linger on
                 </div>
                 <div>
-                  <strong>Unified Dashboard</strong> — Manage sales, deliveries, and analytics in one view
+                  <strong>Unified Dashboard</strong> Manage sales, deliveries, and analytics in one view
                 </div>
               </div>
-              <img
+              {/* <img
                 src="/placeholder.svg?height=200&width=400"
                 alt="Enterprise E-commerce Dashboard"
                 className="w-full rounded-lg shadow-md"
-              />
+              /> */}
             </div>
           </div>
 
@@ -126,7 +129,7 @@ export  function EcommerceDocumentation() {
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50 border border-red-200 mb-8">
+          {/* <Card className="bg-red-50 border border-red-200 mb-8">
             <CardContent className="p-6 text-center">
               <h4 className="font-semibold text-gray-900 mb-3">Already running deliveries with Winnemart?</h4>
               <p className="text-gray-700 mb-4">Upgrade to Enterprise E-commerce in days.</p>
@@ -136,7 +139,7 @@ export  function EcommerceDocumentation() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="bg-gray-50 border-0 mb-8">
             <CardContent className="p-6">
@@ -145,7 +148,7 @@ export  function EcommerceDocumentation() {
                 order dispatch has been a game-changer for customer satisfaction."
               </blockquote>
               <cite className="text-sm text-gray-600 mt-4 block">
-                — Jennifer Walsh, CEO at Urban Essentials
+                 CEO of EMBEUNICE Co.
               </cite>
             </CardContent>
           </Card>
@@ -174,7 +177,7 @@ export  function EcommerceDocumentation() {
         </div>
 
         {/* 7. Image Gallery */}
-        <div className="mb-12">
+        {/* <div className="mb-12">
           <h3 className="text-2xl font-bold text-gray-900 mb-6">Platform Screenshots</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
@@ -195,7 +198,7 @@ export  function EcommerceDocumentation() {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* 8. Closing / Call-to-Action */}
         <Card className="bg-gradient-to-r from-red-600 to-red-700 text-white border-0">
@@ -205,19 +208,21 @@ export  function EcommerceDocumentation() {
               From SMEs launching their first online store to global operations needing precision delivery, 
               Winnemart's e-commerce solutions adapt to your scale, speed, and strategy.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="bg-white text-red-600 hover:bg-gray-100">
-                Request E-commerce Demo
+             <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                onClick={() => {
+                  navigate("/all");
+                }}
+                size="lg"
+                variant="secondary"
+                className="bg-white text-red-600 hover:bg-gray-100"
+              >
+                Providers
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-red-600 bg-transparent"
-              >
-                Start Your Store Today
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </Button>
+              <div className=" text-black hover:bg-gray-100">
+                <RegisterOptions />
+              </div>
             </div>
             <div className="mt-6 text-sm opacity-75">
               <p>Quick setup • Integrated delivery • 24/7 support</p>

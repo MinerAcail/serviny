@@ -1,7 +1,7 @@
 #!/bin/bash
 
 KEY="$HOME/.ssh/servinykey.pem"
-REMOTE="ubuntu@ec2-13-49-227-28.eu-north-1.compute.amazonaws.com"
+REMOTE="ubuntu@51.21.45.25"
 REMOTE_BASE="/home/ubuntu/works/winneui"
 LIVE_DIR="$REMOTE_BASE/dist"
 TEMP_DIR="$REMOTE_BASE/dist_temp"

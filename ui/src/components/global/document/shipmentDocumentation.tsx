@@ -4,8 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import {  ArrowRight, ExternalLink} from "lucide-react"
 import { VideoPlayer } from "../MEDIA/video"
 import { getImageUrl } from "../formatPrice"
+import RegisterOptions from "@/app/checkUserCreateUI"
+import { useNavigate } from "react-router"
 
 export default function ShipmentDocumentation() {
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-white">
@@ -24,23 +27,23 @@ export default function ShipmentDocumentation() {
 
         {/* 2. Subtitle / Tagline */}
         <h2 className="text-xl md:text-2xl text-gray-600 font-medium mb-6 leading-relaxed">
-          Your gateway from overseas supplier to doorstep — all in one system
+          Your gateway from overseas supplier to doorstep all in one system
         </h2>
 
         {/* 3. Intro Paragraph */}
         <div className="text-lg text-gray-700 leading-relaxed mb-8 border-l-4 border-red-500 pl-6">
           <p>
             Ever had customers ask for products you don't stock locally? With Winnemart's Global Import Tool, you can 
-            source from platforms like Alibaba or other international suppliers — and deliver directly to your customer's 
+            source from platforms like Alibaba or other international suppliers and deliver directly to your customer's 
             door in Ghana. Powered by our <a href="delivery" className="text-red-600 underline hover:text-red-700">Enterprise Delivery Engine</a>, 
             the system manages everything from product requests to overseas procurement to final delivery.
           </p>
         </div>
 
         {/* 4. Featured Video */}
-        <div className="mb-12">
+        {/* <div className="mb-12">
                  <VideoPlayer src={getImageUrl("/minio/gb-bucket/gb-bucket-video-58b803ed-2666-4a4e-ac35-cc3d8d6bb646")??""} thumbnail={getImageUrl("/minio/gb-bucket/gb-bucket-cover-c5d49e95-f63c-4666-bc32-8d65069c7059")??""} />
-               </div>
+               </div> */}
 
         {/* 5. Main Content Area */}
         <div className="prose prose-lg max-w-none mb-12">
@@ -62,7 +65,7 @@ export default function ShipmentDocumentation() {
                   <h4 className="font-semibold text-gray-900">Apply Pricing Rules</h4>
                 </div>
                 <p className="text-sm text-gray-700">
-                  System calculates final bill — including product cost and shipment — based on your custom rules.
+                  System calculates final bill including product cost and shipment based on your custom rules.
                 </p>
               </div>
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
@@ -101,30 +104,30 @@ export default function ShipmentDocumentation() {
               <div className="space-y-3 mb-6">
                 <div className="flex items-center text-sm text-gray-700">
                   <span className="text-green-600 mr-2">✅</span>
-                  <span><strong>Request Item Tool</strong> — Fast, customer-friendly product request submission</span>
+                  <span><strong>Request Item Tool</strong> Fast, customer-friendly product request submission</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <span className="text-green-600 mr-2">✅</span>
-                  <span><strong>Automated Pricing</strong> — Custom billing rules for products and shipping</span>
+                  <span><strong>Automated Pricing</strong> Custom billing rules for products and shipping</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <span className="text-green-600 mr-2">✅</span>
-                  <span><strong>Agent Portal</strong> — Dedicated overseas fulfillment interface</span>
+                  <span><strong>Agent Portal</strong> Dedicated overseas fulfillment interface</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <span className="text-green-600 mr-2">✅</span>
-                  <span><strong>Shipment Tracking</strong> — Full visibility from source to doorstep</span>
+                  <span><strong>Shipment Tracking</strong> Full visibility from source to doorstep</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <span className="text-green-600 mr-2">✅</span>
-                  <span><strong>Enterprise Delivery Integration</strong> — Local last-mile fulfillment at scale</span>
+                  <span><strong>Enterprise Delivery Integration</strong> Local last-mile fulfillment at scale</span>
                 </div>
               </div>
-              <img
+              {/* <img
                 src="/placeholder.svg?height=200&width=400"
                 alt="Global Import Dashboard"
                 className="w-full rounded-lg shadow-md"
-              />
+              /> */}
             </div>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Why It Works</h3>
@@ -146,11 +149,11 @@ export default function ShipmentDocumentation() {
                   Reduce delays through connected overseas and local systems
                 </div>
               </div>
-              <img
+              {/* <img
                 src="/placeholder.svg?height=200&width=400"
                 alt="Agent Portal Interface"
                 className="w-full rounded-lg shadow-md"
-              />
+              /> */}
             </div>
           </div>
 
@@ -163,7 +166,7 @@ export default function ShipmentDocumentation() {
                   <p className="text-gray-700">
                     A customer wants a specific electronic gadget only available on Alibaba. They submit the link 
                     through your store. Your overseas agent procures it, ships it, and updates the system. When it 
-                    arrives in Ghana, a rider is instantly assigned and the customer receives live tracking updates — 
+                    arrives in Ghana, a rider is instantly assigned and the customer receives live tracking updates 
                     without you making a single phone call.
                   </p>
                 </div>
@@ -178,7 +181,7 @@ export default function ShipmentDocumentation() {
                 want from international suppliers, with complete transparency and automated fulfillment."
               </blockquote>
               <cite className="text-sm text-gray-600 mt-4 block">
-                — David Mensah, Founder of TechHub Ghana
+                Founder of CHOICE MALL
               </cite>
             </CardContent>
           </Card>
@@ -227,21 +230,23 @@ export default function ShipmentDocumentation() {
             <h3 className="text-2xl font-bold mb-4">Ready to Go Global with Local Delivery?</h3>
             <p className="text-lg mb-6 opacity-90">
               Connect international suppliers with local customers through one seamless system. 
-              From Alibaba to your customer's doorstep in Ghana — all automated and tracked.
+              From Alibaba to your customer's doorstep in Ghana all automated and tracked.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="bg-white text-red-600 hover:bg-gray-100">
-                Request Import Demo
+              <Button
+                onClick={() => {
+                  navigate("/all");
+                }}
+                size="lg"
+                variant="secondary"
+                className="bg-white text-red-600 hover:bg-gray-100"
+              >
+                Providers
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-red-600 bg-transparent"
-              >
-                Start Importing Today
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </Button>
+              <div className=" text-black hover:bg-gray-100">
+                <RegisterOptions />
+              </div>
             </div>
             <div className="mt-6 text-sm opacity-75">
               <p>Global sourcing • Local delivery • Full tracking • 24/7 support</p>

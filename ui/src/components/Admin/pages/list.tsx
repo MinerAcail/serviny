@@ -32,6 +32,7 @@ import {
   Check,
   Info,
 } from "lucide-react";
+import { getImageUrl } from "@/components/global/formatPrice";
 
 const GET_UPLOADED_IMAGE_VIDEOS = gql`
   query GetUploadedImageVideos {
@@ -243,7 +244,7 @@ export function UploadedFilesList() {
                   // Video thumbnail
                   file.coverImageUrl ? (
                     <img
-                      src={file.coverImageUrl}
+                      src={getImageUrl(file.coverImageUrl)}
                       alt={file.name}
                       className="w-full h-32 object-cover"
                     />
@@ -255,7 +256,7 @@ export function UploadedFilesList() {
                 ) : (
                   // Image thumbnail
                   <img
-                    src={file.url}
+                    src={getImageUrl(file.url)}
                     alt={file.name}
                     className="w-full h-32 object-cover"
                   />

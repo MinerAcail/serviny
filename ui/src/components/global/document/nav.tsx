@@ -7,9 +7,9 @@ export function DocumentationLayout() {
   const location = useLocation()
 
   const navigationItems = [
-    { key: "delivery", label: "Delivery Solutions", path: "/docus/delivery" },
-    { key: "ecom", label: "E-commerce Platform", path: "/docus/ecom" },
-    { key: "ship", label: "Global Import", path: "/docus/ship" },
+    { key: "delivery", label: "Delivery Solutions", path: "/docs/delivery" },
+    { key: "ecom", label: "E-commerce Platform", path: "/docs/ecom" },
+    { key: "ship", label: "Global Import", path: "/docs/ship" },
   ]
 
   const getCurrentPageTitle = () => {
@@ -32,7 +32,7 @@ export function DocumentationLayout() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <Link 
-                to="/docus/delivery" 
+                to="/docs/delivery" 
                 className="text-2xl font-bold text-red-600 hover:text-red-700 transition-colors"
               >
                 winnemart
