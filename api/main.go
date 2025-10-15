@@ -188,7 +188,7 @@ func main() {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
-
+ 
 	router.Use(corsConfig.Handler)
 	router.Use(middleware.Middleware)
 	// if port == "4003" {

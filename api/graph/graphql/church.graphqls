@@ -1,0 +1,159 @@
+type Church {
+  id: String!
+  name: String!
+  password: String
+  email: String
+  types: String
+  updatedAt: Time!
+  createdAt: Time!
+  token: String
+  subChurches: [SubChurch!]!
+}
+type SubChurch {
+  id: String!
+  name: String!
+  password: String
+  email: String
+  types: String
+  token: String
+  updatedAt: Time!
+  createdAt: Time!
+  church: Church
+  churchId: String!
+  isLocal: Boolean
+  leaders: [Member]
+  members: [Member]
+  callCenterId: String
+  callCenter: CallCenter
+}
+type CallCenter {
+  id: String!
+  name: String!
+  password: String
+  email: String
+  types: String
+  token: String
+  updatedAt: Time!
+  createdAt: Time!
+  subChurches: [SubChurch]
+}
+type Member {
+  id: String!
+  name: String!
+  churchMinistries: [MemberChurchMinistryRole]
+  email: String!
+  phoneNumber: String
+  location: String
+  day: String!
+  password: String
+  pwood: String
+  types: [String!]!
+  token: String
+  leader: Member
+  LeaderID: String
+  referenceIDCount: Int
+  registrations: [Registration] 
+  subChurch: SubChurch
+  subChurchID: String
+  personalInfor: FamilyInfo 
+  personalInforId: String 
+  updatedAt: Time!
+  createdAt: Time!
+}
+type Registration {
+  id: String!
+  lastComment: String!
+  absence: Boolean!
+  present: Boolean!
+  report: Boolean
+  done: Boolean
+  createdAt: Time!
+  leaderName: String
+  memberName: String
+  leader: Member
+  leaderId: String
+  member: Member
+  subChurch: SubChurch
+  subChurchId: String
+  tempLeaderId: String!
+  memberId: String!
+}
+type MemberChurchMinistryRole {
+  id: String!
+  memberId: String!
+  churchMinistryRoleId: String!
+  churchMinistryRole: ChurchMinistryRole
+}
+
+enum ChurchMinistryRolesEnum {
+  PASTOR
+  RAVEN
+  BISHOP
+  SECURITY
+  SUNDAY_SCHOOL_TEACHER
+  FINANCE
+  USHER
+  MUSIC
+  DOMESTIC
+  MEDIA
+}
+
+type ChurchMinistryRole {
+  id: String!
+  role: ChurchMinistryRolesEnum
+  assignedSubChurch: SubChurch
+  assignedSubChurchId: String
+}
+type FamilyInfo {
+  id: String!
+  lastName: String
+  spouseId: String
+  dateOfBirth: String
+  member: Member
+  memberId: String!
+  spouse: Member
+  spouseNameNotAmember: String
+  spousePhoneNumberNotAmember: String
+  children: [Member]
+  relationship: String
+  nextOfKin: String
+  occupation: JobInfo
+  occupationId: String
+  education: String
+  emergencyContact: EmergencyContact
+  emergencyContactId: String
+  updatedAt: Time!
+  createdAt: Time!
+}
+type EmergencyContact {
+  id: String!
+  name: String
+  phoneNumber: String
+  relation: String
+  updatedAt: Time!
+  createdAt: Time!
+}
+type JobInfo {
+  id: String!
+  position: String
+  typeOfWork: String
+  company: String
+  workExperience: String
+  updatedAt: Time!
+  createdAt: Time!
+}
+# Queries
+extend type Query {
+  getAllMainChurch: [Church]
+
+}
+
+
+
+# Mutations
+extend type Mutation {
+  createChurch(name: String!, email: String!, password: String): Church!
+  deleteChurch(mainChurchId: String!): Boolean!
+
+
+}
